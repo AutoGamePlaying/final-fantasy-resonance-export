@@ -1,0 +1,388 @@
+{
+  "metadata": {
+    "tool": "UE4SS JMapGenerator (fixture)",
+    "timestamp": "2026-11-24T12:00:00Z",
+    "source": "FixtureBase.exe",
+    "engine_version": { "major": 5, "minor": 6 },
+    "build_change_list": "0"
+  },
+  "image_base_address": "0x140000000",
+  "vtables": {
+    "0x140001000": ["ignored_entry"]
+  },
+  "objects": {
+    "/Script/CoreUObject": {
+      "type": "Package",
+      "address": "0x1000",
+      "outer": null,
+      "class": "/Script/CoreUObject.Package",
+      "property_values": {}
+    },
+    "/Script/Engine": {
+      "type": "Package",
+      "address": "0x1001",
+      "outer": null,
+      "class": "/Script/CoreUObject.Package",
+      "property_values": {}
+    },
+    "/Script/mucha": {
+      "type": "Package",
+      "address": "0x1002",
+      "outer": null,
+      "class": "/Script/CoreUObject.Package",
+      "property_values": {}
+    },
+    "/Game/UI/A": {
+      "type": "Package",
+      "address": "0x1003",
+      "outer": null,
+      "class": "/Script/CoreUObject.Package",
+      "property_values": {}
+    },
+    "/Game/UI/B": {
+      "type": "Package",
+      "address": "0x1004",
+      "outer": null,
+      "class": "/Script/CoreUObject.Package",
+      "property_values": {}
+    },
+    "/Script/CoreUObject.Object": {
+      "type": "Class",
+      "address": "0x2000",
+      "vtable": "0x9000",
+      "object_flags": "RF_Public | RF_Standalone",
+      "outer": "/Script/CoreUObject",
+      "class": "/Script/CoreUObject.Class",
+      "super_struct": null,
+      "properties": [],
+      "properties_size": 40,
+      "min_alignment": 8,
+      "class_flags": "CLASS_Abstract | CLASS_Native",
+      "interfaces": []
+    },
+    "/Script/Engine.Subsystem": {
+      "type": "Class",
+      "address": "0x2010",
+      "vtable": "0x9010",
+      "object_flags": "RF_Public | RF_Standalone",
+      "outer": "/Script/Engine",
+      "class": "/Script/CoreUObject.Class",
+      "super_struct": "/Script/CoreUObject.Object",
+      "properties": [
+        {
+          "address": "0x3010",
+          "name": "BaseFlag",
+          "offset": 40,
+          "array_dim": 1,
+          "size": 1,
+          "type": "BoolProperty",
+          "field_size": 1,
+          "byte_offset": 0,
+          "byte_mask": 1,
+          "field_mask": 255,
+          "flags": "CPF_NativeAccessSpecifierProtected"
+        }
+      ],
+      "properties_size": 48,
+      "min_alignment": 8,
+      "class_flags": "CLASS_Abstract | CLASS_Native",
+      "interfaces": []
+    },
+    "/Script/mucha.eMockElement": {
+      "type": "Enum",
+      "address": "0x2020",
+      "vtable": "0x9020",
+      "object_flags": "RF_Public",
+      "outer": "/Script/mucha",
+      "class": "/Script/CoreUObject.Enum",
+      "cpp_type": "eMockElement",
+      "enum_flags": "",
+      "cpp_form": "EnumClass",
+      "names": [
+        ["eMockElement::None", 0],
+        ["eMockElement::Fire", 1],
+        ["eMockElement::Ice", 2],
+        ["eMockElement::IceAlias", 2],
+        ["eMockElement::Unknown", -1]
+      ]
+    },
+    "/Script/mucha.EMockRegular": {
+      "type": "Enum",
+      "address": "0x2021",
+      "vtable": "0x9021",
+      "object_flags": "RF_Public",
+      "outer": "/Script/mucha",
+      "class": "/Script/CoreUObject.Enum",
+      "cpp_type": "EMockRegular",
+      "enum_flags": "",
+      "cpp_form": "Regular",
+      "names": [
+        ["REG_Alpha", 0],
+        ["REG_Beta", 1]
+      ]
+    },
+    "/Script/mucha.FMockData": {
+      "type": "ScriptStruct",
+      "address": "0x2030",
+      "vtable": "0x9030",
+      "object_flags": "RF_Public",
+      "outer": "/Script/mucha",
+      "class": "/Script/CoreUObject.ScriptStruct",
+      "super_struct": null,
+      "properties": [
+        {
+          "address": "0x3030",
+          "name": "SharedProp",
+          "offset": 0,
+          "array_dim": 1,
+          "size": 4,
+          "type": "IntProperty",
+          "flags": "CPF_Edit | CPF_BlueprintVisible"
+        },
+        {
+          "address": "0x3031",
+          "name": "Scores",
+          "offset": 8,
+          "array_dim": 1,
+          "size": 80,
+          "type": "MapProperty",
+          "key_prop": {
+            "address": "0x3032",
+            "name": "Scores_Key",
+            "offset": 0,
+            "array_dim": 1,
+            "size": 8,
+            "type": "NameProperty",
+            "flags": ""
+          },
+          "value_prop": {
+            "address": "0x3033",
+            "name": "Scores_Value",
+            "offset": 8,
+            "array_dim": 1,
+            "size": 4,
+            "type": "IntProperty",
+            "flags": ""
+          },
+          "flags": "CPF_Edit"
+        }
+      ],
+      "properties_size": 88,
+      "min_alignment": 8,
+      "struct_flags": "STRUCT_Native"
+    },
+    "/Script/mucha.CPP_TestBase": {
+      "type": "Class",
+      "address": "0x2040",
+      "vtable": "0x9040",
+      "object_flags": "RF_Public | RF_Standalone",
+      "outer": "/Script/mucha",
+      "class": "/Script/CoreUObject.Class",
+      "super_struct": "/Script/Engine.Subsystem",
+      "properties": [
+        {
+          "address": "0x3040",
+          "name": "SharedProp",
+          "offset": 48,
+          "array_dim": 1,
+          "size": 4,
+          "type": "IntProperty",
+          "flags": "CPF_BlueprintVisible"
+        },
+        {
+          "address": "0x3041",
+          "name": "Element",
+          "offset": 52,
+          "array_dim": 1,
+          "size": 1,
+          "type": "EnumProperty",
+          "enum": "/Script/mucha.eMockElement",
+          "container": {
+            "address": "0x3042",
+            "name": "UnderlyingType",
+            "offset": 0,
+            "array_dim": 1,
+            "size": 1,
+            "type": "ByteProperty",
+            "enum": null,
+            "flags": ""
+          },
+          "flags": "CPF_BlueprintReadOnly"
+        }
+      ],
+      "properties_size": 64,
+      "min_alignment": 8,
+      "class_flags": "CLASS_Native | CLASS_RequiredAPI",
+      "interfaces": []
+    },
+    "/Script/mucha.CPP_TestChild": {
+      "type": "Class",
+      "address": "0x2050",
+      "vtable": "0x9050",
+      "object_flags": "RF_Public | RF_Standalone",
+      "outer": "/Script/mucha",
+      "class": "/Script/CoreUObject.Class",
+      "super_struct": "/Script/mucha.CPP_TestBase",
+      "properties": [
+        {
+          "address": "0x3050",
+          "name": "Items",
+          "offset": 152,
+          "array_dim": 1,
+          "size": 16,
+          "type": "ArrayProperty",
+          "inner": {
+            "address": "0x3051",
+            "name": "Items",
+            "offset": 0,
+            "array_dim": 1,
+            "size": 8,
+            "type": "ObjectProperty",
+            "property_class": "/Script/mucha.CPP_TestBase",
+            "flags": ""
+          },
+          "flags": "CPF_BlueprintVisible"
+        },
+        {
+          "address": "0x3052",
+          "name": "Data",
+          "offset": 64,
+          "array_dim": 1,
+          "size": 88,
+          "type": "StructProperty",
+          "struct": "/Script/mucha.FMockData",
+          "flags": "CPF_BlueprintVisible"
+        }
+      ],
+      "properties_size": 168,
+      "min_alignment": 8,
+      "class_flags": "CLASS_Native",
+      "interfaces": []
+    },
+    "/Script/mucha.CPP_TestChild:Compute": {
+      "type": "Function",
+      "address": "0x2060",
+      "vtable": "0x9060",
+      "object_flags": "RF_Public",
+      "outer": "/Script/mucha.CPP_TestChild",
+      "class": "/Script/CoreUObject.Function",
+      "super_struct": null,
+      "properties": [
+        {
+          "address": "0x3060",
+          "name": "Input",
+          "offset": 0,
+          "array_dim": 1,
+          "size": 4,
+          "type": "IntProperty",
+          "flags": "CPF_Parm"
+        },
+        {
+          "address": "0x3061",
+          "name": "OutVal",
+          "offset": 4,
+          "array_dim": 1,
+          "size": 4,
+          "type": "FloatProperty",
+          "flags": "CPF_Parm | CPF_OutParm"
+        },
+        {
+          "address": "0x3062",
+          "name": "LocalScratch",
+          "offset": 8,
+          "array_dim": 1,
+          "size": 4,
+          "type": "IntProperty",
+          "flags": "CPF_ZeroConstructor"
+        },
+        {
+          "address": "0x3063",
+          "name": "ReturnValue",
+          "offset": 12,
+          "array_dim": 1,
+          "size": 1,
+          "type": "BoolProperty",
+          "flags": "CPF_Parm | CPF_OutParm | CPF_ReturnParm"
+        }
+      ],
+      "properties_size": 16,
+      "function_flags": "FUNC_Final | FUNC_Native | FUNC_Public | FUNC_BlueprintCallable"
+    },
+    "/Script/mucha.MockNotify__DelegateSignature": {
+      "type": "Function",
+      "address": "0x2065",
+      "vtable": "0x9065",
+      "object_flags": "RF_Public",
+      "outer": "/Script/mucha",
+      "class": "/Script/CoreUObject.DelegateFunction",
+      "super_struct": null,
+      "properties": [],
+      "properties_size": 0,
+      "function_flags": "FUNC_Public | FUNC_Delegate"
+    },
+    "/Game/UI/A.WBP_Dup_C": {
+      "type": "Class",
+      "address": "0x2070",
+      "vtable": "0x9070",
+      "object_flags": "RF_Public",
+      "outer": "/Game/UI/A",
+      "class": "/Script/UMG.WidgetBlueprintGeneratedClass",
+      "super_struct": "/Script/CoreUObject.Object",
+      "properties": [],
+      "properties_size": 48,
+      "min_alignment": 8,
+      "class_flags": "CLASS_CompiledFromBlueprint",
+      "interfaces": []
+    },
+    "/Game/UI/B.WBP_Dup_C": {
+      "type": "Class",
+      "address": "0x2071",
+      "vtable": "0x9071",
+      "object_flags": "RF_Public",
+      "outer": "/Game/UI/B",
+      "class": "/Script/UMG.WidgetBlueprintGeneratedClass",
+      "super_struct": "/Script/CoreUObject.Object",
+      "properties": [],
+      "properties_size": 48,
+      "min_alignment": 8,
+      "class_flags": "CLASS_CompiledFromBlueprint",
+      "interfaces": []
+    },
+    "/Script/mucha.CPP_ConflictTarget": {
+      "type": "Class",
+      "address": "0x2080",
+      "vtable": "0x9080",
+      "object_flags": "RF_Public",
+      "outer": "/Script/mucha",
+      "class": "/Script/CoreUObject.Class",
+      "super_struct": "/Script/CoreUObject.Object",
+      "properties": [
+        {
+          "address": "0x3080",
+          "name": "VersionTag",
+          "offset": 40,
+          "array_dim": 1,
+          "size": 4,
+          "type": "IntProperty",
+          "flags": "CPF_BlueprintVisible"
+        }
+      ],
+      "properties_size": 64,
+      "min_alignment": 8,
+      "class_flags": "CLASS_Native",
+      "interfaces": []
+    },
+    "/Script/mucha.Default__CPP_TestBase": {
+      "type": "Object",
+      "address": "0x2090",
+      "vtable": "0x9090",
+      "object_flags": "RF_ClassDefaultObject",
+      "outer": "/Script/mucha",
+      "class": "/Script/mucha.CPP_TestBase",
+      "property_values": {
+        "SharedProp": 0,
+        "DeepIgnored": { "nested": [1, 2, 3] }
+      }
+    }
+  }
+}

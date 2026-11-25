@@ -1,0 +1,160 @@
+{
+  "metadata": {
+    "tool": "UE4SS JMapGenerator (fixture)",
+    "timestamp": "2026-11-25T12:00:00Z",
+    "source": "FixtureOverride.exe",
+    "engine_version": { "major": 5, "minor": 6 },
+    "build_change_list": "0"
+  },
+  "objects": {
+    "/Script/mucha.CPP_TestBase": {
+      "type": "Class",
+      "address": "0xDEAD0001",
+      "vtable": "0xDEAD0002",
+      "object_flags": "RF_Public | RF_Standalone",
+      "outer": "/Script/mucha",
+      "class": "/Script/CoreUObject.Class",
+      "super_struct": "/Script/Engine.Subsystem",
+      "properties": [
+        {
+          "address": "0xDEAD0003",
+          "name": "SharedProp",
+          "offset": 48,
+          "array_dim": 1,
+          "size": 4,
+          "type": "IntProperty",
+          "flags": "CPF_BlueprintVisible"
+        },
+        {
+          "address": "0xDEAD0004",
+          "name": "Element",
+          "offset": 52,
+          "array_dim": 1,
+          "size": 1,
+          "type": "EnumProperty",
+          "enum": "/Script/mucha.eMockElement",
+          "container": {
+            "address": "0xDEAD0005",
+            "name": "UnderlyingType",
+            "offset": 0,
+            "array_dim": 1,
+            "size": 1,
+            "type": "ByteProperty",
+            "enum": null,
+            "flags": ""
+          },
+          "flags": "CPF_BlueprintReadOnly"
+        }
+      ],
+      "properties_size": 64,
+      "min_alignment": 8,
+      "class_flags": "CLASS_Native | CLASS_RequiredAPI",
+      "interfaces": []
+    },
+    "/Script/mucha.CPP_TestGrandChild": {
+      "type": "Class",
+      "address": "0x5010",
+      "vtable": "0xA010",
+      "object_flags": "RF_Public",
+      "outer": "/Script/mucha",
+      "class": "/Script/Engine.BlueprintGeneratedClass",
+      "super_struct": "/Script/mucha.CPP_TestChild",
+      "properties": [
+        {
+          "address": "0x6010",
+          "name": "Bonus",
+          "offset": 168,
+          "array_dim": 1,
+          "size": 4,
+          "type": "FloatProperty",
+          "flags": "CPF_Edit"
+        },
+        {
+          "address": "0x6011",
+          "name": "TagSet",
+          "offset": 176,
+          "array_dim": 1,
+          "size": 80,
+          "type": "SetProperty",
+          "key_prop": {
+            "address": "0x6012",
+            "name": "TagSet",
+            "offset": 0,
+            "array_dim": 1,
+            "size": 8,
+            "type": "NameProperty",
+            "flags": ""
+          },
+          "flags": "CPF_Edit"
+        }
+      ],
+      "properties_size": 256,
+      "min_alignment": 8,
+      "class_flags": "CLASS_CompiledFromBlueprint",
+      "interfaces": []
+    },
+    "/Script/mucha.CPP_TestGrandChild:Execute": {
+      "type": "Function",
+      "address": "0x5020",
+      "vtable": "0xA020",
+      "object_flags": "RF_Public",
+      "outer": "/Script/mucha.CPP_TestGrandChild",
+      "class": "/Script/CoreUObject.Function",
+      "super_struct": null,
+      "properties": [],
+      "properties_size": 0,
+      "function_flags": "FUNC_Public | FUNC_BlueprintCallable"
+    },
+    "/Script/mucha.CPP_ConflictTarget": {
+      "type": "Class",
+      "address": "0x5080",
+      "vtable": "0xA080",
+      "object_flags": "RF_Public",
+      "outer": "/Script/mucha",
+      "class": "/Script/CoreUObject.Class",
+      "super_struct": "/Script/CoreUObject.Object",
+      "properties": [
+        {
+          "address": "0x6080",
+          "name": "VersionTag",
+          "offset": 40,
+          "array_dim": 1,
+          "size": 4,
+          "type": "IntProperty",
+          "flags": "CPF_BlueprintVisible"
+        },
+        {
+          "address": "0x6081",
+          "name": "ExtraFlag",
+          "offset": 44,
+          "array_dim": 1,
+          "size": 1,
+          "type": "BoolProperty",
+          "field_size": 1,
+          "byte_offset": 0,
+          "byte_mask": 1,
+          "field_mask": 255,
+          "flags": "CPF_BlueprintVisible"
+        }
+      ],
+      "properties_size": 80,
+      "min_alignment": 8,
+      "class_flags": "CLASS_Native",
+      "interfaces": []
+    },
+    "/Game/BP/BP_Dangling.BP_Dangling_C": {
+      "type": "Class",
+      "address": "0x5090",
+      "vtable": "0xA090",
+      "object_flags": "RF_Public",
+      "outer": "/Game/BP/BP_Dangling",
+      "class": "/Script/Engine.BlueprintGeneratedClass",
+      "super_struct": "/Script/Missing.NoSuchBase",
+      "properties": [],
+      "properties_size": 48,
+      "min_alignment": 8,
+      "class_flags": "CLASS_CompiledFromBlueprint",
+      "interfaces": []
+    }
+  }
+}
