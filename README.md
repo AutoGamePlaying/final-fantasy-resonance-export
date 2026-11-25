@@ -181,6 +181,36 @@ scripts/check.sh
 5. `cargo clippy --workspace --all-targets -- -D warnings`
 6. `cargo test --workspace`（`ffr-data` 与 `ffr-db` 单元/集成测试；真实数据测试通过 `FFR_DEPS` 或 `.deps` 发现，无数据时自动跳过）
 
+## CI 和发布
+
+仓库通过 GitHub Actions 在 `ubuntu-latest` 与 `windows-latest` 上使用各自原生工具链执行持续集成与自动发版。
+
+### 持续集成（`.github/workflows/ci.yml`）
+
+每次向任意分支 `push` 或提交 `pull_request` 时触发（默认 `contents: read` 权限），包含三个 job：
+
+1. **`check`**（`ubuntu-latest` + `windows-latest`）：安装 .NET 10 SDK 与 Rust stable，缓存 NuGet 与 Cargo 后执行 `scripts/check.sh`（Linux 上额外跑 `dotnet format --verify-no-changes` 与 `cargo fmt --check`，两个平台均执行 `dotnet build -c Release`、`dotnet test`、`cargo clippy --workspace --all-targets -- -D warnings` 与 `cargo test --workspace`；CI 上无 `.deps/`，真实数据测试自动跳过）。
+2. **`fixture-hash`**（`ubuntu-latest` + `windows-latest`）：执行 `scripts/fixture-db.sh`，汇总 `tests/fixtures/rust/db/` 下全部区域的合成假数据运行一次完整 `ffr-db build`，再运行 `ffr-db hash --json` 并将结果上传为 artifact。
+3. **`compare-hash`**（依赖两个 `fixture-hash`）：下载 Linux 与 Windows 两份哈希 JSON，比对 `file_sha256`、`content_sha256` 以及每张普通表的行数与哈希；任意一项不一致即失败并打印存在差异的表。
+
+### 跨平台哈希核对的意义
+
+真实游戏文件与导出数据不会上传到公开仓库或 CI。通过同一套合成假数据在 Linux 与 Windows 上各自原生编译 `ffr-db` 并建库，强制要求 `file_sha256`（整个 SQLite 文件字节级一致）、`content_sha256` 以及全部表哈希完全相同，可以在每次改动时持续验证建库流程没有引入与操作系统、路径分隔符、线程调度或换行符相关的非确定性差异。
+
+### 发版流程（`.github/workflows/release.yml`）
+
+发版由 `v*` tag 自动触发，流程如下：
+
+1. 更新仓库根目录的 `VERSION` 文件（例如 `0.1.0`）并提交到目标分支；
+2. 创建与 `VERSION` 一致的 tag 并推送：
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+推送 tag 后，`release.yml` 会在 `windows-latest` 上校验 tag 去掉 `v` 后与 `VERSION` 一致，先完整运行 `scripts/check.sh`，再运行 `scripts/package-windows.ps1` 原生打包，最后使用 `GITHUB_TOKEN` 创建标题为 tag 名的 GitHub Release，并上传 `ffr-export-<版本>-win-x64.zip`、`SHA256SUMS` 与 `known-builds.json`（本地 Linux 交叉编译打包脚本 `scripts/package-windows.sh` 保留供本机使用）。
+
 ## Oodle 与联网说明
 
 Oodle 解压完全使用 CUE4Parse 自带的开源纯 C# 实现 `OodleSharp`。工具绝不调用 `OodleHelper.Initialize` 或 `DownloadOodleDll` 下载专有 Oodle 动态库，在资源读取、解码和导出过程中不发起任何网络请求。
