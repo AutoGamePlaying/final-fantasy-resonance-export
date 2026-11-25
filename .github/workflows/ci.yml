@@ -80,6 +80,20 @@ jobs:
           fi
           bash scripts/check.sh
 
+      - name: Self-test GUI binary (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $guiExe = "src/FfrExport.Gui/bin/Release/net10.0-windows/ffr-export-gui.exe"
+          if (-not (Test-Path -LiteralPath $guiExe -PathType Leaf)) {
+            throw "错误：找不到编译生成的窗口程序：$guiExe"
+          }
+          & $guiExe --self-test
+          if ($LASTEXITCODE -ne 0) {
+            throw "错误：ffr-export-gui.exe --self-test 失败（退出码 $LASTEXITCODE）"
+          }
+          Write-Host "窗口程序依赖自检通过：$guiExe --self-test"
+
   fixture-hash:
     name: Fixture Hash (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -277,7 +291,22 @@ jobs:
         shell: pwsh
         env:
           PACKAGE_VERSION: ${{ steps.meta.outputs.version }}
-        run: ./scripts/package-windows.ps1 -Version "$env:PACKAGE_VERSION"
+        run: |
+          ./scripts/package-windows.ps1 -Version "$env:PACKAGE_VERSION"
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zipPath = "dist/ffr-export-$($env:PACKAGE_VERSION)-win-x64.zip"
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+          try {
+            $names = @($zip.Entries | ForEach-Object { $_.FullName })
+          } finally {
+            $zip.Dispose()
+          }
+          foreach ($expected in @("ffr-export-gui.exe", "ffr-export.exe", "ffr-db.exe", "known-builds.json", "使用说明.txt", "SHA256SUMS")) {
+            if ($names -notcontains $expected) {
+              throw "错误：压缩包 $zipPath 缺少必需文件：$expected"
+            }
+          }
+          Write-Host "压缩包内容校验通过：$($names -join ', ')"
 
       - name: Upload Windows package artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -90,7 +90,21 @@ jobs:
 
       - name: Package Windows native release
         shell: pwsh
-        run: ./scripts/package-windows.ps1 -Version "$env:RELEASE_VERSION"
+        run: |
+          ./scripts/package-windows.ps1 -Version "$env:RELEASE_VERSION"
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zipPath = "dist/ffr-export-$($env:RELEASE_VERSION)-win-x64.zip"
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+          try {
+            $names = @($zip.Entries | ForEach-Object { $_.FullName })
+          } finally {
+            $zip.Dispose()
+          }
+          foreach ($expected in @("ffr-export-gui.exe", "ffr-export.exe", "ffr-db.exe", "known-builds.json", "使用说明.txt", "SHA256SUMS")) {
+            if ($names -notcontains $expected) {
+              throw "错误：发布压缩包 $zipPath 缺少必需文件：$expected"
+            }
+          }
 
       - name: Prepare Release notes
         shell: bash
@@ -107,14 +121,16 @@ jobs:
           ## 说明
 
           - 本发布包**不含任何游戏数据**（仅包含导出与建库工具本体、校验文件与已知构建清单）。
-          - \`.usmap\` 映射文件需要用户自行从运行中的游戏里转储。
-          - 构建完成后，工具会自动将生成的数据库与 \`known-builds.json\` 中的已知构建记录进行哈希比对。
+          - \`.usmap\` 映射文件需要用户自行用 UE4SS 从运行中的游戏里转储（默认保存在游戏目录 \`FFRS\\Binaries\\Win64\\ue4ss\\\` 下）。
+          - 构建完成后，工具会自动将生成的数据库与 \`known-builds.json\` 中的已知构建记录进行哈希比对（同时登记了“只有 \`.usmap\`”与“\`.usmap\` 加两份 \`.jmap\`”两种输入组合）。
 
           ## 快速使用（Windows）
 
-          1. 下载 \`${ZIP_NAME}\` 并用 \`SHA256SUMS\` 校验完整性后解压；
-          2. 准备从运行中的游戏里自行转储的 \`.usmap\` 文件；
-          3. 在解压目录运行：
+          1. 下载 \`${ZIP_NAME}\` 并用 \`SHA256SUMS\` 校验完整性后，完整解压到同一个文件夹；
+          2. 双击运行 **\`ffr-export-gui.exe\`**（图形界面）：
+             - 自动扫描 Steam 游戏库并查找最新的 \`.usmap\`；
+             - 确认输出位置后点击 **开始导出** 即可生成 \`ffr.sqlite\` 并查看版本比对结果。
+          3. 如需命令行方式，可在解压目录运行：
 
           \`\`\`powershell
           ffr-export build-db --game "<Steam 游戏目录>" --usmap <文件>
@@ -122,7 +138,7 @@ jobs:
 
           ## 附件
 
-          - \`${ZIP_NAME}\`：Windows x64 原生单文件版 \`ffr-export.exe\`、\`ffr-db.exe\`、\`known-builds.json\`、\`SHA256SUMS\`、\`README.md\`、\`LICENSE\`
+          - \`${ZIP_NAME}\`：Windows x64 原生单文件版 \`ffr-export-gui.exe\`、\`ffr-export.exe\`、\`ffr-db.exe\`、\`known-builds.json\`、\`使用说明.txt\`、\`SHA256SUMS\`、\`README.md\`、\`LICENSE\`
           - \`SHA256SUMS\`：发布附件的 SHA-256 校验值
           - \`known-builds.json\`：已登记的游戏版本与数据库哈希清单
           EOF
