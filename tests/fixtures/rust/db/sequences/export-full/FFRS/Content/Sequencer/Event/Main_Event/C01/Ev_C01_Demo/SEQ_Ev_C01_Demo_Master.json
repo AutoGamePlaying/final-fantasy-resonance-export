@@ -1,0 +1,420 @@
+[
+  {
+    "Type": "BlueprintGeneratedClass",
+    "Name": "SEQ_Ev_C01_Demo_Master_DirectorBP_C",
+    "Package": "/Game/Sequencer/Event/Main_Event/C01/Ev_C01_Demo/SEQ_Ev_C01_Demo_Master",
+    "SuperStruct": {
+      "ObjectName": "Class'CPP_TalkEventSequenceDirector'",
+      "ObjectPath": "/Script/mucha"
+    }
+  },
+  {
+    "Type": "Function",
+    "Name": "ExecuteUbergraph_SEQ_Ev_C01_Demo_Master_DirectorBP",
+    "Outer": {
+      "ObjectName": "BlueprintGeneratedClass'SEQ_Ev_C01_Demo_Master_DirectorBP_C'"
+    },
+    "ChildProperties": [
+      { "Type": "IntProperty", "Name": "EntryPoint" },
+      { "Type": "BoolProperty", "Name": "CallFunc_ChangeAnimationAssetWithStruct_ReturnValue_1" },
+      { "Type": "IntProperty", "Name": "CallFunc_GetNpcTalkId_ReturnValue" }
+    ]
+  },
+  {
+    "Type": "Function",
+    "Name": "Rain_Event",
+    "Outer": {
+      "ObjectName": "BlueprintGeneratedClass'SEQ_Ev_C01_Demo_Master_DirectorBP_C'"
+    },
+    "ChildProperties": [
+      {
+        "Type": "ObjectProperty",
+        "Name": "Rain",
+        "PropertyClass": { "ObjectName": "Class'CPP_MapUnit'" }
+      },
+      { "Type": "IntProperty", "Name": "InAssetIndex" },
+      { "Type": "StructProperty", "Name": "InAnimation" }
+    ]
+  },
+  {
+    "Type": "Function",
+    "Name": "SequenceEvent_0",
+    "Outer": {
+      "ObjectName": "BlueprintGeneratedClass'SEQ_Ev_C01_Demo_Master_DirectorBP_C'"
+    },
+    "ChildProperties": [{ "Type": "BoolProperty", "Name": "InIsBanSkip" }]
+  },
+  {
+    "Type": "Function",
+    "Name": "SequenceEvent__ENTRYPOINTSEQ_Ev_C01_Demo_Master_DirectorBP_0",
+    "Outer": {
+      "ObjectName": "BlueprintGeneratedClass'SEQ_Ev_C01_Demo_Master_DirectorBP_C'"
+    },
+    "ChildProperties": [
+      {
+        "Type": "ObjectProperty",
+        "Name": "Rain",
+        "PropertyClass": { "ObjectName": "Class'CPP_MapUnit'" }
+      }
+    ]
+  },
+  {
+    "Type": "Function",
+    "Name": "SequenceEvent__ENTRYPOINTSEQ_Ev_C01_Demo_Master_DirectorBP_1",
+    "Outer": {
+      "ObjectName": "BlueprintGeneratedClass'SEQ_Ev_C01_Demo_Master_DirectorBP_C'"
+    },
+    "ChildProperties": []
+  },
+  {
+    "Type": "CPP_MapUnit",
+    "Name": "CPP_MapUnit_Rain",
+    "Outer": {
+      "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Master:MovieScene_0'"
+    },
+    "Properties": {
+      "m_MapUnitId": 10,
+      "m_AnimationName": "idle"
+    }
+  },
+  {
+    "Type": "CPP_MapUnit_SpawnActor",
+    "Name": "CPP_MapUnit_Guardian",
+    "Outer": {
+      "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Master:MovieScene_0'"
+    },
+    "Properties": {
+      "m_MapUnitId": 60,
+      "m_VisiblFlagCondition": "!{flag:12}",
+      "m_AnimationName": "groundmove8"
+    }
+  },
+  {
+    "Type": "MovieSceneSpawnableActorBinding",
+    "Name": "CPP_MapUnit_Rain_CustomBinding_0",
+    "Outer": {
+      "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Master:MovieScene_0'"
+    },
+    "Properties": {
+      "ActorTemplate": {
+        "ObjectName": "CPP_MapUnit'SEQ_Ev_C01_Demo_Master:MovieScene_0.CPP_MapUnit_Rain'",
+        "ObjectPath": "/Game/Sequencer/Event/Main_Event/C01/Ev_C01_Demo/SEQ_Ev_C01_Demo_Master.99"
+      }
+    }
+  },
+  {
+    "Type": "MovieSceneSpawnableActorBinding",
+    "Name": "CPP_MapUnit_Guardian_CustomBinding_0",
+    "Outer": {
+      "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Master:MovieScene_0'"
+    },
+    "Properties": {
+      "ActorTemplate": {
+        "ObjectName": "CPP_MapUnit_SpawnActor'SEQ_Ev_C01_Demo_Master:MovieScene_0.CPP_MapUnit_Guardian'",
+        "ObjectPath": "/Game/Sequencer/Event/Main_Event/C01/Ev_C01_Demo/SEQ_Ev_C01_Demo_Master.100"
+      }
+    }
+  },
+  {
+    "Type": "LevelSequence",
+    "Name": "SEQ_Ev_C01_Demo_Master",
+    "Package": "/Game/Sequencer/Event/Main_Event/C01/Ev_C01_Demo/SEQ_Ev_C01_Demo_Master",
+    "Properties": {
+      "MovieScene": {
+        "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Master:MovieScene_0'"
+      },
+      "DirectorClass": {
+        "ObjectName": "BlueprintGeneratedClass'SEQ_Ev_C01_Demo_Master_DirectorBP_C'"
+      },
+      "BindingReferences": {
+        "SortedReferences": [
+          {
+            "ID": "11111111-11111111-11111111-11111111",
+            "Locator": { "Fragments": [] },
+            "CustomBinding": {
+              "ObjectName": "MovieSceneSpawnableActorBinding'SEQ_Ev_C01_Demo_Master:MovieScene_0.CPP_MapUnit_Rain_CustomBinding_0'"
+            }
+          },
+          {
+            "ID": "22222222-22222222-22222222-22222222",
+            "Locator": { "Fragments": [] },
+            "CustomBinding": {
+              "ObjectName": "MovieSceneSpawnableActorBinding'SEQ_Ev_C01_Demo_Master:MovieScene_0.CPP_MapUnit_Guardian_CustomBinding_0'"
+            }
+          },
+          {
+            "ID": "33333333-33333333-33333333-33333333",
+            "Locator": {
+              "Fragments": [
+                {
+                  "FragmentStruct": {
+                    "Path": {
+                      "AssetPathName": "/Game/Map/Demo/Demo_BG.Demo_BG",
+                      "SubPathString": "PersistentLevel.StaticMeshActor_1"
+                    }
+                  }
+                }
+              ]
+            },
+            "CustomBinding": null
+          }
+        ]
+      }
+    }
+  },
+  {
+    "Type": "MovieScene",
+    "Name": "MovieScene_0",
+    "Outer": {
+      "ObjectName": "LevelSequence'SEQ_Ev_C01_Demo_Master'"
+    },
+    "Properties": {
+      "TickResolution": { "Numerator": 24000 },
+      "DisplayRate": { "Numerator": 30 },
+      "PlaybackRange": {
+        "Value": {
+          "LowerBound": { "Type": 1, "Value": { "Value": 0 } },
+          "UpperBound": { "Type": 0, "Value": { "Value": 360000 } }
+        }
+      },
+      "MarkedFrames": [
+        { "FrameNumber": { "Value": 24000 }, "Label": "SkipBegin" },
+        { "FrameNumber": { "Value": 336000 }, "Label": "SkipEnd" }
+      ],
+      "Possessables": [
+        {
+          "Guid": "11111111-11111111-11111111-11111111",
+          "Name": "Rain",
+          "ParentGuid": "00000000-00000000-00000000-00000000"
+        },
+        {
+          "Guid": "22222222-22222222-22222222-22222222",
+          "Name": "Guardian",
+          "ParentGuid": "00000000-00000000-00000000-00000000"
+        },
+        {
+          "Guid": "33333333-33333333-33333333-33333333",
+          "Name": "MoonMesh",
+          "ParentGuid": "00000000-00000000-00000000-00000000"
+        }
+      ],
+      "ObjectBindings": [
+        {
+          "ObjectGuid": "11111111-11111111-11111111-11111111",
+          "BindingName": "Rain",
+          "Tracks": [
+            {
+              "ObjectName": "MovieSceneSpawnTrack'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneSpawnTrack_0'"
+            },
+            {
+              "ObjectName": "MovieSceneEventTrack'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneEventTrack_Rain'"
+            }
+          ]
+        },
+        {
+          "ObjectGuid": "22222222-22222222-22222222-22222222",
+          "BindingName": "Guardian",
+          "Tracks": [
+            {
+              "ObjectName": "MovieSceneEventTrack'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneEventTrack_Guardian'"
+            }
+          ]
+        },
+        {
+          "ObjectGuid": "33333333-33333333-33333333-33333333",
+          "BindingName": "MoonMesh",
+          "Tracks": []
+        }
+      ],
+      "Tracks": [
+        {
+          "ObjectName": "MovieSceneCinematicShotTrack'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneCinematicShotTrack_0'"
+        },
+        {
+          "ObjectName": "MovieSceneEventTrack'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneEventTrack_Master'"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "MovieSceneSpawnTrack",
+    "Name": "MovieSceneSpawnTrack_0",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Master:MovieScene_0'" },
+    "Properties": {
+      "Sections": [
+        {
+          "ObjectName": "MovieSceneSpawnSection'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneSpawnTrack_0.MovieSceneSpawnSection_0'"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "MovieSceneSpawnSection",
+    "Name": "MovieSceneSpawnSection_0",
+    "Outer": {
+      "ObjectName": "MovieSceneSpawnTrack'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneSpawnTrack_0'"
+    },
+    "Properties": {
+      "SectionRange": {
+        "Value": {
+          "LowerBound": { "Type": 1, "Value": { "Value": 0 } },
+          "UpperBound": { "Type": 0, "Value": { "Value": 360000 } }
+        }
+      }
+    }
+  },
+  {
+    "Type": "MovieSceneCinematicShotTrack",
+    "Name": "MovieSceneCinematicShotTrack_0",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Master:MovieScene_0'" },
+    "Properties": {
+      "Sections": [
+        {
+          "ObjectName": "MovieSceneCinematicShotSection'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneCinematicShotTrack_0.MovieSceneCinematicShotSection_0'"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "MovieSceneCinematicShotSection",
+    "Name": "MovieSceneCinematicShotSection_0",
+    "Outer": {
+      "ObjectName": "MovieSceneCinematicShotTrack'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneCinematicShotTrack_0'"
+    },
+    "Properties": {
+      "SubSequence": {
+        "ObjectName": "LevelSequence'SEQ_Ev_C01_Demo_Cut001'",
+        "ObjectPath": "/Game/Sequencer/Event/Main_Event/C01/Ev_C01_Demo/Track/SEQ_Ev_C01_Demo_Cut001.5"
+      },
+      "SectionRange": {
+        "Value": {
+          "LowerBound": { "Type": 1, "Value": { "Value": 24000 } },
+          "UpperBound": { "Type": 0, "Value": { "Value": 144000 } }
+        }
+      }
+    }
+  },
+  {
+    "Type": "MovieSceneEventTrack",
+    "Name": "MovieSceneEventTrack_Rain",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Master:MovieScene_0'" },
+    "Properties": {
+      "Sections": [
+        {
+          "ObjectName": "MovieSceneEventTriggerSection'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneEventTrack_Rain.MovieSceneEventTriggerSection_0'"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "MovieSceneEventTriggerSection",
+    "Name": "MovieSceneEventTriggerSection_0",
+    "Outer": {
+      "ObjectName": "MovieSceneEventTrack'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneEventTrack_Rain'"
+    },
+    "Properties": {
+      "EventChannel": {
+        "KeyTimes": [{ "Value": 48000 }],
+        "KeyValues": [
+          {
+            "Ptrs": {
+              "Function": {
+                "ObjectName": "Function'SEQ_Ev_C01_Demo_Master_DirectorBP_C:SequenceEvent__ENTRYPOINTSEQ_Ev_C01_Demo_Master_DirectorBP_0'"
+              },
+              "BoundObjectProperty": { "Path": ["Rain"], "ResolvedOwner": null }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "Type": "MovieSceneEventTrack",
+    "Name": "MovieSceneEventTrack_Guardian",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Master:MovieScene_0'" },
+    "Properties": {
+      "Sections": [
+        {
+          "ObjectName": "MovieSceneEventTriggerSection'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneEventTrack_Guardian.MovieSceneEventTriggerSection_0'"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "MovieSceneEventTriggerSection",
+    "Name": "MovieSceneEventTriggerSection_0",
+    "Outer": {
+      "ObjectName": "MovieSceneEventTrack'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneEventTrack_Guardian'"
+    },
+    "Properties": {
+      "EventChannel": {
+        "KeyTimes": [{ "Value": 96000 }],
+        "KeyValues": [
+          {
+            "Ptrs": {
+              "Function": {
+                "ObjectName": "Function'SEQ_Ev_C01_Demo_Master_DirectorBP_C:TriggerStoryBeat'"
+              },
+              "BoundObjectProperty": { "Path": ["Guardian"], "ResolvedOwner": null }
+            },
+            "PayloadVariables": {
+              "TalkEventId": { "Value": "C01_DEMO_01" }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "Type": "MovieSceneEventTrack",
+    "Name": "MovieSceneEventTrack_Master",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Master:MovieScene_0'" },
+    "Properties": {
+      "Sections": [
+        {
+          "ObjectName": "MovieSceneEventTriggerSection'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneEventTrack_Master.MovieSceneEventTriggerSection_0'"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "MovieSceneEventTriggerSection",
+    "Name": "MovieSceneEventTriggerSection_0",
+    "Outer": {
+      "ObjectName": "MovieSceneEventTrack'SEQ_Ev_C01_Demo_Master:MovieScene_0.MovieSceneEventTrack_Master'"
+    },
+    "Properties": {
+      "EventChannel": {
+        "KeyTimes": [{ "Value": 0 }, { "Value": 144000 }],
+        "KeyValues": [
+          {
+            "Ptrs": {
+              "Function": {
+                "ObjectName": "Function'SEQ_Ev_C01_Demo_Master_DirectorBP_C:SequenceEvent__ENTRYPOINTSEQ_Ev_C01_Demo_Master_DirectorBP_1'"
+              },
+              "BoundObjectProperty": { "Path": [], "ResolvedOwner": null }
+            }
+          },
+          {
+            "Ptrs": {
+              "Function": {
+                "ObjectName": "Function'SEQ_Ev_C01_Demo_Master_DirectorBP_C:PlayTalkEvent'"
+              },
+              "BoundObjectProperty": { "Path": [], "ResolvedOwner": null }
+            },
+            "PayloadVariables": {
+              "TalkEventId": { "Value": "C01_DEMO_02" },
+              "FlagId": { "Value": "35" }
+            }
+          },
+          {
+            "Ptrs": {
+              "Function": null,
+              "BoundObjectProperty": { "Path": [], "ResolvedOwner": null }
+            }
+          }
+        ]
+      }
+    }
+  }
+]

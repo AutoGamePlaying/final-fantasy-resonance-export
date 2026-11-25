@@ -1,0 +1,167 @@
+[
+  {
+    "Type": "BlueprintGeneratedClass",
+    "Name": "SEQ_Battle_500010_Master_DirectorBP_C",
+    "Package": "/Game/Sequencer/Battle/EnemySkill/500010/SEQ_Battle_500010_Master",
+    "Super": {
+      "ObjectName": "BlueprintGeneratedClass'BP_BtlLevelSequenceDirector_C'",
+      "ObjectPath": "/Game/Sequencer/Skill/BP/BP_BtlLevelSequenceDirector.0"
+    }
+  },
+  {
+    "Type": "Function",
+    "Name": "SeqBattleEvent",
+    "Outer": { "ObjectName": "BlueprintGeneratedClass'SEQ_Battle_500010_Master_DirectorBP_C'" },
+    "ChildProperties": [
+      {
+        "Type": "ObjectProperty",
+        "Name": "バトルスキルイベント",
+        "PropertyClass": { "ObjectName": "Class'CPP_BtlSequencerEvent'" }
+      },
+      { "Type": "StructProperty", "Name": "parameter" }
+    ]
+  },
+  {
+    "Type": "Function",
+    "Name": "SequenceEvent__ENTRYPOINTSEQ_Battle_500010_Master_DirectorBP",
+    "Outer": { "ObjectName": "BlueprintGeneratedClass'SEQ_Battle_500010_Master_DirectorBP_C'" },
+    "ChildProperties": [
+      {
+        "Type": "ObjectProperty",
+        "Name": "バトルスキルイベント",
+        "PropertyClass": { "ObjectName": "Class'CPP_BtlSequencerEvent'" }
+      }
+    ]
+  },
+  {
+    "Type": "BP_BtlSequencerSsPlayerActor_C",
+    "Name": "SsPlayer_0",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Battle_500010_Master:MovieScene_0'" },
+    "Properties": {}
+  },
+  {
+    "Type": "MovieSceneSpawnableActorBinding",
+    "Name": "SsPlayer_CustomBinding_0",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Battle_500010_Master:MovieScene_0'" },
+    "Properties": {
+      "ActorTemplate": {
+        "ObjectName": "BP_BtlSequencerSsPlayerActor_C'SEQ_Battle_500010_Master:MovieScene_0.SsPlayer_0'"
+      }
+    }
+  },
+  {
+    "Type": "LevelSequence",
+    "Name": "SEQ_Battle_500010_Master",
+    "Package": "/Game/Sequencer/Battle/EnemySkill/500010/SEQ_Battle_500010_Master",
+    "Properties": {
+      "MovieScene": { "ObjectName": "MovieScene'SEQ_Battle_500010_Master:MovieScene_0'" },
+      "DirectorClass": {
+        "ObjectName": "BlueprintGeneratedClass'SEQ_Battle_500010_Master_DirectorBP_C'"
+      },
+      "BindingReferences": {
+        "SortedReferences": [
+          {
+            "ID": "CCCC1111-11111111-11111111-11111111",
+            "Locator": {
+              "Fragments": [{ "FragmentStruct": { "PathWithinContext": "BattleSkillEventActor" } }]
+            },
+            "CustomBinding": null
+          },
+          {
+            "ID": "DDDD2222-22222222-22222222-22222222",
+            "Locator": { "Fragments": [] },
+            "CustomBinding": {
+              "ObjectName": "MovieSceneSpawnableActorBinding'SEQ_Battle_500010_Master:MovieScene_0.SsPlayer_CustomBinding_0'"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "Type": "MovieScene",
+    "Name": "MovieScene_0",
+    "Outer": { "ObjectName": "LevelSequence'SEQ_Battle_500010_Master'" },
+    "Properties": {
+      "TickResolution": { "Numerator": 24000 },
+      "DisplayRate": { "Numerator": 30 },
+      "PlaybackRange": {
+        "Value": {
+          "LowerBound": { "Type": 1, "Value": { "Value": 0 } },
+          "UpperBound": { "Type": 0, "Value": { "Value": 96000 } }
+        }
+      },
+      "Possessables": [
+        {
+          "Guid": "CCCC1111-11111111-11111111-11111111",
+          "Name": "バトルスキルイベント",
+          "ParentGuid": "00000000-00000000-00000000-00000000"
+        },
+        {
+          "Guid": "DDDD2222-22222222-22222222-22222222",
+          "Name": "SsPlayer",
+          "ParentGuid": "00000000-00000000-00000000-00000000"
+        }
+      ],
+      "ObjectBindings": [
+        {
+          "ObjectGuid": "CCCC1111-11111111-11111111-11111111",
+          "BindingName": "バトルスキルイベント",
+          "Tracks": [
+            {
+              "ObjectName": "MovieSceneEventTrack'SEQ_Battle_500010_Master:MovieScene_0.MovieSceneEventTrack_0'"
+            }
+          ]
+        },
+        {
+          "ObjectGuid": "DDDD2222-22222222-22222222-22222222",
+          "BindingName": "SsPlayer",
+          "Tracks": []
+        }
+      ],
+      "Tracks": []
+    }
+  },
+  {
+    "Type": "MovieSceneEventTrack",
+    "Name": "MovieSceneEventTrack_0",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Battle_500010_Master:MovieScene_0'" },
+    "Properties": {
+      "Sections": [
+        {
+          "ObjectName": "MovieSceneEventTriggerSection'SEQ_Battle_500010_Master:MovieScene_0.MovieSceneEventTrack_0.MovieSceneEventTriggerSection_0'"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "MovieSceneEventTriggerSection",
+    "Name": "MovieSceneEventTriggerSection_0",
+    "Outer": {
+      "ObjectName": "MovieSceneEventTrack'SEQ_Battle_500010_Master:MovieScene_0.MovieSceneEventTrack_0'"
+    },
+    "Properties": {
+      "EventChannel": {
+        "KeyTimes": [{ "Value": 24000 }, { "Value": 72000 }],
+        "KeyValues": [
+          {
+            "Ptrs": {
+              "Function": {
+                "ObjectName": "Function'SEQ_Battle_500010_Master_DirectorBP_C:SequenceEvent__ENTRYPOINTSEQ_Battle_500010_Master_DirectorBP'"
+              },
+              "BoundObjectProperty": { "Path": ["バトルスキルイベント"], "ResolvedOwner": null }
+            }
+          },
+          {
+            "Ptrs": {
+              "Function": {
+                "ObjectName": "Function'SEQ_Battle_500010_Master_DirectorBP_C:SequenceEvent__ENTRYPOINTSEQ_Battle_500010_Master_DirectorBP'"
+              },
+              "BoundObjectProperty": { "Path": ["バトルスキルイベント"], "ResolvedOwner": null }
+            }
+          }
+        ]
+      }
+    }
+  }
+]

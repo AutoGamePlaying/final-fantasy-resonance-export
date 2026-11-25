@@ -1,0 +1,247 @@
+[
+  {
+    "Type": "BlueprintGeneratedClass",
+    "Name": "SEQ_Ev_C01_Demo_Cut001_DirectorBP_C",
+    "Package": "/Game/Sequencer/Event/Main_Event/C01/Ev_C01_Demo/Track/SEQ_Ev_C01_Demo_Cut001",
+    "SuperStruct": {
+      "ObjectName": "Class'CPP_TalkEventSubSequenceDirector'",
+      "ObjectPath": "/Script/mucha"
+    }
+  },
+  {
+    "Type": "CineCameraActor",
+    "Name": "MainCam_0",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Cut001:MovieScene_0'" },
+    "Properties": {}
+  },
+  {
+    "Type": "CPP_MapUnit",
+    "Name": "CPP_MapUnit_Lasswell",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Cut001:MovieScene_0'" },
+    "Properties": {
+      "m_MapUnitId": 20,
+      "m_AnimationName": "walk"
+    }
+  },
+  {
+    "Type": "MovieSceneSpawnableActorBinding",
+    "Name": "MainCam_CustomBinding_0",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Cut001:MovieScene_0'" },
+    "Properties": {
+      "ActorTemplate": {
+        "ObjectName": "CineCameraActor'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.MainCam_0'"
+      }
+    }
+  },
+  {
+    "Type": "MovieSceneSpawnableActorBinding",
+    "Name": "Lasswell_CustomBinding_0",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Cut001:MovieScene_0'" },
+    "Properties": {
+      "ActorTemplate": {
+        "ObjectName": "CPP_MapUnit'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.CPP_MapUnit_Lasswell'"
+      }
+    }
+  },
+  {
+    "Type": "LevelSequence",
+    "Name": "SEQ_Ev_C01_Demo_Cut001",
+    "Package": "/Game/Sequencer/Event/Main_Event/C01/Ev_C01_Demo/Track/SEQ_Ev_C01_Demo_Cut001",
+    "Properties": {
+      "MovieScene": { "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Cut001:MovieScene_0'" },
+      "DirectorClass": {
+        "ObjectName": "BlueprintGeneratedClass'SEQ_Ev_C01_Demo_Cut001_DirectorBP_C'"
+      },
+      "BindingReferences": {
+        "SortedReferences": [
+          {
+            "ID": "AAAA1111-11111111-11111111-11111111",
+            "Locator": { "Fragments": [] },
+            "CustomBinding": {
+              "ObjectName": "MovieSceneSpawnableActorBinding'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.MainCam_CustomBinding_0'"
+            }
+          },
+          {
+            "ID": "BBBB2222-22222222-22222222-22222222",
+            "Locator": { "Fragments": [] },
+            "CustomBinding": {
+              "ObjectName": "MovieSceneSpawnableActorBinding'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.Lasswell_CustomBinding_0'"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "Type": "MovieScene",
+    "Name": "MovieScene_0",
+    "Outer": { "ObjectName": "LevelSequence'SEQ_Ev_C01_Demo_Cut001'" },
+    "Properties": {
+      "TickResolution": { "Numerator": 24000 },
+      "DisplayRate": { "Numerator": 30 },
+      "PlaybackRange": {
+        "Value": {
+          "LowerBound": { "Type": 1, "Value": { "Value": 0 } },
+          "UpperBound": { "Type": 0, "Value": { "Value": 120000 } }
+        }
+      },
+      "CameraCutTrack": {
+        "ObjectName": "MovieSceneCameraCutTrack'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.MovieSceneCameraCutTrack_0'"
+      },
+      "Possessables": [
+        {
+          "Guid": "AAAA1111-11111111-11111111-11111111",
+          "Name": "MainCam",
+          "ParentGuid": "00000000-00000000-00000000-00000000"
+        },
+        {
+          "Guid": "BBBB2222-22222222-22222222-22222222",
+          "Name": "Lasswell",
+          "ParentGuid": "00000000-00000000-00000000-00000000"
+        }
+      ],
+      "ObjectBindings": [
+        {
+          "ObjectGuid": "AAAA1111-11111111-11111111-11111111",
+          "BindingName": "MainCam",
+          "Tracks": []
+        },
+        {
+          "ObjectGuid": "BBBB2222-22222222-22222222-22222222",
+          "BindingName": "Lasswell",
+          "Tracks": [
+            {
+              "ObjectName": "MovieScene3DAttachTrack'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.MovieScene3DAttachTrack_0'"
+            },
+            {
+              "ObjectName": "MovieSceneEventTrack'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.MovieSceneEventTrack_0'"
+            }
+          ]
+        }
+      ],
+      "Tracks": [
+        {
+          "ObjectName": "MovieSceneAtomTrack'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.MovieSceneAtomTrack_0'"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "MovieSceneCameraCutTrack",
+    "Name": "MovieSceneCameraCutTrack_0",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Cut001:MovieScene_0'" },
+    "Properties": {
+      "Sections": [
+        {
+          "ObjectName": "MovieSceneCameraCutSection'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.MovieSceneCameraCutTrack_0.MovieSceneCameraCutSection_0'"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "MovieSceneCameraCutSection",
+    "Name": "MovieSceneCameraCutSection_0",
+    "Outer": {
+      "ObjectName": "MovieSceneCameraCutTrack'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.MovieSceneCameraCutTrack_0'"
+    },
+    "Properties": {
+      "SectionRange": {
+        "Value": {
+          "LowerBound": { "Type": 1, "Value": { "Value": 0 } },
+          "UpperBound": { "Type": 0, "Value": { "Value": 120000 } }
+        }
+      }
+    }
+  },
+  {
+    "Type": "MovieSceneAtomTrack",
+    "Name": "MovieSceneAtomTrack_0",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Cut001:MovieScene_0'" },
+    "Properties": {
+      "AtomSections": [
+        {
+          "ObjectName": "MovieSceneAtomSection'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.MovieSceneAtomTrack_0.MovieSceneAtomSection_0'"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "MovieSceneAtomSection",
+    "Name": "MovieSceneAtomSection_0",
+    "Outer": {
+      "ObjectName": "MovieSceneAtomTrack'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.MovieSceneAtomTrack_0'"
+    },
+    "Properties": {
+      "SectionRange": {
+        "Value": {
+          "LowerBound": { "Type": 1, "Value": { "Value": 8000 } },
+          "UpperBound": { "Type": 0, "Value": { "Value": 88000 } }
+        }
+      }
+    }
+  },
+  {
+    "Type": "MovieScene3DAttachTrack",
+    "Name": "MovieScene3DAttachTrack_0",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Cut001:MovieScene_0'" },
+    "Properties": {
+      "ConstraintSections": [
+        {
+          "ObjectName": "MovieScene3DAttachSection'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.MovieScene3DAttachTrack_0.MovieScene3DAttachSection_0'"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "MovieScene3DAttachSection",
+    "Name": "MovieScene3DAttachSection_0",
+    "Outer": {
+      "ObjectName": "MovieScene3DAttachTrack'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.MovieScene3DAttachTrack_0'"
+    },
+    "Properties": {
+      "SectionRange": {
+        "Value": {
+          "LowerBound": { "Type": 2, "Value": { "Value": 0 } },
+          "UpperBound": { "Type": 2, "Value": { "Value": 0 } }
+        }
+      }
+    }
+  },
+  {
+    "Type": "MovieSceneEventTrack",
+    "Name": "MovieSceneEventTrack_0",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Ev_C01_Demo_Cut001:MovieScene_0'" },
+    "Properties": {
+      "Sections": [
+        {
+          "ObjectName": "MovieSceneEventTriggerSection'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.MovieSceneEventTrack_0.MovieSceneEventTriggerSection_0'"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "MovieSceneEventTriggerSection",
+    "Name": "MovieSceneEventTriggerSection_0",
+    "Outer": {
+      "ObjectName": "MovieSceneEventTrack'SEQ_Ev_C01_Demo_Cut001:MovieScene_0.MovieSceneEventTrack_0'"
+    },
+    "Properties": {
+      "EventChannel": {
+        "KeyTimes": [{ "Value": 16000 }],
+        "KeyValues": [
+          {
+            "Ptrs": {
+              "Function": {
+                "ObjectName": "Function'SEQ_Ev_C01_Demo_Cut001_DirectorBP_C:PlayTalkEvent'"
+              },
+              "BoundObjectProperty": { "Path": ["Lasswell"], "ResolvedOwner": null }
+            },
+            "PayloadVariables": {
+              "TalkEventId": { "Value": "C01_DEMO_01" }
+            }
+          }
+        ]
+      }
+    }
+  }
+]

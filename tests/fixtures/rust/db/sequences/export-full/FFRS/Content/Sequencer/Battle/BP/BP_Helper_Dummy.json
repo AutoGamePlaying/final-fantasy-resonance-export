@@ -1,0 +1,11 @@
+[
+  {
+    "Type": "BlueprintGeneratedClass",
+    "Name": "BP_Helper_Dummy_C",
+    "Package": "/Game/Sequencer/Battle/BP/BP_Helper_Dummy",
+    "SuperStruct": {
+      "ObjectName": "Class'Actor'",
+      "ObjectPath": "/Script/Engine"
+    }
+  }
+]

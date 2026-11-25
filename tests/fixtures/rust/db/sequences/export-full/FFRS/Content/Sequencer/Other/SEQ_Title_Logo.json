@@ -1,0 +1,90 @@
+[
+  {
+    "Type": "BlueprintGeneratedClass",
+    "Name": "SEQ_Title_Logo_DirectorBP_C",
+    "Package": "/Game/Sequencer/Other/SEQ_Title_Logo",
+    "SuperStruct": {
+      "ObjectName": "Class'LevelSequenceDirector'",
+      "ObjectPath": "/Script/LevelSequence"
+    }
+  },
+  {
+    "Type": "Function",
+    "Name": "PlayFade",
+    "Outer": { "ObjectName": "BlueprintGeneratedClass'SEQ_Title_Logo_DirectorBP_C'" },
+    "ChildProperties": []
+  },
+  {
+    "Type": "Function",
+    "Name": "ShowTitle",
+    "Outer": { "ObjectName": "BlueprintGeneratedClass'SEQ_Title_Logo_DirectorBP_C'" },
+    "ChildProperties": []
+  },
+  {
+    "Type": "Function",
+    "Name": "SequenceEvent__ENTRYPOINTSEQ_Title_Logo_DirectorBP_0",
+    "Outer": { "ObjectName": "BlueprintGeneratedClass'SEQ_Title_Logo_DirectorBP_C'" },
+    "ChildProperties": []
+  },
+  {
+    "Type": "LevelSequence",
+    "Name": "SEQ_Title_Logo",
+    "Package": "/Game/Sequencer/Other/SEQ_Title_Logo",
+    "Properties": {
+      "MovieScene": { "ObjectName": "MovieScene'SEQ_Title_Logo:MovieScene_0'" },
+      "DirectorClass": { "ObjectName": "BlueprintGeneratedClass'SEQ_Title_Logo_DirectorBP_C'" }
+    }
+  },
+  {
+    "Type": "MovieScene",
+    "Name": "MovieScene_0",
+    "Outer": { "ObjectName": "LevelSequence'SEQ_Title_Logo'" },
+    "Properties": {
+      "TickResolution": { "Numerator": 24000 },
+      "DisplayRate": { "Numerator": 30 },
+      "PlaybackRange": {
+        "Value": {
+          "LowerBound": { "Type": 1, "Value": { "Value": 0 } },
+          "UpperBound": { "Type": 0, "Value": { "Value": 72000 } }
+        }
+      },
+      "Tracks": [
+        { "ObjectName": "MovieSceneEventTrack'SEQ_Title_Logo:MovieScene_0.MovieSceneEventTrack_0'" }
+      ]
+    }
+  },
+  {
+    "Type": "MovieSceneEventTrack",
+    "Name": "MovieSceneEventTrack_0",
+    "Outer": { "ObjectName": "MovieScene'SEQ_Title_Logo:MovieScene_0'" },
+    "Properties": {
+      "Sections": [
+        {
+          "ObjectName": "MovieSceneEventTriggerSection'SEQ_Title_Logo:MovieScene_0.MovieSceneEventTrack_0.MovieSceneEventTriggerSection_0'"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "MovieSceneEventTriggerSection",
+    "Name": "MovieSceneEventTriggerSection_0",
+    "Outer": {
+      "ObjectName": "MovieSceneEventTrack'SEQ_Title_Logo:MovieScene_0.MovieSceneEventTrack_0'"
+    },
+    "Properties": {
+      "EventChannel": {
+        "KeyTimes": [{ "Value": 12000 }],
+        "KeyValues": [
+          {
+            "Ptrs": {
+              "Function": {
+                "ObjectName": "Function'SEQ_Title_Logo_DirectorBP_C:SequenceEvent__ENTRYPOINTSEQ_Title_Logo_DirectorBP_0'"
+              },
+              "BoundObjectProperty": { "Path": [], "ResolvedOwner": null }
+            }
+          }
+        ]
+      }
+    }
+  }
+]
