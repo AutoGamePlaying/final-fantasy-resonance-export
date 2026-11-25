@@ -1,0 +1,45 @@
+[
+  {
+    "Type": "CompositeDataTable",
+    "Name": "CDT_MapData_Prod",
+    "Flags": "RF_Public | RF_Standalone",
+    "Class": "UScriptClass'CompositeDataTable'",
+    "Package": "/Game/Datatable/Map/CDT_MapData_Prod",
+    "Properties": {
+      "ParentTables": [],
+      "RowStruct": {
+        "ObjectName": "Class'MAP_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Map_Alpha": {
+        "ID": 2001,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/Map/ST_MAP_NAME.ST_MAP_NAME",
+          "Key": "Map_2001",
+          "SourceString": "みどりの森",
+          "LocalizedString": "みどりの森"
+        },
+        "encountGroupId": 10,
+        "startupEventList": [
+          {
+            "Condition": "{progress:0}>=1010",
+            "EventId": "Demo_Intro"
+          }
+        ]
+      },
+      "Map_Beta": {
+        "ID": 3001,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/Map/ST_MAP_NAME.ST_MAP_NAME",
+          "Key": "Map_3001",
+          "SourceString": "みなとまち",
+          "LocalizedString": "みなとまち"
+        },
+        "encountGroupId": -1,
+        "startupEventList": []
+      }
+    }
+  }
+]

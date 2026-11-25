@@ -1,0 +1,17 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_MAP_NAME",
+    "Flags": "RF_Public | RF_Standalone",
+    "Class": "UScriptClass'StringTable'",
+    "Package": "/Game/Datatable/Strings/Map/ST_MAP_NAME",
+    "StringTable": {
+      "TableNamespace": "ST_MAP_NAME",
+      "KeysToEntries": {
+        "Map_2001": "みどりの森",
+        "Map_3001": "みなとまち"
+      },
+      "KeysToMetaData": {}
+    }
+  }
+]

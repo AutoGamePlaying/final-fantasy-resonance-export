@@ -1,0 +1,970 @@
+{
+  "generatedFrom": "src/data (TypeScript) against test/fixtures/data/export",
+  "chapters": [
+    {
+      "rowKey": "Ch1",
+      "chapterNo": 1,
+      "name": {
+        "kind": "string-table",
+        "tableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+        "key": "Title_001",
+        "sourceString": "はじまりの森",
+        "localizedString": "はじまりの森"
+      }
+    },
+    {
+      "rowKey": "Ch2",
+      "chapterNo": 2,
+      "name": {
+        "kind": "string-table",
+        "tableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+        "key": "Title_002",
+        "sourceString": "さざなみの港",
+        "localizedString": "さざなみの港"
+      }
+    },
+    {
+      "rowKey": "Ch3",
+      "chapterNo": 3,
+      "name": {
+        "kind": "string-table",
+        "tableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+        "key": "Title_003",
+        "sourceString": "しずかな塔",
+        "localizedString": "しずかな塔"
+      }
+    }
+  ],
+  "chapterNames": [
+    {
+      "chapterNo": 1,
+      "language": null,
+      "fallbackToNative": false,
+      "expected": {
+        "text": "起始之森",
+        "lang": "zh-Hans",
+        "requestedLanguage": "zh-Hans",
+        "reason": null,
+        "source": "localization"
+      }
+    },
+    {
+      "chapterNo": 1,
+      "language": "zh-Hans",
+      "fallbackToNative": false,
+      "expected": {
+        "text": "起始之森",
+        "lang": "zh-Hans",
+        "requestedLanguage": "zh-Hans",
+        "reason": null,
+        "source": "localization"
+      }
+    },
+    {
+      "chapterNo": 1,
+      "language": "en",
+      "fallbackToNative": false,
+      "expected": {
+        "text": "Forest of Beginnings",
+        "lang": "en",
+        "requestedLanguage": "en",
+        "reason": null,
+        "source": "localization"
+      }
+    },
+    {
+      "chapterNo": 1,
+      "language": "ja",
+      "fallbackToNative": false,
+      "expected": {
+        "text": "はじまりの森",
+        "lang": "ja",
+        "requestedLanguage": "ja",
+        "reason": null,
+        "source": "localization"
+      }
+    },
+    {
+      "chapterNo": 1,
+      "language": "ko",
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "ko",
+        "reason": "缺少语言 ko 的本地化表（可运行 ../final-fantasy-resonance-export/scripts/run.sh locres --lang ko 导出到 Localization/ko.json）",
+        "source": "missing"
+      }
+    },
+    {
+      "chapterNo": 1,
+      "language": "ko",
+      "fallbackToNative": true,
+      "expected": {
+        "text": "はじまりの森",
+        "lang": "ja",
+        "requestedLanguage": "ko",
+        "reason": "缺少语言 ko 的本地化表（可运行 ../final-fantasy-resonance-export/scripts/run.sh locres --lang ko 导出到 Localization/ko.json），已回落到源语言 ja",
+        "source": "string-table"
+      }
+    },
+    {
+      "chapterNo": 2,
+      "language": null,
+      "fallbackToNative": false,
+      "expected": {
+        "text": "微澜港湾",
+        "lang": "zh-Hans",
+        "requestedLanguage": "zh-Hans",
+        "reason": null,
+        "source": "localization"
+      }
+    },
+    {
+      "chapterNo": 2,
+      "language": "en",
+      "fallbackToNative": false,
+      "expected": {
+        "text": "Rippling Harbor",
+        "lang": "en",
+        "requestedLanguage": "en",
+        "reason": null,
+        "source": "localization"
+      }
+    },
+    {
+      "chapterNo": 2,
+      "language": "ja",
+      "fallbackToNative": false,
+      "expected": {
+        "text": "さざなみの港",
+        "lang": "ja",
+        "requestedLanguage": "ja",
+        "reason": null,
+        "source": "string-table"
+      }
+    },
+    {
+      "chapterNo": 3,
+      "language": null,
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "zh-Hans",
+        "reason": "语言 zh-Hans 的本地化表中缺少 ST_ChapterTitle/Title_003",
+        "source": "missing"
+      }
+    },
+    {
+      "chapterNo": 3,
+      "language": "zh-Hans",
+      "fallbackToNative": true,
+      "expected": {
+        "text": "しずかな塔",
+        "lang": "ja",
+        "requestedLanguage": "zh-Hans",
+        "reason": "语言 zh-Hans 的本地化表中缺少 ST_ChapterTitle/Title_003，已回落到源语言 ja",
+        "source": "string-table"
+      }
+    },
+    {
+      "chapterNo": 3,
+      "language": "ja",
+      "fallbackToNative": false,
+      "expected": {
+        "text": "しずかな塔",
+        "lang": "ja",
+        "requestedLanguage": "ja",
+        "reason": null,
+        "source": "string-table"
+      }
+    },
+    {
+      "chapterNo": 99,
+      "language": null,
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "zh-Hans",
+        "reason": "章节表中找不到第 99 章",
+        "source": "missing"
+      }
+    },
+    {
+      "chapterNo": 99,
+      "language": "ja",
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "ja",
+        "reason": "章节表中找不到第 99 章",
+        "source": "missing"
+      }
+    }
+  ],
+  "mainScenarioByChapter": [
+    {
+      "chapterNo": 1,
+      "entries": [
+        {
+          "entry": {
+            "rowKey": "Step_1010",
+            "condition": "{progress:0}>=1010",
+            "minProgress": 1010,
+            "chapterNo": 1,
+            "text": {
+              "kind": "string-table",
+              "tableId": "/Game/Datatable/Strings/MainProgress/ST_MainProgress.ST_MainProgress",
+              "key": "Prog_0010",
+              "sourceString": "村の案内人に話しかける",
+              "localizedString": "村の案内人に話しかける"
+            },
+            "summaryText": {
+              "kind": "string-table",
+              "tableId": "/Game/Datatable/Strings/MainProgress/ST_MainSummary.ST_MainSummary",
+              "key": "Sum_0010",
+              "sourceString": "旅人は森の入口にたどり着いた。",
+              "localizedString": "旅人は森の入口にたどり着いた。"
+            },
+            "destinations": [
+              {
+                "pointType": "EMapPointType::Goal",
+                "destinationType": "EWldMapDestination::Map",
+                "destinationId": 2001,
+                "isPointToObject": true,
+                "objectType": "eMapObjectType::NPC",
+                "objectId": 12,
+                "condition": ""
+              }
+            ]
+          },
+          "textsDefault": {
+            "text": {
+              "text": "与村口向导交谈",
+              "lang": "zh-Hans",
+              "requestedLanguage": "zh-Hans",
+              "reason": null,
+              "source": "localization"
+            },
+            "summaryText": {
+              "text": "旅人抵达了森林入口。",
+              "lang": "zh-Hans",
+              "requestedLanguage": "zh-Hans",
+              "reason": null,
+              "source": "localization"
+            }
+          },
+          "textsEn": {
+            "text": {
+              "text": "Speak with the village guide",
+              "lang": "en",
+              "requestedLanguage": "en",
+              "reason": null,
+              "source": "localization"
+            },
+            "summaryText": {
+              "text": "The travelers arrived at the forest entrance.",
+              "lang": "en",
+              "requestedLanguage": "en",
+              "reason": null,
+              "source": "localization"
+            }
+          },
+          "textsJa": {
+            "text": {
+              "text": "村の案内人に話しかける",
+              "lang": "ja",
+              "requestedLanguage": "ja",
+              "reason": null,
+              "source": "string-table"
+            },
+            "summaryText": {
+              "text": "旅人は森の入口にたどり着いた。",
+              "lang": "ja",
+              "requestedLanguage": "ja",
+              "reason": null,
+              "source": "string-table"
+            }
+          },
+          "textsZhFallback": {
+            "text": {
+              "text": "与村口向导交谈",
+              "lang": "zh-Hans",
+              "requestedLanguage": "zh-Hans",
+              "reason": null,
+              "source": "localization"
+            },
+            "summaryText": {
+              "text": "旅人抵达了森林入口。",
+              "lang": "zh-Hans",
+              "requestedLanguage": "zh-Hans",
+              "reason": null,
+              "source": "localization"
+            }
+          }
+        },
+        {
+          "entry": {
+            "rowKey": "Step_1050",
+            "condition": "{progress:0}>=1050",
+            "minProgress": 1050,
+            "chapterNo": 1,
+            "text": {
+              "kind": "string-table",
+              "tableId": "/Game/Datatable/Strings/MainProgress/ST_MainProgress.ST_MainProgress",
+              "key": "Prog_0020",
+              "sourceString": "森の奥の遺跡を調べる",
+              "localizedString": "森の奥の遺跡を調べる"
+            },
+            "summaryText": {
+              "kind": "string-table",
+              "tableId": "/Game/Datatable/Strings/MainProgress/ST_MainSummary.ST_MainSummary",
+              "key": "Sum_0010",
+              "sourceString": "旅人は森の入口にたどり着いた。",
+              "localizedString": "旅人は森の入口にたどり着いた。"
+            },
+            "destinations": [
+              {
+                "pointType": "EMapPointType::Goal",
+                "destinationType": "EWldMapDestination::Map",
+                "destinationId": 2001,
+                "isPointToObject": true,
+                "objectType": "eMapObjectType::Gimmick",
+                "objectId": 7,
+                "condition": "!{flag:101}"
+              }
+            ]
+          },
+          "textsDefault": {
+            "text": {
+              "text": null,
+              "lang": null,
+              "requestedLanguage": "zh-Hans",
+              "reason": "语言 zh-Hans 的本地化表中缺少 ST_MainProgress/Prog_0020",
+              "source": "missing"
+            },
+            "summaryText": {
+              "text": "旅人抵达了森林入口。",
+              "lang": "zh-Hans",
+              "requestedLanguage": "zh-Hans",
+              "reason": null,
+              "source": "localization"
+            }
+          },
+          "textsEn": {
+            "text": {
+              "text": null,
+              "lang": null,
+              "requestedLanguage": "en",
+              "reason": "语言 en 的本地化表中缺少 ST_MainProgress/Prog_0020",
+              "source": "missing"
+            },
+            "summaryText": {
+              "text": "The travelers arrived at the forest entrance.",
+              "lang": "en",
+              "requestedLanguage": "en",
+              "reason": null,
+              "source": "localization"
+            }
+          },
+          "textsJa": {
+            "text": {
+              "text": "森の奥の遺跡を調べる",
+              "lang": "ja",
+              "requestedLanguage": "ja",
+              "reason": null,
+              "source": "string-table"
+            },
+            "summaryText": {
+              "text": "旅人は森の入口にたどり着いた。",
+              "lang": "ja",
+              "requestedLanguage": "ja",
+              "reason": null,
+              "source": "string-table"
+            }
+          },
+          "textsZhFallback": {
+            "text": {
+              "text": "森の奥の遺跡を調べる",
+              "lang": "ja",
+              "requestedLanguage": "zh-Hans",
+              "reason": "语言 zh-Hans 的本地化表中缺少 ST_MainProgress/Prog_0020，已回落到源语言 ja",
+              "source": "string-table"
+            },
+            "summaryText": {
+              "text": "旅人抵达了森林入口。",
+              "lang": "zh-Hans",
+              "requestedLanguage": "zh-Hans",
+              "reason": null,
+              "source": "localization"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "chapterNo": 2,
+      "entries": [
+        {
+          "entry": {
+            "rowKey": "Step_2000",
+            "condition": "{progress:0}>=2000",
+            "minProgress": 2000,
+            "chapterNo": 2,
+            "text": {
+              "kind": "string-table",
+              "tableId": "/Game/Datatable/Strings/MainProgress/ST_MainProgress.ST_MainProgress",
+              "key": "Prog_0030",
+              "sourceString": "港町から船に乗る",
+              "localizedString": "港町から船に乗る"
+            },
+            "summaryText": {
+              "kind": "string-table",
+              "tableId": "/Game/Datatable/Strings/MainProgress/ST_MainSummary.ST_MainSummary",
+              "key": "Sum_0020",
+              "sourceString": "一行は海辺の港町に到着した。",
+              "localizedString": "一行は海辺の港町に到着した。"
+            },
+            "destinations": [
+              {
+                "pointType": "EMapPointType::Waypoint",
+                "destinationType": "EWldMapDestination::Map",
+                "destinationId": 3001,
+                "isPointToObject": false,
+                "objectType": "eMapObjectType::None",
+                "objectId": -1,
+                "condition": ""
+              }
+            ]
+          },
+          "textsDefault": {
+            "text": {
+              "text": null,
+              "lang": null,
+              "requestedLanguage": "zh-Hans",
+              "reason": "语言 zh-Hans 的本地化表中缺少 ST_MainProgress/Prog_0030",
+              "source": "missing"
+            },
+            "summaryText": {
+              "text": null,
+              "lang": null,
+              "requestedLanguage": "zh-Hans",
+              "reason": "语言 zh-Hans 的本地化表中缺少 ST_MainSummary/Sum_0020",
+              "source": "missing"
+            }
+          },
+          "textsEn": {
+            "text": {
+              "text": null,
+              "lang": null,
+              "requestedLanguage": "en",
+              "reason": "语言 en 的本地化表中缺少 ST_MainProgress/Prog_0030",
+              "source": "missing"
+            },
+            "summaryText": {
+              "text": null,
+              "lang": null,
+              "requestedLanguage": "en",
+              "reason": "语言 en 的本地化表中缺少 ST_MainSummary/Sum_0020",
+              "source": "missing"
+            }
+          },
+          "textsJa": {
+            "text": {
+              "text": "港町から船に乗る",
+              "lang": "ja",
+              "requestedLanguage": "ja",
+              "reason": null,
+              "source": "string-table"
+            },
+            "summaryText": {
+              "text": "一行は海辺の港町に到着した。",
+              "lang": "ja",
+              "requestedLanguage": "ja",
+              "reason": null,
+              "source": "string-table"
+            }
+          },
+          "textsZhFallback": {
+            "text": {
+              "text": "港町から船に乗る",
+              "lang": "ja",
+              "requestedLanguage": "zh-Hans",
+              "reason": "语言 zh-Hans 的本地化表中缺少 ST_MainProgress/Prog_0030，已回落到源语言 ja",
+              "source": "string-table"
+            },
+            "summaryText": {
+              "text": "一行は海辺の港町に到着した。",
+              "lang": "ja",
+              "requestedLanguage": "zh-Hans",
+              "reason": "语言 zh-Hans 的本地化表中缺少 ST_MainSummary/Sum_0020，已回落到源语言 ja",
+              "source": "string-table"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "chapterNo": 3,
+      "entries": []
+    }
+  ],
+  "placeholderEntry": {
+    "entry": {
+      "rowKey": "NewRow",
+      "condition": "",
+      "minProgress": null,
+      "chapterNo": null,
+      "text": {
+        "kind": "culture-invariant",
+        "value": null
+      },
+      "summaryText": {
+        "kind": "culture-invariant",
+        "value": null
+      },
+      "destinations": []
+    },
+    "textsDefault": {
+      "text": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "zh-Hans",
+        "reason": "FText 为空（CultureInvariantString 为 null）",
+        "source": "missing"
+      },
+      "summaryText": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "zh-Hans",
+        "reason": "FText 为空（CultureInvariantString 为 null）",
+        "source": "missing"
+      }
+    },
+    "textsJa": {
+      "text": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "ja",
+        "reason": "FText 为空（CultureInvariantString 为 null）",
+        "source": "missing"
+      },
+      "summaryText": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "ja",
+        "reason": "FText 为空（CultureInvariantString 为 null）",
+        "source": "missing"
+      }
+    }
+  },
+  "ftextCases": [
+    {
+      "id": "st_title1_default_zh",
+      "input": {
+        "TableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+        "Key": "Title_001"
+      },
+      "language": null,
+      "fallbackToNative": false,
+      "expected": {
+        "text": "起始之森",
+        "lang": "zh-Hans",
+        "requestedLanguage": "zh-Hans",
+        "reason": null,
+        "source": "localization"
+      }
+    },
+    {
+      "id": "st_title1_en",
+      "input": {
+        "TableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+        "Key": "Title_001"
+      },
+      "language": "en",
+      "fallbackToNative": false,
+      "expected": {
+        "text": "Forest of Beginnings",
+        "lang": "en",
+        "requestedLanguage": "en",
+        "reason": null,
+        "source": "localization"
+      }
+    },
+    {
+      "id": "st_title1_ja_locres",
+      "input": {
+        "TableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+        "Key": "Title_001"
+      },
+      "language": "ja",
+      "fallbackToNative": false,
+      "expected": {
+        "text": "はじまりの森",
+        "lang": "ja",
+        "requestedLanguage": "ja",
+        "reason": null,
+        "source": "localization"
+      }
+    },
+    {
+      "id": "st_title2_ja_string_table",
+      "input": {
+        "TableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+        "Key": "Title_002"
+      },
+      "language": "ja",
+      "fallbackToNative": false,
+      "expected": {
+        "text": "さざなみの港",
+        "lang": "ja",
+        "requestedLanguage": "ja",
+        "reason": null,
+        "source": "string-table"
+      }
+    },
+    {
+      "id": "st_title3_zh_strict_missing",
+      "input": {
+        "TableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+        "Key": "Title_003"
+      },
+      "language": "zh-Hans",
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "zh-Hans",
+        "reason": "语言 zh-Hans 的本地化表中缺少 ST_ChapterTitle/Title_003",
+        "source": "missing"
+      }
+    },
+    {
+      "id": "st_title3_zh_fallback",
+      "input": {
+        "TableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+        "Key": "Title_003"
+      },
+      "language": "zh-Hans",
+      "fallbackToNative": true,
+      "expected": {
+        "text": "しずかな塔",
+        "lang": "ja",
+        "requestedLanguage": "zh-Hans",
+        "reason": "语言 zh-Hans 的本地化表中缺少 ST_ChapterTitle/Title_003，已回落到源语言 ja",
+        "source": "string-table"
+      }
+    },
+    {
+      "id": "st_title1_ko_strict_missing",
+      "input": {
+        "TableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+        "Key": "Title_001"
+      },
+      "language": "ko",
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "ko",
+        "reason": "缺少语言 ko 的本地化表（可运行 ../final-fantasy-resonance-export/scripts/run.sh locres --lang ko 导出到 Localization/ko.json）",
+        "source": "missing"
+      }
+    },
+    {
+      "id": "st_title1_ko_fallback",
+      "input": {
+        "TableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+        "Key": "Title_001"
+      },
+      "language": "ko",
+      "fallbackToNative": true,
+      "expected": {
+        "text": "はじまりの森",
+        "lang": "ja",
+        "requestedLanguage": "ko",
+        "reason": "缺少语言 ko 的本地化表（可运行 ../final-fantasy-resonance-export/scripts/run.sh locres --lang ko 导出到 Localization/ko.json），已回落到源语言 ja",
+        "source": "string-table"
+      }
+    },
+    {
+      "id": "st_missing_key_ja",
+      "input": {
+        "TableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+        "Key": "Title_999",
+        "SourceString": "不应回退"
+      },
+      "language": "ja",
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "ja",
+        "reason": "字符串表 ST_ChapterTitle（/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle）中不存在键 Title_999",
+        "source": "missing"
+      }
+    },
+    {
+      "id": "st_missing_key_zh_fallback",
+      "input": {
+        "TableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+        "Key": "Title_999",
+        "SourceString": "不应回退"
+      },
+      "language": "zh-Hans",
+      "fallbackToNative": true,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "zh-Hans",
+        "reason": "语言 zh-Hans 的本地化表中缺少 ST_ChapterTitle/Title_999；且源语言字符串表 ST_ChapterTitle 中不存在键 Title_999",
+        "source": "missing"
+      }
+    },
+    {
+      "id": "st_missing_table_ja",
+      "input": {
+        "TableId": "/Game/Datatable/Strings/NoSuch/ST_None.ST_None",
+        "Key": "K1"
+      },
+      "language": "ja",
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "ja",
+        "reason": "找不到字符串表文件：/Game/Datatable/Strings/NoSuch/ST_None.ST_None",
+        "source": "missing"
+      }
+    },
+    {
+      "id": "st_bad_table_path",
+      "input": {
+        "TableId": "/Engine/ST_Bad.ST_Bad",
+        "Key": "K1"
+      },
+      "language": "ja",
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "ja",
+        "reason": "无法把字符串表路径映射到导出目录：/Engine/ST_Bad.ST_Bad",
+        "source": "missing"
+      }
+    },
+    {
+      "id": "st_invalid_lang_tag",
+      "input": {
+        "TableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+        "Key": "Title_001"
+      },
+      "language": "../bad",
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "../bad",
+        "reason": "语言代码不合法：../bad",
+        "source": "missing"
+      }
+    },
+    {
+      "id": "culture_invariant_text",
+      "input": {
+        "CultureInvariantString": "LV 99"
+      },
+      "language": "en",
+      "fallbackToNative": false,
+      "expected": {
+        "text": "LV 99",
+        "lang": "en",
+        "requestedLanguage": "en",
+        "reason": null,
+        "source": "culture-invariant"
+      }
+    },
+    {
+      "id": "culture_invariant_null",
+      "input": {
+        "CultureInvariantString": null
+      },
+      "language": "ja",
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "ja",
+        "reason": "FText 为空（CultureInvariantString 为 null）",
+        "source": "missing"
+      }
+    },
+    {
+      "id": "inline_zh_locres",
+      "input": {
+        "Namespace": "DemoInline",
+        "Key": "Inline_001",
+        "SourceString": "デモ内联"
+      },
+      "language": "zh-Hans",
+      "fallbackToNative": false,
+      "expected": {
+        "text": "中文内联提示",
+        "lang": "zh-Hans",
+        "requestedLanguage": "zh-Hans",
+        "reason": null,
+        "source": "localization"
+      }
+    },
+    {
+      "id": "inline_ja_source",
+      "input": {
+        "Namespace": "DemoInline",
+        "Key": "Inline_001",
+        "SourceString": "デモ内联"
+      },
+      "language": "ja",
+      "fallbackToNative": false,
+      "expected": {
+        "text": "デモ内联",
+        "lang": "ja",
+        "requestedLanguage": "ja",
+        "reason": null,
+        "source": "inline-source"
+      }
+    },
+    {
+      "id": "inline_en_strict_missing",
+      "input": {
+        "Namespace": "DemoInline",
+        "Key": "Inline_001",
+        "SourceString": "デモ内联"
+      },
+      "language": "en",
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "en",
+        "reason": "语言 en 的本地化表中缺少内联文本 DemoInline/Inline_001",
+        "source": "missing"
+      }
+    },
+    {
+      "id": "inline_en_fallback",
+      "input": {
+        "Namespace": "DemoInline",
+        "Key": "Inline_001",
+        "SourceString": "デモ内联"
+      },
+      "language": "en",
+      "fallbackToNative": true,
+      "expected": {
+        "text": "デモ内联",
+        "lang": "ja",
+        "requestedLanguage": "en",
+        "reason": "语言 en 的本地化表中缺少内联文本 DemoInline/Inline_001，已回落到源语言 ja",
+        "source": "inline-source"
+      }
+    },
+    {
+      "id": "inline_ko_strict_missing",
+      "input": {
+        "Namespace": "DemoInline",
+        "Key": "Inline_001",
+        "SourceString": "デモ内联"
+      },
+      "language": "ko",
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "ko",
+        "reason": "缺少语言 ko 的本地化表（可运行 ../final-fantasy-resonance-export/scripts/run.sh locres --lang ko 导出到 Localization/ko.json）",
+        "source": "missing"
+      }
+    },
+    {
+      "id": "inline_ko_fallback",
+      "input": {
+        "Namespace": "DemoInline",
+        "Key": "Inline_001",
+        "SourceString": "デモ内联"
+      },
+      "language": "ko",
+      "fallbackToNative": true,
+      "expected": {
+        "text": "デモ内联",
+        "lang": "ja",
+        "requestedLanguage": "ko",
+        "reason": "缺少语言 ko 的本地化表（可运行 ../final-fantasy-resonance-export/scripts/run.sh locres --lang ko 导出到 Localization/ko.json），已回落到源语言 ja",
+        "source": "inline-source"
+      }
+    },
+    {
+      "id": "inline_empty_ns_missing_source_ja",
+      "input": {
+        "Namespace": "",
+        "Key": "NoSrc"
+      },
+      "language": "ja",
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "ja",
+        "reason": "内联 FText（(空命名空间)/NoSrc）缺少 SourceString",
+        "source": "missing"
+      }
+    },
+    {
+      "id": "inline_empty_ns_missing_source_zh_fallback",
+      "input": {
+        "Namespace": "",
+        "Key": "NoSrc"
+      },
+      "language": "zh-Hans",
+      "fallbackToNative": true,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "zh-Hans",
+        "reason": "语言 zh-Hans 的本地化表中缺少内联文本 (空命名空间)/NoSrc；且内联 FText 缺少 SourceString",
+        "source": "missing"
+      }
+    },
+    {
+      "id": "invalid_number",
+      "input": 12345,
+      "language": null,
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "zh-Hans",
+        "reason": "不是合法的 FText 对象",
+        "source": "missing"
+      }
+    },
+    {
+      "id": "invalid_culture_invariant_type",
+      "input": {
+        "CultureInvariantString": 123,
+        "Namespace": "DemoInline",
+        "Key": "Inline_001"
+      },
+      "language": "zh-Hans",
+      "fallbackToNative": false,
+      "expected": {
+        "text": null,
+        "lang": null,
+        "requestedLanguage": "zh-Hans",
+        "reason": "不是合法的 FText 对象",
+        "source": "missing"
+      }
+    }
+  ]
+}

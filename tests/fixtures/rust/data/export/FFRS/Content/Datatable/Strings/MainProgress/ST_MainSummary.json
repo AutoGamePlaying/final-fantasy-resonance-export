@@ -1,0 +1,17 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_MainSummary",
+    "Flags": "RF_Public | RF_Standalone",
+    "Class": "UScriptClass'StringTable'",
+    "Package": "/Game/Datatable/Strings/MainProgress/ST_MainSummary",
+    "StringTable": {
+      "TableNamespace": "ST_MainSummary",
+      "KeysToEntries": {
+        "Sum_0010": "旅人は森の入口にたどり着いた。",
+        "Sum_0020": "一行は海辺の港町に到着した。"
+      },
+      "KeysToMetaData": {}
+    }
+  }
+]

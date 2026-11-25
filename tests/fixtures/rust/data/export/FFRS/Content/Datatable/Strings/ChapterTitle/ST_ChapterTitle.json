@@ -1,0 +1,18 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_ChapterTitle",
+    "Flags": "RF_Public | RF_Standalone",
+    "Class": "UScriptClass'StringTable'",
+    "Package": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle",
+    "StringTable": {
+      "TableNamespace": "ST_ChapterTitle",
+      "KeysToEntries": {
+        "Title_001": "はじまりの森",
+        "Title_002": "さざなみの港",
+        "Title_003": "しずかな塔"
+      },
+      "KeysToMetaData": {}
+    }
+  }
+]

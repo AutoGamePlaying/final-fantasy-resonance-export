@@ -1,0 +1,117 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MainScenario",
+    "Flags": "RF_Public | RF_Standalone",
+    "Class": "UScriptClass'DataTable'",
+    "Package": "/Game/Datatable/Scenario/DT_MainScenario",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'ScenarioSection'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "NewRow": {
+        "Condition": "",
+        "Text": {
+          "CultureInvariantString": null
+        },
+        "DestinationList": [],
+        "SummaryText": {
+          "CultureInvariantString": null
+        }
+      },
+      "Step_1050": {
+        "Condition": "{progress:0}>=1050",
+        "Text": {
+          "TableId": "/Game/Datatable/Strings/MainProgress/ST_MainProgress.ST_MainProgress",
+          "Key": "Prog_0020",
+          "SourceString": "森の奥の遺跡を調べる",
+          "LocalizedString": "森の奥の遺跡を調べる"
+        },
+        "DestinationList": [
+          {
+            "PointType": "EMapPointType::Goal",
+            "DestinationKey": {
+              "Type": "EWldMapDestination::Map",
+              "DestinationId": 2001
+            },
+            "IsPointToObject": true,
+            "Object": {
+              "Type": "eMapObjectType::Gimmick",
+              "ID": 7
+            },
+            "Condition": "!{flag:101}"
+          }
+        ],
+        "SummaryText": {
+          "TableId": "/Game/Datatable/Strings/MainProgress/ST_MainSummary.ST_MainSummary",
+          "Key": "Sum_0010",
+          "SourceString": "旅人は森の入口にたどり着いた。",
+          "LocalizedString": "旅人は森の入口にたどり着いた。"
+        }
+      },
+      "Step_1010": {
+        "Condition": "{progress:0}>=1010",
+        "Text": {
+          "TableId": "/Game/Datatable/Strings/MainProgress/ST_MainProgress.ST_MainProgress",
+          "Key": "Prog_0010",
+          "SourceString": "村の案内人に話しかける",
+          "LocalizedString": "村の案内人に話しかける"
+        },
+        "DestinationList": [
+          {
+            "PointType": "EMapPointType::Goal",
+            "DestinationKey": {
+              "Type": "EWldMapDestination::Map",
+              "DestinationId": 2001
+            },
+            "IsPointToObject": true,
+            "Object": {
+              "Type": "eMapObjectType::NPC",
+              "ID": 12
+            },
+            "Condition": ""
+          }
+        ],
+        "SummaryText": {
+          "TableId": "/Game/Datatable/Strings/MainProgress/ST_MainSummary.ST_MainSummary",
+          "Key": "Sum_0010",
+          "SourceString": "旅人は森の入口にたどり着いた。",
+          "LocalizedString": "旅人は森の入口にたどり着いた。"
+        }
+      },
+      "Step_2000": {
+        "Condition": "{progress:0}>=2000",
+        "Text": {
+          "TableId": "/Game/Datatable/Strings/MainProgress/ST_MainProgress.ST_MainProgress",
+          "Key": "Prog_0030",
+          "SourceString": "港町から船に乗る",
+          "LocalizedString": "港町から船に乗る"
+        },
+        "DestinationList": [
+          {
+            "PointType": "EMapPointType::Waypoint",
+            "DestinationKey": {
+              "Type": "EWldMapDestination::Map",
+              "DestinationId": 3001
+            },
+            "IsPointToObject": false,
+            "Object": {
+              "Type": "eMapObjectType::None",
+              "ID": -1
+            },
+            "Condition": ""
+          }
+        ],
+        "SummaryText": {
+          "TableId": "/Game/Datatable/Strings/MainProgress/ST_MainSummary.ST_MainSummary",
+          "Key": "Sum_0020",
+          "SourceString": "一行は海辺の港町に到着した。",
+          "LocalizedString": "一行は海辺の港町に到着した。"
+        }
+      }
+    }
+  }
+]

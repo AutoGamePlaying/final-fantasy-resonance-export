@@ -1,0 +1,12 @@
+{
+  "ST_ChapterTitle": {
+    "Title_001": "Forest of Beginnings",
+    "Title_002": "Rippling Harbor"
+  },
+  "ST_MainProgress": {
+    "Prog_0010": "Speak with the village guide"
+  },
+  "ST_MainSummary": {
+    "Sum_0010": "The travelers arrived at the forest entrance."
+  }
+}

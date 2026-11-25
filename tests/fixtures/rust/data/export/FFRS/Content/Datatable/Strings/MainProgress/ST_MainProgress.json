@@ -1,0 +1,18 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_MainProgress",
+    "Flags": "RF_Public | RF_Standalone",
+    "Class": "UScriptClass'StringTable'",
+    "Package": "/Game/Datatable/Strings/MainProgress/ST_MainProgress",
+    "StringTable": {
+      "TableNamespace": "ST_MainProgress",
+      "KeysToEntries": {
+        "Prog_0010": "村の案内人に話しかける",
+        "Prog_0020": "森の奥の遺跡を調べる",
+        "Prog_0030": "港町から船に乗る"
+      },
+      "KeysToMetaData": {}
+    }
+  }
+]

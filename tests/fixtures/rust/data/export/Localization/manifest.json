@@ -1,0 +1,29 @@
+{
+  "cue4ParseVersion": "1.2.2.202611",
+  "command": "locres",
+  "startedAt": "2026-11-24T00:00:00.0000000Z",
+  "finishedAt": "2026-11-24T00:00:01.0000000Z",
+  "languages": [
+    {
+      "language": "zh-Hans",
+      "sourcePath": "FFRS/Content/Localization/Game/zh-Hans/Game.locres",
+      "sourceSha256": "0000000000000000000000000000000000000000000000000000000000000001",
+      "namespaceCount": 4,
+      "entryCount": 5
+    },
+    {
+      "language": "en",
+      "sourcePath": "FFRS/Content/Localization/Game/en/Game.locres",
+      "sourceSha256": "0000000000000000000000000000000000000000000000000000000000000002",
+      "namespaceCount": 3,
+      "entryCount": 4
+    },
+    {
+      "language": "ja",
+      "sourcePath": "FFRS/Content/Localization/Game/ja/Game.locres",
+      "sourceSha256": "0000000000000000000000000000000000000000000000000000000000000003",
+      "namespaceCount": 1,
+      "entryCount": 1
+    }
+  ]
+}

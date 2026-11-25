@@ -1,0 +1,44 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_ChapterData",
+    "Flags": "RF_Public | RF_Standalone",
+    "Class": "UScriptClass'DataTable'",
+    "Package": "/Game/Datatable/Scenario/DT_ChapterData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'ChapterData'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Ch2": {
+        "ChapterNo": 2,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+          "Key": "Title_002",
+          "SourceString": "さざなみの港",
+          "LocalizedString": "さざなみの港"
+        }
+      },
+      "Ch1": {
+        "ChapterNo": 1,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+          "Key": "Title_001",
+          "SourceString": "はじまりの森",
+          "LocalizedString": "はじまりの森"
+        }
+      },
+      "Ch3": {
+        "ChapterNo": 3,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ChapterTitle/ST_ChapterTitle.ST_ChapterTitle",
+          "Key": "Title_003",
+          "SourceString": "しずかな塔",
+          "LocalizedString": "しずかな塔"
+        }
+      }
+    }
+  }
+]
