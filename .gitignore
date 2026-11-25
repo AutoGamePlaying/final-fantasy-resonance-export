@@ -1,9 +1,12 @@
 # Local dependencies, SDK, caches, game files, and exports
 .deps/
 
-# .NET build and test artifacts
-bin/
-obj/
+# .NET build and test artifacts. Scoped to the .NET trees on purpose: a bare `bin/` also matched
+# the Rust binary source `crates/ffr-db/src/bin/`, which then never got committed and broke CI.
+/src/**/bin/
+/src/**/obj/
+/tests/**/bin/
+/tests/**/obj/
 TestResults/
 *.user
 *.suo
