@@ -1,0 +1,58 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_BtlUnitAIParameter",
+    "Package": "/Game/Datatable/Unit/AI/DT_BtlUnitAIParameter",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'BTL_UNIT_AI_PARAMETER'"
+      }
+    },
+    "Rows": {
+      "SynthHero": {
+        "ID": 9001,
+        "fightSkillId": 95004,
+        "chaseSkillId": -1,
+        "aiId": -1,
+        "skillRandData1": [],
+        "skillRandData2": [],
+        "counterSkillIdList": [-1],
+        "silenceFightId": -1,
+        "highRiskSkillIdList": [-1]
+      },
+      "FrostWingAlpha": {
+        "ID": 9101,
+        "fightSkillId": 95001,
+        "chaseSkillId": -1,
+        "aiId": 100,
+        "skillRandData1": [],
+        "skillRandData2": [],
+        "counterSkillIdList": [-1],
+        "silenceFightId": -1,
+        "highRiskSkillIdList": [-1]
+      },
+      "CoreGuardian": {
+        "ID": 9201,
+        "fightSkillId": 95002,
+        "chaseSkillId": -1,
+        "aiId": 200,
+        "skillRandData1": [],
+        "skillRandData2": [],
+        "counterSkillIdList": [95002, -1],
+        "silenceFightId": -1,
+        "highRiskSkillIdList": [95003, -1]
+      },
+      "FrostWingBeta": {
+        "ID": 9202,
+        "fightSkillId": 95001,
+        "chaseSkillId": -1,
+        "aiId": 101,
+        "skillRandData1": [],
+        "skillRandData2": [],
+        "counterSkillIdList": [-1],
+        "silenceFightId": -1,
+        "highRiskSkillIdList": [-1]
+      }
+    }
+  }
+]

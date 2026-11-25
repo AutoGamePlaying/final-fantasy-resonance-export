@@ -1,0 +1,27 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_SkillGeneralData",
+    "Package": "/Game/Datatable/Skill/Other/DT_SkillGeneralData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'SKILL_GENERAL_DATA'"
+      }
+    },
+    "Rows": {
+      "General": {
+        "effectMaxLifeTime": 10,
+        "normalAttackSkills": [],
+        "costOverrideData": [
+          {
+            "SkillId": 95004,
+            "costType": "eSkillCostType::HPRatio",
+            "Cost": 10
+          }
+        ],
+        "additionalCostData": [],
+        "costCheckData": []
+      }
+    }
+  }
+]

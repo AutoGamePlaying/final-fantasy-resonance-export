@@ -1,0 +1,46 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_SkillAttributeDetailData",
+    "Package": "/Game/Datatable/Skill/Other/DT_SkillAttributeDetailData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'SKILL_ATTRIBUTE_DETAIL_DATA'"
+      }
+    },
+    "Rows": {
+      "Fight": {
+        "skillAttrType": "eSkillAttributeType::Fight",
+        "costType": "eSkillCostType::MP",
+        "unusableListInStatusCondition": [],
+        "isUnusableInCannotLimitBurst": false,
+        "isRepeatEffectApply": true,
+        "isParallelExecutable": true
+      },
+      "Ability": {
+        "skillAttrType": "eSkillAttributeType::Ability",
+        "costType": "eSkillCostType::MP",
+        "unusableListInStatusCondition": [],
+        "isUnusableInCannotLimitBurst": false,
+        "isRepeatEffectApply": true,
+        "isParallelExecutable": true
+      },
+      "Magic": {
+        "skillAttrType": "eSkillAttributeType::Magic",
+        "costType": "eSkillCostType::MP",
+        "unusableListInStatusCondition": ["eUnitStatusCondition::Silence"],
+        "isUnusableInCannotLimitBurst": false,
+        "isRepeatEffectApply": true,
+        "isParallelExecutable": true
+      },
+      "LimitBurst": {
+        "skillAttrType": "eSkillAttributeType::LimitBurst",
+        "costType": "eSkillCostType::LB",
+        "unusableListInStatusCondition": [],
+        "isUnusableInCannotLimitBurst": true,
+        "isRepeatEffectApply": false,
+        "isParallelExecutable": true
+      }
+    }
+  }
+]

@@ -1,0 +1,16 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_SkillDescription",
+    "Package": "/Game/Datatable/Strings/ST_Skill/ST_SkillDescription",
+    "StringTable": {
+      "TableNamespace": "ST_SkillDescription",
+      "KeysToEntries": {
+        "SkillDescription95001": "単体氷魔法",
+        "SkillDescription95002": "グループ火魔法",
+        "SkillDescription95003": "全体高威力技",
+        "SkillDescription95004": "HP消費単体物理"
+      }
+    }
+  }
+]

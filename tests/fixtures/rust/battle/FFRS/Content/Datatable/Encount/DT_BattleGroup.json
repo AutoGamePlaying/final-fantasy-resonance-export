@@ -1,0 +1,74 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_BattleGroup",
+    "Package": "/Game/Datatable/Encount/DT_BattleGroup",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'BATTLE_GROUP_DATA'"
+      }
+    },
+    "Rows": {
+      "GroupNormal": {
+        "ID": 9801,
+        "UnitIdList": [9101, 9101],
+        "locationIdList": [8, 19],
+        "addPassiveDataList": [{ "passiveSkillList": [-1] }, { "passiveSkillList": [-1] }],
+        "bgmCueName": "BGM_TEST_NORMAL",
+        "CanEscape": true,
+        "probabilityOfSuccessfulEscape": 50.0,
+        "isResultSkipOnWin": false,
+        "isResultSkipOnLose": false,
+        "battleEventId": -1,
+        "battleFinishEventId": "None",
+        "battleFinishEscapeEventId": "None",
+        "battleFinishLoseEventId": "None",
+        "ap": 20,
+        "preemtiveRelation": "eRelation::None",
+        "isBounty": false,
+        "friendliesLocationIdList": [],
+        "isForceContinueBGM": false
+      },
+      "GroupBoss": {
+        "ID": 9802,
+        "UnitIdList": [9201, 9101],
+        "locationIdList": [10, 19],
+        "addPassiveDataList": [{ "passiveSkillList": [1005, -1] }, { "passiveSkillList": [-1] }],
+        "bgmCueName": "BGM_TEST_BOSS",
+        "CanEscape": false,
+        "probabilityOfSuccessfulEscape": 0.0,
+        "isResultSkipOnWin": false,
+        "isResultSkipOnLose": false,
+        "battleEventId": 42,
+        "battleFinishEventId": "EV_TEST_WIN",
+        "battleFinishEscapeEventId": "None",
+        "battleFinishLoseEventId": "None",
+        "ap": 80,
+        "preemtiveRelation": "eRelation::None",
+        "isBounty": true,
+        "friendliesLocationIdList": [],
+        "isForceContinueBGM": false
+      },
+      "GroupBrokenRef": {
+        "ID": 9803,
+        "UnitIdList": [9101, 99999],
+        "locationIdList": [8, 19],
+        "addPassiveDataList": [{ "passiveSkillList": [-1] }],
+        "bgmCueName": "BGM_TEST_NORMAL",
+        "CanEscape": true,
+        "probabilityOfSuccessfulEscape": 50.0,
+        "isResultSkipOnWin": false,
+        "isResultSkipOnLose": false,
+        "battleEventId": -1,
+        "battleFinishEventId": "None",
+        "battleFinishEscapeEventId": "None",
+        "battleFinishLoseEventId": "None",
+        "ap": 0,
+        "preemtiveRelation": "eRelation::None",
+        "isBounty": false,
+        "friendliesLocationIdList": [],
+        "isForceContinueBGM": false
+      }
+    }
+  }
+]

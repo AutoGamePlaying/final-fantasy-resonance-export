@@ -1,0 +1,26 @@
+{
+  "ST_UnitName": {
+    "UnitName9001": "合成英雄",
+    "UnitName9101": "霜翼试作兽",
+    "UnitName9201": "熔核守护者",
+    "UnitName9202": "霜翼试作兽"
+  },
+  "ST_UnitDescription": {
+    "UnitDescription9001": "测试用可操控角色",
+    "UnitDescription9101": "测试用普通敌人",
+    "UnitDescription9201": "测试用首领敌人",
+    "UnitDescription9202": "测试用强化个体"
+  },
+  "ST_SkillName": {
+    "SkillName95001": "试作冰刺",
+    "SkillName95002": "试作炎波",
+    "SkillName95003": "炽核爆裂",
+    "SkillName95004": "背水一击"
+  },
+  "ST_SkillDescription": {
+    "SkillDescription95001": "单体冰属性魔法",
+    "SkillDescription95002": "群体火属性魔法",
+    "SkillDescription95003": "全体火属性强力技能",
+    "SkillDescription95004": "消耗HP的单体物理斩击"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "ST_UnitName": {
+    "UnitName9001": "テスト勇者",
+    "UnitName9101": "テスト氷翼獣",
+    "UnitName9201": "テスト熔核番人",
+    "UnitName9202": "テスト氷翼獣"
+  },
+  "ST_UnitDescription": {
+    "UnitDescription9001": "テスト用味方",
+    "UnitDescription9101": "テスト用雑魚",
+    "UnitDescription9201": "テスト用ボス",
+    "UnitDescription9202": "テスト用強化個体"
+  },
+  "ST_SkillName": {
+    "SkillName95001": "テスト氷針",
+    "SkillName95002": "テスト炎波",
+    "SkillName95003": "テスト核爆",
+    "SkillName95004": "テスト捨て身斬り"
+  },
+  "ST_SkillDescription": {
+    "SkillDescription95001": "単体氷魔法",
+    "SkillDescription95002": "グループ火魔法",
+    "SkillDescription95003": "全体高威力技",
+    "SkillDescription95004": "HP消費単体物理"
+  }
+}

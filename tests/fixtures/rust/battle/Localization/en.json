@@ -1,0 +1,26 @@
+{
+  "ST_UnitName": {
+    "UnitName9001": "Synth Hero",
+    "UnitName9101": "Frostwing Prototype",
+    "UnitName9201": "Core Guardian",
+    "UnitName9202": "Frostwing Prototype"
+  },
+  "ST_UnitDescription": {
+    "UnitDescription9001": "Synthetic party member",
+    "UnitDescription9101": "Synthetic regular enemy",
+    "UnitDescription9201": "Synthetic boss enemy",
+    "UnitDescription9202": "Synthetic variant enemy"
+  },
+  "ST_SkillName": {
+    "SkillName95001": "Synth Ice Spike",
+    "SkillName95002": "Synth Fire Wave",
+    "SkillName95003": "Core Detonation",
+    "SkillName95004": "Desperate Slash"
+  },
+  "ST_SkillDescription": {
+    "SkillDescription95001": "Single-target ice magic",
+    "SkillDescription95002": "Group fire magic",
+    "SkillDescription95003": "High-risk all-target fire attack",
+    "SkillDescription95004": "HP-cost physical strike"
+  }
+}
