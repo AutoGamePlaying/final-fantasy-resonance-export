@@ -1,0 +1,15 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_Fake",
+    "Package": "/Game/Datatable/Strings/Fake/ST_Fake",
+    "StringTable": {
+      "TableNamespace": "FakeTextNamespace",
+      "KeysToEntries": {
+        "Greeting": "鋼の蝙蝠",
+        "SourceOnly": "源だけの文章",
+        "LongText": "洞窟の奥の鋼鉄蝙蝠"
+      }
+    }
+  }
+]

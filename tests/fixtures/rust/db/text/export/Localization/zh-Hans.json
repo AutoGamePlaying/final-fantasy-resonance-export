@@ -1,0 +1,11 @@
+{
+  "FakeTextNamespace": {
+    "Greeting": "钢蝠",
+    "LongText": "洞窟深处的钢铁蝙蝠",
+    "Literal": "100%_\\测试"
+  },
+  "InlineNs": {
+    "InlineKey": "内联钢铁蝙蝠"
+  },
+  "EmptyNs": {}
+}
