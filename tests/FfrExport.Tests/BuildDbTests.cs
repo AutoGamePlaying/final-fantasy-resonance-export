@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Xunit;
@@ -267,12 +268,26 @@ public sealed class BuildDbTests
         Assert.Contains("skill", output, StringComparison.Ordinal);
         Assert.Contains("unit", output, StringComparison.Ordinal);
 
-        // 4. Load prefers adjacent known-builds.json, falls back to embedded empty array.
+        // 4. Load prefers adjacent known-builds.json, falls back to the embedded registry.
         var emptyDir = Path.Combine(workspace.Root, "empty-bin");
         Directory.CreateDirectory(emptyDir);
         var (embeddedEntries, embeddedSource) = KnownBuildsRegistry.Load(emptyDir);
         Assert.Equal("embedded", embeddedSource);
-        Assert.Empty(embeddedEntries);
+        Assert.NotNull(embeddedEntries);
+
+        var lowerHex64Regex = new Regex("^[0-9a-f]{64}$", RegexOptions.CultureInvariant);
+        foreach (var entry in embeddedEntries)
+        {
+            Assert.False(string.IsNullOrWhiteSpace(entry.RegisteredAt));
+            Assert.NotNull(entry.GameVersion);
+            Assert.NotNull(entry.GameVersion.Steam);
+            Assert.False(string.IsNullOrWhiteSpace(entry.GameVersion.Steam.BuildId));
+            Assert.NotNull(entry.Database);
+            Assert.False(string.IsNullOrWhiteSpace(entry.Database.FileSha256));
+            Assert.False(string.IsNullOrWhiteSpace(entry.Database.ContentSha256));
+            Assert.Matches(lowerHex64Regex, entry.Database.FileSha256);
+            Assert.Matches(lowerHex64Regex, entry.Database.ContentSha256);
+        }
 
         var adjacentDir = Path.Combine(workspace.Root, "adjacent-bin");
         Directory.CreateDirectory(adjacentDir);
@@ -538,13 +553,13 @@ public sealed class BuildDbTests
             "--keep-json",
         ]);
         Assert.True(resManual.ExitCode == 0, $"stdout:\n{resManual.Stdout}\nstderr:\n{resManual.Stderr}");
-        Assert.True(File.Exists(Path.Combine(deepOutDir, "json", "export", "manifest.json")));
-        Assert.True(File.Exists(Path.Combine(deepOutDir, "json", "export", "Localization", "zh-Hans.json")));
-        Assert.True(File.Exists(Path.Combine(deepOutDir, "json", "inventory", "registry.jsonl")));
-        Assert.True(File.Exists(Path.Combine(deepOutDir, "json", "export-full", "FFRS", "Config", "DefaultGame.ini")));
-        Assert.True(File.Exists(Path.Combine(deepOutDir, "json", "export-full", "maps", "_graph.json")));
+        Assert.True(File.Exists(PathSupport.ToIoPath(Path.Combine(deepOutDir, "json", "export", "manifest.json"))));
+        Assert.True(File.Exists(PathSupport.ToIoPath(Path.Combine(deepOutDir, "json", "export", "Localization", "zh-Hans.json"))));
+        Assert.True(File.Exists(PathSupport.ToIoPath(Path.Combine(deepOutDir, "json", "inventory", "registry.jsonl"))));
+        Assert.True(File.Exists(PathSupport.ToIoPath(Path.Combine(deepOutDir, "json", "export-full", "FFRS", "Config", "DefaultGame.ini"))));
+        Assert.True(File.Exists(PathSupport.ToIoPath(Path.Combine(deepOutDir, "json", "export-full", "maps", "_graph.json"))));
 
-        var buildMetaManual = JObject.Parse(await File.ReadAllTextAsync(Path.Combine(deepOutDir, "ffr.sqlite.build.json")));
+        var buildMetaManual = JObject.Parse(await File.ReadAllTextAsync(PathSupport.ToIoPath(Path.Combine(deepOutDir, "ffr.sqlite.build.json"))));
         Assert.Equal("98765432", buildMetaManual["game_version"]?["steam"]?["build_id"]?.Value<string>());
         Assert.Equal("manual", buildMetaManual["game_version"]?["steam"]?["source"]?.Value<string>());
 
@@ -625,84 +640,42 @@ public sealed class BuildDbTests
 
     private static string CreateFakeFfrDbScript(string directory)
     {
+        var sourceDir = Path.Combine(AppContext.BaseDirectory, "fake-ffr-db");
+        if (!Directory.Exists(sourceDir))
+        {
+            throw new DirectoryNotFoundException($"假 ffr-db 测试辅助产物目录不存在：{sourceDir}");
+        }
+
         Directory.CreateDirectory(directory);
-        var scriptPath = Path.Combine(directory, "ffr-db");
-        var script = """
-            #!/usr/bin/env python3
-            import hashlib, json, os, sys
+        foreach (var srcFile in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(sourceDir, srcFile);
+            var dstFile = Path.Combine(directory, relative);
+            var dstParent = Path.GetDirectoryName(dstFile);
+            if (!string.IsNullOrEmpty(dstParent))
+            {
+                Directory.CreateDirectory(dstParent);
+            }
 
-            args = sys.argv[1:]
-            if not args:
-                sys.stderr.write("missing subcommand\n")
-                sys.exit(2)
+            File.Copy(srcFile, dstFile, overwrite: true);
+        }
 
-            if args[0] == "--version":
-                print("ffr-db 0.1.0-fake")
-                sys.exit(0)
-
-            if args[0] == "build":
-                out_path = None
-                i = 1
-                required = {}
-                while i < len(args):
-                    flag = args[i]
-                    if flag in ("--export", "--full", "--inventory", "--maps", "--out"):
-                        required[flag] = args[i + 1]
-                        i += 2
-                    elif flag == "--jmap":
-                        if not os.path.isfile(args[i + 1]):
-                            sys.stderr.write(f"missing jmap: {args[i + 1]}\n")
-                            sys.exit(2)
-                        i += 2
-                    else:
-                        sys.stderr.write(f"unexpected flag: {flag}\n")
-                        sys.exit(2)
-                for key in ("--export", "--full", "--inventory", "--maps"):
-                    if key not in required or not os.path.isdir(required[key]):
-                        sys.stderr.write(f"missing dir for {key}\n")
-                        sys.exit(2)
-                out_path = required["--out"]
-                os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
-                with open(out_path, "wb") as f:
-                    f.write(b"SQLite format 3\x00synthetic-test-db")
-                print(f"构建完成：{out_path}")
-                sys.exit(0)
-
-            if args[0] == "hash":
-                db_path = args[1]
-                if "--json" not in args:
-                    sys.stderr.write("expected --json\n")
-                    sys.exit(2)
-                with open(db_path, "rb") as f:
-                    file_sha = hashlib.sha256(f.read()).hexdigest()
-                payload = {
-                    "format": 1,
-                    "file_sha256": file_sha,
-                    "content_sha256": "deadbeef00000000000000000000000000000000000000000000000000000001",
-                    "schema_version": 1,
-                    "sqlite_version": "3.49.1",
-                    "tables": [
-                        {"name": "unit", "rows": 643, "sha256": "1111111111111111111111111111111111111111111111111111111111111111"},
-                        {"name": "text", "rows": 3, "sha256": "2222222222222222222222222222222222222222222222222222222222222222"},
-                    ],
-                }
-                print(json.dumps(payload))
-                sys.exit(0)
-
-            sys.stderr.write(f"unknown command: {args[0]}\n")
-            sys.exit(2)
-            """;
-        File.WriteAllText(scriptPath, script, new UTF8Encoding(false));
+        var exeName = OperatingSystem.IsWindows() ? "FfrExport.FakeFfrDb.exe" : "FfrExport.FakeFfrDb";
+        var exePath = Path.Combine(directory, exeName);
+        if (!File.Exists(exePath))
+        {
+            throw new FileNotFoundException($"假 ffr-db 可执行文件不存在：{exePath}");
+        }
 
         if (!OperatingSystem.IsWindows())
         {
             File.SetUnixFileMode(
-                scriptPath,
+                exePath,
                 UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
                 | UnixFileMode.GroupRead | UnixFileMode.GroupExecute
                 | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
         }
 
-        return scriptPath;
+        return exePath;
     }
 }
