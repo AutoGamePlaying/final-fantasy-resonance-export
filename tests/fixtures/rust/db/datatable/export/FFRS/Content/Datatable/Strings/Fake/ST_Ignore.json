@@ -1,0 +1,13 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_Ignore",
+    "Package": "/Game/Datatable/Strings/Fake/ST_Ignore",
+    "StringTable": {
+      "TableNamespace": "Ignored",
+      "KeysToEntries": {
+        "Key": "原始データ表ではない"
+      }
+    }
+  }
+]

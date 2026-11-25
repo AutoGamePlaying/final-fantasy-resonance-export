@@ -1,0 +1,24 @@
+[
+  {
+    "Type": "CompositeDataTable",
+    "Name": "CDT_MapData_Prod",
+    "Package": "/Game/Datatable/Map/CDT_MapData_Prod",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "ScriptStruct'MapData'"
+      }
+    },
+    "Rows": {
+      "RowB": {
+        "MapId": 2,
+        "Name": "微光洞窟",
+        "Nested": { "Enabled": true, "Values": [1, 2] }
+      },
+      "RowA": {
+        "MapId": 1,
+        "Name": "起始之森",
+        "Nested": { "Enabled": false, "Values": [] }
+      }
+    }
+  }
+]

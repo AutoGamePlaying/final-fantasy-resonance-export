@@ -1,0 +1,19 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MapData_00Com",
+    "Package": "/Game/Datatable/Map/MapData/DT_MapData_00Com",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "ScriptStruct'MapCommonData'"
+      }
+    },
+    "Rows": {
+      "Common": {
+        "DisplayName": "共通",
+        "Nullable": null,
+        "Ratio": 1.25
+      }
+    }
+  }
+]
