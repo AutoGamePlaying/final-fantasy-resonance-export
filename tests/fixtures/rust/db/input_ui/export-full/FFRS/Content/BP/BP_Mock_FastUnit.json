@@ -1,0 +1,96 @@
+[
+  {
+    "Type": "BlueprintGeneratedClass",
+    "Name": "BP_Mock_FastUnit_C",
+    "Class": "UScriptClass'BlueprintGeneratedClass'",
+    "Package": "/Game/BP/BP_Mock_FastUnit",
+    "Super": {
+      "ObjectName": "BlueprintGeneratedClass'BP_Mock_BaseUnit_C'",
+      "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.0"
+    },
+    "ClassDefaultObject": {
+      "ObjectName": "BP_Mock_FastUnit_C'Default__BP_Mock_FastUnit_C'",
+      "ObjectPath": "/Game/BP/BP_Mock_FastUnit.1"
+    },
+    "Properties": {
+      "SimpleConstructionScript": {
+        "ObjectName": "SimpleConstructionScript'BP_Mock_FastUnit_C:SimpleConstructionScript_0'",
+        "ObjectPath": "/Game/BP/BP_Mock_FastUnit.5"
+      },
+      "InheritableComponentHandler": {
+        "ObjectName": "InheritableComponentHandler'BP_Mock_FastUnit_C:InheritableComponentHandler'",
+        "ObjectPath": "/Game/BP/BP_Mock_FastUnit.3"
+      }
+    }
+  },
+  {
+    "Type": "BP_Mock_FastUnit_C",
+    "Name": "Default__BP_Mock_FastUnit_C",
+    "Flags": "RF_Public | RF_ClassDefaultObject | RF_ArchetypeObject",
+    "Class": "BlueprintGeneratedClass'/Game/BP/BP_Mock_FastUnit.BP_Mock_FastUnit_C'",
+    "Package": "/Game/BP/BP_Mock_FastUnit",
+    "Properties": {
+      "RunSpeed": 950.0
+    }
+  },
+  {
+    "Type": "CharacterMovementComponent",
+    "Name": "CharMoveComp",
+    "Flags": "RF_Public | RF_ArchetypeObject | RF_DefaultSubObject",
+    "Class": "UScriptClass'CharacterMovementComponent'",
+    "Outer": {
+      "ObjectName": "BP_Mock_FastUnit_C'Default__BP_Mock_FastUnit_C'",
+      "ObjectPath": "/Game/BP/BP_Mock_FastUnit.1"
+    },
+    "Properties": {
+      "MaxAcceleration": 18000.0
+    }
+  },
+  {
+    "Type": "InheritableComponentHandler",
+    "Name": "InheritableComponentHandler",
+    "Class": "UScriptClass'InheritableComponentHandler'",
+    "Outer": {
+      "ObjectName": "BlueprintGeneratedClass'BP_Mock_FastUnit_C'",
+      "ObjectPath": "/Game/BP/BP_Mock_FastUnit.0"
+    },
+    "Properties": {
+      "Records": [
+        {
+          "ComponentClass": {
+            "ObjectName": "Class'BoxComponent'",
+            "ObjectPath": "/Script/Engine"
+          },
+          "ComponentTemplate": {
+            "ObjectName": "BoxComponent'BP_Mock_FastUnit_C:TriggerBox_GEN_VARIABLE'",
+            "ObjectPath": "/Game/BP/BP_Mock_FastUnit.4"
+          },
+          "ComponentKey": {
+            "SCSVariableName": "TriggerBox"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "Type": "BoxComponent",
+    "Name": "TriggerBox_GEN_VARIABLE",
+    "Class": "UScriptClass'BoxComponent'",
+    "Outer": {
+      "ObjectName": "BlueprintGeneratedClass'BP_Mock_FastUnit_C'",
+      "ObjectPath": "/Game/BP/BP_Mock_FastUnit.0"
+    },
+    "Properties": {
+      "BoxExtent": { "X": 64.0, "Y": 64.0, "Z": 64.0 }
+    }
+  },
+  {
+    "Type": "SimpleConstructionScript",
+    "Name": "SimpleConstructionScript_0",
+    "Class": "UScriptClass'SimpleConstructionScript'",
+    "Outer": {
+      "ObjectName": "BlueprintGeneratedClass'BP_Mock_FastUnit_C'",
+      "ObjectPath": "/Game/BP/BP_Mock_FastUnit.0"
+    }
+  }
+]

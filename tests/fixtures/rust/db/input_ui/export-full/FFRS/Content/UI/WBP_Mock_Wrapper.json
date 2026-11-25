@@ -1,0 +1,52 @@
+[
+  {
+    "Type": "WBP_Mock_Wrapper_C",
+    "Name": "Default__WBP_Mock_Wrapper_C",
+    "Flags": "RF_Public | RF_ClassDefaultObject",
+    "Class": "WidgetBlueprintGeneratedClass'/Game/UI/WBP_Mock_Wrapper.WBP_Mock_Wrapper_C'",
+    "Package": "/Game/UI/WBP_Mock_Wrapper",
+    "Properties": {
+      "IsOverrideButtonProperty": true
+    }
+  },
+  {
+    "Type": "WBP_Mock_Entry_C",
+    "Name": "EntryWidget",
+    "Class": "WidgetBlueprintGeneratedClass'/Game/UI/WBP_Mock_Entry.WBP_Mock_Entry_C'",
+    "Outer": {
+      "ObjectName": "WidgetTree'WBP_Mock_Wrapper_C:WidgetTree'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Wrapper.3"
+    }
+  },
+  {
+    "Type": "WidgetBlueprintGeneratedClass",
+    "Name": "WBP_Mock_Wrapper_C",
+    "Class": "UScriptClass'WidgetBlueprintGeneratedClass'",
+    "Package": "/Game/UI/WBP_Mock_Wrapper",
+    "Super": {
+      "ObjectName": "WidgetBlueprintGeneratedClass'WBP_Mock_Entry_C'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Entry.11"
+    },
+    "Properties": {
+      "WidgetTree": {
+        "ObjectName": "WidgetTree'WBP_Mock_Wrapper_C:WidgetTree'",
+        "ObjectPath": "/Game/UI/WBP_Mock_Wrapper.3"
+      }
+    }
+  },
+  {
+    "Type": "WidgetTree",
+    "Name": "WidgetTree",
+    "Class": "UScriptClass'WidgetTree'",
+    "Outer": {
+      "ObjectName": "WidgetBlueprintGeneratedClass'WBP_Mock_Wrapper_C'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Wrapper.2"
+    },
+    "Properties": {
+      "RootWidget": {
+        "ObjectName": "WBP_Mock_Entry_C'WBP_Mock_Wrapper_C:WidgetTree.EntryWidget'",
+        "ObjectPath": "/Game/UI/WBP_Mock_Wrapper.1"
+      }
+    }
+  }
+]

@@ -1,0 +1,98 @@
+[
+  {
+    "Type": "InputMappingContext",
+    "Name": "IMC_Mock_Field_KBM",
+    "Class": "UScriptClass'InputMappingContext'",
+    "Package": "/Game/Input/Mapping/IMC_Mock_Field_KBM",
+    "Properties": {
+      "Mappings": [
+        {
+          "Triggers": [],
+          "Modifiers": [
+            {
+              "ObjectName": "InputModifierSwizzleAxis'IMC_Mock_Field_KBM:InputModifierSwizzleAxis_0'",
+              "ObjectPath": "/Game/Input/Mapping/IMC_Mock_Field_KBM.1"
+            }
+          ],
+          "Action": {
+            "ObjectName": "InputAction'IA_Mock_Move'",
+            "ObjectPath": "/Game/Input/Action/IA_Mock_Move.0"
+          },
+          "Key": { "KeyName": "W" },
+          "SettingBehavior": "EPlayerMappableKeySettingBehaviors::InheritSettingsFromAction"
+        },
+        {
+          "Triggers": [],
+          "Modifiers": [
+            {
+              "ObjectName": "InputModifierNegate'IMC_Mock_Field_KBM:InputModifierNegate_0'",
+              "ObjectPath": "/Game/Input/Mapping/IMC_Mock_Field_KBM.2"
+            },
+            {
+              "ObjectName": "InputModifierSwizzleAxis'IMC_Mock_Field_KBM:InputModifierSwizzleAxis_0'",
+              "ObjectPath": "/Game/Input/Mapping/IMC_Mock_Field_KBM.1"
+            }
+          ],
+          "Action": {
+            "ObjectName": "InputAction'IA_Mock_Move'",
+            "ObjectPath": "/Game/Input/Action/IA_Mock_Move.0"
+          },
+          "Key": { "KeyName": "S" }
+        },
+        {
+          "Triggers": [],
+          "Modifiers": [],
+          "Action": {
+            "ObjectName": "InputAction'IA_Mock_Confirm'",
+            "ObjectPath": "/Game/Input/Action/IA_Mock_Confirm.0"
+          },
+          "Key": { "KeyName": "F" }
+        },
+        {
+          "Triggers": [],
+          "Modifiers": [],
+          "Action": {
+            "ObjectName": "InputAction'IA_Mock_Confirm'",
+            "ObjectPath": "/Game/Input/Action/IA_Mock_Confirm.0"
+          },
+          "Key": { "KeyName": "Enter" }
+        },
+        {
+          "Triggers": [],
+          "Modifiers": [],
+          "Action": {
+            "ObjectName": "InputAction'IA_Mock_Menu'",
+            "ObjectPath": "/Game/Input/Action/IA_Mock_Menu.0"
+          },
+          "Key": { "KeyName": "Tab" }
+        }
+      ]
+    }
+  },
+  {
+    "Type": "InputModifierSwizzleAxis",
+    "Name": "InputModifierSwizzleAxis_0",
+    "Class": "UScriptClass'InputModifierSwizzleAxis'",
+    "Outer": {
+      "ObjectName": "InputMappingContext'IMC_Mock_Field_KBM'",
+      "ObjectPath": "/Game/Input/Mapping/IMC_Mock_Field_KBM.0"
+    },
+    "Properties": {
+      "Order": "EInputAxisSwizzle::YXZ"
+    }
+  },
+  {
+    "Type": "InputModifierNegate",
+    "Name": "InputModifierNegate_0",
+    "Class": "UScriptClass'InputModifierNegate'",
+    "Outer": {
+      "ObjectName": "InputMappingContext'IMC_Mock_Field_KBM'",
+      "ObjectPath": "/Game/Input/Mapping/IMC_Mock_Field_KBM.0"
+    },
+    "Properties": {
+      "bX": true,
+      "bY": true,
+      "bZ": true
+    }
+  }
+]

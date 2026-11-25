@@ -1,0 +1,49 @@
+[
+  {
+    "Type": "CPP_DA_MUCHA_INPUT",
+    "Name": "DA_Input_MockField",
+    "Class": "UScriptClass'CPP_DA_MUCHA_INPUT'",
+    "Package": "/Game/Input/DataAsset/DA_Input_MockField",
+    "Properties": {
+      "pInputMappingContextList": [
+        {
+          "Key": "eMuchaInputDeviceType::KeyboardAndMouse",
+          "Value": {
+            "ObjectName": "InputMappingContext'IMC_Mock_Field_KBM'",
+            "ObjectPath": "/Game/Input/Mapping/IMC_Mock_Field_KBM.0"
+          }
+        },
+        {
+          "Key": "eMuchaInputDeviceType::Gamepad",
+          "Value": {
+            "ObjectName": "InputMappingContext'IMC_Mock_Field_Pad'",
+            "ObjectPath": "/Game/Input/Mapping/IMC_Mock_Field_Pad.0"
+          }
+        }
+      ],
+      "InputActionList": [
+        {
+          "Key": "FieldMove",
+          "Value": {
+            "ObjectName": "InputAction'IA_Mock_Move'",
+            "ObjectPath": "/Game/Input/Action/IA_Mock_Move.0"
+          }
+        },
+        {
+          "Key": "FieldConfirm",
+          "Value": {
+            "ObjectName": "InputAction'IA_Mock_Confirm'",
+            "ObjectPath": "/Game/Input/Action/IA_Mock_Confirm.0"
+          }
+        },
+        {
+          "Key": "FieldMenu",
+          "Value": {
+            "ObjectName": "InputAction'IA_Mock_Menu'",
+            "ObjectPath": "/Game/Input/Action/IA_Mock_Menu.0"
+          }
+        }
+      ]
+    }
+  }
+]

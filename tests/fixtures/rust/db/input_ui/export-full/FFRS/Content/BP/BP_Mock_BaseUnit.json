@@ -1,0 +1,138 @@
+[
+  {
+    "Type": "BlueprintGeneratedClass",
+    "Name": "BP_Mock_BaseUnit_C",
+    "Class": "UScriptClass'BlueprintGeneratedClass'",
+    "Package": "/Game/BP/BP_Mock_BaseUnit",
+    "SuperStruct": {
+      "ObjectName": "Class'CPP_Mock_Unit'",
+      "ObjectPath": "/Script/mock"
+    },
+    "ClassDefaultObject": {
+      "ObjectName": "BP_Mock_BaseUnit_C'Default__BP_Mock_BaseUnit_C'",
+      "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.9"
+    },
+    "Properties": {
+      "SimpleConstructionScript": {
+        "ObjectName": "SimpleConstructionScript'BP_Mock_BaseUnit_C:SimpleConstructionScript_0'",
+        "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.15"
+      }
+    }
+  },
+  {
+    "Type": "BP_Mock_BaseUnit_C",
+    "Name": "Default__BP_Mock_BaseUnit_C",
+    "Flags": "RF_Public | RF_ClassDefaultObject | RF_ArchetypeObject",
+    "Class": "BlueprintGeneratedClass'/Game/BP/BP_Mock_BaseUnit.BP_Mock_BaseUnit_C'",
+    "Package": "/Game/BP/BP_Mock_BaseUnit",
+    "Properties": {
+      "WalkSpeed": 500.0,
+      "RunSpeed": 750.0,
+      "Offset": { "X": 0.0, "Y": 0.0, "Z": 10.0 },
+      "MovementComp": {
+        "ObjectName": "CharacterMovementComponent'Default__BP_Mock_BaseUnit_C:CharMoveComp'",
+        "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.2"
+      },
+      "RootComponent": {
+        "ObjectName": "SceneComponent'BP_Mock_BaseUnit_C:DefaultSceneRoot_GEN_VARIABLE'",
+        "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.3"
+      }
+    }
+  },
+  {
+    "Type": "CharacterMovementComponent",
+    "Name": "CharMoveComp",
+    "Flags": "RF_Public | RF_ArchetypeObject | RF_DefaultSubObject",
+    "Class": "UScriptClass'CharacterMovementComponent'",
+    "Outer": {
+      "ObjectName": "BP_Mock_BaseUnit_C'Default__BP_Mock_BaseUnit_C'",
+      "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.9"
+    },
+    "Properties": {
+      "MaxAcceleration": 12000.0,
+      "MaxStepHeight": 45.0
+    }
+  },
+  {
+    "Type": "SceneComponent",
+    "Name": "DefaultSceneRoot_GEN_VARIABLE",
+    "Class": "UScriptClass'SceneComponent'",
+    "Outer": {
+      "ObjectName": "BlueprintGeneratedClass'BP_Mock_BaseUnit_C'",
+      "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.0"
+    }
+  },
+  {
+    "Type": "BoxComponent",
+    "Name": "TriggerBox_GEN_VARIABLE",
+    "Class": "UScriptClass'BoxComponent'",
+    "Outer": {
+      "ObjectName": "BlueprintGeneratedClass'BP_Mock_BaseUnit_C'",
+      "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.0"
+    },
+    "Properties": {
+      "BoxExtent": { "X": 32.0, "Y": 32.0, "Z": 32.0 }
+    }
+  },
+  {
+    "Type": "SCS_Node",
+    "Name": "SCS_Node_0",
+    "Class": "UScriptClass'SCS_Node'",
+    "Outer": {
+      "ObjectName": "SimpleConstructionScript'BP_Mock_BaseUnit_C:SimpleConstructionScript_0'",
+      "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.15"
+    },
+    "Properties": {
+      "ComponentClass": {
+        "ObjectName": "Class'SceneComponent'",
+        "ObjectPath": "/Script/Engine"
+      },
+      "ComponentTemplate": {
+        "ObjectName": "SceneComponent'BP_Mock_BaseUnit_C:DefaultSceneRoot_GEN_VARIABLE'",
+        "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.3"
+      },
+      "InternalVariableName": "DefaultSceneRoot",
+      "ChildNodes": [
+        {
+          "ObjectName": "SCS_Node'BP_Mock_BaseUnit_C:SimpleConstructionScript_0.SCS_Node_1'",
+          "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.99"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "SCS_Node",
+    "Name": "SCS_Node_1",
+    "Class": "UScriptClass'SCS_Node'",
+    "Outer": {
+      "ObjectName": "SimpleConstructionScript'BP_Mock_BaseUnit_C:SimpleConstructionScript_0'",
+      "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.15"
+    },
+    "Properties": {
+      "ComponentClass": {
+        "ObjectName": "Class'BoxComponent'",
+        "ObjectPath": "/Script/Engine"
+      },
+      "ComponentTemplate": {
+        "ObjectName": "BoxComponent'BP_Mock_BaseUnit_C:TriggerBox_GEN_VARIABLE'",
+        "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.4"
+      },
+      "InternalVariableName": "TriggerBox"
+    }
+  },
+  {
+    "Type": "SimpleConstructionScript",
+    "Name": "SimpleConstructionScript_0",
+    "Class": "UScriptClass'SimpleConstructionScript'",
+    "Outer": {
+      "ObjectName": "BlueprintGeneratedClass'BP_Mock_BaseUnit_C'",
+      "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.0"
+    },
+    "Properties": {
+      "DefaultSceneRootNode": {
+        "ObjectName": "SCS_Node'BP_Mock_BaseUnit_C:SimpleConstructionScript_0.SCS_Node_0'",
+        "ObjectPath": "/Game/BP/BP_Mock_BaseUnit.5"
+      }
+    }
+  }
+]

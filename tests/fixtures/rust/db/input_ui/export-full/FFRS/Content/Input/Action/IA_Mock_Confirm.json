@@ -1,0 +1,26 @@
+[
+  {
+    "Type": "InputAction",
+    "Name": "IA_Mock_Confirm",
+    "Class": "UScriptClass'InputAction'",
+    "Package": "/Game/Input/Action/IA_Mock_Confirm",
+    "Properties": {
+      "bTriggerWhenPaused": false,
+      "Triggers": [
+        {
+          "ObjectName": "InputTriggerPressed'IA_Mock_Confirm:InputTriggerPressed_0'",
+          "ObjectPath": "/Game/Input/Action/IA_Mock_Confirm.1"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "InputTriggerPressed",
+    "Name": "InputTriggerPressed_0",
+    "Class": "UScriptClass'InputTriggerPressed'",
+    "Outer": {
+      "ObjectName": "InputAction'IA_Mock_Confirm'",
+      "ObjectPath": "/Game/Input/Action/IA_Mock_Confirm.0"
+    }
+  }
+]

@@ -1,0 +1,11 @@
+[
+  {
+    "Type": "InputAction",
+    "Name": "IA_Mock_Dash",
+    "Class": "UScriptClass'InputAction'",
+    "Package": "/Game/Input/Action/IA_Mock_Dash",
+    "Properties": {
+      "ValueType": "EInputActionValueType::Axis1D"
+    }
+  }
+]

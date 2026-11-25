@@ -1,0 +1,11 @@
+[
+  {
+    "Type": "PrimaryDataAsset",
+    "Name": "DA_Mock_Primary",
+    "Class": "UScriptClass'PrimaryDataAsset'",
+    "Package": "/Game/Field/Data/DA_Mock_Primary",
+    "Properties": {
+      "Version": 3
+    }
+  }
+]

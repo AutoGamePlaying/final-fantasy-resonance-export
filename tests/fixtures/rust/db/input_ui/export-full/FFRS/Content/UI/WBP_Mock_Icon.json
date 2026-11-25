@@ -1,0 +1,52 @@
+[
+  {
+    "Type": "Image",
+    "Name": "IconImage",
+    "Class": "UScriptClass'Image'",
+    "Outer": {
+      "ObjectName": "WidgetTree'WBP_Mock_Icon_C:WidgetTree'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Icon.10"
+    },
+    "Properties": {
+      "ColorAndOpacity": { "R": 1.0, "G": 1.0, "B": 1.0, "A": 1.0 }
+    }
+  },
+  {
+    "Type": "WBP_Mock_Icon_C",
+    "Name": "Default__WBP_Mock_Icon_C",
+    "Flags": "RF_Public | RF_ClassDefaultObject",
+    "Class": "WidgetBlueprintGeneratedClass'/Game/UI/WBP_Mock_Icon.WBP_Mock_Icon_C'",
+    "Package": "/Game/UI/WBP_Mock_Icon"
+  },
+  {
+    "Type": "WidgetBlueprintGeneratedClass",
+    "Name": "WBP_Mock_Icon_C",
+    "Class": "UScriptClass'WidgetBlueprintGeneratedClass'",
+    "Package": "/Game/UI/WBP_Mock_Icon",
+    "SuperStruct": {
+      "ObjectName": "Class'UserWidget'",
+      "ObjectPath": "/Script/UMG"
+    },
+    "Properties": {
+      "WidgetTree": {
+        "ObjectName": "WidgetTree'WBP_Mock_Icon_C:WidgetTree'",
+        "ObjectPath": "/Game/UI/WBP_Mock_Icon.10"
+      }
+    }
+  },
+  {
+    "Type": "WidgetTree",
+    "Name": "WidgetTree",
+    "Class": "UScriptClass'WidgetTree'",
+    "Outer": {
+      "ObjectName": "WidgetBlueprintGeneratedClass'WBP_Mock_Icon_C'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Icon.2"
+    },
+    "Properties": {
+      "RootWidget": {
+        "ObjectName": "Image'WBP_Mock_Icon_C:WidgetTree.IconImage'",
+        "ObjectPath": "/Game/UI/WBP_Mock_Icon.99"
+      }
+    }
+  }
+]

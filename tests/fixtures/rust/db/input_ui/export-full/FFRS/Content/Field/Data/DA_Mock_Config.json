@@ -1,0 +1,13 @@
+[
+  {
+    "Type": "CPP_DA_MockConfig",
+    "Name": "DA_Mock_Config",
+    "Class": "UScriptClass'CPP_DA_MockConfig'",
+    "Package": "/Game/Field/Data/DA_Mock_Config",
+    "Properties": {
+      "MaxSpeed": 420.0,
+      "Enabled": true,
+      "Tags": ["Alpha", "Beta"]
+    }
+  }
+]

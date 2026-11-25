@@ -1,0 +1,215 @@
+[
+  {
+    "Type": "CommonTextBlock",
+    "Name": "LabelText",
+    "Class": "UScriptClass'CommonTextBlock'",
+    "Outer": {
+      "ObjectName": "WidgetTree'WBP_Mock_Entry_C:WidgetTree'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Entry.42"
+    },
+    "Properties": {
+      "bIsVariable": true
+    }
+  },
+  {
+    "Type": "Border",
+    "Name": "BadgeBorder",
+    "Class": "UScriptClass'Border'",
+    "Outer": {
+      "ObjectName": "WidgetTree'WBP_Mock_Entry_C:WidgetTree'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Entry.42"
+    }
+  },
+  {
+    "Type": "WBP_Mock_Icon_C",
+    "Name": "ItemIcon",
+    "Class": "WidgetBlueprintGeneratedClass'/Game/UI/WBP_Mock_Icon.WBP_Mock_Icon_C'",
+    "Outer": {
+      "ObjectName": "WidgetTree'WBP_Mock_Entry_C:WidgetTree'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Entry.42"
+    }
+  },
+  {
+    "Type": "WBP_Mock_Icon_C",
+    "Name": "BadgeIcon",
+    "Class": "WidgetBlueprintGeneratedClass'/Game/UI/WBP_Mock_Icon.WBP_Mock_Icon_C'",
+    "Outer": {
+      "ObjectName": "WidgetTree'WBP_Mock_Entry_C:WidgetTree'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Entry.42"
+    },
+    "Properties": {
+      "NamedSlotBindings": [
+        {
+          "Name": "Slot_Badge",
+          "Content": {
+            "ObjectName": "Border'WBP_Mock_Entry_C:WidgetTree.BadgeBorder'",
+            "ObjectPath": "/Game/UI/WBP_Mock_Entry.77"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "Type": "HorizontalBox",
+    "Name": "ContentRow",
+    "Class": "UScriptClass'HorizontalBox'",
+    "Outer": {
+      "ObjectName": "WidgetTree'WBP_Mock_Entry_C:WidgetTree'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Entry.42"
+    },
+    "Properties": {
+      "Slots": [
+        {
+          "ObjectName": "HorizontalBoxSlot'WBP_Mock_Entry_C:WidgetTree.ContentRow.HorizontalBoxSlot_0'",
+          "ObjectPath": "/Game/UI/WBP_Mock_Entry.51"
+        },
+        {
+          "ObjectName": "HorizontalBoxSlot'WBP_Mock_Entry_C:WidgetTree.ContentRow.HorizontalBoxSlot_1'",
+          "ObjectPath": "/Game/UI/WBP_Mock_Entry.52"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "HorizontalBoxSlot",
+    "Name": "HorizontalBoxSlot_0",
+    "Class": "UScriptClass'HorizontalBoxSlot'",
+    "Outer": {
+      "ObjectName": "HorizontalBox'WBP_Mock_Entry_C:WidgetTree.ContentRow'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Entry.50"
+    },
+    "Properties": {
+      "HorizontalAlignment": "EHorizontalAlignment::HAlign_Left",
+      "Parent": {
+        "ObjectName": "HorizontalBox'WBP_Mock_Entry_C:WidgetTree.ContentRow'",
+        "ObjectPath": "/Game/UI/WBP_Mock_Entry.50"
+      },
+      "Content": {
+        "ObjectName": "WBP_Mock_Icon_C'WBP_Mock_Entry_C:WidgetTree.ItemIcon'",
+        "ObjectPath": "/Game/UI/WBP_Mock_Entry.53"
+      }
+    }
+  },
+  {
+    "Type": "HorizontalBoxSlot",
+    "Name": "HorizontalBoxSlot_1",
+    "Class": "UScriptClass'HorizontalBoxSlot'",
+    "Outer": {
+      "ObjectName": "HorizontalBox'WBP_Mock_Entry_C:WidgetTree.ContentRow'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Entry.50"
+    },
+    "Properties": {
+      "VerticalAlignment": "EVerticalAlignment::VAlign_Center",
+      "Parent": {
+        "ObjectName": "HorizontalBox'WBP_Mock_Entry_C:WidgetTree.ContentRow'",
+        "ObjectPath": "/Game/UI/WBP_Mock_Entry.50"
+      },
+      "Content": {
+        "ObjectName": "CommonTextBlock'WBP_Mock_Entry_C:WidgetTree.LabelText'",
+        "ObjectPath": "/Game/UI/WBP_Mock_Entry.54"
+      }
+    }
+  },
+  {
+    "Type": "Overlay",
+    "Name": "RootOverlay",
+    "Class": "UScriptClass'Overlay'",
+    "Outer": {
+      "ObjectName": "WidgetTree'WBP_Mock_Entry_C:WidgetTree'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Entry.42"
+    },
+    "Properties": {
+      "Slots": [
+        {
+          "ObjectName": "OverlaySlot'WBP_Mock_Entry_C:WidgetTree.RootOverlay.OverlaySlot_0'",
+          "ObjectPath": "/Game/UI/WBP_Mock_Entry.61"
+        },
+        {
+          "ObjectName": "OverlaySlot'WBP_Mock_Entry_C:WidgetTree.RootOverlay.OverlaySlot_1'",
+          "ObjectPath": "/Game/UI/WBP_Mock_Entry.62"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "OverlaySlot",
+    "Name": "OverlaySlot_0",
+    "Class": "UScriptClass'OverlaySlot'",
+    "Outer": {
+      "ObjectName": "Overlay'WBP_Mock_Entry_C:WidgetTree.RootOverlay'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Entry.60"
+    },
+    "Properties": {
+      "Padding": { "Left": 8.0, "Right": 8.0 },
+      "Parent": {
+        "ObjectName": "Overlay'WBP_Mock_Entry_C:WidgetTree.RootOverlay'",
+        "ObjectPath": "/Game/UI/WBP_Mock_Entry.60"
+      },
+      "Content": {
+        "ObjectName": "HorizontalBox'WBP_Mock_Entry_C:WidgetTree.ContentRow'",
+        "ObjectPath": "/Game/UI/WBP_Mock_Entry.50"
+      }
+    }
+  },
+  {
+    "Type": "OverlaySlot",
+    "Name": "OverlaySlot_1",
+    "Class": "UScriptClass'OverlaySlot'",
+    "Outer": {
+      "ObjectName": "Overlay'WBP_Mock_Entry_C:WidgetTree.RootOverlay'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Entry.60"
+    },
+    "Properties": {
+      "HorizontalAlignment": "EHorizontalAlignment::HAlign_Right",
+      "Parent": {
+        "ObjectName": "Overlay'WBP_Mock_Entry_C:WidgetTree.RootOverlay'",
+        "ObjectPath": "/Game/UI/WBP_Mock_Entry.60"
+      },
+      "Content": {
+        "ObjectName": "WBP_Mock_Icon_C'WBP_Mock_Entry_C:WidgetTree.BadgeIcon'",
+        "ObjectPath": "/Game/UI/WBP_Mock_Entry.63"
+      }
+    }
+  },
+  {
+    "Type": "WBP_Mock_Entry_C",
+    "Name": "Default__WBP_Mock_Entry_C",
+    "Flags": "RF_Public | RF_ClassDefaultObject",
+    "Class": "WidgetBlueprintGeneratedClass'/Game/UI/WBP_Mock_Entry.WBP_Mock_Entry_C'",
+    "Package": "/Game/UI/WBP_Mock_Entry",
+    "Properties": {
+      "bIsFocusable": true
+    }
+  },
+  {
+    "Type": "WidgetBlueprintGeneratedClass",
+    "Name": "WBP_Mock_Entry_C",
+    "Class": "UScriptClass'WidgetBlueprintGeneratedClass'",
+    "Package": "/Game/UI/WBP_Mock_Entry",
+    "SuperStruct": {
+      "ObjectName": "Class'UserWidget'",
+      "ObjectPath": "/Script/UMG"
+    },
+    "Properties": {
+      "WidgetTree": {
+        "ObjectName": "WidgetTree'WBP_Mock_Entry_C:WidgetTree'",
+        "ObjectPath": "/Game/UI/WBP_Mock_Entry.42"
+      }
+    }
+  },
+  {
+    "Type": "WidgetTree",
+    "Name": "WidgetTree",
+    "Class": "UScriptClass'WidgetTree'",
+    "Outer": {
+      "ObjectName": "WidgetBlueprintGeneratedClass'WBP_Mock_Entry_C'",
+      "ObjectPath": "/Game/UI/WBP_Mock_Entry.41"
+    },
+    "Properties": {
+      "RootWidget": {
+        "ObjectName": "Overlay'WBP_Mock_Entry_C:WidgetTree.RootOverlay'",
+        "ObjectPath": "/Game/UI/WBP_Mock_Entry.60"
+      }
+    }
+  }
+]

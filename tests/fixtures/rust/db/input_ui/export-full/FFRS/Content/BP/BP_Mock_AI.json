@@ -1,0 +1,26 @@
+[
+  {
+    "Type": "BlueprintGeneratedClass",
+    "Name": "BP_Mock_AI_C",
+    "Class": "UScriptClass'BlueprintGeneratedClass'",
+    "Package": "/Game/BP/BP_Mock_AI",
+    "SuperStruct": {
+      "ObjectName": "Class'CPP_Mock_AI'",
+      "ObjectPath": "/Script/mock"
+    },
+    "ClassDefaultObject": {
+      "ObjectName": "BP_Mock_AI_C'Default__BP_Mock_AI_C'",
+      "ObjectPath": "/Game/BP/BP_Mock_AI.1"
+    }
+  },
+  {
+    "Type": "BP_Mock_AI_C",
+    "Name": "Default__BP_Mock_AI_C",
+    "Flags": "RF_Public | RF_ClassDefaultObject",
+    "Class": "BlueprintGeneratedClass'/Game/BP/BP_Mock_AI.BP_Mock_AI_C'",
+    "Package": "/Game/BP/BP_Mock_AI",
+    "Properties": {
+      "AggroRange": 1200.0
+    }
+  }
+]

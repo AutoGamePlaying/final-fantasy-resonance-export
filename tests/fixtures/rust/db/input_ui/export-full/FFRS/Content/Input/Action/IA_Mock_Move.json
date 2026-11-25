@@ -1,0 +1,30 @@
+[
+  {
+    "Type": "InputAction",
+    "Name": "IA_Mock_Move",
+    "Class": "UScriptClass'InputAction'",
+    "Package": "/Game/Input/Action/IA_Mock_Move",
+    "Properties": {
+      "ValueType": "EInputActionValueType::Axis2D",
+      "bConsumeInput": true,
+      "Triggers": [
+        {
+          "ObjectName": "InputTriggerDown'IA_Mock_Move:InputTriggerDown_0'",
+          "ObjectPath": "/Game/Input/Action/IA_Mock_Move.1"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "InputTriggerDown",
+    "Name": "InputTriggerDown_0",
+    "Class": "UScriptClass'InputTriggerDown'",
+    "Outer": {
+      "ObjectName": "InputAction'IA_Mock_Move'",
+      "ObjectPath": "/Game/Input/Action/IA_Mock_Move.0"
+    },
+    "Properties": {
+      "ActuationThreshold": 0.25
+    }
+  }
+]

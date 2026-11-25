@@ -1,0 +1,67 @@
+[
+  {
+    "Type": "InputMappingContext",
+    "Name": "IMC_Mock_Field_Pad",
+    "Class": "UScriptClass'InputMappingContext'",
+    "Package": "/Game/Input/Mapping/IMC_Mock_Field_Pad",
+    "Properties": {
+      "DefaultKeyMappings": {
+        "Mappings": [
+          {
+            "Triggers": [],
+            "Modifiers": [
+              {
+                "ObjectName": "InputModifierDeadZone'IMC_Mock_Field_Pad:InputModifierDeadZone_0'",
+                "ObjectPath": "/Game/Input/Mapping/IMC_Mock_Field_Pad.1"
+              }
+            ],
+            "Action": {
+              "ObjectName": "InputAction'IA_Mock_Move'",
+              "ObjectPath": "/Game/Input/Action/IA_Mock_Move.0"
+            },
+            "Key": { "KeyName": "Gamepad_Left2D" }
+          },
+          {
+            "Triggers": [],
+            "Modifiers": [],
+            "Action": {
+              "ObjectName": "InputAction'IA_Mock_Confirm'",
+              "ObjectPath": "/Game/Input/Action/IA_Mock_Confirm.0"
+            },
+            "Key": { "KeyName": "Gamepad_FaceButton_Bottom" }
+          },
+          {
+            "Triggers": [],
+            "Modifiers": [],
+            "Action": {
+              "ObjectName": "InputAction'IA_Mock_Menu'",
+              "ObjectPath": "/Game/Input/Action/IA_Mock_Menu.0"
+            },
+            "Key": { "KeyName": "Gamepad_FaceButton_Top" }
+          },
+          {
+            "Triggers": [],
+            "Modifiers": [],
+            "Action": {
+              "ObjectName": "InputAction'IA_Mock_Dangling'",
+              "ObjectPath": "/Game/Input/Action/IA_Mock_Dangling.0"
+            },
+            "Key": { "KeyName": "Gamepad_Special_Right" }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "Type": "InputModifierDeadZone",
+    "Name": "InputModifierDeadZone_0",
+    "Class": "UScriptClass'InputModifierDeadZone'",
+    "Outer": {
+      "ObjectName": "InputMappingContext'IMC_Mock_Field_Pad'",
+      "ObjectPath": "/Game/Input/Mapping/IMC_Mock_Field_Pad.0"
+    },
+    "Properties": {
+      "LowerThreshold": 0.2
+    }
+  }
+]

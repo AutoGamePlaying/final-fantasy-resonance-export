@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "BlueprintGeneratedClass",
+    "Name": "LS_Mock_Ignored_DirectorBP_C",
+    "Class": "UScriptClass'BlueprintGeneratedClass'",
+    "Package": "/Game/Sequencer/LS_Mock_Ignored"
+  },
+  {
+    "Type": "LevelSequence",
+    "Name": "LS_Mock_Ignored",
+    "Class": "UScriptClass'LevelSequence'",
+    "Package": "/Game/Sequencer/LS_Mock_Ignored"
+  }
+]

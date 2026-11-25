@@ -1,0 +1,11 @@
+[
+  {
+    "Type": "InputAction",
+    "Name": "IA_Mock_Menu",
+    "Class": "UScriptClass'InputAction'",
+    "Package": "/Game/Input/Action/IA_Mock_Menu",
+    "Properties": {
+      "bTriggerWhenPaused": true
+    }
+  }
+]
