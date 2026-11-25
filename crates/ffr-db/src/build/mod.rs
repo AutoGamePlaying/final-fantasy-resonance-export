@@ -761,8 +761,17 @@ pub(crate) fn build_with_stages(
     conn.close()
         .map_err(|(_, err)| DbError::sqlite("关闭临时数据库连接", err))?;
 
-    fs::rename(&temp_path, &options.output)
-        .map_err(|err| DbError::io("替换目标数据库文件", &options.output, err))?;
+    // On Windows a file that is still open (for example by a running `ffr-module` or another
+    // `GameDb`) cannot be replaced; say so instead of surfacing a bare "Access is denied".
+    fs::rename(&temp_path, &options.output).map_err(|err| {
+        let action = if err.kind() == std::io::ErrorKind::PermissionDenied {
+            "替换目标数据库文件（被拒绝：目标库可能正被其他程序打开，例如正在运行的 ffr-module；\
+             Windows 下无法替换正在使用的文件，请先关闭它，或换一个 --out 路径）"
+        } else {
+            "替换目标数据库文件"
+        };
+        DbError::io(action, &options.output, err)
+    })?;
     temp_guard.disarm();
 
     // Step 8: compute whole-file and canonical content hashes and write `<db>.manifest.json`.

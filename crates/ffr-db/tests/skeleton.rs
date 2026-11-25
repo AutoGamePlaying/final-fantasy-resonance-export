@@ -178,6 +178,9 @@ fn skeleton_build_on_empty_inputs_marks_all_stages_skipped() {
             .iter()
             .all(|r| r.status == StageStatus::Skipped)
     );
+    // Release the read-only handle before rebuilding into the same path: Windows refuses to
+    // replace a file that is still open (os error 5), unlike Linux.
+    drop(db);
 
     // Case B: fake empty directories exist for export/full/inventory/maps, while jmap/snapshots
     // remain omitted -> every stage skips cleanly with a non-empty Chinese reason.
