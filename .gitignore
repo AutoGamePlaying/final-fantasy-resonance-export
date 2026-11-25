@@ -1,0 +1,27 @@
+# Local dependencies, SDK, caches, game files, and exports
+.deps/
+
+# .NET build and test artifacts
+bin/
+obj/
+TestResults/
+*.user
+*.suo
+*.cache
+.vs/
+
+# Unreal mappings / game dumps (never commit)
+*.usmap
+*.jmap
+*.pak
+*.ucas
+*.utoc
+*.uasset
+*.umap
+*.ubulk
+*.locres
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*~
