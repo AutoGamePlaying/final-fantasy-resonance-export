@@ -1,0 +1,93 @@
+{
+  "metadata": {
+    "tool": "UE4SS JMapGenerator (links fixture)",
+    "timestamp": "2026-11-25T00:00:00Z",
+    "source": "Mock.exe",
+    "engine_version": {
+      "major": 5,
+      "minor": 6
+    },
+    "build_change_list": "0"
+  },
+  "image_base_address": "0x140000000",
+  "vtables": {},
+  "objects": {
+    "/Script/CoreUObject": {
+      "type": "Package",
+      "address": "0x1000",
+      "outer": null,
+      "class": "/Script/CoreUObject.Package",
+      "property_values": {}
+    },
+    "/Script/Engine": {
+      "type": "Package",
+      "address": "0x1001",
+      "outer": null,
+      "class": "/Script/CoreUObject.Package",
+      "property_values": {}
+    },
+    "/Script/mucha": {
+      "type": "Package",
+      "address": "0x1002",
+      "outer": null,
+      "class": "/Script/CoreUObject.Package",
+      "property_values": {}
+    },
+    "/Script/CoreUObject.Object": {
+      "type": "Class",
+      "address": "0x2000",
+      "vtable": "0x9000",
+      "object_flags": "RF_Public",
+      "outer": "/Script/CoreUObject",
+      "class": "/Script/CoreUObject.Class",
+      "super_struct": null,
+      "properties": [],
+      "properties_size": 40,
+      "min_alignment": 8,
+      "class_flags": "CLASS_Native",
+      "interfaces": []
+    },
+    "/Script/Engine.Actor": {
+      "type": "Class",
+      "address": "0x2010",
+      "vtable": "0x9010",
+      "object_flags": "RF_Public",
+      "outer": "/Script/Engine",
+      "class": "/Script/CoreUObject.Class",
+      "super_struct": "/Script/CoreUObject.Object",
+      "properties": [],
+      "properties_size": 64,
+      "min_alignment": 8,
+      "class_flags": "CLASS_Native",
+      "interfaces": []
+    },
+    "/Script/mucha.CPP_MockUnit": {
+      "type": "Class",
+      "address": "0x2020",
+      "vtable": "0x9020",
+      "object_flags": "RF_Public",
+      "outer": "/Script/mucha",
+      "class": "/Script/CoreUObject.Class",
+      "super_struct": "/Script/Engine.Actor",
+      "properties": [],
+      "properties_size": 80,
+      "min_alignment": 8,
+      "class_flags": "CLASS_Native",
+      "interfaces": []
+    },
+    "/Game/BP/Mock/BP_MockNpc.BP_MockNpc_C": {
+      "type": "Class",
+      "address": "0x2030",
+      "vtable": "0x9030",
+      "object_flags": "RF_Public",
+      "outer": "/Game/BP/Mock/BP_MockNpc",
+      "class": "/Script/Engine.BlueprintGeneratedClass",
+      "super_struct": "/Script/mucha.CPP_MockUnit",
+      "properties": [],
+      "properties_size": 96,
+      "min_alignment": 8,
+      "class_flags": "CLASS_CompiledFromBlueprint",
+      "interfaces": []
+    }
+  }
+}

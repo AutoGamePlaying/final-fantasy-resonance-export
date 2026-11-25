@@ -1,0 +1,19 @@
+{
+  "ST_MockStory": {
+    "L1": "Chapter 1 narration line 1.",
+    "L2": "The hero sets off."
+  },
+  "ST_MockNpc": {
+    "INN_01": "Welcome to the inn.",
+    "SHOP_01": "Welcome to the item shop."
+  },
+  "ST_MockWorld": {
+    "MAP_3001": "Mock Shrine Entrance",
+    "ITEM_1": "Mock Potion",
+    "ITEM_2": "Mock Sword",
+    "SHOP_2": "Mock Item Shop",
+    "SHOP_20": "Mock Weapon Shop",
+    "UNIT_1001": "Mock Hero",
+    "SKILL_100010": "Mock Slash"
+  }
+}

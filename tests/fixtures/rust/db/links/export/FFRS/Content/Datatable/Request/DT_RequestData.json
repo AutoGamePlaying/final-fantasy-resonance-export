@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_RequestData",
+    "Package": "/Game/Datatable/Request/DT_RequestData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'RequestData'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {}
+  }
+]

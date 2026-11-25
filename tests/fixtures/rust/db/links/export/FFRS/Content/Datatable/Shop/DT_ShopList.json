@@ -1,0 +1,51 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_ShopList",
+    "Package": "/Game/Datatable/Shop/DT_ShopList",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'SHOP_ShopList1'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Shop2": {
+        "ShopID": 2,
+        "ShopName": {
+          "TableId": "/Game/Datatable/Strings/ST_MockWorld.ST_MockWorld",
+          "Key": "SHOP_2",
+          "SourceString": "試作道具屋",
+          "LocalizedString": "試作道具屋"
+        },
+        "ItemList": [
+          {
+            "ItemId": 1,
+            "Condition": "",
+            "MaxOrderNum": -1,
+            "PriceRatio": 1.0
+          }
+        ],
+        "SellItemList": []
+      },
+      "Shop20": {
+        "ShopID": 20,
+        "ShopName": {
+          "TableId": "/Game/Datatable/Strings/ST_MockWorld.ST_MockWorld",
+          "Key": "SHOP_20",
+          "SourceString": "試作武器屋",
+          "LocalizedString": "試作武器屋"
+        },
+        "ItemList": [
+          {
+            "ItemId": 2,
+            "Condition": "",
+            "MaxOrderNum": 1,
+            "PriceRatio": 1.0
+          }
+        ],
+        "SellItemList": []
+      }
+    }
+  }
+]

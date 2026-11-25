@@ -1,0 +1,22 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_VariousShopsList",
+    "Package": "/Game/Datatable/Shop/DT_VariousShopsList",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'SHOP_VariousShopsEntryInfo'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Bundle1": {
+        "ID": 100,
+        "ToolShopID": 2,
+        "WeaponShopID": 20,
+        "ArmorShopID": -1,
+        "AccessoryShopID": -1
+      }
+    }
+  }
+]

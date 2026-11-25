@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-25T00:00:00Z",
+  "stats": {},
+  "maps": {
+    "3001": {
+      "mapId": 3001,
+      "mapRowKey": "MockShrine",
+      "mapType": "eMapType::Dungeon",
+      "persistentLevel": "MockTown_PL",
+      "sublevels": [
+        {
+          "name": "MockTown_EV",
+          "type": "EV",
+          "outputFile": "MockTown_EV.json"
+        }
+      ],
+      "counts": {},
+      "exits": [
+        {
+          "kind": "transition_trigger",
+          "sourceLevel": "MockTown_EV",
+          "actorName": "BP_SameMap_StaleId",
+          "uniqueId": 50,
+          "targetMapId": 31002,
+          "targetPointId": 0,
+          "isSameMap": true,
+          "isAutoTransition": true,
+          "isEventOnly": false,
+          "condition": null,
+          "location": {
+            "x": 10.0,
+            "y": 10.0,
+            "z": 0.0
+          }
+        },
+        {
+          "kind": "transition_trigger",
+          "sourceLevel": "MockTown_EV",
+          "actorName": "BP_EventOnly_Neg1",
+          "uniqueId": 51,
+          "targetMapId": 3001,
+          "targetPointId": -1,
+          "isSameMap": false,
+          "isAutoTransition": false,
+          "isEventOnly": true,
+          "condition": null,
+          "location": {
+            "x": 20.0,
+            "y": 10.0,
+            "z": 0.0
+          }
+        },
+        {
+          "kind": "transition_trigger",
+          "sourceLevel": "MockTown_EV",
+          "actorName": "BP_DefaultPoint_Neg1",
+          "uniqueId": 52,
+          "targetMapId": 3001,
+          "targetPointId": -1,
+          "isSameMap": false,
+          "isAutoTransition": false,
+          "isEventOnly": false,
+          "condition": null,
+          "location": {
+            "x": 30.0,
+            "y": 10.0,
+            "z": 0.0
+          }
+        }
+      ],
+      "transitionPoints": [],
+      "shops": [],
+      "savePoints": [],
+      "treasureBoxes": []
+    }
+  },
+  "shopsByMap": {
+    "3001": [2, 100]
+  },
+  "shopToMaps": {
+    "2": [3001],
+    "100": [3001]
+  },
+  "unmappedLevels": []
+}

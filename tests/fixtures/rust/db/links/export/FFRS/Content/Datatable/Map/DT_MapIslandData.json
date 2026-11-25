@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MapIslandData",
+    "Package": "/Game/Datatable/Map/DT_MapIslandData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'MAP_ISLAND_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {}
+  }
+]

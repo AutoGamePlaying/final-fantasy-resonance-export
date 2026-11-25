@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_SeedItemData",
+    "Package": "/Game/Datatable/Item/DT_SeedItemData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'SEED_ITEM_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {}
+  }
+]

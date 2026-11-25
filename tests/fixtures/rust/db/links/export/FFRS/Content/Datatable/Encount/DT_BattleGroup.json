@@ -1,0 +1,38 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_BattleGroup",
+    "Package": "/Game/Datatable/Encount/DT_BattleGroup",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'BATTLE_GROUP_DATA'"
+      }
+    },
+    "Rows": {
+      "MockGroup": {
+        "ID": 9001,
+        "UnitIdList": [462],
+        "locationIdList": [8],
+        "addPassiveDataList": [
+          {
+            "passiveSkillList": [-1]
+          }
+        ],
+        "bgmCueName": "BGM_MOCK",
+        "CanEscape": true,
+        "probabilityOfSuccessfulEscape": 50.0,
+        "isResultSkipOnWin": false,
+        "isResultSkipOnLose": false,
+        "battleEventId": -1,
+        "battleFinishEventId": "None",
+        "battleFinishEscapeEventId": "None",
+        "battleFinishLoseEventId": "None",
+        "ap": 5,
+        "preemtiveRelation": "eRelation::None",
+        "isBounty": false,
+        "friendliesLocationIdList": [],
+        "isForceContinueBGM": false
+      }
+    }
+  }
+]

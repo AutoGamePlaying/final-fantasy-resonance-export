@@ -1,0 +1,53 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_SkillData",
+    "Package": "/Game/Datatable/Skill/DT_SkillData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'SKILL_DATA'"
+      }
+    },
+    "Rows": {
+      "MockSlash": {
+        "ID": 100010,
+        "SortId": 100010,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_MockWorld.ST_MockWorld",
+          "Key": "SKILL_100010",
+          "SourceString": "試作斬り",
+          "LocalizedString": "試作斬り"
+        },
+        "Description": {
+          "CultureInvariantString": null
+        },
+        "hasUnit": "ePlayableUnit::All",
+        "belongCommandList": [1],
+        "skillAttrType": "eSkillAttributeType::Fight",
+        "skillEffectType": "eSkillEffectType::DamageAndRecovery",
+        "parameterVariationType": "eUnitParameterVariationType::Decrease",
+        "DamageType": "eSkillDamageType::Physic",
+        "damageCalcType": "eSkillDamageCalcType::Physic",
+        "parameterType": "eUnitParameterType::HitPoint",
+        "element": "eElement::None",
+        "TargetType": "eSkillTargetType::Single",
+        "defaultTargetRelation": "eRelation::Enemies",
+        "defaultTargetState": "eSkillTargetState::Alive",
+        "Cost": 0,
+        "magnification": 10,
+        "breakDamageValue": 10,
+        "accuracy": 100,
+        "criticalHitRate": 0,
+        "hitCount": 1,
+        "hitDamageRatioList": [1.0],
+        "equipCost": 0,
+        "availableLocation": "eAvailableLocation::BattleOnly",
+        "effectBundleList": [
+          {
+            "effectId": -1
+          }
+        ]
+      }
+    }
+  }
+]

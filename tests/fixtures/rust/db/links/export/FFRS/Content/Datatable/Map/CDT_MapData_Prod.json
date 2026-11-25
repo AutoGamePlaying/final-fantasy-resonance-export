@@ -1,0 +1,42 @@
+[
+  {
+    "Type": "CompositeDataTable",
+    "Name": "CDT_MapData_Prod",
+    "Package": "/Game/Datatable/Map/CDT_MapData_Prod",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'MAP_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "MockShrine": {
+        "ID": 3001,
+        "SortId": 1,
+        "GroupId": 1,
+        "regionId": -1,
+        "sameMapId": -1,
+        "island": "eMapIslandType::Grandshelt",
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_MockWorld.ST_MockWorld",
+          "Key": "MAP_3001",
+          "SourceString": "試作神殿入口",
+          "LocalizedString": "試作神殿入口"
+        },
+        "DangerLevel": 1,
+        "Level": {
+          "AssetPathName": "/Game/Map/Mock/MockTown_PL.MockTown_PL",
+          "SubPathString": ""
+        },
+        "MapType": "eMapType::Dungeon",
+        "dungeonType": "eMapDungeonType::Cave",
+        "battleStage": -1,
+        "doMovementEncount": false,
+        "doEncountCondition": "",
+        "encountGroupId": -1,
+        "facilityDataList": [],
+        "startupEventList": []
+      }
+    }
+  }
+]

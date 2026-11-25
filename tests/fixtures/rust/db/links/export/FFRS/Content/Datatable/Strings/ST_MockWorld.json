@@ -1,0 +1,19 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_MockWorld",
+    "Package": "/Game/Datatable/Strings/ST_MockWorld",
+    "StringTable": {
+      "TableNamespace": "ST_MockWorld",
+      "KeysToEntries": {
+        "MAP_3001": "試作神殿入口",
+        "ITEM_1": "試作ポーション",
+        "ITEM_2": "試作ロングソード",
+        "SHOP_2": "試作道具屋",
+        "SHOP_20": "試作武器屋",
+        "UNIT_1001": "テスト勇者",
+        "SKILL_100010": "試作斬り"
+      }
+    }
+  }
+]

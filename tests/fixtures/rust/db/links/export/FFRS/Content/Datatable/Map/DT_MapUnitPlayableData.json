@@ -1,0 +1,20 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MapUnitPlayableData",
+    "Package": "/Game/Datatable/Map/DT_MapUnitPlayableData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'MAP_UNIT_PLAYABLE_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "テスト勇者": {
+        "EnableConditions": "{progress:0}>=1010",
+        "MapUnitId": 10,
+        "isIdleByFourDirection": false
+      }
+    }
+  }
+]

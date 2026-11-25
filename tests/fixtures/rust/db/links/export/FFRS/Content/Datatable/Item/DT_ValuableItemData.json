@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_ValuableItemData",
+    "Package": "/Game/Datatable/Item/DT_ValuableItemData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'VALUABLE_ITEM_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {}
+  }
+]

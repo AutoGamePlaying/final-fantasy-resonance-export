@@ -1,0 +1,174 @@
+[
+  {
+    "Type": "CompositeDataTable",
+    "Name": "CDT_TalkEventData_Prod",
+    "Package": "/Game/Datatable/Event/TalkEvent/CDT_TalkEventData_Prod",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'TalkEventData'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "EV_STORY_01": {
+        "Category": {
+          "TagName": "Event.Category.Mock"
+        },
+        "Description": "",
+        "EventType": "ETalkEventType::Sequence",
+        "TalkEventDataTable": {
+          "AssetPathName": "/Game/Datatable/Event/Text/DT_MockStory_01.DT_MockStory_01",
+          "SubPathString": ""
+        },
+        "EventSequence": {
+          "AssetPathName": "/Game/Sequencer/Event/Mock/SEQ_Mock_01.SEQ_Mock_01",
+          "SubPathString": ""
+        },
+        "EventBlueprint": {
+          "AssetPathName": "",
+          "SubPathString": ""
+        },
+        "IsSkipConfirm": true,
+        "encountGroupId": -1,
+        "ArgList": [],
+        "ContinuousEventList": [
+          {
+            "Condition": "",
+            "EventId": "EV_STORY_02"
+          }
+        ],
+        "ChoicesBranchEventList": [
+          {
+            "Index": 0,
+            "EventList": [
+              {
+                "Condition": "",
+                "EventId": "EV_BRANCH_A"
+              }
+            ]
+          },
+          {
+            "Index": 1,
+            "EventList": [
+              {
+                "Condition": "{flag:1}",
+                "EventId": "EV_MISSING_NEXT"
+              }
+            ]
+          }
+        ],
+        "CustomChoiceDialogDataList": []
+      },
+      "EV_STORY_02": {
+        "Category": {
+          "TagName": "Event.Category.Mock"
+        },
+        "Description": "",
+        "EventType": "ETalkEventType::Sequence",
+        "TalkEventDataTable": {
+          "AssetPathName": "/Game/Developers/dev/DT_DevTalk.DT_DevTalk",
+          "SubPathString": ""
+        },
+        "EventSequence": {
+          "AssetPathName": "/Game/Developers/dev/SEQ_DevTest.SEQ_DevTest",
+          "SubPathString": ""
+        },
+        "EventBlueprint": {
+          "AssetPathName": "",
+          "SubPathString": ""
+        },
+        "IsSkipConfirm": false,
+        "encountGroupId": 9001,
+        "ArgList": [],
+        "ContinuousEventList": [],
+        "ChoicesBranchEventList": [],
+        "CustomChoiceDialogDataList": []
+      },
+      "EV_BRANCH_A": {
+        "Category": {
+          "TagName": "Event.Category.Mock"
+        },
+        "Description": "",
+        "EventType": "ETalkEventType::Blueprint",
+        "TalkEventDataTable": {
+          "AssetPathName": "",
+          "SubPathString": ""
+        },
+        "EventSequence": {
+          "AssetPathName": "",
+          "SubPathString": ""
+        },
+        "EventBlueprint": {
+          "AssetPathName": "/Game/BP/Mock/BP_MockNpc.BP_MockNpc_C",
+          "SubPathString": ""
+        },
+        "IsSkipConfirm": false,
+        "encountGroupId": 99999,
+        "ArgList": [],
+        "ContinuousEventList": [],
+        "ChoicesBranchEventList": [],
+        "CustomChoiceDialogDataList": []
+      },
+      "EV_NPC_SHOP": {
+        "Category": {
+          "TagName": "Event.Category.Mock"
+        },
+        "Description": "",
+        "EventType": "ETalkEventType::Sequence",
+        "TalkEventDataTable": {
+          "AssetPathName": "/Game/Datatable/Event/Text/DT_MockNpc.DT_MockNpc",
+          "SubPathString": ""
+        },
+        "EventSequence": {
+          "AssetPathName": "/Game/Sequencer/Event/Mock/SEQ_Mock_01.SEQ_Mock_01",
+          "SubPathString": ""
+        },
+        "EventBlueprint": {
+          "AssetPathName": "",
+          "SubPathString": ""
+        },
+        "IsSkipConfirm": false,
+        "encountGroupId": -1,
+        "ArgList": [
+          {
+            "Key": "id",
+            "Value": "1"
+          }
+        ],
+        "ContinuousEventList": [],
+        "ChoicesBranchEventList": [],
+        "CustomChoiceDialogDataList": []
+      },
+      "EV_NPC_INN": {
+        "Category": {
+          "TagName": "Event.Category.Mock"
+        },
+        "Description": "",
+        "EventType": "ETalkEventType::Sequence",
+        "TalkEventDataTable": {
+          "AssetPathName": "/Game/Datatable/Event/Text/DT_MockNpc.DT_MockNpc",
+          "SubPathString": ""
+        },
+        "EventSequence": {
+          "AssetPathName": "",
+          "SubPathString": ""
+        },
+        "EventBlueprint": {
+          "AssetPathName": "",
+          "SubPathString": ""
+        },
+        "IsSkipConfirm": false,
+        "encountGroupId": -1,
+        "ArgList": [
+          {
+            "Key": "id",
+            "Value": "0"
+          }
+        ],
+        "ContinuousEventList": [],
+        "ChoicesBranchEventList": [],
+        "CustomChoiceDialogDataList": []
+      }
+    }
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "CompositeDataTable",
+    "Name": "CDT_QuestBoardData",
+    "Package": "/Game/Datatable/Quest/CDT_QuestBoardData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'Quest_BaseMenu_Data'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {}
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "CompositeDataTable",
+    "Name": "CDT_MapGimmickTreasureBox",
+    "Package": "/Game/Datatable/Map/Gimmick/TreasureBox/CDT_MapGimmickTreasureBox",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'MAP_GIMMICK_TREASURE_BOX_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {}
+  }
+]

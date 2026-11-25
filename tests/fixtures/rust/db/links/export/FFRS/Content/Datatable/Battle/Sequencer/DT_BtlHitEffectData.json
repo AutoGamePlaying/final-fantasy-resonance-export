@@ -1,0 +1,18 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_BtlHitEffectData",
+    "Package": "/Game/Datatable/Battle/Sequencer/DT_BtlHitEffectData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'BTL_HIT_EFFECT_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "テスト_仮通常攻撃": {
+        "ID": 401100
+      }
+    }
+  }
+]

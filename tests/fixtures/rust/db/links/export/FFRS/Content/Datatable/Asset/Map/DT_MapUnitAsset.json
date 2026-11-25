@@ -1,0 +1,77 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MapUnitAsset",
+    "Package": "/Game/Datatable/Asset/Map/DT_MapUnitAsset",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'UNIT_ASSET_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "テスト勇者": {
+        "ID": 10,
+        "animationAssetList": [
+          {
+            "isVisionCharacter": false,
+            "Ss6Project": {
+              "AssetPathName": "/Game/Chara/Mock/pc0010.pc0010",
+              "SubPathString": ""
+            },
+            "Material": {
+              "AssetPathName": "/Game/BP/Mock/M_Mock.M_Mock",
+              "SubPathString": ""
+            },
+            "textureBaseColor": {
+              "AssetPathName": "",
+              "SubPathString": ""
+            },
+            "textureNormal": {
+              "AssetPathName": "",
+              "SubPathString": ""
+            },
+            "textureMetallicRoughness": {
+              "AssetPathName": "",
+              "SubPathString": ""
+            }
+          }
+        ],
+        "Footstep": "eMapUnitFootstepType::Default",
+        "shadowScale": 1.0,
+        "specularScale": 0.5
+      },
+      "テスト商人": {
+        "ID": 1060,
+        "animationAssetList": [
+          {
+            "isVisionCharacter": false,
+            "Ss6Project": {
+              "AssetPathName": "/Game/Chara/Mock/npc1060.npc1060",
+              "SubPathString": ""
+            },
+            "Material": {
+              "AssetPathName": "",
+              "SubPathString": ""
+            },
+            "textureBaseColor": {
+              "AssetPathName": "",
+              "SubPathString": ""
+            },
+            "textureNormal": {
+              "AssetPathName": "",
+              "SubPathString": ""
+            },
+            "textureMetallicRoughness": {
+              "AssetPathName": "",
+              "SubPathString": ""
+            }
+          }
+        ],
+        "Footstep": "eMapUnitFootstepType::Default",
+        "shadowScale": 1.0,
+        "specularScale": 0.5
+      }
+    }
+  }
+]

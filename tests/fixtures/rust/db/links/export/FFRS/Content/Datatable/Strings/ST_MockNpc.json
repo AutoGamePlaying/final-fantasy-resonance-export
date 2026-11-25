@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_MockNpc",
+    "Package": "/Game/Datatable/Strings/ST_MockNpc",
+    "StringTable": {
+      "TableNamespace": "ST_MockNpc",
+      "KeysToEntries": {
+        "INN_01": "宿屋へようこそ。",
+        "SHOP_01": "道具屋へようこそ。"
+      }
+    }
+  }
+]

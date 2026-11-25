@@ -1,0 +1,24 @@
+[
+  {
+    "Type": "BlueprintGeneratedClass",
+    "Name": "BP_MockNpc_C",
+    "Package": "/Game/BP/Mock/BP_MockNpc",
+    "SuperStruct": {
+      "ObjectName": "Class'CPP_MockUnit'",
+      "ObjectPath": "/Script/mucha"
+    },
+    "ClassDefaultObject": {
+      "ObjectName": "BP_MockNpc_C'Default__BP_MockNpc_C'",
+      "ObjectPath": "/Game/BP/Mock/BP_MockNpc.1"
+    }
+  },
+  {
+    "Type": "BP_MockNpc_C",
+    "Name": "Default__BP_MockNpc_C",
+    "Flags": "RF_Public | RF_ClassDefaultObject",
+    "Package": "/Game/BP/Mock/BP_MockNpc",
+    "Properties": {
+      "WalkSpeed": 300.0
+    }
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_BtlUnitAIParameter",
+    "Package": "/Game/Datatable/Unit/AI/DT_BtlUnitAIParameter",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'BTL_UNIT_AI_PARAMETER'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "テスト敵": {
+        "ID": 462,
+        "aiId": 1,
+        "fightSkillId": 100010,
+        "chaseSkillId": -1,
+        "silenceFightId": 401100,
+        "counterSkillIdList": [],
+        "highRiskSkillIdList": [],
+        "skillRandData1": [
+          {
+            "SkillId": 462,
+            "Probability": 0.0
+          },
+          {
+            "SkillId": 100010,
+            "Probability": 100.0
+          }
+        ],
+        "skillRandData2": []
+      }
+    }
+  }
+]

@@ -1,0 +1,31 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_UnitParameterCalc",
+    "Package": "/Game/Datatable/Unit/DT_UnitParameterCalc",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'UNIT_PARAMETER_CALC_DATA'"
+      }
+    },
+    "Rows": {
+      "CalcDefaults": {
+        "breakDamageMagnification": 150.0,
+        "elementResistanceValues": [
+          { "Key": "eResistance::None", "Value": 1.0 },
+          { "Key": "eResistance::Weakness", "Value": 1.5 },
+          { "Key": "eResistance::Halved", "Value": 0.5 },
+          { "Key": "eResistance::Invalid", "Value": 0.0 },
+          { "Key": "eResistance::Absorb", "Value": -1.0 }
+        ],
+        "breakElementResistanceValues": [
+          { "Key": "eResistance::None", "Value": 1.0 },
+          { "Key": "eResistance::Weakness", "Value": 3.0 },
+          { "Key": "eResistance::Halved", "Value": 0.5 },
+          { "Key": "eResistance::Invalid", "Value": 0.0 },
+          { "Key": "eResistance::Absorb", "Value": 0.0 }
+        ]
+      }
+    }
+  }
+]

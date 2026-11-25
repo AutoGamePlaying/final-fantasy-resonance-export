@@ -1,0 +1,141 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_UnitParameter",
+    "Package": "/Game/Datatable/Unit/DT_UnitParameter",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'UNIT_PARAMETER'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "テスト勇者": {
+        "ID": 1001,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_MockWorld.ST_MockWorld",
+          "Key": "UNIT_1001",
+          "SourceString": "テスト勇者",
+          "LocalizedString": "テスト勇者"
+        },
+        "Description": {
+          "CultureInvariantString": null
+        },
+        "SortId": 1,
+        "SaveId": 1,
+        "Level": 1,
+        "LevelParamId": -1,
+        "Sex": "eUnitSex::Male",
+        "Race": "eRace::Human",
+        "Category": "eUnitCategory::Playable",
+        "HitPoint": 100,
+        "MagicPoint": 50,
+        "Breakpoint": 0,
+        "LimitBurstPoint": 0,
+        "MaxSkillEquipCost": 10,
+        "MaxHitPoint": 100,
+        "MaxMagicPoint": 50,
+        "MaxBreakPoint": 0,
+        "Attack": 20,
+        "Defence": 10,
+        "Intelligence": 10,
+        "Mind": 10,
+        "Divine": 10,
+        "Agility": 10,
+        "ElementResistanceList": [
+          { "Key": "eElement::Fire", "Value": "eResistance::None" },
+          { "Key": "eElement::Ice", "Value": "eResistance::None" },
+          { "Key": "eElement::Wind", "Value": "eResistance::None" },
+          { "Key": "eElement::Earth", "Value": "eResistance::None" },
+          { "Key": "eElement::Thunder", "Value": "eResistance::None" },
+          { "Key": "eElement::Water", "Value": "eResistance::None" },
+          { "Key": "eElement::Light", "Value": "eResistance::None" },
+          { "Key": "eElement::Dark", "Value": "eResistance::None" }
+        ],
+        "StatusConditionResistanceList": [],
+        "WeaponId": -1,
+        "ArmorId": -1,
+        "AccessoryIdList": [],
+        "VisionId": -1,
+        "passiveSkillList": [],
+        "IsBoss": false,
+        "IsAccent": false,
+        "Experience": 0,
+        "Money": 0,
+        "DropNormalItem": -1,
+        "DropNormalItemRate": 0,
+        "DropRareItem": -1,
+        "DropRareItemRate": 0,
+        "StealNormalItem": -1,
+        "StealRareItem": -1,
+        "StealItemRate": 0,
+        "BattleVoiceLabel": "",
+        "FaceIconId": -1,
+        "Traits": []
+      },
+      "テスト敵": {
+        "ID": 462,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_MockWorld.ST_MockWorld",
+          "Key": "UNIT_1001",
+          "SourceString": "テスト敵",
+          "LocalizedString": "テスト敵"
+        },
+        "Description": {
+          "CultureInvariantString": null
+        },
+        "SortId": 2,
+        "SaveId": -1,
+        "Level": 5,
+        "LevelParamId": -1,
+        "Sex": "eUnitSex::None",
+        "Race": "eRace::Beast",
+        "Category": "eUnitCategory::Enemy",
+        "HitPoint": 80,
+        "MagicPoint": 20,
+        "Breakpoint": 50,
+        "LimitBurstPoint": 0,
+        "MaxSkillEquipCost": 0,
+        "MaxHitPoint": 80,
+        "MaxMagicPoint": 20,
+        "MaxBreakPoint": 50,
+        "Attack": 15,
+        "Defence": 8,
+        "Intelligence": 8,
+        "Mind": 8,
+        "Divine": 8,
+        "Agility": 8,
+        "ElementResistanceList": [
+          { "Key": "eElement::Fire", "Value": "eResistance::None" },
+          { "Key": "eElement::Ice", "Value": "eResistance::None" },
+          { "Key": "eElement::Wind", "Value": "eResistance::None" },
+          { "Key": "eElement::Earth", "Value": "eResistance::None" },
+          { "Key": "eElement::Thunder", "Value": "eResistance::None" },
+          { "Key": "eElement::Water", "Value": "eResistance::None" },
+          { "Key": "eElement::Light", "Value": "eResistance::None" },
+          { "Key": "eElement::Dark", "Value": "eResistance::None" }
+        ],
+        "StatusConditionResistanceList": [],
+        "WeaponId": -1,
+        "ArmorId": -1,
+        "AccessoryIdList": [],
+        "VisionId": -1,
+        "passiveSkillList": [],
+        "IsBoss": false,
+        "IsAccent": false,
+        "Experience": 10,
+        "Money": 20,
+        "DropNormalItem": -1,
+        "DropNormalItemRate": 0,
+        "DropRareItem": -1,
+        "DropRareItemRate": 0,
+        "StealNormalItem": -1,
+        "StealRareItem": -1,
+        "StealItemRate": 0,
+        "BattleVoiceLabel": "",
+        "FaceIconId": -1,
+        "Traits": []
+      }
+    }
+  }
+]

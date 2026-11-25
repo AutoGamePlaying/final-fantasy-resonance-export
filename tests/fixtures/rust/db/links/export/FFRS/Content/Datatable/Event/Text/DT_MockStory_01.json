@@ -1,0 +1,84 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MockStory_01",
+    "Package": "/Game/Datatable/Event/Text/DT_MockStory_01",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'TalkEventRowData'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "NewRow_Z": {
+        "TalkId": 0,
+        "WindowType": "ETalkEventWindowType::Normal",
+        "Speaker": "None",
+        "Emotion": "ETalkSpeakerEmotion::Normal",
+        "WindowPosition": "ETalkEventWindowPosition::Lower",
+        "ContentText": {
+          "CultureInvariantString": null
+        },
+        "Voice": "",
+        "IsVoiceValid": false
+      },
+      "Line_Z": {
+        "TalkId": -1,
+        "WindowType": "ETalkEventWindowType::Normal",
+        "Speaker": "テロップ",
+        "Emotion": "ETalkSpeakerEmotion::Normal",
+        "WindowPosition": "ETalkEventWindowPosition::Center",
+        "ContentText": {
+          "TableId": "/Game/Datatable/Strings/ST_MockStory.ST_MockStory",
+          "Key": "L1",
+          "SourceString": "第一章ナレーション１。",
+          "LocalizedString": "第一章ナレーション１。"
+        },
+        "Voice": "VO_001",
+        "IsVoiceValid": true
+      },
+      "NewRow_A": {
+        "TalkId": 1,
+        "WindowType": "ETalkEventWindowType::Normal",
+        "Speaker": "None",
+        "Emotion": "ETalkSpeakerEmotion::Normal",
+        "WindowPosition": "ETalkEventWindowPosition::Lower",
+        "ContentText": {
+          "CultureInvariantString": null
+        },
+        "Voice": "",
+        "IsVoiceValid": false
+      },
+      "Line_A": {
+        "TalkId": -1,
+        "WindowType": "ETalkEventWindowType::Normal",
+        "Speaker": "テスト勇者",
+        "Emotion": "ETalkSpeakerEmotion::Smile",
+        "WindowPosition": "ETalkEventWindowPosition::Lower",
+        "ContentText": {
+          "TableId": "/Game/Datatable/Strings/ST_MockStory.ST_MockStory",
+          "Key": "L2",
+          "SourceString": "勇者は出発する。",
+          "LocalizedString": "勇者は出発する。"
+        },
+        "Voice": "VO_002",
+        "IsVoiceValid": true
+      },
+      "Line_M": {
+        "TalkId": -1,
+        "WindowType": "ETalkEventWindowType::Normal",
+        "Speaker": "テスト勇者",
+        "Emotion": "ETalkSpeakerEmotion::Sad",
+        "WindowPosition": "ETalkEventWindowPosition::Lower",
+        "ContentText": {
+          "TableId": "/Game/Datatable/Strings/ST_MockStory.ST_MockStory",
+          "Key": "L3_UNTRANS",
+          "SourceString": "未翻訳テスト台詞。",
+          "LocalizedString": "未翻訳テスト台詞。"
+        },
+        "Voice": "",
+        "IsVoiceValid": false
+      }
+    }
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MapRegionData",
+    "Package": "/Game/Datatable/Map/DT_MapRegionData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'MAP_REGION_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {}
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_EquipmentItemData",
+    "Package": "/Game/Datatable/Item/DT_EquipmentItemData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'EQUIPMENT_ITEM_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "MockSword": {
+        "EquipmentType": "eEquipmentType::Weapon",
+        "equipmentDetailType": "eEquipmentDetailType::GreatSowrd",
+        "equipmentLimitSex": "eUnitSex::None",
+        "params": [{ "Key": "eUnitParameterType::PhysicalAttack", "Value": 10 }],
+        "passiveList": [-1, -1, -1, -1],
+        "ID": 2,
+        "SortId": 2,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_MockWorld.ST_MockWorld",
+          "Key": "ITEM_2",
+          "SourceString": "試作ロングソード",
+          "LocalizedString": "試作ロングソード"
+        },
+        "Description": { "CultureInvariantString": null },
+        "ItemType": "eItemType::Equipment",
+        "buyingPrice": 300,
+        "sellingPrice": 150,
+        "isAvailableSale": true
+      }
+    }
+  }
+]

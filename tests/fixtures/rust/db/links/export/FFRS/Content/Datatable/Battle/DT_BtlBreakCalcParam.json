@@ -1,0 +1,22 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_BtlBreakCalcParam",
+    "Package": "/Game/Datatable/Battle/DT_BtlBreakCalcParam",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'BTL_BREAK_CALC_PARAM'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Default": {
+        "BreakDamageMagnification": 1.5,
+        "WeaknessElementMagnification": 1.5,
+        "ToleranceElementMagnification": 0.5,
+        "DisableElementMagnification": 0.0,
+        "AbsorbElementMagnification": -1.0
+      }
+    }
+  }
+]

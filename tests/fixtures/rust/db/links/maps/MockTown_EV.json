@@ -1,0 +1,273 @@
+{
+  "schemaVersion": 1,
+  "level": {
+    "name": "MockTown_EV",
+    "outputFile": "MockTown_EV.json",
+    "path": "FFRS/Content/Map/Mock/MockTown_EV.umap",
+    "packagePath": "/Game/Map/Mock/MockTown_EV",
+    "sublevelType": "EV",
+    "persistentLevel": "MockTown_PL",
+    "persistentLevels": ["MockTown_PL"],
+    "mapId": 3001,
+    "mapIds": [3001],
+    "mapRowKey": "MockShrine",
+    "mapType": "eMapType::Dungeon",
+    "streamingLevels": [],
+    "actorCount": 6,
+    "gameActorCount": 6,
+    "engineActorCount": 0
+  },
+  "actors": [
+    {
+      "name": "BP_Npc_Shop",
+      "class": "/Game/BP/Mock/BP_MockShopNpc.BP_MockShopNpc_C",
+      "isGameClass": true,
+      "location": {
+        "x": 100.0,
+        "y": 200.0,
+        "z": 0.0
+      }
+    },
+    {
+      "name": "BP_Npc_Inn",
+      "class": "/Game/BP/mock/BP_MockNpc.BP_MockNpc_C",
+      "isGameClass": true,
+      "location": {
+        "x": 100.0,
+        "y": -200.0,
+        "z": 0.0
+      }
+    },
+    {
+      "name": "BP_Npc_Various",
+      "class": "/Script/mucha.CPP_MockUnit",
+      "isGameClass": true,
+      "location": {
+        "x": 300.0,
+        "y": 0.0,
+        "z": 0.0
+      }
+    },
+    {
+      "name": "BP_Npc_Dangling",
+      "class": "/Game/Map/MockTown_EV.MockTown_EV_C",
+      "isGameClass": true,
+      "location": {
+        "x": 400.0,
+        "y": 0.0,
+        "z": 0.0
+      }
+    },
+    {
+      "name": "BP_Event_Story",
+      "class": "/Script/mucha.CPP_MockUnit",
+      "isGameClass": true,
+      "location": {
+        "x": 0.0,
+        "y": 50.0,
+        "z": 0.0
+      }
+    },
+    {
+      "name": "BP_TP_0",
+      "class": "/Script/mucha.CPP_MockUnit",
+      "isGameClass": true,
+      "location": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      }
+    }
+  ],
+  "summary": {
+    "mapUnits": [
+      {
+        "actorName": "BP_Npc_Shop",
+        "label": "ShopNpc",
+        "class": "/Game/BP/Mock/BP_MockShopNpc.BP_MockShopNpc_C",
+        "kind": "npc",
+        "mapUnitId": 1060,
+        "uniqueId": 3,
+        "direction": "eMapDirectionType::South",
+        "interactType": "eMapInteractType::Shop",
+        "visibleCondition": "{progress:0}>=1020",
+        "shopId": 2,
+        "innId": null,
+        "events": [
+          {
+            "condition": null,
+            "eventId": "EV_NPC_SHOP"
+          }
+        ],
+        "location": {
+          "x": 100.0,
+          "y": 200.0,
+          "z": 0.0
+        }
+      },
+      {
+        "actorName": "BP_Npc_Inn",
+        "label": "InnNpc",
+        "class": "/Game/BP/mock/BP_MockNpc.BP_MockNpc_C",
+        "kind": "npc",
+        "mapUnitId": 1060,
+        "uniqueId": 2,
+        "direction": "eMapDirectionType::South",
+        "interactType": "eMapInteractType::Inn",
+        "visibleCondition": null,
+        "shopId": null,
+        "innId": 0,
+        "events": [
+          {
+            "condition": null,
+            "eventId": "EV_NPC_INN"
+          }
+        ],
+        "location": {
+          "x": 100.0,
+          "y": -200.0,
+          "z": 0.0
+        }
+      },
+      {
+        "actorName": "BP_Npc_Various",
+        "label": "VariousNpc",
+        "class": "/Script/mucha.CPP_MockUnit",
+        "kind": "npc",
+        "mapUnitId": 10,
+        "uniqueId": 4,
+        "direction": "eMapDirectionType::West",
+        "interactType": "eMapInteractType::Shop",
+        "visibleCondition": null,
+        "shopId": 100,
+        "innId": null,
+        "events": [],
+        "location": {
+          "x": 300.0,
+          "y": 0.0,
+          "z": 0.0
+        }
+      },
+      {
+        "actorName": "BP_Npc_Dangling",
+        "label": "BrokenNpc",
+        "class": "/Game/Map/MockTown_EV.MockTown_EV_C",
+        "kind": "npc",
+        "mapUnitId": 9999,
+        "uniqueId": 9,
+        "direction": null,
+        "interactType": null,
+        "visibleCondition": null,
+        "shopId": null,
+        "innId": null,
+        "events": [
+          {
+            "condition": null,
+            "eventId": "EV_NONEXISTENT"
+          }
+        ],
+        "location": {
+          "x": 400.0,
+          "y": 0.0,
+          "z": 0.0
+        }
+      }
+    ],
+    "treasureBoxes": [],
+    "eventTriggers": [
+      {
+        "actorName": "BP_Event_Story",
+        "label": "StoryTrig",
+        "class": "/Script/mucha.CPP_MockUnit",
+        "uniqueId": 20,
+        "interactType": null,
+        "visibleCondition": null,
+        "flagCondition": null,
+        "interactEventId": "EV_STORY_01",
+        "events": [],
+        "boxExtent": {
+          "x": 50.0,
+          "y": 50.0,
+          "z": 50.0
+        },
+        "location": {
+          "x": 0.0,
+          "y": 50.0,
+          "z": 0.0
+        }
+      }
+    ],
+    "transitions": [],
+    "transitionPoints": [
+      {
+        "actorName": "BP_TP_0",
+        "label": "TP0",
+        "class": "/Script/mucha.CPP_MockUnit",
+        "pointId": 0,
+        "direction": "eMapDirectionType::North",
+        "pointName": "Start",
+        "location": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        }
+      }
+    ],
+    "savePoints": [],
+    "shops": [
+      {
+        "actorName": "BP_Npc_Shop",
+        "label": "ShopNpc",
+        "class": "/Game/BP/Mock/BP_MockShopNpc.BP_MockShopNpc_C",
+        "uniqueId": 3,
+        "mapUnitId": 1060,
+        "shopId": 2,
+        "isVariousShop": false,
+        "isTest": false,
+        "interactType": "eMapInteractType::Shop",
+        "visibleCondition": "{progress:0}>=1020",
+        "location": {
+          "x": 100.0,
+          "y": 200.0,
+          "z": 0.0
+        }
+      },
+      {
+        "actorName": "BP_Npc_Various",
+        "label": "VariousNpc",
+        "class": "/Script/mucha.CPP_MockUnit",
+        "uniqueId": 4,
+        "mapUnitId": 10,
+        "shopId": 100,
+        "isVariousShop": true,
+        "isTest": false,
+        "interactType": "eMapInteractType::Shop",
+        "visibleCondition": null,
+        "location": {
+          "x": 300.0,
+          "y": 0.0,
+          "z": 0.0
+        }
+      }
+    ],
+    "inns": [
+      {
+        "actorName": "BP_Npc_Inn",
+        "label": "InnNpc",
+        "class": "/Game/BP/mock/BP_MockNpc.BP_MockNpc_C",
+        "uniqueId": 2,
+        "mapUnitId": 1060,
+        "innId": 0,
+        "interactType": "eMapInteractType::Inn",
+        "visibleCondition": null,
+        "location": {
+          "x": 100.0,
+          "y": -200.0,
+          "z": 0.0
+        }
+      }
+    ],
+    "gimmicks": [],
+    "encounterZones": []
+  }
+}

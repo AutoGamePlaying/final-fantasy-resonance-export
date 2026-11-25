@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_VisionItemData",
+    "Package": "/Game/Datatable/Item/Vision/DT_VisionItemData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'VISION_ITEM_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {}
+  }
+]

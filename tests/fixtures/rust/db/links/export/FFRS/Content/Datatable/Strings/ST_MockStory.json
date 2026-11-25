@@ -1,0 +1,15 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_MockStory",
+    "Package": "/Game/Datatable/Strings/ST_MockStory",
+    "StringTable": {
+      "TableNamespace": "ST_MockStory",
+      "KeysToEntries": {
+        "L1": "第一章ナレーション１。",
+        "L2": "勇者は出発する。",
+        "L3_UNTRANS": "未翻訳テスト台詞。"
+      }
+    }
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "Type": "BlueprintGeneratedClass",
+    "Name": "BP_MockShopNpc_C",
+    "Package": "/Game/BP/Mock/BP_MockShopNpc",
+    "SuperStruct": {
+      "ObjectName": "BlueprintGeneratedClass'BP_MockNpc_C'",
+      "ObjectPath": "/Game/BP/Mock/BP_MockNpc.0"
+    },
+    "ClassDefaultObject": {
+      "ObjectName": "BP_MockShopNpc_C'Default__BP_MockShopNpc_C'",
+      "ObjectPath": "/Game/BP/Mock/BP_MockShopNpc.1"
+    }
+  },
+  {
+    "Type": "BP_MockShopNpc_C",
+    "Name": "Default__BP_MockShopNpc_C",
+    "Flags": "RF_Public | RF_ClassDefaultObject",
+    "Package": "/Game/BP/Mock/BP_MockShopNpc",
+    "Properties": {
+      "ShopGreeting": true
+    }
+  }
+]

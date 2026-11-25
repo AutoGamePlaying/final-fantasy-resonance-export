@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_ArtifactItemData",
+    "Package": "/Game/Datatable/Item/DT_ArtifactItemData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'ARTIFACT_ITEM_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {}
+  }
+]

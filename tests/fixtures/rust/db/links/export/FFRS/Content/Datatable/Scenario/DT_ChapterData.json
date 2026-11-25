@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_ChapterData",
+    "Package": "/Game/Datatable/Scenario/DT_ChapterData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'ChapterData'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {}
+  }
+]

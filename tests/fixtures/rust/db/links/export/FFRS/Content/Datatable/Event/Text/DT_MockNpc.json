@@ -1,0 +1,69 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MockNpc",
+    "Package": "/Game/Datatable/Event/Text/DT_MockNpc",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'TalkEventRowData'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Hdr0": {
+        "TalkId": 0,
+        "WindowType": "ETalkEventWindowType::Normal",
+        "Speaker": "None",
+        "Emotion": "ETalkSpeakerEmotion::Normal",
+        "WindowPosition": "ETalkEventWindowPosition::Lower",
+        "ContentText": {
+          "CultureInvariantString": null
+        },
+        "Voice": "",
+        "IsVoiceValid": false
+      },
+      "Npc_Inn_Line": {
+        "TalkId": -1,
+        "WindowType": "ETalkEventWindowType::Normal",
+        "Speaker": "兵士",
+        "Emotion": "ETalkSpeakerEmotion::Normal",
+        "WindowPosition": "ETalkEventWindowPosition::Lower",
+        "ContentText": {
+          "TableId": "/Game/Datatable/Strings/ST_MockNpc.ST_MockNpc",
+          "Key": "INN_01",
+          "SourceString": "宿屋へようこそ。",
+          "LocalizedString": "宿屋へようこそ。"
+        },
+        "Voice": "",
+        "IsVoiceValid": false
+      },
+      "Hdr1": {
+        "TalkId": 1,
+        "WindowType": "ETalkEventWindowType::Normal",
+        "Speaker": "None",
+        "Emotion": "ETalkSpeakerEmotion::Normal",
+        "WindowPosition": "ETalkEventWindowPosition::Lower",
+        "ContentText": {
+          "CultureInvariantString": null
+        },
+        "Voice": "",
+        "IsVoiceValid": false
+      },
+      "Npc_Shop_Line": {
+        "TalkId": -1,
+        "WindowType": "ETalkEventWindowType::Normal",
+        "Speaker": "商人",
+        "Emotion": "ETalkSpeakerEmotion::Smile",
+        "WindowPosition": "ETalkEventWindowPosition::Lower",
+        "ContentText": {
+          "TableId": "/Game/Datatable/Strings/ST_MockNpc.ST_MockNpc",
+          "Key": "SHOP_01",
+          "SourceString": "道具屋へようこそ。",
+          "LocalizedString": "道具屋へようこそ。"
+        },
+        "Voice": "",
+        "IsVoiceValid": false
+      }
+    }
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_SavePointData",
+    "Package": "/Game/Datatable/Map/DT_SavePointData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'SavePointData'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {}
+  }
+]

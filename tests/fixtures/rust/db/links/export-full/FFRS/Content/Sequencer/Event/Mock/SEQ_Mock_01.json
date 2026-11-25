@@ -1,0 +1,44 @@
+[
+  {
+    "Type": "LevelSequence",
+    "Name": "SEQ_Mock_01",
+    "Package": "/Game/Sequencer/Event/Mock/SEQ_Mock_01",
+    "Properties": {
+      "MovieScene": {
+        "ObjectName": "MovieScene'SEQ_Mock_01:MovieScene_0'"
+      }
+    }
+  },
+  {
+    "Type": "MovieScene",
+    "Name": "MovieScene_0",
+    "Outer": {
+      "ObjectName": "LevelSequence'SEQ_Mock_01'"
+    },
+    "Properties": {
+      "TickResolution": {
+        "Numerator": 24000
+      },
+      "DisplayRate": {
+        "Numerator": 30
+      },
+      "PlaybackRange": {
+        "Value": {
+          "LowerBound": {
+            "Type": 1,
+            "Value": {
+              "Value": 0
+            }
+          },
+          "UpperBound": {
+            "Type": 0,
+            "Value": {
+              "Value": 48000
+            }
+          }
+        }
+      },
+      "Tracks": []
+    }
+  }
+]

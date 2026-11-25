@@ -1,0 +1,10 @@
+[
+  {
+    "Type": "CPP_DA_MapLandmark",
+    "Name": "DA_MapLandmark",
+    "Package": "/Game/Datatable/Map/DA_MapLandmark",
+    "Properties": {
+      "landmarkDataList": []
+    }
+  }
+]

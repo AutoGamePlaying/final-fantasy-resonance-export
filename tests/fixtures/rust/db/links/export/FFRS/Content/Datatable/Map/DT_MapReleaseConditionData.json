@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MapReleaseConditionData",
+    "Package": "/Game/Datatable/Map/DT_MapReleaseConditionData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'MAP_RELEASE_CONDITION_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {}
+  }
+]

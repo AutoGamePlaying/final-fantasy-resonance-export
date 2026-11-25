@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MainScenario",
+    "Package": "/Game/Datatable/Scenario/DT_MainScenario",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'ScenarioSection'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {}
+  }
+]
