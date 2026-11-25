@@ -1,0 +1,11 @@
+[
+  {
+    "Type": "InputMappingContext",
+    "Name": "IMC_Map_Unit_KBM",
+    "Properties": {
+      "Owner": {
+        "ObjectPath": "/Game/Input/DataAsset/Map/DA_Input_MapUnit.0"
+      }
+    }
+  }
+]

@@ -1,0 +1,29 @@
+[
+  {
+    "Type": "CPP_DA_MUCHA_INPUT",
+    "Name": "DA_Input_MapUnit",
+    "Package": "/Game/Input/DataAsset/Map/DA_Input_MapUnit",
+    "Properties": {
+      "Context": {
+        "ObjectName": "InputMappingContext'IMC_Map_Unit_KBM'",
+        "ObjectPath": "/Game/Input/Mapping/Map/IMC_Map_Unit_KBM.0"
+      },
+      "DuplicateContext": {
+        "ObjectPath": "/Game/Input/Mapping/Map/IMC_Map_Unit_KBM.0"
+      },
+      "MoveAction": {
+        "AssetPathName": "/Game/Input/Action/Map/IA_Map_UnitMove.IA_Map_UnitMove",
+        "SubPathString": ""
+      },
+      "Self": {
+        "ObjectPath": "/Game/Input/DataAsset/Map/DA_Input_MapUnit.0"
+      },
+      "Missing": {
+        "ObjectPath": "/Game/DoesNotExist/Missing.0"
+      },
+      "Script": {
+        "ObjectPath": "/Script/EnhancedInput.InputAction"
+      }
+    }
+  }
+]
