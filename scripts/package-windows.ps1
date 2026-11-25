@@ -118,10 +118,12 @@ try {
 
     $stageDir = Join-Path ([System.IO.Path]::GetTempPath()) ("ffr-win-pkg-" + [System.Guid]::NewGuid().ToString("N"))
     $dotnetOut = Join-Path $stageDir "dotnet-publish"
+    $guiOut = Join-Path $stageDir "gui-publish"
     $packageDir = Join-Path $stageDir "package"
     $distDir = Join-Path $root "dist"
 
     New-Item -ItemType Directory -Path $dotnetOut -Force | Out-Null
+    New-Item -ItemType Directory -Path $guiOut -Force | Out-Null
     New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
     New-Item -ItemType Directory -Path $distDir -Force | Out-Null
 
@@ -151,6 +153,36 @@ try {
         throw "错误：dotnet publish 未生成 $ffrExportExe"
     }
 
+    Write-Host "==> 发布 ffr-export-gui.exe（win-x64 self-contained single-file WinForms）"
+    $guiCsprojPath = Join-Path $root "src\FfrExport.Gui\FfrExport.Gui.csproj"
+    & $dotnetBin publish $guiCsprojPath `
+        -c Release `
+        -r win-x64 `
+        --self-contained true `
+        -p:PublishSingleFile=true `
+        -p:IncludeNativeLibrariesForSelfExtract=true `
+        -p:EnableCompressionInSingleFile=true `
+        -p:DebugType=None `
+        -p:DebugSymbols=false `
+        -p:AssemblyName=ffr-export-gui `
+        "-p:Version=$packageVersion" `
+        "-p:FfrGitCommit=$gitCommit" `
+        -o $guiOut
+    if ($LASTEXITCODE -ne 0) {
+        throw "错误：dotnet publish 发布 $guiCsprojPath 失败（退出码 $LASTEXITCODE）"
+    }
+
+    $ffrExportGuiExe = Join-Path $guiOut "ffr-export-gui.exe"
+    if (-not (Test-Path -LiteralPath $ffrExportGuiExe -PathType Leaf)) {
+        throw "错误：dotnet publish 未生成 $ffrExportGuiExe"
+    }
+
+    Write-Host "==> 自检 ffr-export-gui.exe --self-test"
+    & $ffrExportGuiExe --self-test
+    if ($LASTEXITCODE -ne 0) {
+        throw "错误：ffr-export-gui.exe --self-test 自检失败（退出码 $LASTEXITCODE）"
+    }
+
     Write-Host "==> 原生编译 ffr-db.exe（cargo build --release -p ffr-db）"
     & $cargoBin build --release -p ffr-db
     if ($LASTEXITCODE -ne 0) {
@@ -170,14 +202,29 @@ try {
     }
 
     Copy-Item -LiteralPath $ffrExportExe -Destination (Join-Path $packageDir "ffr-export.exe") -Force
+    Copy-Item -LiteralPath $ffrExportGuiExe -Destination (Join-Path $packageDir "ffr-export-gui.exe") -Force
     Copy-Item -LiteralPath $ffrDbExe -Destination (Join-Path $packageDir "ffr-db.exe") -Force
     Copy-Item -LiteralPath (Join-Path $root "known-builds.json") -Destination (Join-Path $packageDir "known-builds.json") -Force
     Copy-Item -LiteralPath (Join-Path $root "README.md") -Destination (Join-Path $packageDir "README.md") -Force
     Copy-Item -LiteralPath (Join-Path $root "LICENSE") -Destination (Join-Path $packageDir "LICENSE") -Force
 
-    # Write inner SHA256SUMS matching package-windows.sh layout (UTF-8 without BOM, LF endings).
+    # Write a concise Chinese quick-start guide (<= 10 lines, UTF-8 without BOM, CRLF for Windows Notepad).
     $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
-    $innerFiles = @("LICENSE", "README.md", "ffr-db.exe", "ffr-export.exe", "known-builds.json")
+    $usageLines = @(
+        '《FINAL FANTASY RESONANCE》数据导出工具使用说明',
+        '',
+        '1. 将本压缩包完整解压到同一个文件夹（不要单独移动某个 exe）。',
+        '2. 确保游戏已通过 Steam 安装，且已用 UE4SS 在游戏运行时转储 .usmap 文件',
+        '   （默认保存在游戏目录的 FFRS\Binaries\Win64\ue4ss\ 下）。',
+        '3. 双击打开 ffr-export-gui.exe，确认游戏与映射文件后点“开始导出”。',
+        '4. 导出完成后可点“打开输出文件夹”查看 ffr.sqlite，或点“复制哈希”核对版本。',
+        '5. 如需控制台向导或命令行用法，请运行 ffr-export.exe 或查看 README.md。'
+    )
+    $usagePath = Join-Path $packageDir "使用说明.txt"
+    [System.IO.File]::WriteAllText($usagePath, (($usageLines -join "`r`n") + "`r`n"), $utf8NoBom)
+
+    # Write inner SHA256SUMS matching package-windows.sh layout (UTF-8 without BOM, LF endings).
+    $innerFiles = @("LICENSE", "README.md", "ffr-db.exe", "ffr-export-gui.exe", "ffr-export.exe", "known-builds.json", "使用说明.txt")
     $innerLines = foreach ($name in $innerFiles) {
         $filePath = Join-Path $packageDir $name
         $digest = (Get-FileHash -LiteralPath $filePath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -193,7 +240,7 @@ try {
     }
 
     Write-Host "==> 生成压缩包：$zipPath"
-    $zipEntries = @("LICENSE", "README.md", "SHA256SUMS", "ffr-db.exe", "ffr-export.exe", "known-builds.json")
+    $zipEntries = @("LICENSE", "README.md", "SHA256SUMS", "ffr-db.exe", "ffr-export-gui.exe", "ffr-export.exe", "known-builds.json", "使用说明.txt")
     $archive = [System.IO.Compression.ZipFile]::Open($zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
     try {
         foreach ($name in $zipEntries) {

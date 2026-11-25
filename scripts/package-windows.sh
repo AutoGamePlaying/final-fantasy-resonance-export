@@ -58,10 +58,11 @@ GIT_COMMIT="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
 
 STAGE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ffr-win-pkg.XXXXXX")"
 DOTNET_OUT="$STAGE_DIR/dotnet-publish"
+GUI_OUT="$STAGE_DIR/gui-publish"
 PACKAGE_DIR="$STAGE_DIR/package"
 trap 'rm -rf "$STAGE_DIR"' EXIT
 
-mkdir -p "$DOTNET_OUT" "$PACKAGE_DIR" "$ROOT/dist"
+mkdir -p "$DOTNET_OUT" "$GUI_OUT" "$PACKAGE_DIR" "$ROOT/dist"
 
 echo "==> 打包版本：$VERSION（git: $GIT_COMMIT）"
 echo "==> 发布 ffr-export.exe（win-x64 self-contained single-file）"
@@ -84,6 +85,26 @@ if [[ ! -f "$DOTNET_OUT/ffr-export.exe" ]]; then
   exit 2
 fi
 
+echo "==> 发布 ffr-export-gui.exe（win-x64 self-contained single-file WinForms）"
+"$DOTNET_BIN" publish "$ROOT/src/FfrExport.Gui/FfrExport.Gui.csproj" \
+  -c Release \
+  -r win-x64 \
+  --self-contained true \
+  -p:PublishSingleFile=true \
+  -p:IncludeNativeLibrariesForSelfExtract=true \
+  -p:EnableCompressionInSingleFile=true \
+  -p:DebugType=None \
+  -p:DebugSymbols=false \
+  -p:AssemblyName=ffr-export-gui \
+  -p:Version="$VERSION" \
+  -p:FfrGitCommit="$GIT_COMMIT" \
+  -o "$GUI_OUT"
+
+if [[ ! -f "$GUI_OUT/ffr-export-gui.exe" ]]; then
+  echo "错误：dotnet publish 未生成 $GUI_OUT/ffr-export-gui.exe" >&2
+  exit 2
+fi
+
 echo "==> 交叉编译 ffr-db.exe（x86_64-pc-windows-msvc）"
 cargo xwin build --release --target x86_64-pc-windows-msvc -p ffr-db
 
@@ -101,39 +122,62 @@ for required in known-builds.json README.md LICENSE; do
 done
 
 cp "$DOTNET_OUT/ffr-export.exe" "$PACKAGE_DIR/ffr-export.exe"
+cp "$GUI_OUT/ffr-export-gui.exe" "$PACKAGE_DIR/ffr-export-gui.exe"
 cp "$FFR_DB_EXE" "$PACKAGE_DIR/ffr-db.exe"
 cp "$ROOT/known-builds.json" "$PACKAGE_DIR/known-builds.json"
 cp "$ROOT/README.md" "$PACKAGE_DIR/README.md"
 cp "$ROOT/LICENSE" "$PACKAGE_DIR/LICENSE"
 
+# Write a concise Chinese quick-start guide (<= 10 lines, UTF-8 without BOM, CRLF for Windows Notepad).
+printf '%s\r\n' \
+  '《FINAL FANTASY RESONANCE》数据导出工具使用说明' \
+  '' \
+  '1. 将本压缩包完整解压到同一个文件夹（不要单独移动某个 exe）。' \
+  '2. 确保游戏已通过 Steam 安装，且已用 UE4SS 在游戏运行时转储 .usmap 文件' \
+  '   （默认保存在游戏目录的 FFRS\Binaries\Win64\ue4ss\ 下）。' \
+  '3. 双击打开 ffr-export-gui.exe，确认游戏与映射文件后点“开始导出”。' \
+  '4. 导出完成后可点“打开输出文件夹”查看 ffr.sqlite，或点“复制哈希”核对版本。' \
+  '5. 如需控制台向导或命令行用法，请运行 ffr-export.exe 或查看 README.md。' \
+  > "$PACKAGE_DIR/使用说明.txt"
+
 (
   cd "$PACKAGE_DIR"
-  sha256sum LICENSE README.md ffr-db.exe ffr-export.exe known-builds.json > SHA256SUMS
+  sha256sum LICENSE README.md ffr-db.exe ffr-export-gui.exe ffr-export.exe known-builds.json 使用说明.txt > SHA256SUMS
 )
 
 ZIP_PATH="$ROOT/dist/ffr-export-${VERSION}-win-x64.zip"
 rm -f "$ZIP_PATH"
 
 echo "==> 生成压缩包：$ZIP_PATH"
-if command -v zip >/dev/null 2>&1; then
-  (
-    cd "$PACKAGE_DIR"
-    zip -q -9 "$ZIP_PATH" LICENSE README.md SHA256SUMS ffr-db.exe ffr-export.exe known-builds.json
-  )
-elif command -v python3 >/dev/null 2>&1; then
+# Prefer Python zipfile so UTF-8 entry names (使用说明.txt) always carry the ZIP UTF-8 flag for Windows Explorer.
+if command -v python3 >/dev/null 2>&1; then
   python3 - "$PACKAGE_DIR" "$ZIP_PATH" <<'PY'
 import os
 import sys
 import zipfile
 
 pkg_dir, zip_path = sys.argv[1], sys.argv[2]
-files = ["LICENSE", "README.md", "SHA256SUMS", "ffr-db.exe", "ffr-export.exe", "known-builds.json"]
+files = [
+    "LICENSE",
+    "README.md",
+    "SHA256SUMS",
+    "ffr-db.exe",
+    "ffr-export-gui.exe",
+    "ffr-export.exe",
+    "known-builds.json",
+    "使用说明.txt",
+]
 with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
     for name in files:
         zf.write(os.path.join(pkg_dir, name), arcname=name)
 PY
+elif command -v zip >/dev/null 2>&1; then
+  (
+    cd "$PACKAGE_DIR"
+    zip -q -9 "$ZIP_PATH" LICENSE README.md SHA256SUMS ffr-db.exe ffr-export-gui.exe ffr-export.exe known-builds.json 使用说明.txt
+  )
 else
-  echo "错误：缺少 zip 或 python3，无法生成 .zip 压缩包" >&2
+  echo "错误：缺少 python3 或 zip，无法生成 .zip 压缩包" >&2
   exit 2
 fi
 
