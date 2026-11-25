@@ -88,9 +88,11 @@ jobs:
           if (-not (Test-Path -LiteralPath $guiExe -PathType Leaf)) {
             throw "错误：找不到编译生成的窗口程序：$guiExe"
           }
-          & $guiExe --self-test
-          if ($LASTEXITCODE -ne 0) {
-            throw "错误：ffr-export-gui.exe --self-test 失败（退出码 $LASTEXITCODE）"
+          # WinExe (GUI subsystem): `& exe` does not wait and leaves $LASTEXITCODE unset, so wait explicitly.
+          $selfTest = Start-Process -FilePath $guiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow
+          $selfTestExit = $selfTest.ExitCode
+          if ($selfTestExit -ne 0) {
+            throw "错误：ffr-export-gui.exe --self-test 失败（退出码 $selfTestExit）"
           }
           Write-Host "窗口程序依赖自检通过：$guiExe --self-test"
 

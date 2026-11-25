@@ -178,9 +178,11 @@ try {
     }
 
     Write-Host "==> 自检 ffr-export-gui.exe --self-test"
-    & $ffrExportGuiExe --self-test
-    if ($LASTEXITCODE -ne 0) {
-        throw "错误：ffr-export-gui.exe --self-test 自检失败（退出码 $LASTEXITCODE）"
+    # WinExe (GUI subsystem): `& exe` does not wait and leaves $LASTEXITCODE unset, so wait explicitly.
+    $selfTest = Start-Process -FilePath $ffrExportGuiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow
+    $selfTestExit = $selfTest.ExitCode
+    if ($selfTestExit -ne 0) {
+        throw "错误：ffr-export-gui.exe --self-test 自检失败（退出码 $selfTestExit）"
     }
 
     Write-Host "==> 原生编译 ffr-db.exe（cargo build --release -p ffr-db）"
