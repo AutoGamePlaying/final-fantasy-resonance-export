@@ -1,0 +1,140 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    name: Build and Release (win-x64)
+    runs-on: windows-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - name: Configure Git line endings and .NET cache paths
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          {
+            echo "DOTNET_CLI_HOME=${RUNNER_TEMP}/dotnet-home"
+            echo "NUGET_PACKAGES=${RUNNER_TEMP}/nuget"
+            echo "NUGET_HTTP_CACHE_PATH=${RUNNER_TEMP}/nuget-http"
+          } >> "${GITHUB_ENV}"
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify tag matches VERSION file
+        shell: bash
+        run: |
+          if [[ ! -f VERSION ]]; then
+            echo "错误：仓库根目录缺少 VERSION 文件" >&2
+            exit 1
+          fi
+          TAG_NAME="${GITHUB_REF_NAME}"
+          TAG_VERSION="${TAG_NAME#v}"
+          FILE_VERSION="$(tr -d '[:space:]' < VERSION)"
+          if [[ -z "$TAG_VERSION" || "$TAG_VERSION" != "$FILE_VERSION" ]]; then
+            echo "错误：tag 版本（${TAG_NAME} -> ${TAG_VERSION}）与 VERSION 文件（${FILE_VERSION}）不一致" >&2
+            exit 1
+          fi
+          echo "RELEASE_VERSION=${FILE_VERSION}" >> "${GITHUB_ENV}"
+          echo "==> 版本校验通过：${TAG_NAME}（VERSION=${FILE_VERSION}）"
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Rust stable
+        id: rust
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+          components: clippy
+
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/nuget
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Cache Cargo registry and build artifacts
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ steps.rust.outputs.cachekey }}-
+            ${{ runner.os }}-cargo-
+
+      - name: Run check script
+        shell: bash
+        run: |
+          if [[ -e .deps ]]; then
+            echo "错误：发布工作区中不应存在 .deps 目录" >&2
+            exit 1
+          fi
+          bash scripts/check.sh
+
+      - name: Package Windows native release
+        shell: pwsh
+        run: ./scripts/package-windows.ps1 -Version "$env:RELEASE_VERSION"
+
+      - name: Prepare Release notes
+        shell: bash
+        run: |
+          ZIP_NAME="ffr-export-${RELEASE_VERSION}-win-x64.zip"
+          for required in "dist/${ZIP_NAME}" "dist/SHA256SUMS" "dist/known-builds.json"; do
+            if [[ ! -f "$required" ]]; then
+              echo "错误：缺少发布产物：$required" >&2
+              exit 1
+            fi
+          done
+
+          cat > "${RUNNER_TEMP}/release-notes.md" <<EOF
+          ## 说明
+
+          - 本发布包**不含任何游戏数据**（仅包含导出与建库工具本体、校验文件与已知构建清单）。
+          - \`.usmap\` 映射文件需要用户自行从运行中的游戏里转储。
+          - 构建完成后，工具会自动将生成的数据库与 \`known-builds.json\` 中的已知构建记录进行哈希比对。
+
+          ## 快速使用（Windows）
+
+          1. 下载 \`${ZIP_NAME}\` 并用 \`SHA256SUMS\` 校验完整性后解压；
+          2. 准备从运行中的游戏里自行转储的 \`.usmap\` 文件；
+          3. 在解压目录运行：
+
+          \`\`\`powershell
+          ffr-export build-db --game "<Steam 游戏目录>" --usmap <文件>
+          \`\`\`
+
+          ## 附件
+
+          - \`${ZIP_NAME}\`：Windows x64 原生单文件版 \`ffr-export.exe\`、\`ffr-db.exe\`、\`known-builds.json\`、\`SHA256SUMS\`、\`README.md\`、\`LICENSE\`
+          - \`SHA256SUMS\`：发布附件的 SHA-256 校验值
+          - \`known-builds.json\`：已登记的游戏版本与数据库哈希清单
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
+        with:
+          name: ${{ github.ref_name }}
+          body_path: ${{ runner.temp }}/release-notes.md
+          fail_on_unmatched_files: true
+          token: ${{ github.token }}
+          files: |
+            dist/ffr-export-${{ env.RELEASE_VERSION }}-win-x64.zip
+            dist/SHA256SUMS
+            dist/known-builds.json
