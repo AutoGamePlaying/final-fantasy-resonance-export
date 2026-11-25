@@ -18,6 +18,10 @@
     <ProjectReference Include="..\FfrExport.FakeFfrDb\FfrExport.FakeFfrDb.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\FfrExport.TestCliHost\FfrExport.TestCliHost.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Compile GUI non-WinForms core logic directly into net10.0 tests for cross-platform xUnit coverage. -->
+    <Compile Include="..\..\src\FfrExport.Gui\Core\*.cs" Link="GuiCore\%(Filename)%(Extension)" />
+  </ItemGroup>
   <Target Name="CopyTestHelperArtifacts" AfterTargets="Build">
     <ItemGroup>
       <_FakeFfrDbFiles Include="..\FfrExport.FakeFfrDb\bin\$(Configuration)\$(TargetFramework)\**\*" />

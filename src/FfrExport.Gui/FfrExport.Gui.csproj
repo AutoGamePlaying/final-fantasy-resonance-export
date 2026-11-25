@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>ffr-export-gui</AssemblyName>
+    <RootNamespace>FfrExport.Gui</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version Condition="'$(Version)' == '' and Exists('$(MSBuildProjectDirectory)/../../VERSION')">$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/../../VERSION').Trim())</Version>
+    <Version Condition="'$(Version)' == ''">0.1.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Share SteamLocator and PathSupport directly from FfrExport without duplicating source files. -->
+    <Compile Include="..\FfrExport\SteamLocator.cs" Link="Shared\SteamLocator.cs" />
+    <Compile Include="..\FfrExport\PathSupport.cs" Link="Shared\PathSupport.cs" />
+  </ItemGroup>
+  <Target Name="EmbedGitCommitMetadata" BeforeTargets="GetAssemblyAttributes">
+    <Exec Condition="'$(FfrGitCommit)' == ''"
+          Command="git rev-parse --short=12 HEAD"
+          ConsoleToMSBuild="true"
+          IgnoreExitCode="true"
+          IgnoreStandardErrorWarningFormat="true"
+          StandardErrorImportance="Low"
+          StandardOutputImportance="Low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="FfrGitCommit" />
+      <Output TaskParameter="ExitCode" PropertyName="FfrGitExitCode" />
+    </Exec>
+    <PropertyGroup>
+      <FfrGitCommit Condition="'$(FfrGitExitCode)' != '' and '$(FfrGitExitCode)' != '0'">unknown</FfrGitCommit>
+      <FfrGitCommit Condition="'$(FfrGitCommit)' == ''">unknown</FfrGitCommit>
+    </PropertyGroup>
+    <ItemGroup>
+      <AssemblyMetadata Include="GitCommit" Value="$(FfrGitCommit)" />
+    </ItemGroup>
+  </Target>
+</Project>
