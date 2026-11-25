@@ -1,0 +1,10 @@
+{
+  "id": "20260101-030303-field-idle-snapshot",
+  "job": "snapshot",
+  "label": "field-idle",
+  "startedAt": 1767236583,
+  "finishedAt": 1767236587,
+  "files": 6,
+  "bytes": 900,
+  "buildid": "test"
+}

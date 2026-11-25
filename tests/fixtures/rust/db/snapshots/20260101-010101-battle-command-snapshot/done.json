@@ -1,0 +1,11 @@
+{
+  "id": "20260101-010101-battle-command-snapshot",
+  "job": "snapshot",
+  "label": "battle-command",
+  "ok": true,
+  "error": null,
+  "startedAt": 1767229261,
+  "finishedAt": 1767229265,
+  "files": ["context.json", "classes.json", "objects.jsonl", "widgets.jsonl", "texts.jsonl"],
+  "stats": { "truncated": false }
+}

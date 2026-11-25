@@ -1,0 +1,11 @@
+{
+  "id": "20260101-020202-battle-start-snapshot",
+  "job": "snapshot",
+  "label": "battle-start",
+  "ok": true,
+  "error": null,
+  "startedAt": 1767232922,
+  "finishedAt": 1767232926,
+  "files": ["context.json", "classes.json", "objects.jsonl", "widgets.jsonl", "texts.jsonl"],
+  "stats": { "truncated": false }
+}

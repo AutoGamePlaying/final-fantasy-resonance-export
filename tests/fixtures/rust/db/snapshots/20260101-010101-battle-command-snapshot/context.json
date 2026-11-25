@@ -1,0 +1,9 @@
+{
+  "world": "World /Game/Map/Test/Test_PL.Test_PL",
+  "time": 1767229261,
+  "gameInstance": "Class /Script/mucha.CPP_MuchaGameInstance",
+  "pawn": {
+    "class": "BlueprintGeneratedClass /Game/BP/Test.BP_Test_C",
+    "name": "BP_Test_C /Game/Map/Test.Test:PersistentLevel.BP_Test_C_1"
+  }
+}

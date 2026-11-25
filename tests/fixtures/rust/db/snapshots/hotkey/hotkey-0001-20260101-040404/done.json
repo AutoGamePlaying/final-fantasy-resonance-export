@@ -1,0 +1,11 @@
+{
+  "id": "hotkey-0001-20260101-040404",
+  "job": "snapshot",
+  "label": "hotkey-0001",
+  "ok": true,
+  "error": null,
+  "startedAt": 1767240244,
+  "finishedAt": 1767240248,
+  "files": ["context.json", "classes.json", "objects.jsonl", "widgets.jsonl", "texts.jsonl"],
+  "stats": { "truncated": false }
+}

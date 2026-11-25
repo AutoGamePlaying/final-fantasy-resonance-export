@@ -1,0 +1,10 @@
+{
+  "id": "20260101-020202-battle-start-snapshot",
+  "job": "snapshot",
+  "label": "battle-start",
+  "startedAt": 1767232922,
+  "finishedAt": 1767232926,
+  "files": 7,
+  "bytes": 1024,
+  "buildid": "test"
+}
