@@ -70,7 +70,7 @@ internal static partial class Program
     {
         if (args.Length == 0)
         {
-            throw new ArgumentException("缺少子命令；可用命令：list、raw、export、locres、inventory、export-assets、export-maps");
+            throw new ArgumentException("缺少子命令；可用命令：list、raw、export、locres、inventory、export-assets、export-maps、build-db");
         }
 
         switch (args[0])
@@ -92,8 +92,10 @@ internal static partial class Program
                 return await RunExportAssetsAsync(args[1..]);
             case "export-maps":
                 return await RunExportMapsAsync(args[1..]);
+            case "build-db":
+                return await RunBuildDbAsync(args[1..]);
             default:
-                throw new ArgumentException($"未知子命令：{args[0]}；可用命令：list、raw、export、locres、inventory、export-assets、export-maps");
+                throw new ArgumentException($"未知子命令：{args[0]}；可用命令：list、raw、export、locres、inventory、export-assets、export-maps、build-db");
         }
     }
 
@@ -226,10 +228,19 @@ internal static partial class Program
         AddDefaultPrefixes(prefixes);
         var outputPath = RequireDepsPath(outputArgument, "--out");
         PrepareOutputDirectory(outputPath, outputArgument, force, "export");
-        var startedAt = DateTimeOffset.UtcNow;
-        var usmapHash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(usmapPath)));
+        var usmapHash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(PathSupport.ToIoPath(usmapPath))));
 
         using var provider = CreateProvider(paks, usmapPath);
+        return await ExportAssetsWithProviderAsync(provider, usmapHash, outputPath, prefixes);
+    }
+
+    private static async Task<int> ExportAssetsWithProviderAsync(
+        DefaultFileProvider provider,
+        string usmapHash,
+        string outputPath,
+        IReadOnlyCollection<string> prefixes)
+    {
+        var startedAt = DateTimeOffset.UtcNow;
         var failures = new List<(string Path, string Error)>();
         var successCount = 0;
         foreach (var file in MatchingFiles(provider, prefixes, true))
@@ -247,10 +258,10 @@ internal static partial class Program
                 var parent = Path.GetDirectoryName(jsonPath);
                 if (parent is not null)
                 {
-                    Directory.CreateDirectory(parent);
+                    Directory.CreateDirectory(PathSupport.ToIoPath(parent));
                 }
 
-                await File.WriteAllTextAsync(jsonPath, json, Utf8WithoutBom);
+                await File.WriteAllTextAsync(PathSupport.ToIoPath(jsonPath), json, Utf8WithoutBom);
                 successCount++;
             }
             catch (Exception exception)
@@ -271,7 +282,7 @@ internal static partial class Program
             failures = failures.Select(failure => new { path = failure.Path, error = failure.Error }).ToArray(),
         };
         await File.WriteAllTextAsync(
-            Path.Combine(outputPath, "manifest.json"),
+            PathSupport.ToIoPath(Path.Combine(outputPath, "manifest.json")),
             JsonConvert.SerializeObject(manifest, Formatting.Indented),
             Utf8WithoutBom);
         Console.WriteLine($"成功：{successCount}，失败：{failures.Count}");
@@ -311,9 +322,29 @@ internal static partial class Program
         }
 
         var outputPath = RequireDepsPath(outputArgument, "--out");
-        var startedAt = DateTimeOffset.UtcNow;
 
         using var provider = CreateProvider(paks, null);
+        var parsedEntries = ParseLocresEntries(provider, requestedLanguages);
+        PrepareOutputDirectory(outputPath, outputArgument, force, "locres");
+        await WriteLocresOutputsAsync(parsedEntries, outputPath, outputArgument, DateTimeOffset.UtcNow);
+    }
+
+    private static async Task ExportLocresWithProviderAsync(
+        DefaultFileProvider provider,
+        string outputPath,
+        string outputDisplay,
+        IReadOnlyList<string> requestedLanguages)
+    {
+        var startedAt = DateTimeOffset.UtcNow;
+        var parsedEntries = ParseLocresEntries(provider, requestedLanguages);
+        Directory.CreateDirectory(PathSupport.ToIoPath(outputPath));
+        await WriteLocresOutputsAsync(parsedEntries, outputPath, outputDisplay, startedAt);
+    }
+
+    private static List<(string Language, string SourcePath, string SourceSha256, int NamespaceCount, int EntryCount, SortedDictionary<string, SortedDictionary<string, string>> Data)> ParseLocresEntries(
+        DefaultFileProvider provider,
+        IReadOnlyList<string> requestedLanguages)
+    {
         var availableLanguages = FindAvailableLocresLanguages(provider);
         var parsedEntries = new List<(string Language, string SourcePath, string SourceSha256, int NamespaceCount, int EntryCount, SortedDictionary<string, SortedDictionary<string, string>> Data)>();
 
@@ -335,13 +366,20 @@ internal static partial class Program
             parsedEntries.Add((language, sourcePath, sourceSha256, data.Count, entryCount, data));
         }
 
-        PrepareOutputDirectory(outputPath, outputArgument, force, "locres");
+        return parsedEntries;
+    }
 
+    private static async Task WriteLocresOutputsAsync(
+        List<(string Language, string SourcePath, string SourceSha256, int NamespaceCount, int EntryCount, SortedDictionary<string, SortedDictionary<string, string>> Data)> parsedEntries,
+        string outputPath,
+        string outputDisplay,
+        DateTimeOffset startedAt)
+    {
         foreach (var entry in parsedEntries)
         {
             var jsonPath = Path.Combine(outputPath, $"{entry.Language}.json");
             var json = JsonConvert.SerializeObject(entry.Data, Formatting.Indented);
-            await File.WriteAllTextAsync(jsonPath, json, Utf8WithoutBom);
+            await File.WriteAllTextAsync(PathSupport.ToIoPath(jsonPath), json, Utf8WithoutBom);
             Console.WriteLine(
                 $"{entry.Language}：{entry.NamespaceCount} 个命名空间，{entry.EntryCount} 条，SHA-256：{entry.SourceSha256}");
         }
@@ -362,10 +400,10 @@ internal static partial class Program
             }).ToArray(),
         };
         await File.WriteAllTextAsync(
-            Path.Combine(outputPath, "manifest.json"),
+            PathSupport.ToIoPath(Path.Combine(outputPath, "manifest.json")),
             JsonConvert.SerializeObject(manifest, Formatting.Indented),
             Utf8WithoutBom);
-        Console.WriteLine($"已导出 {parsedEntries.Count} 种语言到 {outputArgument}");
+        Console.WriteLine($"已导出 {parsedEntries.Count} 种语言到 {outputDisplay}");
     }
 
     private static void AddLanguages(List<string> target, string rawValue)
@@ -444,18 +482,19 @@ internal static partial class Program
 
     private static DefaultFileProvider CreateProvider(string paks, string? usmapPath)
     {
-        if (!Directory.Exists(paks))
+        var ioPaks = PathSupport.ToIoPath(paks);
+        if (!Directory.Exists(ioPaks))
         {
             throw new DirectoryNotFoundException($"资源目录不存在：{paks}");
         }
 
         var provider = new DefaultFileProvider(
-            paks,
+            ioPaks,
             SearchOption.TopDirectoryOnly,
             new VersionContainer(EGame.GAME_UE5_6));
         if (usmapPath is not null)
         {
-            provider.MappingsContainer = new FileUsmapTypeMappingsProvider(usmapPath);
+            provider.MappingsContainer = new FileUsmapTypeMappingsProvider(PathSupport.ToIoPath(usmapPath));
         }
 
         provider.Initialize();

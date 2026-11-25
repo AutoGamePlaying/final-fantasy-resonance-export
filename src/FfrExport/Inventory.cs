@@ -82,8 +82,29 @@ internal static partial class Program
         var snapshot = LoadAssetRegistrySnapshot(provider);
 
         PrepareOutputDirectory(outputPath, outputArgument, force, "inventory");
+        await WriteInventoryOutputsAsync(snapshot, outputPath, outputArgument, startedAt);
+        return 0;
+    }
 
-        var registryJsonlPath = Path.Combine(outputPath, "registry.jsonl");
+    private static async Task<AssetRegistrySnapshot> RunInventoryWithProviderAsync(
+        DefaultFileProvider provider,
+        string outputPath,
+        string outputDisplay)
+    {
+        var startedAt = DateTimeOffset.UtcNow;
+        var snapshot = LoadAssetRegistrySnapshot(provider);
+        Directory.CreateDirectory(PathSupport.ToIoPath(outputPath));
+        await WriteInventoryOutputsAsync(snapshot, outputPath, outputDisplay, startedAt);
+        return snapshot;
+    }
+
+    private static async Task WriteInventoryOutputsAsync(
+        AssetRegistrySnapshot snapshot,
+        string outputPath,
+        string outputArgument,
+        DateTimeOffset startedAt)
+    {
+        var registryJsonlPath = PathSupport.ToIoPath(Path.Combine(outputPath, "registry.jsonl"));
         await using (var writer = new StreamWriter(registryJsonlPath, false, Utf8WithoutBom))
         {
             foreach (var pkg in snapshot.Packages)
@@ -228,7 +249,7 @@ internal static partial class Program
         };
 
         await File.WriteAllTextAsync(
-            Path.Combine(outputPath, "summary.json"),
+            PathSupport.ToIoPath(Path.Combine(outputPath, "summary.json")),
             JsonConvert.SerializeObject(summary, Formatting.Indented),
             Utf8WithoutBom);
 
@@ -244,7 +265,7 @@ internal static partial class Program
             unindexedVfsPackages = unindexedPackages.Length,
         };
         await File.WriteAllTextAsync(
-            Path.Combine(outputPath, "manifest.json"),
+            PathSupport.ToIoPath(Path.Combine(outputPath, "manifest.json")),
             JsonConvert.SerializeObject(manifest, Formatting.Indented),
             Utf8WithoutBom);
 
@@ -254,8 +275,6 @@ internal static partial class Program
         {
             Console.WriteLine($"说明：{note}");
         }
-
-        return 0;
     }
 
     internal static AssetRegistrySnapshot LoadAssetRegistrySnapshot(DefaultFileProvider provider)

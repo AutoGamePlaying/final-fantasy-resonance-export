@@ -189,6 +189,344 @@ internal static class SyntheticFixtureBuilder
         return buffer;
     }
 
+    internal sealed record UsmapPropSpec(
+        ushort SchemaIndex,
+        byte ArraySize,
+        string Name,
+        byte PropertyType,
+        string? StructName = null,
+        string? EnumName = null,
+        byte? EnumInnerType = null,
+        byte? InnerType = null,
+        byte? ValueType = null);
+
+    internal sealed record UsmapStructSpec(
+        string Name,
+        string? SuperName,
+        ushort PropertyCount,
+        IReadOnlyList<UsmapPropSpec> Properties);
+
+    internal sealed record UsmapEnumSpec(
+        string Name,
+        IReadOnlyList<string> Members);
+
+    /// <summary>
+    /// Builds a valid v0 uncompressed .usmap binary from structured enum and struct definitions.
+    /// Allows caller-specified name table ordering to test order-independent content hashing.
+    /// </summary>
+    public static byte[] BuildUsmapV0(
+        IReadOnlyList<string> explicitNameOrder,
+        IReadOnlyList<UsmapEnumSpec> enums,
+        IReadOnlyList<UsmapStructSpec> structs)
+    {
+        var nameIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        var names = new List<string>();
+
+        int Intern(string name)
+        {
+            if (nameIndex.TryGetValue(name, out var idx))
+            {
+                return idx;
+            }
+
+            var next = names.Count;
+            names.Add(name);
+            nameIndex[name] = next;
+            return next;
+        }
+
+        foreach (var pre in explicitNameOrder)
+        {
+            Intern(pre);
+        }
+
+        foreach (var e in enums)
+        {
+            Intern(e.Name);
+            foreach (var m in e.Members)
+            {
+                Intern(m);
+            }
+        }
+
+        foreach (var s in structs)
+        {
+            Intern(s.Name);
+            if (s.SuperName is not null)
+            {
+                Intern(s.SuperName);
+            }
+
+            foreach (var p in s.Properties)
+            {
+                Intern(p.Name);
+                if (p.StructName is not null)
+                {
+                    Intern(p.StructName);
+                }
+
+                if (p.EnumName is not null)
+                {
+                    Intern(p.EnumName);
+                }
+            }
+        }
+
+        using var payload = new MemoryStream();
+        using (var w = new BinaryWriter(payload, Encoding.UTF8, leaveOpen: true))
+        {
+            w.Write((uint)names.Count);
+            foreach (var n in names)
+            {
+                var bytes = Encoding.UTF8.GetBytes(n);
+                w.Write((byte)bytes.Length);
+                w.Write(bytes);
+            }
+
+            w.Write((uint)enums.Count);
+            foreach (var e in enums)
+            {
+                w.Write(Intern(e.Name));
+                w.Write((byte)e.Members.Count);
+                foreach (var m in e.Members)
+                {
+                    w.Write(Intern(m));
+                }
+            }
+
+            w.Write((uint)structs.Count);
+            foreach (var s in structs)
+            {
+                w.Write(Intern(s.Name));
+                w.Write(s.SuperName is null ? -1 : Intern(s.SuperName));
+                w.Write(s.PropertyCount);
+                w.Write((ushort)s.Properties.Count);
+                foreach (var p in s.Properties)
+                {
+                    w.Write(p.SchemaIndex);
+                    w.Write(p.ArraySize);
+                    w.Write(Intern(p.Name));
+                    w.Write(p.PropertyType);
+                    // StructProperty = 9, ArrayProperty = 8, SetProperty = 25, MapProperty = 24, EnumProperty = 26
+                    if (p.PropertyType == 9)
+                    {
+                        w.Write(Intern(p.StructName!));
+                    }
+                    else if (p.PropertyType == 26)
+                    {
+                        w.Write(p.EnumInnerType ?? (byte)0); // ByteProperty
+                        w.Write(Intern(p.EnumName!));
+                    }
+                    else if (p.PropertyType is 8 or 25)
+                    {
+                        w.Write(p.InnerType ?? (byte)2); // IntProperty
+                    }
+                    else if (p.PropertyType == 24)
+                    {
+                        w.Write(p.InnerType ?? (byte)10); // StrProperty
+                        w.Write(p.ValueType ?? (byte)2); // IntProperty
+                    }
+                }
+            }
+
+            w.Flush();
+        }
+
+        var data = payload.ToArray();
+        var result = new byte[12 + data.Length];
+        BinaryPrimitives.WriteUInt16LittleEndian(result.AsSpan(0, 2), 0x30c4); // Magic
+        result[2] = 0; // Version = Initial
+        result[3] = 0; // CompressionMethod = None
+        BinaryPrimitives.WriteUInt32LittleEndian(result.AsSpan(4, 4), (uint)data.Length);
+        BinaryPrimitives.WriteUInt32LittleEndian(result.AsSpan(8, 4), (uint)data.Length);
+        Buffer.BlockCopy(data, 0, result, 12, data.Length);
+        return result;
+    }
+
+    /// <summary>
+    /// Builds a minimal valid PE (PE32 or PE32+) binary containing an RT_VERSION resource
+    /// in a caller-chosen section name (e.g. ".rsrc" or ".link") with VS_FIXEDFILEINFO
+    /// and optional StringFileInfo FileVersion/ProductVersion entries.
+    /// </summary>
+    public static byte[] BuildMinimalPeWithVersionResource(
+        (ushort Major, ushort Minor, ushort Build, ushort Revision) fileVersion,
+        (ushort Major, ushort Minor, ushort Build, ushort Revision) productVersion,
+        string? stringFileVersion = null,
+        string? stringProductVersion = null,
+        string sectionName = ".rsrc",
+        bool pe32Plus = true)
+    {
+        var versionBlob = BuildVersionResourceBlob(
+            fileVersion,
+            productVersion,
+            stringFileVersion,
+            stringProductVersion);
+
+        const uint rsrcRva = 0x2000;
+        const uint rsrcRawOffset = 0x200;
+
+        // 3 resource directory levels (16 + 8 = 24 bytes each) + 1 data entry (16 bytes) = 88 bytes
+        const uint dir0Offset = 0;
+        const uint dir1Offset = 24;
+        const uint dir2Offset = 48;
+        const uint dataEntryOffset = 72;
+        const uint blobOffsetInSection = 88;
+
+        var rsrcSection = new byte[AlignUp((int)blobOffsetInSection + versionBlob.Length, 0x200)];
+
+        // Level 1: RT_VERSION (ID 16) -> subdir dir1Offset
+        BinaryPrimitives.WriteUInt16LittleEndian(rsrcSection.AsSpan((int)dir0Offset + 14, 2), 1); // IdEntries
+        BinaryPrimitives.WriteUInt32LittleEndian(rsrcSection.AsSpan((int)dir0Offset + 16, 4), 16u);
+        BinaryPrimitives.WriteUInt32LittleEndian(rsrcSection.AsSpan((int)dir0Offset + 20, 4), 0x80000000u | dir1Offset);
+
+        // Level 2: Resource ID 1 -> subdir dir2Offset
+        BinaryPrimitives.WriteUInt16LittleEndian(rsrcSection.AsSpan((int)dir1Offset + 14, 2), 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(rsrcSection.AsSpan((int)dir1Offset + 16, 4), 1u);
+        BinaryPrimitives.WriteUInt32LittleEndian(rsrcSection.AsSpan((int)dir1Offset + 20, 4), 0x80000000u | dir2Offset);
+
+        // Level 3: Language 0x0409 -> leaf dataEntryOffset
+        BinaryPrimitives.WriteUInt16LittleEndian(rsrcSection.AsSpan((int)dir2Offset + 14, 2), 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(rsrcSection.AsSpan((int)dir2Offset + 16, 4), 0x0409u);
+        BinaryPrimitives.WriteUInt32LittleEndian(rsrcSection.AsSpan((int)dir2Offset + 20, 4), dataEntryOffset);
+
+        // IMAGE_RESOURCE_DATA_ENTRY
+        BinaryPrimitives.WriteUInt32LittleEndian(rsrcSection.AsSpan((int)dataEntryOffset + 0, 4), rsrcRva + blobOffsetInSection);
+        BinaryPrimitives.WriteUInt32LittleEndian(rsrcSection.AsSpan((int)dataEntryOffset + 4, 4), (uint)versionBlob.Length);
+        Buffer.BlockCopy(versionBlob, 0, rsrcSection, (int)blobOffsetInSection, versionBlob.Length);
+
+        var pe = new byte[rsrcRawOffset + rsrcSection.Length];
+
+        // DOS header
+        pe[0] = (byte)'M';
+        pe[1] = (byte)'Z';
+        const int peOff = 0x80;
+        BinaryPrimitives.WriteUInt32LittleEndian(pe.AsSpan(0x3C, 4), peOff);
+
+        // PE signature + COFF header
+        pe[peOff + 0] = (byte)'P';
+        pe[peOff + 1] = (byte)'E';
+        pe[peOff + 2] = 0;
+        pe[peOff + 3] = 0;
+        BinaryPrimitives.WriteUInt16LittleEndian(pe.AsSpan(peOff + 4, 2), pe32Plus ? (ushort)0x8664 : (ushort)0x014C);
+        BinaryPrimitives.WriteUInt16LittleEndian(pe.AsSpan(peOff + 6, 2), 1); // NumberOfSections
+
+        ushort optSize = pe32Plus ? (ushort)240 : (ushort)224;
+        BinaryPrimitives.WriteUInt16LittleEndian(pe.AsSpan(peOff + 20, 2), optSize);
+
+        var optOff = peOff + 24;
+        BinaryPrimitives.WriteUInt16LittleEndian(pe.AsSpan(optOff, 2), pe32Plus ? (ushort)0x020B : (ushort)0x010B);
+        var numRvaOff = optOff + (pe32Plus ? 108 : 92);
+        var ddOff = optOff + (pe32Plus ? 112 : 96);
+        BinaryPrimitives.WriteUInt32LittleEndian(pe.AsSpan(numRvaOff, 4), 16u);
+        // DataDirectory[2] = Resource Table
+        BinaryPrimitives.WriteUInt32LittleEndian(pe.AsSpan(ddOff + 16, 4), rsrcRva);
+        BinaryPrimitives.WriteUInt32LittleEndian(pe.AsSpan(ddOff + 20, 4), (uint)rsrcSection.Length);
+
+        // Section Header[0]
+        var secOff = optOff + optSize;
+        var secNameBytes = Encoding.ASCII.GetBytes(sectionName);
+        Buffer.BlockCopy(secNameBytes, 0, pe, secOff, Math.Min(8, secNameBytes.Length));
+        BinaryPrimitives.WriteUInt32LittleEndian(pe.AsSpan(secOff + 8, 4), (uint)rsrcSection.Length);
+        BinaryPrimitives.WriteUInt32LittleEndian(pe.AsSpan(secOff + 12, 4), rsrcRva);
+        BinaryPrimitives.WriteUInt32LittleEndian(pe.AsSpan(secOff + 16, 4), (uint)rsrcSection.Length);
+        BinaryPrimitives.WriteUInt32LittleEndian(pe.AsSpan(secOff + 20, 4), rsrcRawOffset);
+
+        Buffer.BlockCopy(rsrcSection, 0, pe, (int)rsrcRawOffset, rsrcSection.Length);
+        return pe;
+    }
+
+    private static byte[] BuildVersionResourceBlob(
+        (ushort Major, ushort Minor, ushort Build, ushort Revision) fileVersion,
+        (ushort Major, ushort Minor, ushort Build, ushort Revision) productVersion,
+        string? stringFileVersion,
+        string? stringProductVersion)
+    {
+        var fixedInfo = new byte[52];
+        BinaryPrimitives.WriteUInt32LittleEndian(fixedInfo.AsSpan(0, 4), 0xFEEF04BDu);
+        BinaryPrimitives.WriteUInt32LittleEndian(fixedInfo.AsSpan(4, 4), 0x00010000u);
+        BinaryPrimitives.WriteUInt32LittleEndian(fixedInfo.AsSpan(8, 4), ((uint)fileVersion.Major << 16) | fileVersion.Minor);
+        BinaryPrimitives.WriteUInt32LittleEndian(fixedInfo.AsSpan(12, 4), ((uint)fileVersion.Build << 16) | fileVersion.Revision);
+        BinaryPrimitives.WriteUInt32LittleEndian(fixedInfo.AsSpan(16, 4), ((uint)productVersion.Major << 16) | productVersion.Minor);
+        BinaryPrimitives.WriteUInt32LittleEndian(fixedInfo.AsSpan(20, 4), ((uint)productVersion.Build << 16) | productVersion.Revision);
+
+        var children = new List<byte[]>();
+        if (stringFileVersion is not null || stringProductVersion is not null)
+        {
+            var stringNodes = new List<byte[]>();
+            if (stringFileVersion is not null)
+            {
+                stringNodes.Add(BuildVersionStringNode("FileVersion", stringFileVersion));
+            }
+
+            if (stringProductVersion is not null)
+            {
+                stringNodes.Add(BuildVersionStringNode("ProductVersion", stringProductVersion));
+            }
+
+            var tableNode = BuildVersionContainerNode("040904b0", 1, [], stringNodes);
+            var sfiNode = BuildVersionContainerNode("StringFileInfo", 1, [], [tableNode]);
+            children.Add(sfiNode);
+        }
+
+        return BuildVersionContainerNode("VS_VERSION_INFO", 0, fixedInfo, children);
+    }
+
+    private static byte[] BuildVersionStringNode(string key, string value)
+    {
+        var valueBytes = Encoding.Unicode.GetBytes(value + "\0");
+        var charLenWithNull = (ushort)(value.Length + 1);
+        return BuildVersionNodeRaw(key, wType: 1, wValueLength: charLenWithNull, valueBytes, []);
+    }
+
+    private static byte[] BuildVersionContainerNode(
+        string key,
+        ushort wType,
+        byte[] valueBytes,
+        IReadOnlyList<byte[]> children)
+    {
+        return BuildVersionNodeRaw(key, wType, (ushort)valueBytes.Length, valueBytes, children);
+    }
+
+    private static byte[] BuildVersionNodeRaw(
+        string key,
+        ushort wType,
+        ushort wValueLength,
+        byte[] valueBytes,
+        IReadOnlyList<byte[]> children)
+    {
+        using var ms = new MemoryStream();
+        ms.Write(new byte[6]); // Placeholder for wLength, wValueLength, wType
+        var keyBytes = Encoding.Unicode.GetBytes(key + "\0");
+        ms.Write(keyBytes);
+        PadTo4(ms);
+        if (valueBytes.Length > 0)
+        {
+            ms.Write(valueBytes);
+        }
+
+        foreach (var child in children)
+        {
+            PadTo4(ms);
+            ms.Write(child);
+        }
+
+        var result = ms.ToArray();
+        BinaryPrimitives.WriteUInt16LittleEndian(result.AsSpan(0, 2), (ushort)result.Length);
+        BinaryPrimitives.WriteUInt16LittleEndian(result.AsSpan(2, 2), wValueLength);
+        BinaryPrimitives.WriteUInt16LittleEndian(result.AsSpan(4, 2), wType);
+        return result;
+    }
+
+    private static void PadTo4(MemoryStream ms)
+    {
+        while (ms.Length % 4 != 0)
+        {
+            ms.WriteByte(0);
+        }
+    }
+
+    private static int AlignUp(int value, int alignment) => (value + alignment - 1) & ~(alignment - 1);
+
     /// <summary>
     /// Builds a valid UE FTextLocalizationResource binary (Version 1 = Compact)
     /// supporting ASCII and Unicode (UTF-16LE) strings.

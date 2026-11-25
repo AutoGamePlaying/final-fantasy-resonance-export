@@ -1,0 +1,557 @@
+[
+  {
+    "registered_at": "2026-11-25",
+    "note": "开发机（Linux）从游戏文件端到端构建，连续三次文件哈希和内容哈希一致；输入：标题画面转储的 .usmap，标题和战斗两份 .jmap，不含快照。构建所用工具含 bf4d985 之后尚未提交的改动（26a/26c/26d），提交后复核并补提交号；Windows 构建待核对（26e）。",
+    "game_version": {
+      "steam": {
+        "app_id": 3259780,
+        "build_id": "24250053",
+        "name": null,
+        "last_updated": null,
+        "source": "manual"
+      },
+      "exe": {
+        "relative_path": "FFRS/Binaries/Win64/FFRS-Win64-Shipping.exe",
+        "size": 495708416,
+        "file_version": "1.0.0.0",
+        "product_version": "1.0.0.0"
+      },
+      "pak_fingerprint": "0c5d1c93d4783bb898973cdb9390ca4c700c0a49f437274d29ce3b03275c9ada",
+      "pak_files": [
+        {
+          "relative_path": "FFRS-Windows.pak",
+          "size": 2971384180,
+          "sha256": "17df61db8316dd35033c8f83249957665afde35b82a94b0a60996a375a5b4c97"
+        },
+        {
+          "relative_path": "FFRS-Windows.ucas",
+          "size": 10987879120,
+          "sha256": null
+        },
+        {
+          "relative_path": "FFRS-Windows.utoc",
+          "size": 16164790,
+          "sha256": "89ae9753fed70ba8454032ebc794f9a61b39acbb621b6e03fd2721cfb0033c83"
+        },
+        {
+          "relative_path": "FFRS-Windows_0_P.pak",
+          "size": 22048937,
+          "sha256": "7847c301a4b90e1620bd1fa3e2d275aadbd5a61516898cab3776b9bcd7ad12db"
+        },
+        {
+          "relative_path": "FFRS-Windows_0_P.ucas",
+          "size": 10790240,
+          "sha256": null
+        },
+        {
+          "relative_path": "FFRS-Windows_0_P.utoc",
+          "size": 60041,
+          "sha256": "76d409de0df967f763ac0f5bea5fa233f2d0ab0f35054b8c6bf16fd9b836245e"
+        },
+        {
+          "relative_path": "global.ucas",
+          "size": 3353680,
+          "sha256": null
+        },
+        {
+          "relative_path": "global.utoc",
+          "size": 818,
+          "sha256": "83054f1cd74f5c0b6cdce4d8d842ed43cc7f005ea52846221be2496fdf77814c"
+        }
+      ]
+    },
+    "inputs": {
+      "usmap": {
+        "file_name": "FFRS-5.6.1-0+UE5-30afe5ff.usmap",
+        "size": 2466510,
+        "file_sha256": "af38d4a0b84491848500d33fa7ad7411dc3638da8e5248c62a30a3c24cdd5a77",
+        "content_sha256": "31ae0fac2b6cea1190e8b62ce8faee2cf6d84cfbaa850d1f01cd540dde822338",
+        "type_count": 13012,
+        "enum_count": 2136
+      },
+      "jmaps": [
+        {
+          "file_name": "FFRS-5.6.1-0+UE5-30afe5ff.jmap",
+          "size": 104795119,
+          "sha256": "63feab6bd1f9ab308c54530965bdb5e9e9af148dc98adaf891a3fb10fa43d5b0"
+        },
+        {
+          "file_name": "FFRS-5.6.1-0+UE5-30afe5ff.jmap",
+          "size": 113174767,
+          "sha256": "2e0991ddc59ea2718566299fbdd49de094084a65f950216464ea6c6ef5492278"
+        }
+      ]
+    },
+    "tools": {
+      "ffr_export": {
+        "version": "0.1.0",
+        "git_commit": "bf4d985e069e",
+        "cue4parse_version": "1.2.2.202611"
+      },
+      "ffr_db": {
+        "version": "ffr-db 0.1.0"
+      }
+    },
+    "database": {
+      "file_name": "ffr.sqlite",
+      "size": 640135168,
+      "schema_version": 1,
+      "sqlite_version": "3.54.1",
+      "file_sha256": "fc2b8532b402274a655a2e839cd53040b311da2ce10ebfcfc34e40c22e134737",
+      "content_sha256": "4a5c999f9ca39d62322e0ddf46d331d038a8e005c4bc1e7d676307732be812de",
+      "hash_format": 1,
+      "tables": [
+        {
+          "name": "actor",
+          "rows": 145020,
+          "sha256": "9004aa46f5f2ca7beba3be239efd2d869aa64dac21c10b20eb8e9a700dea961c"
+        },
+        {
+          "name": "asset",
+          "rows": 46635,
+          "sha256": "d3448c67dfb445bac48a9014759ec09bbb520cdb475b7b9c2573c3de3ccea7ab"
+        },
+        {
+          "name": "asset_ref",
+          "rows": 90009,
+          "sha256": "8cb59dda6fece81cc4feea3c0f5504fb6b98fda1b3e4431b423d841cb67e7139"
+        },
+        {
+          "name": "asset_tag",
+          "rows": 607850,
+          "sha256": "2e56d5f32cdeb4d837060777d48ae5b64ed93dfabc76d341375a0c3b4287a5c7"
+        },
+        {
+          "name": "battle_group",
+          "rows": 678,
+          "sha256": "e2c3e8507796d81a2f4ea878300a8b09d6356ff70297da843baefe4aa80fe14f"
+        },
+        {
+          "name": "battle_group_member",
+          "rows": 1565,
+          "sha256": "7eaefea0dcebf7a4e3af4cfdf87aa60210e3ce0784add55a79efe795ac3b4e95"
+        },
+        {
+          "name": "battle_param",
+          "rows": 1,
+          "sha256": "b0066755faa1e9c1ea6f9f4536131f92cdfa7cf7dd9f3d91345195c0c8ad0517"
+        },
+        {
+          "name": "blueprint",
+          "rows": 2432,
+          "sha256": "c3883c9f4a51691b07efbb4c60147720ae4d090ebe2346d984bd297480069e98"
+        },
+        {
+          "name": "blueprint_component",
+          "rows": 6244,
+          "sha256": "c775f79a8b34dcfeb71ff9a8db517baa292ffbfcd8660358a1978078cc60324b"
+        },
+        {
+          "name": "build_issue",
+          "rows": 4421,
+          "sha256": "60cc83ffb4fac01eaf5363ae656c9fd41293d6a35e4a7866fa2206333bb55993"
+        },
+        {
+          "name": "chapter",
+          "rows": 9,
+          "sha256": "ee6cfb5f772afa82da5f3a05653f73ed62c21abcb5ec0eef81c6f03f691835c4"
+        },
+        {
+          "name": "class_ref",
+          "rows": 3608,
+          "sha256": "14e5b93a107727f573dfa9e1199282d9bfa23848ce0e7c366a88fcf5ea978a54"
+        },
+        {
+          "name": "command_skill",
+          "rows": 80,
+          "sha256": "eff933a39de8d7f8fc05e2d14f0b94f5ef1fd3a1139fabad6b3f90b7757eeb94"
+        },
+        {
+          "name": "config_entry",
+          "rows": 3088,
+          "sha256": "0e135d38f71ddedc73e366e8628a3e7ee056b87f8c72fa29b1a56eca6353dd2b"
+        },
+        {
+          "name": "data_asset",
+          "rows": 171,
+          "sha256": "96eae88bad6a21e33a3905faf90a85712abd524a1f1759de0ee11d579e96b16d"
+        },
+        {
+          "name": "dt_row",
+          "rows": 60436,
+          "sha256": "ee1764790a655d936bd27e3a7157deb153b848755f36e11fb2fbeccf7f92df61"
+        },
+        {
+          "name": "dt_table",
+          "rows": 1724,
+          "sha256": "986937648903483055c8f7f8f230053d14accd1c02f78fac350e3e8ee390da3c"
+        },
+        {
+          "name": "encounter",
+          "rows": 600,
+          "sha256": "c810176c74ab16c8a0ab2de13d49d343bafd8a4ed7e4dd8fc171c247a72377ba"
+        },
+        {
+          "name": "enemy_chapter",
+          "rows": 991,
+          "sha256": "ea869bb470347cb68823850e5fbe1ee7c00dd08c6822859759d3a34ad1bbffaf"
+        },
+        {
+          "name": "flag_condition",
+          "rows": 38,
+          "sha256": "e0184fb13878e608d79a0a5b434521740e46e0d4d793b395af4bb8b0ff2b835c"
+        },
+        {
+          "name": "flag_condition_term",
+          "rows": 88,
+          "sha256": "b846e1a5000eb62f5fca843d078b0475f6e577a918e58e2330d2a0d485bad36e"
+        },
+        {
+          "name": "inn",
+          "rows": 1,
+          "sha256": "027d084912cc5d3d8c589fbfedab68b82abca88202a4380308e592c6e0c5ec5d"
+        },
+        {
+          "name": "input_action",
+          "rows": 130,
+          "sha256": "d5b6d85b1e7f86a18985e0fed947a6a5897a1377779fd0376d5a85977649065c"
+        },
+        {
+          "name": "input_context",
+          "rows": 57,
+          "sha256": "870971ba1f6766a2f0907a7aaa719cc3a8a841f87b75a345f44ce57ae67eb597"
+        },
+        {
+          "name": "input_mapping",
+          "rows": 285,
+          "sha256": "25cc0e0a865272a37ede2419ac4f73bdfd63f737e9ee104c853399efbc3e93b7"
+        },
+        {
+          "name": "input_set",
+          "rows": 54,
+          "sha256": "f6c1e84750aabe39c0c53ad152524d887f1d41d3e5139b765abe236b4aeb04b5"
+        },
+        {
+          "name": "input_set_action",
+          "rows": 79,
+          "sha256": "4ecbcf4dad20f332943a0b80c15fe91ae88c6cf0126ad30c1f68b855bbdabe71"
+        },
+        {
+          "name": "island",
+          "rows": 11,
+          "sha256": "fdf0f2908d08e2d38793658f6b11e39b1cfdc00263f0aea6c3530865d32c9232"
+        },
+        {
+          "name": "item",
+          "rows": 589,
+          "sha256": "668a4d8698d67c997ac07df941e5c0ec6a9fe8e180b261cb73f4d7ae9c7e75ad"
+        },
+        {
+          "name": "item_drop",
+          "rows": 829,
+          "sha256": "eeb86c358e559e33533a9b48dd70d5ad81220e7f0e4fc1cfa56eac2ceda52781"
+        },
+        {
+          "name": "level",
+          "rows": 1545,
+          "sha256": "60b614e4cb6766cb7fa3d28a864db85d192ab5aca329ad342803ab485f04412f"
+        },
+        {
+          "name": "level_map",
+          "rows": 1613,
+          "sha256": "721c3a2f39cc4f6fbed9297bb2c3be9e3ebd9eae615c45670f35f3ccc3d5dd55"
+        },
+        {
+          "name": "level_object",
+          "rows": 5580,
+          "sha256": "c8186808c0babf8cbb581e2ccda7abf46947b8d4cddc68deff1ce0e71027978e"
+        },
+        {
+          "name": "level_object_talk",
+          "rows": 1597,
+          "sha256": "33c899e19ed82a3e667623d18db9238e55aa1aa592819ea8b82abc823c1a9959"
+        },
+        {
+          "name": "main_quest",
+          "rows": 9,
+          "sha256": "10dac7e84d1b97fffa0b7e70299b964a895ba938b464ae15071a724b881e1d4e"
+        },
+        {
+          "name": "main_scenario",
+          "rows": 162,
+          "sha256": "c11b23d8e41c1291ae344df5b470acab3088fb96caa0742644aefd26be439292"
+        },
+        {
+          "name": "map",
+          "rows": 186,
+          "sha256": "050031a647e4c1e2e16102d243eca60af192a3b533efe2ee11b8b4e286b88bb2"
+        },
+        {
+          "name": "map_edge",
+          "rows": 791,
+          "sha256": "66653ca7df9932dd1a6749cbc0c4173e2913c7b189c640c49fcc1377d06e2d6a"
+        },
+        {
+          "name": "map_link",
+          "rows": 131,
+          "sha256": "1be41fe368c4561f20a453da16c21f9b8b71a6eb5e4dc3aa7378b2b6ee178490"
+        },
+        {
+          "name": "map_release_condition",
+          "rows": 8,
+          "sha256": "45c1c2e3da81bc986dd390907f3b9441de38446ef1a33a5595bdbb27d91afbd0"
+        },
+        {
+          "name": "map_shop",
+          "rows": 99,
+          "sha256": "61025be87f763327c222a1d4216118616f03c92ec227237bff8f80eb3c00d923"
+        },
+        {
+          "name": "map_unit",
+          "rows": 380,
+          "sha256": "f855019815a6b08d002a46cf175f5977d06809f4c9e9f1c1ee73d3c8f8bdb4c2"
+        },
+        {
+          "name": "marker",
+          "rows": 0,
+          "sha256": "796c381f26df76f68b10fe7f46fb7bb9afdab8aabc2280b907151d14cd887506"
+        },
+        {
+          "name": "meta",
+          "rows": 3,
+          "sha256": "55060c92c18698d6fe5f014db611a1ef8c90b79d51f02e31186d270cdac24388"
+        },
+        {
+          "name": "playable_unit",
+          "rows": 8,
+          "sha256": "ad8fc6e59c4a9f66b7329c7dc95ef709f69d7960407396f2bfb1d714b9315213"
+        },
+        {
+          "name": "quest",
+          "rows": 33,
+          "sha256": "c7a198835ef8dc9d0fa25da2d7709caef51b2027dba935b399de05c2b675d1ec"
+        },
+        {
+          "name": "quest_board",
+          "rows": 10,
+          "sha256": "e8dc168aca638d364d18cc0d220053b7b02a8619a369790c549303447d8ca794"
+        },
+        {
+          "name": "quest_board_reward",
+          "rows": 0,
+          "sha256": "73adc6678c502b12f4b70f2ec545bc881c2dd5eb356632d27b459d27b0c545ac"
+        },
+        {
+          "name": "quest_prize",
+          "rows": 59,
+          "sha256": "67f78f745ebed5d2de66d076a522c0e050f278fa3289b0e8068fc3222e593af6"
+        },
+        {
+          "name": "region",
+          "rows": 13,
+          "sha256": "01f6c2c3f5e91e1a3d41f3f836638eb3a9dc8f2a521e180d1c4fcf623053cb6e"
+        },
+        {
+          "name": "save_point",
+          "rows": 2,
+          "sha256": "da0bb70b3fc392c3494f347a1fda02afa03a61cf0a553e8216c8c2ce36071dec"
+        },
+        {
+          "name": "save_point_command",
+          "rows": 5,
+          "sha256": "34889850d39e9a2ce799a3d74594a539667097c6be4d35a8030c05b284b45e25"
+        },
+        {
+          "name": "sequence",
+          "rows": 6026,
+          "sha256": "3ca597af0522fb5a2b3ee3ef2482a7a0d23e3c54bf3246f7c9d6843244d3802c"
+        },
+        {
+          "name": "sequence_binding",
+          "rows": 30931,
+          "sha256": "e6484494db641acaeec968e507ba25fb4b1dbc2f501ead1268e2292f3dff1ee2"
+        },
+        {
+          "name": "sequence_event",
+          "rows": 125971,
+          "sha256": "32d06f0c65e14664513a956ebf83f805ba9cec3978a9a62da07077b5cca0bcac"
+        },
+        {
+          "name": "sequence_track",
+          "rows": 134529,
+          "sha256": "fdcdcaceba34e33136e8f03b2b96a7cb88c0d7ec3751bd5af4125110c0349aa5"
+        },
+        {
+          "name": "shop",
+          "rows": 105,
+          "sha256": "29685ec78c06b9bfc5b7056abae59bf43914ce01478ff6a4c5a5bf858bf28a0f"
+        },
+        {
+          "name": "shop_item",
+          "rows": 701,
+          "sha256": "1c0fc08a76647b8c55e4310f147f4f6494b0d08eb3d0d20bf7df3cbd525ff47d"
+        },
+        {
+          "name": "skill",
+          "rows": 1167,
+          "sha256": "2f71063ea2cbbfaf6c69504a40eb8bf594d3050c6b6494468ee348b7a15c8fe9"
+        },
+        {
+          "name": "skill_name",
+          "rows": 3501,
+          "sha256": "f5776ed08604febb7cc89060c76dc86d9208d76de3bf175b30e047000c75e42d"
+        },
+        {
+          "name": "snapshot",
+          "rows": 0,
+          "sha256": "1a9a5d9ae417a3c1c36851fd5a9b56ca04510141fcee03438ba7fa0b52986933"
+        },
+        {
+          "name": "snapshot_object",
+          "rows": 0,
+          "sha256": "3236000a2037a3ecf192c0848468b4571037146f7f86c66191f19518801ae6ca"
+        },
+        {
+          "name": "snapshot_text",
+          "rows": 0,
+          "sha256": "78165c56528c08f6f9f49f5bcd61c2c4953b1ee390c981be91de8f5d9d970c0e"
+        },
+        {
+          "name": "snapshot_widget",
+          "rows": 0,
+          "sha256": "59bd6426ca75ad3838e718e7dc59a603b5a1f0a361484ec738bce7e9d36f8fe9"
+        },
+        {
+          "name": "source",
+          "rows": 12,
+          "sha256": "01cd2a0ae443cfa570bccffc33e3dd97283bf9bba1295b0283747cacf9bcdfdd"
+        },
+        {
+          "name": "stage_report",
+          "rows": 11,
+          "sha256": "1c8afd9b2cb06df3baec74a7a848e70529602fb8759fb5509e3f4782ea0628fa"
+        },
+        {
+          "name": "string_table",
+          "rows": 870,
+          "sha256": "16ca9d64946c78b141e824124c0708489ddc36dc9d58a339143f92508c5ee9c2"
+        },
+        {
+          "name": "string_table_entry",
+          "rows": 29296,
+          "sha256": "4e33f02b57be08d7f2f4b2511e1be5b91eee5b35611901707c0cdebe5e55c6a3"
+        },
+        {
+          "name": "talk_event",
+          "rows": 3442,
+          "sha256": "d748957f4e83ddaab6f8389babff7e391e57497ad252ea743b982702fd6efb3d"
+        },
+        {
+          "name": "talk_event_next",
+          "rows": 2184,
+          "sha256": "2be64a85d61a0c186eff59f181974c1755d65df02fb69430401718eb8a79a00b"
+        },
+        {
+          "name": "talk_line",
+          "rows": 15152,
+          "sha256": "3d6b3db04dfcbbdb7f121ee76edbc8c5eb54c4238ba0fc6002d58e93b4dcfbca"
+        },
+        {
+          "name": "teleport_point",
+          "rows": 61,
+          "sha256": "e6bcd131f5e773aa54962dd733a6f0ccecafd950060bad12e97d4f0db9caeda4"
+        },
+        {
+          "name": "teleport_point_target",
+          "rows": 62,
+          "sha256": "c17a5a214370b6afa2f2a51cb41e9c66caaf476a78860f814dd13eac42526210"
+        },
+        {
+          "name": "text",
+          "rows": 80175,
+          "sha256": "78413ac971329df9b247ec7649202bb457b4ba243b97483cbd1a52d9c0d12854"
+        },
+        {
+          "name": "text_language",
+          "rows": 3,
+          "sha256": "1b2e14211888d249c4b0c064ca531770688da066009e77a8388403ce0eec17c3"
+        },
+        {
+          "name": "transition_point",
+          "rows": 796,
+          "sha256": "085b9a068d58a4200a8eb25b054b92d4fa717d2d8f89a102470c73e0abd026e4"
+        },
+        {
+          "name": "treasure_box",
+          "rows": 238,
+          "sha256": "18802ad0bdd72f278f8fb8dd265d69087f0f1950837fb534b2b0f9539f109828"
+        },
+        {
+          "name": "ue_class",
+          "rows": 15414,
+          "sha256": "1b80263971db0bda1dc3ffdb3350b7285311338aabb664df024facbf9b7c35d6"
+        },
+        {
+          "name": "ue_enum_value",
+          "rows": 13934,
+          "sha256": "231ae2bdfcc0de95dcd40fa60cd640a92df10c1dcf7e8847a07845367469d677"
+        },
+        {
+          "name": "ue_function",
+          "rows": 21611,
+          "sha256": "0aa35a7fca78e8953d6ff56c41a2ef1bcb5813ae5de61c539d065eae78d6c371"
+        },
+        {
+          "name": "ue_property",
+          "rows": 46125,
+          "sha256": "f9954ad3b9f35df8da641974c7d9246c049fc8bb9c64126c1d06440aa5a16b2e"
+        },
+        {
+          "name": "unit",
+          "rows": 643,
+          "sha256": "f6097f115fcd192d934eccb77ad59e89ed3f5fb818b3d17025dde654efda84c8"
+        },
+        {
+          "name": "unit_ai",
+          "rows": 626,
+          "sha256": "a60666c647c8e74d77be346ba81592213bd17cb9dc2f5dd327cb133e8618899e"
+        },
+        {
+          "name": "unit_name",
+          "rows": 1929,
+          "sha256": "972bd7c4e58b3746319d78d5c53976e17a6b9dd69d2decb4ed4ed3a5c4d79a47"
+        },
+        {
+          "name": "unit_resistance",
+          "rows": 5144,
+          "sha256": "647fdb55dc4fe3427c8ab06950ee1bcdfbe38d306f63a6d98fc5bd87b0856fd2"
+        },
+        {
+          "name": "unit_skill",
+          "rows": 6467,
+          "sha256": "a56b746b4512075a98a1a71fccab49c20079ea2fb8c74199eee5e8cd8acd1888"
+        },
+        {
+          "name": "various_shop",
+          "rows": 20,
+          "sha256": "505297d5402c56b7d5e9e7173cd484f21063caa086baeb020d8fb32fa722f53e"
+        },
+        {
+          "name": "various_shop_member",
+          "rows": 49,
+          "sha256": "9d734d9bf8b4bd93ea8b0fcf6093b9ee98b1f964f6a36ea026f1b68b8531ddfb"
+        },
+        {
+          "name": "widget_node",
+          "rows": 3917,
+          "sha256": "147bd2390368d52ee8da2b9497dcbed8b1d36bbdd204bb8579401d6cb0f56251"
+        },
+        {
+          "name": "world_name",
+          "rows": 2253,
+          "sha256": "71e7459101adc027d673b7e1d0562f4ad138a63a613cae68276ee632ad5804d8"
+        }
+      ]
+    }
+  }
+]

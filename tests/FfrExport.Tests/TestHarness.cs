@@ -80,7 +80,8 @@ internal static class TestHarness
     public static async Task<CliResult> RunCliAsync(
         IReadOnlyList<string> args,
         string? ffrDeps = null,
-        string? workingDirectory = null)
+        string? workingDirectory = null,
+        string? pathEnvOverride = null)
     {
         var dllPath = Path.Combine(AppContext.BaseDirectory, "FfrExport.dll");
         if (!File.Exists(dllPath))
@@ -112,6 +113,11 @@ internal static class TestHarness
         else
         {
             startInfo.Environment[Program.DepsEnvVar] = ffrDeps;
+        }
+
+        if (pathEnvOverride is not null)
+        {
+            startInfo.Environment["PATH"] = pathEnvOverride;
         }
 
         using var process = Process.Start(startInfo)

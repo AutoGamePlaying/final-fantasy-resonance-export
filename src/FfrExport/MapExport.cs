@@ -61,7 +61,33 @@ internal static partial class Program
         }
 
         PrepareMapExportDirectory(outputPath, options.OutputArgument, options.Force);
-        var usmapHash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(options.UsmapPath)));
+        var usmapHash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(PathSupport.ToIoPath(options.UsmapPath))));
+        var prefixes = options.Prefixes.Count > 0 ? options.Prefixes : [DefaultMapPrefix];
+
+        using var provider = CreateProvider(options.Paks, options.UsmapPath);
+        return await RunExportMapsWithProviderAsync(
+            provider,
+            usmapHash,
+            outputPath,
+            options.MapDataJsonPath,
+            prefixes,
+            options.MaxParallelism,
+            options.Force,
+            allowDefaultMapDataFallback: true);
+    }
+
+    private static async Task<int> RunExportMapsWithProviderAsync(
+        DefaultFileProvider provider,
+        string usmapHash,
+        string outputPath,
+        string? mapDataJsonPath,
+        IReadOnlyList<string> prefixes,
+        int maxParallelism,
+        bool force,
+        bool allowDefaultMapDataFallback)
+    {
+        var startedAt = DateTimeOffset.UtcNow;
+        var stopwatch = Stopwatch.StartNew();
 
         // Write an initial running manifest so interrupted runs are still recognized on resume/--force.
         await WriteMapManifestAsync(
@@ -75,13 +101,10 @@ internal static partial class Program
             failures: [],
             elapsedMs: stopwatch.ElapsedMilliseconds);
 
-        using var provider = CreateProvider(options.Paks, options.UsmapPath);
-
-        var mapDataEntries = LoadMapDataEntries(provider, options.MapDataJsonPath);
+        var mapDataEntries = LoadMapDataEntries(provider, mapDataJsonPath, allowDefaultMapDataFallback);
         var mapDataByLevelName = mapDataEntries.ToDictionary(e => e.LevelName, StringComparer.Ordinal);
         var mapDataById = mapDataEntries.ToDictionary(e => e.MapId);
 
-        var prefixes = options.Prefixes.Count > 0 ? options.Prefixes : [DefaultMapPrefix];
         var umaps = provider.Files.Values
             .Where(file => prefixes.Any(prefix => file.Path.StartsWith(prefix, StringComparison.Ordinal)))
             .Where(file => file.Path.EndsWith(".umap", StringComparison.OrdinalIgnoreCase))
@@ -106,7 +129,7 @@ internal static partial class Program
 
         Parallel.ForEach(
             umaps,
-            new ParallelOptions { MaxDegreeOfParallelism = options.MaxParallelism },
+            new ParallelOptions { MaxDegreeOfParallelism = maxParallelism },
             file =>
             {
                 try
@@ -114,7 +137,7 @@ internal static partial class Program
                     var outputFile = outputNames[file.Path];
                     var jsonPath = Path.Combine(outputPath, outputFile);
 
-                    if (!options.Force && TryLoadExistingMapContribution(jsonPath, out var existing))
+                    if (!force && TryLoadExistingMapContribution(jsonPath, out var existing))
                     {
                         contributions.Add(existing!);
                         Interlocked.Increment(ref skippedCount);
@@ -441,7 +464,10 @@ internal static partial class Program
         Directory.CreateDirectory(outputPath);
     }
 
-    private static List<MapDataEntry> LoadMapDataEntries(DefaultFileProvider provider, string? mapDataJsonPath)
+    private static List<MapDataEntry> LoadMapDataEntries(
+        DefaultFileProvider provider,
+        string? mapDataJsonPath,
+        bool allowDefaultMapDataFallback = true)
     {
         if (mapDataJsonPath is not null)
         {
@@ -458,10 +484,13 @@ internal static partial class Program
             }
         }
 
-        var defaultMapDataJsonPath = GetDefaultMapDataJsonPath();
-        if (File.Exists(defaultMapDataJsonPath))
+        if (allowDefaultMapDataFallback)
         {
-            return LoadMapDataEntriesFromJson(defaultMapDataJsonPath);
+            var defaultMapDataJsonPath = GetDefaultMapDataJsonPath();
+            if (File.Exists(PathSupport.ToIoPath(defaultMapDataJsonPath)))
+            {
+                return LoadMapDataEntriesFromJson(defaultMapDataJsonPath);
+            }
         }
 
         return [];
@@ -469,12 +498,13 @@ internal static partial class Program
 
     private static List<MapDataEntry> LoadMapDataEntriesFromJson(string path)
     {
-        if (!File.Exists(path))
+        var ioPath = PathSupport.ToIoPath(path);
+        if (!File.Exists(ioPath))
         {
             throw new FileNotFoundException($"地图数据表文件不存在：{path}");
         }
 
-        var token = JToken.Parse(File.ReadAllText(path, Utf8WithoutBom));
+        var token = JToken.Parse(File.ReadAllText(ioPath, Utf8WithoutBom));
         var tableObj = token switch
         {
             JArray arr when arr.FirstOrDefault() is JObject first => first,
@@ -835,14 +865,15 @@ internal static partial class Program
     private static bool TryLoadExistingMapContribution(string jsonPath, out LevelGraphContribution? contribution)
     {
         contribution = null;
-        if (!File.Exists(jsonPath))
+        var ioPath = PathSupport.ToIoPath(jsonPath);
+        if (!File.Exists(ioPath))
         {
             return false;
         }
 
         try
         {
-            var text = File.ReadAllText(jsonPath, Utf8WithoutBom);
+            var text = File.ReadAllText(ioPath, Utf8WithoutBom);
             if (string.IsNullOrWhiteSpace(text))
             {
                 return false;
@@ -865,10 +896,17 @@ internal static partial class Program
 
     private static void WriteJsonAtomically(string targetPath, object value)
     {
-        var tempPath = $"{targetPath}.{Environment.ProcessId}.{Environment.CurrentManagedThreadId}.tmp";
+        var parent = Path.GetDirectoryName(targetPath);
+        if (parent is not null)
+        {
+            Directory.CreateDirectory(PathSupport.ToIoPath(parent));
+        }
+
+        var ioTarget = PathSupport.ToIoPath(targetPath);
+        var tempPath = PathSupport.ToIoPath($"{targetPath}.{Environment.ProcessId}.{Environment.CurrentManagedThreadId}.tmp");
         var json = JsonConvert.SerializeObject(value, Formatting.Indented);
         File.WriteAllText(tempPath, json + "\n", Utf8WithoutBom);
-        File.Move(tempPath, targetPath, overwrite: true);
+        File.Move(tempPath, ioTarget, overwrite: true);
     }
 
     private static async Task WriteMapManifestAsync(
@@ -900,8 +938,8 @@ internal static partial class Program
             failures = failures.Select(f => new { path = f.Path, error = f.Error }).ToArray(),
         };
 
-        var targetPath = Path.Combine(outputPath, "manifest.json");
-        var tempPath = $"{targetPath}.tmp";
+        var targetPath = PathSupport.ToIoPath(Path.Combine(outputPath, "manifest.json"));
+        var tempPath = PathSupport.ToIoPath(Path.Combine(outputPath, "manifest.json.tmp"));
         await File.WriteAllTextAsync(
             tempPath,
             JsonConvert.SerializeObject(manifest, Formatting.Indented) + "\n",

@@ -6,6 +6,7 @@ using CUE4Parse.FileProvider;
 using CUE4Parse.FileProvider.Objects;
 using CUE4Parse.UE4.Assets;
 using CUE4Parse.UE4.Assets.Exports;
+using CUE4Parse.UE4.IO;
 using CUE4Parse.UE4.IO.Objects;
 using CUE4Parse.UE4.Readers;
 using Newtonsoft.Json;
@@ -113,17 +114,30 @@ internal static partial class Program
         }
 
         var outputPath = RequireDepsPath(outputArgument, "--out");
-        var startedAt = DateTimeOffset.UtcNow;
-        var stopwatch = Stopwatch.StartNew();
-        var usmapHash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(usmapPath)));
+        var usmapHash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(PathSupport.ToIoPath(usmapPath))));
 
         PrepareResumableOutputDirectory(outputPath, outputArgument, force, "export-assets");
+
+        using var provider = CreateProvider(paks, usmapPath);
+        return await RunExportAssetsWithProviderAsync(provider, usmapHash, outputPath, prefixes, jobs, force);
+    }
+
+    private static async Task<int> RunExportAssetsWithProviderAsync(
+        DefaultFileProvider provider,
+        string usmapHash,
+        string outputPath,
+        IReadOnlyList<string> prefixes,
+        int jobs,
+        bool force,
+        AssetRegistrySnapshot? preloadedSnapshot = null)
+    {
+        var startedAt = DateTimeOffset.UtcNow;
+        var stopwatch = Stopwatch.StartNew();
 
         // Write an in-progress manifest sentinel immediately so an interrupted run can safely resume.
         await WriteManifestSentinelAsync(outputPath, usmapHash, prefixes, startedAt);
 
-        using var provider = CreateProvider(paks, usmapPath);
-        var snapshot = LoadAssetRegistrySnapshot(provider);
+        var snapshot = preloadedSnapshot ?? LoadAssetRegistrySnapshot(provider);
 
         var matchedPackages = snapshot.Packages
             .Where(pkg => pkg.MatchedInVfs && MatchesAnyPrefix(pkg.Path, prefixes))
@@ -172,6 +186,7 @@ internal static partial class Program
 
         var failures = new ConcurrentBag<(string Path, string PrimaryClass, string Error)>();
         var readLock = new object();
+        var fallbackContainerHeader = FindFallbackContainerHeader(provider);
 
         // Export eligible packages in parallel. Serialize provider reads with a lightweight lock while
         // running JSON serialization and disk writes concurrently across worker threads.
@@ -182,9 +197,10 @@ internal static partial class Program
             {
                 var tracker = trackers[pkg.PrimaryClass];
                 var targetPath = BuildExportJsonPath(outputPath, pkg.Path);
-                if (!force && File.Exists(targetPath))
+                var ioTargetPath = PathSupport.ToIoPath(targetPath);
+                if (!force && File.Exists(ioTargetPath))
                 {
-                    var existingSize = new FileInfo(targetPath).Length;
+                    var existingSize = new FileInfo(ioTargetPath).Length;
                     Interlocked.Increment(ref tracker.ExportedCount);
                     Interlocked.Increment(ref tracker.ResumedCount);
                     Interlocked.Add(ref tracker.OutputBytes, existingSize);
@@ -201,7 +217,8 @@ internal static partial class Program
                             pkg.VfsFile,
                             pkg.Path,
                             pkg.PrimaryClass,
-                            pkg.Classification.Decision);
+                            pkg.Classification.Decision,
+                            fallbackContainerHeader);
                     }
 
                     var json = JsonConvert.SerializeObject(exports, Formatting.Indented);
@@ -233,10 +250,11 @@ internal static partial class Program
             file =>
             {
                 var targetPath = Path.Combine(outputPath, file.Path.Replace('/', Path.DirectorySeparatorChar));
+                var ioTargetPath = PathSupport.ToIoPath(targetPath);
                 var ext = NormalizeExtension(file.Path);
-                if (!force && File.Exists(targetPath))
+                if (!force && File.Exists(ioTargetPath))
                 {
-                    var existingSize = new FileInfo(targetPath).Length;
+                    var existingSize = new FileInfo(ioTargetPath).Length;
                     Interlocked.Increment(ref rawCopiedCount);
                     Interlocked.Increment(ref rawResumedCount);
                     Interlocked.Add(ref rawSourceBytes, file.Size);
@@ -406,7 +424,7 @@ internal static partial class Program
         };
 
         await File.WriteAllTextAsync(
-            Path.Combine(outputPath, "manifest.json"),
+            PathSupport.ToIoPath(Path.Combine(outputPath, "manifest.json")),
             JsonConvert.SerializeObject(manifest, Formatting.Indented),
             Utf8WithoutBom);
 
@@ -419,6 +437,31 @@ internal static partial class Program
         return orderedFailures.Length == 0 ? 0 : 1;
     }
 
+    // Selects a valid base IoStore ContainerHeader deterministically so patch fallback does not
+    // depend on MountedVfs completion order (where a patch *_P.utoc without chunk 6 could appear first).
+    private static FIoContainerHeader? FindFallbackContainerHeader(DefaultFileProvider provider)
+    {
+        foreach (var reader in provider.MountedVfs
+            .OfType<IoStoreReader>()
+            .OrderBy(r => r.Name.Contains("_P.", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+            .ThenBy(r => r.Name, StringComparer.Ordinal))
+        {
+            try
+            {
+                if (reader.ContainerHeader is { } header)
+                {
+                    return header;
+                }
+            }
+            catch
+            {
+                // Skip containers without a ContainerHeader chunk (such as patch *_P.utoc files).
+            }
+        }
+
+        return null;
+    }
+
     // Loads and filters package exports, falling back to direct IoPackage construction when a
     // UE5 patch IoStore container (*_P.utoc) omits the optional ContainerHeader chunk (type 6).
     private static UObject[] LoadFilteredExportsWithPatchFallback(
@@ -426,7 +469,8 @@ internal static partial class Program
         GameFile? vfsFile,
         string path,
         string primaryClass,
-        string decision)
+        string decision,
+        FIoContainerHeader? fallbackContainerHeader)
     {
         if (provider.TryLoadPackage(path, out IPackage? loaded) && loaded is not null)
         {
@@ -438,7 +482,7 @@ internal static partial class Program
             using var uasset = ioEntry.CreateReader();
             IPackage patchPackage = new IoPackage(
                 uasset,
-                (FIoContainerHeader?)null,
+                fallbackContainerHeader,
                 (FArchive?)null,
                 (FArchive?)null,
                 provider);
@@ -575,7 +619,7 @@ internal static partial class Program
     private static async Task WriteManifestSentinelAsync(
         string outputPath,
         string usmapHash,
-        List<string> prefixes,
+        IReadOnlyList<string> prefixes,
         DateTimeOffset startedAt)
     {
         var sentinel = new
@@ -588,7 +632,7 @@ internal static partial class Program
             startedAt = startedAt.UtcDateTime.ToString("O", CultureInfo.InvariantCulture),
         };
         await File.WriteAllTextAsync(
-            Path.Combine(outputPath, "manifest.json"),
+            PathSupport.ToIoPath(Path.Combine(outputPath, "manifest.json")),
             JsonConvert.SerializeObject(sentinel, Formatting.Indented),
             Utf8WithoutBom);
     }
@@ -612,12 +656,13 @@ internal static partial class Program
         var parent = Path.GetDirectoryName(targetPath);
         if (parent is not null)
         {
-            Directory.CreateDirectory(parent);
+            Directory.CreateDirectory(PathSupport.ToIoPath(parent));
         }
 
-        var tempPath = $"{targetPath}.{Environment.CurrentManagedThreadId}.tmp";
+        var ioTarget = PathSupport.ToIoPath(targetPath);
+        var tempPath = PathSupport.ToIoPath($"{targetPath}.{Environment.CurrentManagedThreadId}.tmp");
         File.WriteAllBytes(tempPath, bytes);
-        File.Move(tempPath, targetPath, overwrite: true);
+        File.Move(tempPath, ioTarget, overwrite: true);
     }
 
     private static bool MatchesAnyPrefix(string path, IReadOnlyCollection<string> prefixes)
