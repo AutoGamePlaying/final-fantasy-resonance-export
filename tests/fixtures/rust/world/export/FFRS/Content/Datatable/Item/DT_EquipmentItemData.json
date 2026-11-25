@@ -1,0 +1,38 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_EquipmentItemData",
+    "Package": "/Game/Datatable/Item/DT_EquipmentItemData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'EQUIPMENT_ITEM_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "FakeBlade": {
+        "EquipmentType": "eEquipmentType::Weapon",
+        "equipmentDetailType": "eEquipmentDetailType::GreatSowrd",
+        "equipmentLimitSex": "eUnitSex::None",
+        "params": [
+          { "Key": "eUnitParameterType::PhysicalAttack", "Value": 32 },
+          { "Key": "eUnitParameterType::MagicalAttack", "Value": 10 }
+        ],
+        "passiveList": [1100, -1, -1, -1],
+        "ID": 10100,
+        "SortId": 101000,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Item_Blade",
+          "SourceString": "テスト大剣",
+          "LocalizedString": "テスト大剣"
+        },
+        "Description": { "CultureInvariantString": null },
+        "ItemType": "eItemType::Equipment",
+        "buyingPrice": 400,
+        "sellingPrice": 200,
+        "isAvailableSale": true
+      }
+    }
+  }
+]

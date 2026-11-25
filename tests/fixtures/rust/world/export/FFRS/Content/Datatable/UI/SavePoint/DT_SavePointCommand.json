@@ -1,0 +1,72 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_SavePointCommand",
+    "Package": "/Game/Datatable/UI/SavePoint/DT_SavePointCommand",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'SavePoint_CommnadInfo'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "SavePoint": {
+        "CommandType": "ESavePointCommandType::SavePoint",
+        "CommandInfo": {
+          "Command": {
+            "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+            "Key": "SP_Save",
+            "SourceString": "セーブ",
+            "LocalizedString": "セーブ"
+          },
+          "ToopTips": {
+            "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+            "Key": "SP_Save_Desc",
+            "SourceString": "記録する",
+            "LocalizedString": "記録する"
+          },
+          "ItemId": -1,
+          "IsEnable": true
+        }
+      },
+      "Tent": {
+        "CommandType": "ESavePointCommandType::Tent",
+        "CommandInfo": {
+          "Command": {
+            "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+            "Key": "SP_Tent",
+            "SourceString": "テント",
+            "LocalizedString": "テント"
+          },
+          "ToopTips": {
+            "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+            "Key": "SP_Tent_Desc",
+            "SourceString": "全回復する",
+            "LocalizedString": "全回復する"
+          },
+          "ItemId": 500,
+          "IsEnable": true
+        }
+      },
+      "Teleport": {
+        "CommandType": "ESavePointCommandType::Teleport",
+        "CommandInfo": {
+          "Command": {
+            "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+            "Key": "SP_Teleport",
+            "SourceString": "テレポ",
+            "LocalizedString": "テレポ"
+          },
+          "ToopTips": {
+            "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+            "Key": "SP_Teleport_Desc",
+            "SourceString": "最奥へ移動",
+            "LocalizedString": "最奥へ移動"
+          },
+          "ItemId": -1,
+          "IsEnable": true
+        }
+      }
+    }
+  }
+]

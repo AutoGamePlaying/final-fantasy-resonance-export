@@ -1,0 +1,39 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MainScenario",
+    "Package": "/Game/Datatable/Scenario/DT_MainScenario",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'ScenarioSection'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Step_1020": {
+        "Condition": "{progress:0}>=1020",
+        "Text": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Main_1020_Goal",
+          "SourceString": "テスト洞窟へ向かう",
+          "LocalizedString": "テスト洞窟へ向かう"
+        },
+        "SummaryText": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Main_1020_Sum",
+          "SourceString": "一行は洞窟の奥を目指す。",
+          "LocalizedString": "一行は洞窟の奥を目指す。"
+        },
+        "DestinationList": [
+          {
+            "PointType": "EMapPointType::Goal",
+            "DestinationKey": { "Type": "EWldMapDestination::Map", "DestinationId": 3001 },
+            "IsPointToObject": false,
+            "Object": { "Type": "eMapObjectType::None", "ID": -1 },
+            "Condition": ""
+          }
+        ]
+      }
+    }
+  }
+]

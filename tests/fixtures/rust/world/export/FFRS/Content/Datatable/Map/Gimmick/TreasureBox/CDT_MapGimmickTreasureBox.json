@@ -1,0 +1,35 @@
+[
+  {
+    "Type": "CompositeDataTable",
+    "Name": "CDT_MapGimmickTreasureBox",
+    "Package": "/Game/Datatable/Map/Gimmick/TreasureBox/CDT_MapGimmickTreasureBox",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'MAP_GIMMICK_TREASURE_BOX_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Cavern_Box_0": {
+        "ID": 0,
+        "mapId": 3001,
+        "ItemId": 1,
+        "ItemNum": 2,
+        "Money": -1,
+        "IsTrap": false,
+        "battleGroupId": -1,
+        "battleFinishEventId": "None"
+      },
+      "Cavern_Box_1": {
+        "ID": 1,
+        "mapId": 3001,
+        "ItemId": -1,
+        "ItemNum": 0,
+        "Money": 500,
+        "IsTrap": true,
+        "battleGroupId": 99,
+        "battleFinishEventId": "Ev_ChestTrap_Done"
+      }
+    }
+  }
+]

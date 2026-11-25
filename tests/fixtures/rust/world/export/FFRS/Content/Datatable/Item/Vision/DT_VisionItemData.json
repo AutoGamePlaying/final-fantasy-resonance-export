@@ -1,0 +1,39 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_VisionItemData",
+    "Package": "/Game/Datatable/Item/Vision/DT_VisionItemData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'VISION_ITEM_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "FakeVision": {
+        "finishBlowSkill": 410010,
+        "CommandId": 200,
+        "attackType": "eSkillDamageType::Magic",
+        "roles": ["eUnitRole::Breaker"],
+        "ID": 13017,
+        "SortId": 14000,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Item_Vision",
+          "SourceString": "テスト幻兵",
+          "LocalizedString": "テスト幻兵"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Item_Vision_Desc",
+          "SourceString": "破防が得意な幻兵",
+          "LocalizedString": "破防が得意な幻兵"
+        },
+        "ItemType": "eItemType::Equipment",
+        "buyingPrice": 0,
+        "sellingPrice": 0,
+        "isAvailableSale": false
+      }
+    }
+  }
+]

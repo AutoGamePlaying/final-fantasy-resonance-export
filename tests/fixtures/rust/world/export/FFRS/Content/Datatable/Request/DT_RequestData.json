@@ -1,0 +1,144 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_RequestData",
+    "Package": "/Game/Datatable/Request/DT_RequestData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'RequestData'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "FakeReq_01": {
+        "ID": 10,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Quest_Lantern",
+          "SourceString": "港の灯り",
+          "LocalizedString": "港の灯り"
+        },
+        "Requester": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Npc_Keeper",
+          "SourceString": "灯台守",
+          "LocalizedString": "灯台守"
+        },
+        "RequesterId": {
+          "mapId": 2001,
+          "Data": { "Type": "eMapObjectType::NPC", "ID": 3 }
+        },
+        "SubRequesterIds": [],
+        "ReportDestinationId": {
+          "mapId": 2001,
+          "Data": { "Type": "eMapObjectType::NPC", "ID": 3 }
+        },
+        "RequesterMapUnitId": 100,
+        "Category": "ERequestCategory::Grandshelt",
+        "AcceptCondition": "{progress:10}==0&{progress:0}>=1050",
+        "Occurrence": {
+          "Condition": "{progress:0}>=1050",
+          "PredictionFlagId": -1,
+          "DestinationList": []
+        },
+        "ProgressList": [
+          {
+            "Condition": "{progress:10}==10",
+            "DestinationList": [
+              {
+                "PointType": "EMapPointType::Goal",
+                "DestinationKey": { "Type": "EWldMapDestination::Map", "DestinationId": 3001 },
+                "IsPointToObject": true,
+                "Object": { "Type": "eMapObjectType::Gimmick", "ID": 2 },
+                "Condition": ""
+              }
+            ],
+            "DestinationText": {
+              "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+              "Key": "Quest_Lantern_Step1",
+              "SourceString": "洞窟で火種を探す",
+              "LocalizedString": "洞窟で火種を探す"
+            },
+            "QuestList": [1001],
+            "SummaryText": {
+              "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+              "Key": "Quest_Lantern_Sum1",
+              "SourceString": "洞窟へ向かうことにした。",
+              "LocalizedString": "洞窟へ向かうことにした。"
+            }
+          },
+          {
+            "Condition": "{progress:10}==20",
+            "DestinationList": [],
+            "DestinationText": {
+              "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+              "Key": "Quest_Lantern_Step2",
+              "SourceString": "港へ戻る",
+              "LocalizedString": "港へ戻る"
+            },
+            "QuestList": [],
+            "SummaryText": { "CultureInvariantString": null }
+          }
+        ],
+        "AchievementCondition": "{progress:10}==30",
+        "CompletionCondition": "{progress:10}==30",
+        "EndingSummaryText": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Quest_Lantern_End",
+          "SourceString": "灯台に光が戻った。",
+          "LocalizedString": "灯台に光が戻った。"
+        },
+        "Prize": [
+          { "ID": 10100, "Num": 1, "Text": { "CultureInvariantString": null } },
+          {
+            "ID": 0,
+            "Num": 1,
+            "Text": {
+              "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+              "Key": "Quest_Bonus_Text",
+              "SourceString": "称号：灯り守り",
+              "LocalizedString": "称号：灯り守り"
+            }
+          }
+        ]
+      },
+      "FakeReq_Followup": {
+        "ID": 26,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Quest_Followup",
+          "SourceString": "続・港の灯り",
+          "LocalizedString": "続・港の灯り"
+        },
+        "Requester": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Npc_Keeper",
+          "SourceString": "灯台守",
+          "LocalizedString": "灯台守"
+        },
+        "RequesterId": {
+          "mapId": -1,
+          "Data": { "Type": "eMapObjectType::None", "ID": -1 }
+        },
+        "SubRequesterIds": [],
+        "ReportDestinationId": {
+          "mapId": -1,
+          "Data": { "Type": "eMapObjectType::None", "ID": -1 }
+        },
+        "RequesterMapUnitId": -1,
+        "Category": "ERequestCategory::Lanzelt",
+        "AcceptCondition": "{progress:16}==20",
+        "Occurrence": {
+          "Condition": "{progress:16}==20",
+          "PredictionFlagId": -1,
+          "DestinationList": []
+        },
+        "ProgressList": [],
+        "AchievementCondition": "{progress:16}==40",
+        "CompletionCondition": "{progress:16}==40",
+        "EndingSummaryText": { "CultureInvariantString": null },
+        "Prize": []
+      }
+    }
+  }
+]

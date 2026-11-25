@@ -1,0 +1,24 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_ChapterData",
+    "Package": "/Game/Datatable/Scenario/DT_ChapterData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'ChapterData'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Ch1": {
+        "ChapterNo": 1,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Chapter_1",
+          "SourceString": "テスト第一章",
+          "LocalizedString": "テスト第一章"
+        }
+      }
+    }
+  }
+]

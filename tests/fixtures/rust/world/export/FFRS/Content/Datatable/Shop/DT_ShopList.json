@@ -1,0 +1,44 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_ShopList",
+    "Package": "/Game/Datatable/Shop/DT_ShopList",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'SHOP_ShopList1'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Harbor_ItemShop": {
+        "ShopID": 1,
+        "ShopName": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Shop_Item",
+          "SourceString": "テスト道具屋",
+          "LocalizedString": "テスト道具屋"
+        },
+        "ItemList": [
+          { "ItemId": 1, "Condition": "", "MaxOrderNum": -1, "PriceRatio": 1.0 },
+          { "ItemId": 500, "Condition": "{progress:0}>=1020", "MaxOrderNum": 3, "PriceRatio": 1.0 },
+          { "ItemId": -1, "Condition": "", "MaxOrderNum": -1, "PriceRatio": 1.0 }
+        ],
+        "SellItemList": [{ "ItemId": -1, "PriceRatio": 1.0 }]
+      },
+      "Harbor_WeaponShop": {
+        "ShopID": 2001,
+        "ShopName": {
+          "Namespace": "DT_ShopList",
+          "Key": "Harbor_WeaponShop_ShopName",
+          "SourceString": "テスト武器屋",
+          "LocalizedString": "テスト武器屋"
+        },
+        "ItemList": [
+          { "ItemId": 10100, "Condition": "", "MaxOrderNum": 1, "PriceRatio": 5.0 },
+          { "ItemId": 9001, "Condition": "", "MaxOrderNum": -1, "PriceRatio": 1.0 }
+        ],
+        "SellItemList": []
+      }
+    }
+  }
+]

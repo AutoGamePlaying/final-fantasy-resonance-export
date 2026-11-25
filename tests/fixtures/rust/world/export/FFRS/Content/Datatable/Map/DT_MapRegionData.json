@@ -1,0 +1,17 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MapRegionData",
+    "Package": "/Game/Datatable/Map/DT_MapRegionData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'MAP_REGION_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Region_Unset": { "ID": -1, "IslandType": "eMapIslandType::None" },
+      "Region_North": { "ID": 1000, "IslandType": "eMapIslandType::Grandshelt" }
+    }
+  }
+]

@@ -1,0 +1,63 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_ConsumablesItemData",
+    "Package": "/Game/Datatable/Item/DT_ConsumablesItemData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'CONSUMABLES_ITEM_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "FakeHerb": {
+        "usableScene": "eItemUsableScene::Any",
+        "isConsumedAfterUse": true,
+        "SkillId": 100010,
+        "throwSkillData": { "isThrow": false, "SkillId": -1 },
+        "ID": 1,
+        "SortId": 100,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Item_Herb",
+          "SourceString": "テスト薬草",
+          "LocalizedString": "テスト薬草"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Item_Herb_Desc",
+          "SourceString": "HPを少し回復",
+          "LocalizedString": "HPを少し回復"
+        },
+        "ItemType": "eItemType::Consumables",
+        "buyingPrice": 50,
+        "sellingPrice": 25,
+        "isAvailableSale": true
+      },
+      "FakeTent": {
+        "usableScene": "eItemUsableScene::MapOnly",
+        "isConsumedAfterUse": true,
+        "SkillId": -1,
+        "throwSkillData": { "isThrow": false, "SkillId": -1 },
+        "ID": 500,
+        "SortId": 500,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Item_Tent",
+          "SourceString": "テストテント",
+          "LocalizedString": "テストテント"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Item_Tent_Desc",
+          "SourceString": "セーブポイントで全回復",
+          "LocalizedString": "セーブポイントで全回復"
+        },
+        "ItemType": "eItemType::Consumables",
+        "buyingPrice": 300,
+        "sellingPrice": 70,
+        "isAvailableSale": true
+      }
+    }
+  }
+]

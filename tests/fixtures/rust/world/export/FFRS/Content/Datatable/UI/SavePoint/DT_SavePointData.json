@@ -1,0 +1,35 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_SavePointData",
+    "Package": "/Game/Datatable/UI/SavePoint/DT_SavePointData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'SavePointData'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "TownSave": {
+        "SavePointType": "eMapType::Town",
+        "CommandData": {
+          "CommandDisplayMap": [
+            { "Key": "ESavePointCommandType::SavePoint", "Value": true },
+            { "Key": "ESavePointCommandType::Tent", "Value": false },
+            { "Key": "ESavePointCommandType::Teleport", "Value": false }
+          ]
+        }
+      },
+      "DungeonSave": {
+        "SavePointType": "eMapType::Dungeon",
+        "CommandData": {
+          "CommandDisplayMap": [
+            { "Key": "ESavePointCommandType::SavePoint", "Value": true },
+            { "Key": "ESavePointCommandType::Tent", "Value": true },
+            { "Key": "ESavePointCommandType::Teleport", "Value": true }
+          ]
+        }
+      }
+    }
+  }
+]
