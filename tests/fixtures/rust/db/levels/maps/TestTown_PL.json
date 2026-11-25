@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "level": {
+    "name": "TestTown_PL",
+    "outputFile": "TestTown_PL.json",
+    "path": "FFRS/Content/Map/Test/TestTown/TestTown_PL.umap",
+    "packagePath": "/Game/Map/Test/TestTown/TestTown_PL",
+    "sublevelType": "PL",
+    "persistentLevel": "TestTown_PL",
+    "persistentLevels": ["TestTown_PL"],
+    "mapId": 100,
+    "mapIds": [100],
+    "mapRowKey": "TestTown",
+    "mapType": "eMapType::Town",
+    "streamingLevels": [
+      {
+        "name": "TestTown_GD",
+        "worldAsset": "/Game/Map/Test/TestTown/GD/TestTown_GD.TestTown_GD",
+        "streamingClass": "LevelStreamingAlwaysLoaded"
+      },
+      {
+        "name": "TestTown_EV",
+        "worldAsset": "/Game/Map/Test/TestTown/EV/TestTown_EV.TestTown_EV",
+        "streamingClass": "LevelStreamingDynamic"
+      },
+      {
+        "name": "SharedCorridor_GD",
+        "worldAsset": "/Game/Map/Test/Shared/SharedCorridor_GD.SharedCorridor_GD",
+        "streamingClass": "LevelStreamingAlwaysLoaded"
+      }
+    ],
+    "actorCount": 1,
+    "gameActorCount": 1,
+    "engineActorCount": 0
+  },
+  "actors": [
+    {
+      "name": "CPP_MuchaWorldSetting_0",
+      "class": "/Script/mucha.CPP_MuchaWorldSetting",
+      "isGameClass": true,
+      "location": null,
+      "rotation": null,
+      "scale": null,
+      "properties": {}
+    }
+  ],
+  "summary": {
+    "mapUnits": [],
+    "treasureBoxes": [],
+    "eventTriggers": [],
+    "transitions": [],
+    "transitionPoints": [],
+    "savePoints": [],
+    "shops": [],
+    "inns": [],
+    "gimmicks": [],
+    "encounterZones": []
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "level": {
+    "name": "IsolatedIsland_GD",
+    "outputFile": "IsolatedIsland_GD.json",
+    "path": "FFRS/Content/Map/Test/Isolated/IsolatedIsland_GD.umap",
+    "packagePath": "/Game/Map/Test/Isolated/IsolatedIsland_GD",
+    "sublevelType": "GD",
+    "persistentLevel": "IsolatedIsland_PL",
+    "persistentLevels": ["IsolatedIsland_PL"],
+    "mapId": 400,
+    "mapIds": [400],
+    "mapRowKey": "Isolated",
+    "mapType": "eMapType::Town",
+    "streamingLevels": [],
+    "actorCount": 1,
+    "gameActorCount": 1,
+    "engineActorCount": 0
+  },
+  "actors": [
+    {
+      "name": "BP_IsoPoint_0",
+      "class": "/Game/Blueprint/Map/BP_MapTransitionPoint.BP_MapTransitionPoint_C",
+      "isGameClass": true,
+      "location": { "x": 9000.0, "y": 9000.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_PointID": 0 }
+    }
+  ],
+  "summary": {
+    "mapUnits": [],
+    "treasureBoxes": [],
+    "eventTriggers": [],
+    "transitions": [],
+    "transitionPoints": [
+      {
+        "actorName": "BP_IsoPoint_0",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapTransitionPoint.BP_MapTransitionPoint_C",
+        "pointId": 0,
+        "direction": "eMapDirectionType::South",
+        "pointName": "孤岛起点",
+        "location": { "x": 9000.0, "y": 9000.0, "z": 0.0 }
+      }
+    ],
+    "savePoints": [],
+    "shops": [],
+    "inns": [],
+    "gimmicks": [],
+    "encounterZones": []
+  }
+}

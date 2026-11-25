@@ -1,0 +1,21 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_VariousShopsList",
+    "Package": "FFRS/Content/Datatable/Shop/DT_VariousShopsList",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'SHOP_VariousShopsEntryInfo'"
+      }
+    },
+    "Rows": {
+      "TestTown_Various": {
+        "ID": 10001,
+        "ToolShopID": -1,
+        "WeaponShopID": 2001,
+        "ArmorShopID": 4001,
+        "AccessoryShopID": -1
+      }
+    }
+  }
+]

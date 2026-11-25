@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "level": {
+    "name": "SharedCorridor_GD",
+    "outputFile": "SharedCorridor_GD.json",
+    "path": "FFRS/Content/Map/Test/Shared/SharedCorridor_GD.umap",
+    "packagePath": "/Game/Map/Test/Shared/SharedCorridor_GD",
+    "sublevelType": "GD",
+    "persistentLevel": "TestTown_PL",
+    "persistentLevels": ["TestTown_PL", "TestField_PL"],
+    "mapId": 100,
+    "mapIds": [100, 200],
+    "mapRowKey": "TestTown",
+    "mapType": "eMapType::Town",
+    "streamingLevels": [],
+    "actorCount": 1,
+    "gameActorCount": 1,
+    "engineActorCount": 0
+  },
+  "actors": [
+    {
+      "name": "BP_SharedTorch",
+      "class": "/Game/Blueprint/Map/BP_MapGimmick_Lamp.BP_MapGimmick_Lamp_C",
+      "isGameClass": true,
+      "location": { "x": 20.0, "y": 0.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_UniqueId": 77 }
+    }
+  ],
+  "summary": {
+    "mapUnits": [],
+    "treasureBoxes": [],
+    "eventTriggers": [],
+    "transitions": [],
+    "transitionPoints": [],
+    "savePoints": [],
+    "shops": [],
+    "inns": [],
+    "gimmicks": [
+      {
+        "actorName": "BP_SharedTorch",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapGimmick_Lamp.BP_MapGimmick_Lamp_C",
+        "category": "Lamp",
+        "uniqueId": 77,
+        "interactType": null,
+        "visibleCondition": null,
+        "flagCondition": null,
+        "events": [],
+        "location": { "x": 20.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "encounterZones": []
+  }
+}

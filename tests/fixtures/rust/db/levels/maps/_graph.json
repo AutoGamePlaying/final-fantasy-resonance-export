@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-25T00:00:00Z",
+  "stats": {
+    "totalLevels": 8,
+    "exportedLevels": 8,
+    "failedLevels": 0,
+    "sublevelTypeCounts": { "EV": 1, "GD": 5, "KD": 2, "PL": 1 },
+    "mappedMapCount": 4,
+    "unmappedLevelCount": 0,
+    "totalExits": 4,
+    "crossMapExits": 3,
+    "sameMapExits": 1,
+    "savePointTeleportExits": 1,
+    "totalTransitionPoints": 7,
+    "totalNpcs": 3,
+    "totalMapUnits": 3,
+    "totalTreasureBoxes": 1,
+    "totalSavePoints": 2,
+    "totalShops": 2,
+    "uniqueShopIds": 2,
+    "mapsWithShops": 1,
+    "totalInns": 1,
+    "totalEventTriggers": 1,
+    "totalGimmicks": 3,
+    "totalEncounterZones": 2
+  },
+  "maps": {
+    "100": {
+      "mapId": 100,
+      "mapRowKey": "TestTown",
+      "mapType": "eMapType::Town",
+      "persistentLevel": "TestTown_PL",
+      "sublevels": [
+        { "name": "TestTown_PL", "type": "PL", "outputFile": "TestTown_PL.json" },
+        { "name": "TestTown_GD", "type": "GD", "outputFile": "TestTown_GD.json" },
+        { "name": "TestTown_EV", "type": "EV", "outputFile": "TestTown_EV.json" },
+        { "name": "SharedCorridor_GD", "type": "GD", "outputFile": "SharedCorridor_GD.json" }
+      ],
+      "counts": {
+        "npcs": 3,
+        "mapUnits": 3,
+        "treasureBoxes": 1,
+        "shops": 2,
+        "inns": 1,
+        "savePoints": 1,
+        "eventTriggers": 1,
+        "gimmicks": 2,
+        "encounterZones": 0,
+        "transitions": 2,
+        "transitionPoints": 3
+      },
+      "exits": [
+        {
+          "kind": "transition_trigger",
+          "sourceLevel": "TestTown_GD",
+          "actorName": "BP_ExitToField",
+          "uniqueId": 1,
+          "targetMapId": 200,
+          "targetPointId": 0,
+          "isSameMap": false,
+          "isAutoTransition": true,
+          "isEventOnly": false,
+          "condition": null,
+          "location": { "x": 100.0, "y": 0.0, "z": 0.0 }
+        },
+        {
+          "kind": "transition_trigger",
+          "sourceLevel": "TestTown_GD",
+          "actorName": "BP_ExitSameMap",
+          "uniqueId": 2,
+          "targetMapId": 100,
+          "targetPointId": 1,
+          "isSameMap": true,
+          "isAutoTransition": false,
+          "isEventOnly": false,
+          "condition": null,
+          "location": { "x": 500.0, "y": 0.0, "z": 0.0 }
+        }
+      ],
+      "transitionPoints": [],
+      "shops": [],
+      "savePoints": [],
+      "treasureBoxes": []
+    },
+    "200": {
+      "mapId": 200,
+      "mapRowKey": "TestField",
+      "mapType": "eMapType::Field",
+      "persistentLevel": "TestField_PL",
+      "sublevels": [
+        { "name": "TestField_GD", "type": "GD", "outputFile": "TestField_GD.json" },
+        { "name": "SharedCorridor_GD", "type": "GD", "outputFile": "SharedCorridor_GD.json" },
+        { "name": "DupSub_KD", "type": "KD", "outputFile": "DupSub_KD.json" }
+      ],
+      "counts": {
+        "npcs": 0,
+        "mapUnits": 0,
+        "treasureBoxes": 0,
+        "shops": 0,
+        "inns": 0,
+        "savePoints": 0,
+        "eventTriggers": 0,
+        "gimmicks": 1,
+        "encounterZones": 2,
+        "transitions": 1,
+        "transitionPoints": 1
+      },
+      "exits": [
+        {
+          "kind": "transition_trigger",
+          "sourceLevel": "TestField_GD",
+          "actorName": "BP_FieldExitToDungeon",
+          "uniqueId": 1,
+          "targetMapId": 300,
+          "targetPointId": 0,
+          "isSameMap": false,
+          "isAutoTransition": false,
+          "isEventOnly": false,
+          "condition": "{flag:500}",
+          "location": { "x": 1500.0, "y": 2000.0, "z": 50.0 }
+        }
+      ],
+      "transitionPoints": [],
+      "shops": [],
+      "savePoints": [],
+      "treasureBoxes": []
+    },
+    "300": {
+      "mapId": 300,
+      "mapRowKey": "TestDungeon",
+      "mapType": "eMapType::Dungeon",
+      "persistentLevel": "TestDungeon_PL",
+      "sublevels": [
+        { "name": "TestDungeon_GD", "type": "GD", "outputFile": "TestDungeon_GD.json" },
+        { "name": "DupSub_KD", "type": "KD", "outputFile": "TestDisambig__DupSub_KD.json" }
+      ],
+      "counts": {
+        "npcs": 0,
+        "mapUnits": 0,
+        "treasureBoxes": 0,
+        "shops": 0,
+        "inns": 0,
+        "savePoints": 1,
+        "eventTriggers": 0,
+        "gimmicks": 0,
+        "encounterZones": 0,
+        "transitions": 0,
+        "transitionPoints": 2
+      },
+      "exits": [
+        {
+          "kind": "savepoint_teleport",
+          "sourceLevel": "TestDungeon_GD",
+          "actorName": "BP_DngSavePoint_Teleport",
+          "uniqueId": 55,
+          "targetMapId": 100,
+          "targetPointId": 0,
+          "isSameMap": false,
+          "isAutoTransition": false,
+          "isEventOnly": false,
+          "condition": null,
+          "location": { "x": -100.0, "y": 0.0, "z": -100.0 }
+        }
+      ],
+      "transitionPoints": [],
+      "shops": [],
+      "savePoints": [],
+      "treasureBoxes": []
+    },
+    "400": {
+      "mapId": 400,
+      "mapRowKey": "Isolated",
+      "mapType": "eMapType::Town",
+      "persistentLevel": "IsolatedIsland_PL",
+      "sublevels": [
+        { "name": "IsolatedIsland_GD", "type": "GD", "outputFile": "IsolatedIsland_GD.json" }
+      ],
+      "counts": {
+        "npcs": 0,
+        "mapUnits": 0,
+        "treasureBoxes": 0,
+        "shops": 0,
+        "inns": 0,
+        "savePoints": 0,
+        "eventTriggers": 0,
+        "gimmicks": 0,
+        "encounterZones": 0,
+        "transitions": 0,
+        "transitionPoints": 1
+      },
+      "exits": [],
+      "transitionPoints": [],
+      "shops": [],
+      "savePoints": [],
+      "treasureBoxes": []
+    }
+  },
+  "shopsByMap": {
+    "100": [1001, 10001]
+  },
+  "shopToMaps": {
+    "1001": [100],
+    "10001": [100]
+  },
+  "unmappedLevels": []
+}

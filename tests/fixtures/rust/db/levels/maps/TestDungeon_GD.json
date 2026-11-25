@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "level": {
+    "name": "TestDungeon_GD",
+    "outputFile": "TestDungeon_GD.json",
+    "path": "FFRS/Content/Map/Test/TestDungeon/GD/TestDungeon_GD.umap",
+    "packagePath": "/Game/Map/Test/TestDungeon/GD/TestDungeon_GD",
+    "sublevelType": "GD",
+    "persistentLevel": "TestDungeon_PL",
+    "persistentLevels": ["TestDungeon_PL"],
+    "mapId": 300,
+    "mapIds": [300],
+    "mapRowKey": "TestDungeon",
+    "mapType": "eMapType::Dungeon",
+    "streamingLevels": [],
+    "actorCount": 3,
+    "gameActorCount": 3,
+    "engineActorCount": 0
+  },
+  "actors": [
+    {
+      "name": "BP_DngPoint_0",
+      "class": "/Game/Blueprint/Map/BP_MapTransitionPoint.BP_MapTransitionPoint_C",
+      "isGameClass": true,
+      "location": { "x": -500.0, "y": 0.0, "z": -100.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_PointID": 0 }
+    },
+    {
+      "name": "BP_DngSavePoint_Teleport",
+      "class": "/Game/Blueprint/Map/BP_MapGimmick_SavePoint.BP_MapGimmick_SavePoint_C",
+      "isGameClass": true,
+      "location": { "x": -100.0, "y": 0.0, "z": -100.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_UniqueId": 55, "m_IsTeleport": true }
+    },
+    {
+      "name": "BP_DngPoint_10000",
+      "class": "/Game/Blueprint/Map/BP_MapTransitionPoint.BP_MapTransitionPoint_C",
+      "isGameClass": true,
+      "location": { "x": -100.0, "y": 0.0, "z": -100.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_PointID": 10000 }
+    }
+  ],
+  "summary": {
+    "mapUnits": [],
+    "treasureBoxes": [],
+    "eventTriggers": [],
+    "transitions": [],
+    "transitionPoints": [
+      {
+        "actorName": "BP_DngPoint_0",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapTransitionPoint.BP_MapTransitionPoint_C",
+        "pointId": 0,
+        "direction": "eMapDirectionType::East",
+        "pointName": "迷宫入口",
+        "location": { "x": -500.0, "y": 0.0, "z": -100.0 }
+      },
+      {
+        "actorName": "BP_DngPoint_10000",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapTransitionPoint.BP_MapTransitionPoint_C",
+        "pointId": 10000,
+        "direction": "eMapDirectionType::South",
+        "pointName": null,
+        "location": { "x": -100.0, "y": 0.0, "z": -100.0 }
+      }
+    ],
+    "savePoints": [
+      {
+        "actorName": "BP_DngSavePoint_Teleport",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapGimmick_SavePoint.BP_MapGimmick_SavePoint_C",
+        "uniqueId": 55,
+        "savePointType": "eMapType::Dungeon",
+        "isTeleport": true,
+        "transitionMapId": 100,
+        "transitionPointId": 0,
+        "parentMapId": null,
+        "parentUniqueId": null,
+        "targetMapId": 100,
+        "targetPointId": 0,
+        "visibleCondition": null,
+        "location": { "x": -100.0, "y": 0.0, "z": -100.0 }
+      }
+    ],
+    "shops": [],
+    "inns": [],
+    "gimmicks": [],
+    "encounterZones": []
+  }
+}

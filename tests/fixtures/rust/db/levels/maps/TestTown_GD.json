@@ -1,0 +1,252 @@
+{
+  "schemaVersion": 1,
+  "level": {
+    "name": "TestTown_GD",
+    "outputFile": "TestTown_GD.json",
+    "path": "FFRS/Content/Map/Test/TestTown/GD/TestTown_GD.umap",
+    "packagePath": "/Game/Map/Test/TestTown/GD/TestTown_GD",
+    "sublevelType": "GD",
+    "persistentLevel": "TestTown_PL",
+    "persistentLevels": ["TestTown_PL"],
+    "mapId": 100,
+    "mapIds": [100],
+    "mapRowKey": "TestTown",
+    "mapType": "eMapType::Town",
+    "streamingLevels": [],
+    "actorCount": 10,
+    "gameActorCount": 8,
+    "engineActorCount": 2
+  },
+  "actors": [
+    {
+      "name": "BP_ExitToField",
+      "label": "ExitToField",
+      "class": "/Game/Blueprint/Map/BP_MapTransitionTrigger.BP_MapTransitionTrigger_C",
+      "isGameClass": true,
+      "location": { "x": 100.0, "y": 0.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_UniqueId": 1, "m_MapId": 200, "m_PointID": 0 },
+      "subobjects": [
+        {
+          "name": "Box",
+          "class": "/Script/Engine.BoxComponent",
+          "isGameClass": false,
+          "boxExtent": { "x": 50.0, "y": 50.0, "z": 50.0 }
+        }
+      ]
+    },
+    {
+      "name": "BP_ExitSameMap",
+      "class": "/Game/Blueprint/Map/BP_MapTransitionTrigger.BP_MapTransitionTrigger_C",
+      "isGameClass": true,
+      "location": { "x": 500.0, "y": 0.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_UniqueId": 2, "m_IsSameMapTrasition": true, "m_PointID": 1 }
+    },
+    {
+      "name": "BP_Point_0",
+      "class": "/Game/Blueprint/Map/BP_MapTransitionPoint.BP_MapTransitionPoint_C",
+      "isGameClass": true,
+      "location": { "x": 0.0, "y": 0.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_PointID": 0 }
+    },
+    {
+      "name": "BP_Point_0_Dup",
+      "class": "/Game/Blueprint/Map/BP_MapTransitionPoint.BP_MapTransitionPoint_C",
+      "isGameClass": true,
+      "location": { "x": 10.0, "y": 0.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_PointID": 0 }
+    },
+    {
+      "name": "BP_Point_1",
+      "class": "/Game/Blueprint/Map/BP_MapTransitionPoint.BP_MapTransitionPoint_C",
+      "isGameClass": true,
+      "location": { "x": 600.0, "y": 0.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 180.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_PointID": 1 }
+    },
+    {
+      "name": "BP_Chest_1",
+      "class": "/Game/Blueprint/Map/BP_MapGimmick_TreasureBox.BP_MapGimmick_TreasureBox_C",
+      "isGameClass": true,
+      "location": { "x": 200.0, "y": 0.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_UniqueId": 10 }
+    },
+    {
+      "name": "BP_SavePoint_1",
+      "class": "/Game/Blueprint/Map/BP_MapGimmick_SavePoint.BP_MapGimmick_SavePoint_C",
+      "isGameClass": true,
+      "location": { "x": 300.0, "y": 0.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_UniqueId": 20 }
+    },
+    {
+      "name": "BP_Gimmick_Door",
+      "class": "/Game/Blueprint/Map/BP_MapGimmick_Door.BP_MapGimmick_Door_C",
+      "isGameClass": true,
+      "location": { "x": 400.0, "y": 0.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_UniqueId": 30 }
+    },
+    {
+      "name": "StaticMesh_Far",
+      "class": "/Script/Engine.StaticMeshActor",
+      "isGameClass": false,
+      "location": { "x": 5000.0, "y": 5000.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "assetRefs": ["/Game/Art/Rock_01.Rock_01"]
+    },
+    {
+      "name": "Actor_NoLoc",
+      "class": "/Script/Engine.WorldSettings",
+      "isGameClass": false,
+      "location": null,
+      "rotation": null,
+      "scale": null
+    }
+  ],
+  "summary": {
+    "mapUnits": [],
+    "treasureBoxes": [
+      {
+        "actorName": "BP_Chest_1",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapGimmick_TreasureBox.BP_MapGimmick_TreasureBox_C",
+        "uniqueId": 10,
+        "chestId": 1,
+        "mapId": 100,
+        "itemId": 501,
+        "itemNum": 2,
+        "money": null,
+        "isTrap": false,
+        "battleGroupId": null,
+        "battleFinishEventId": null,
+        "visibleCondition": null,
+        "location": { "x": 200.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "eventTriggers": [],
+    "transitions": [
+      {
+        "actorName": "BP_ExitToField",
+        "label": "ExitToField",
+        "class": "/Game/Blueprint/Map/BP_MapTransitionTrigger.BP_MapTransitionTrigger_C",
+        "uniqueId": 1,
+        "isSameMap": false,
+        "isAutoTransition": true,
+        "isEventOnly": false,
+        "condition": null,
+        "targets": [
+          {
+            "condition": null,
+            "targetMapId": 200,
+            "targetPointId": 0,
+            "isEventOnly": false,
+            "events": [],
+            "afterTransitionEvents": []
+          }
+        ],
+        "boxExtent": { "x": 50.0, "y": 50.0, "z": 50.0 },
+        "location": { "x": 100.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "actorName": "BP_ExitSameMap",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapTransitionTrigger.BP_MapTransitionTrigger_C",
+        "uniqueId": 2,
+        "isSameMap": true,
+        "isAutoTransition": false,
+        "isEventOnly": false,
+        "condition": null,
+        "targets": [
+          {
+            "condition": null,
+            "targetMapId": 100,
+            "targetPointId": 1,
+            "isEventOnly": false,
+            "events": [],
+            "afterTransitionEvents": []
+          }
+        ],
+        "boxExtent": null,
+        "location": { "x": 500.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "transitionPoints": [
+      {
+        "actorName": "BP_Point_0",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapTransitionPoint.BP_MapTransitionPoint_C",
+        "pointId": 0,
+        "direction": "eMapDirectionType::South",
+        "pointName": "城镇南门",
+        "location": { "x": 0.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "actorName": "BP_Point_0_Dup",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapTransitionPoint.BP_MapTransitionPoint_C",
+        "pointId": 0,
+        "direction": "eMapDirectionType::East",
+        "pointName": null,
+        "location": { "x": 10.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "actorName": "BP_Point_1",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapTransitionPoint.BP_MapTransitionPoint_C",
+        "pointId": 1,
+        "direction": "eMapDirectionType::North",
+        "pointName": "城镇北门",
+        "location": { "x": 600.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "savePoints": [
+      {
+        "actorName": "BP_SavePoint_1",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapGimmick_SavePoint.BP_MapGimmick_SavePoint_C",
+        "uniqueId": 20,
+        "savePointType": "eMapType::Town",
+        "isTeleport": false,
+        "transitionMapId": null,
+        "transitionPointId": null,
+        "parentMapId": null,
+        "parentUniqueId": null,
+        "targetMapId": null,
+        "targetPointId": null,
+        "visibleCondition": null,
+        "location": { "x": 300.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "shops": [],
+    "inns": [],
+    "gimmicks": [
+      {
+        "actorName": "BP_Gimmick_Door",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapGimmick_Door.BP_MapGimmick_Door_C",
+        "category": "Door",
+        "uniqueId": 30,
+        "interactType": null,
+        "visibleCondition": "!{flag:42}",
+        "flagCondition": null,
+        "events": [{ "condition": null, "eventId": "EV_DOOR_OPEN" }],
+        "location": { "x": 400.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "encounterZones": []
+  }
+}

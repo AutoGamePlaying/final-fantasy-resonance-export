@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "level": {
+    "name": "TestTown_EV",
+    "outputFile": "TestTown_EV.json",
+    "path": "FFRS/Content/Map/Test/TestTown/EV/TestTown_EV.umap",
+    "packagePath": "/Game/Map/Test/TestTown/EV/TestTown_EV",
+    "sublevelType": "EV",
+    "persistentLevel": "TestTown_PL",
+    "persistentLevels": ["TestTown_PL"],
+    "mapId": 100,
+    "mapIds": [100],
+    "mapRowKey": "TestTown",
+    "mapType": "eMapType::Town",
+    "streamingLevels": [],
+    "actorCount": 4,
+    "gameActorCount": 4,
+    "engineActorCount": 0
+  },
+  "actors": [
+    {
+      "name": "BP_Npc_SingleShop",
+      "class": "/Game/Blueprint/Map/BP_MapUnit_NPC.BP_MapUnit_NPC_C",
+      "isGameClass": true,
+      "location": { "x": 80.0, "y": 80.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_UniqueId": 101, "m_MapUnitId": 10 }
+    },
+    {
+      "name": "BP_Npc_VariousShop",
+      "class": "/Game/Blueprint/Map/BP_MapUnit_NPC.BP_MapUnit_NPC_C",
+      "isGameClass": true,
+      "location": { "x": 100.0, "y": 0.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_UniqueId": 102, "m_MapUnitId": 20 }
+    },
+    {
+      "name": "BP_Npc_Inn",
+      "class": "/Game/Blueprint/Map/BP_MapUnit_NPC.BP_MapUnit_NPC_C",
+      "isGameClass": true,
+      "location": { "x": 150.0, "y": 0.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_UniqueId": 103, "m_MapUnitId": 30 }
+    },
+    {
+      "name": "BP_Event_1",
+      "class": "/Game/Blueprint/Map/BP_MapGimmick_EventTrigger.BP_MapGimmick_EventTrigger_C",
+      "isGameClass": true,
+      "location": { "x": 250.0, "y": 0.0, "z": 0.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_UniqueId": 104 }
+    }
+  ],
+  "summary": {
+    "mapUnits": [
+      {
+        "actorName": "BP_Npc_SingleShop",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapUnit_NPC.BP_MapUnit_NPC_C",
+        "kind": "npc",
+        "mapUnitId": 10,
+        "uniqueId": 101,
+        "direction": "eMapDirectionType::South",
+        "interactType": "eMapInteractType::Shop",
+        "visibleCondition": "{progress:0}>=1000",
+        "shopId": 1001,
+        "innId": null,
+        "events": [],
+        "location": { "x": 80.0, "y": 80.0, "z": 0.0 }
+      },
+      {
+        "actorName": "BP_Npc_VariousShop",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapUnit_NPC.BP_MapUnit_NPC_C",
+        "kind": "npc",
+        "mapUnitId": 20,
+        "uniqueId": 102,
+        "direction": "eMapDirectionType::West",
+        "interactType": "eMapInteractType::Shop",
+        "visibleCondition": null,
+        "shopId": 10001,
+        "innId": null,
+        "events": [],
+        "location": { "x": 100.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "actorName": "BP_Npc_Inn",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapUnit_NPC.BP_MapUnit_NPC_C",
+        "kind": "npc",
+        "mapUnitId": 30,
+        "uniqueId": 103,
+        "direction": "eMapDirectionType::East",
+        "interactType": "eMapInteractType::Inn",
+        "visibleCondition": null,
+        "shopId": null,
+        "innId": 0,
+        "events": [],
+        "location": { "x": 150.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "treasureBoxes": [],
+    "eventTriggers": [
+      {
+        "actorName": "BP_Event_1",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapGimmick_EventTrigger.BP_MapGimmick_EventTrigger_C",
+        "uniqueId": 104,
+        "interactType": null,
+        "visibleCondition": "{progress:0}>=1000 & {progress:0}=<2000",
+        "flagCondition": null,
+        "interactEventId": "EV_TEST_01",
+        "events": [],
+        "boxExtent": { "x": 40.0, "y": 40.0, "z": 40.0 },
+        "location": { "x": 250.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "transitions": [],
+    "transitionPoints": [],
+    "savePoints": [],
+    "shops": [
+      {
+        "actorName": "BP_Npc_SingleShop",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapUnit_NPC.BP_MapUnit_NPC_C",
+        "uniqueId": 101,
+        "mapUnitId": 10,
+        "shopId": 1001,
+        "isVariousShop": false,
+        "isTest": false,
+        "interactType": "eMapInteractType::Shop",
+        "visibleCondition": "{progress:0}>=1000",
+        "location": { "x": 80.0, "y": 80.0, "z": 0.0 }
+      },
+      {
+        "actorName": "BP_Npc_VariousShop",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapUnit_NPC.BP_MapUnit_NPC_C",
+        "uniqueId": 102,
+        "mapUnitId": 20,
+        "shopId": 10001,
+        "isVariousShop": true,
+        "isTest": false,
+        "interactType": "eMapInteractType::Shop",
+        "visibleCondition": null,
+        "location": { "x": 100.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "inns": [
+      {
+        "actorName": "BP_Npc_Inn",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapUnit_NPC.BP_MapUnit_NPC_C",
+        "uniqueId": 103,
+        "mapUnitId": 30,
+        "innId": 0,
+        "interactType": "eMapInteractType::Inn",
+        "visibleCondition": null,
+        "location": { "x": 150.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "gimmicks": [],
+    "encounterZones": []
+  }
+}

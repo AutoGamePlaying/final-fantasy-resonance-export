@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "level": {
+    "name": "TestField_GD",
+    "outputFile": "TestField_GD.json",
+    "path": "FFRS/Content/Map/Test/TestField/GD/TestField_GD.umap",
+    "packagePath": "/Game/Map/Test/TestField/GD/TestField_GD",
+    "sublevelType": "GD",
+    "persistentLevel": "TestField_PL",
+    "persistentLevels": ["TestField_PL"],
+    "mapId": 200,
+    "mapIds": [200],
+    "mapRowKey": "TestField",
+    "mapType": "eMapType::Field",
+    "streamingLevels": [],
+    "actorCount": 4,
+    "gameActorCount": 4,
+    "engineActorCount": 0
+  },
+  "actors": [
+    {
+      "name": "BP_FieldPoint_0",
+      "class": "/Game/Blueprint/Map/BP_MapTransitionPoint.BP_MapTransitionPoint_C",
+      "isGameClass": true,
+      "location": { "x": 1000.0, "y": 2000.0, "z": 50.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_PointID": 0 }
+    },
+    {
+      "name": "BP_FieldExitToDungeon",
+      "class": "/Game/Blueprint/Map/BP_MapTransitionTrigger.BP_MapTransitionTrigger_C",
+      "isGameClass": true,
+      "location": { "x": 1500.0, "y": 2000.0, "z": 50.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": { "m_UniqueId": 1 }
+    },
+    {
+      "name": "BP_Encount_Box",
+      "class": "/Game/Blueprint/Map/BP_MapEncountBox.BP_MapEncountBox_C",
+      "isGameClass": true,
+      "location": { "x": 1200.0, "y": 2000.0, "z": 50.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": {},
+      "subobjects": [
+        {
+          "name": "BoxComp",
+          "class": "/Script/Engine.BoxComponent",
+          "isGameClass": false,
+          "boxExtent": { "x": 200.0, "y": 100.0, "z": 50.0 }
+        }
+      ]
+    },
+    {
+      "name": "BP_Encount_Sphere",
+      "class": "/Game/Blueprint/Map/BP_MapEncountSphere.BP_MapEncountSphere_C",
+      "isGameClass": true,
+      "location": { "x": 2000.0, "y": 2000.0, "z": 50.0 },
+      "rotation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "scale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+      "properties": {},
+      "subobjects": [
+        {
+          "name": "SphereComp",
+          "class": "/Script/Engine.SphereComponent",
+          "isGameClass": false,
+          "sphereRadius": 150.0
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "mapUnits": [],
+    "treasureBoxes": [],
+    "eventTriggers": [],
+    "transitions": [
+      {
+        "actorName": "BP_FieldExitToDungeon",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapTransitionTrigger.BP_MapTransitionTrigger_C",
+        "uniqueId": 1,
+        "isSameMap": false,
+        "isAutoTransition": false,
+        "isEventOnly": false,
+        "condition": "{flag:500}",
+        "targets": [
+          {
+            "condition": "{flag:500}",
+            "targetMapId": 300,
+            "targetPointId": 0,
+            "isEventOnly": false,
+            "events": [],
+            "afterTransitionEvents": []
+          }
+        ],
+        "boxExtent": null,
+        "location": { "x": 1500.0, "y": 2000.0, "z": 50.0 }
+      }
+    ],
+    "transitionPoints": [
+      {
+        "actorName": "BP_FieldPoint_0",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapTransitionPoint.BP_MapTransitionPoint_C",
+        "pointId": 0,
+        "direction": "eMapDirectionType::North",
+        "pointName": "大地图入口",
+        "location": { "x": 1000.0, "y": 2000.0, "z": 50.0 }
+      }
+    ],
+    "savePoints": [],
+    "shops": [],
+    "inns": [],
+    "gimmicks": [],
+    "encounterZones": [
+      {
+        "actorName": "BP_Encount_Box",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapEncountBox.BP_MapEncountBox_C",
+        "kind": "Box",
+        "id": 1,
+        "priority": 10,
+        "terrainId": 2,
+        "battleStageId": 7,
+        "overwriteRatio": null,
+        "isResetDistance": false,
+        "visibleCondition": null,
+        "flagCondition": null,
+        "encountDatatable": "/Game/Datatable/Encount/DT_TestField_Encount",
+        "terrainDatatables": [],
+        "boxExtent": { "x": 200.0, "y": 100.0, "z": 50.0 },
+        "sphereRadius": null,
+        "location": { "x": 1200.0, "y": 2000.0, "z": 50.0 }
+      },
+      {
+        "actorName": "BP_Encount_Sphere",
+        "label": null,
+        "class": "/Game/Blueprint/Map/BP_MapEncountSphere.BP_MapEncountSphere_C",
+        "kind": "Sphere",
+        "id": 2,
+        "priority": 20,
+        "terrainId": 3,
+        "battleStageId": 8,
+        "overwriteRatio": 1.5,
+        "isResetDistance": true,
+        "visibleCondition": null,
+        "flagCondition": "!{flag:99}",
+        "encountDatatable": "/Game/Datatable/Encount/DT_TestField_Sphere",
+        "terrainDatatables": [],
+        "boxExtent": null,
+        "sphereRadius": 150.0,
+        "location": { "x": 2000.0, "y": 2000.0, "z": 50.0 }
+      }
+    ]
+  }
+}

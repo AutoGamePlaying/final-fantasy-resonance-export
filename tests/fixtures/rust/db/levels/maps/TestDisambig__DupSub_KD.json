@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "level": {
+    "name": "DupSub_KD",
+    "outputFile": "TestDisambig__DupSub_KD.json",
+    "path": "FFRS/Content/Map/Test/TestDungeon/KD/DupSub_KD.umap",
+    "packagePath": "/Game/Map/Test/TestDungeon/KD/DupSub_KD",
+    "sublevelType": "KD",
+    "persistentLevel": "TestDungeon_PL",
+    "persistentLevels": ["TestDungeon_PL"],
+    "mapId": 300,
+    "mapIds": [300],
+    "mapRowKey": "TestDungeon",
+    "mapType": "eMapType::Dungeon",
+    "streamingLevels": [],
+    "actorCount": 0,
+    "gameActorCount": 0,
+    "engineActorCount": 0
+  },
+  "actors": [],
+  "summary": {
+    "mapUnits": [],
+    "treasureBoxes": [],
+    "eventTriggers": [],
+    "transitions": [],
+    "transitionPoints": [],
+    "savePoints": [],
+    "shops": [],
+    "inns": [],
+    "gimmicks": [],
+    "encounterZones": []
+  }
+}
