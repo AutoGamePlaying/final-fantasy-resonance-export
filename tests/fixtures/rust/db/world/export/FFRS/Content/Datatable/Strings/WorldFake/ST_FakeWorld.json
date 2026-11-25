@@ -1,0 +1,53 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_FakeWorld",
+    "Package": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld",
+    "StringTable": {
+      "TableNamespace": "ST_FakeWorld",
+      "KeysToEntries": {
+        "Map_Harbor": "テスト港町",
+        "Map_Cavern": "テスト洞窟",
+        "Map_TrialGround": "テスト試練場",
+        "Island_North": "北のテスト島",
+        "SP_Save": "セーブ",
+        "SP_Save_Desc": "記録する",
+        "SP_Tent": "テント",
+        "SP_Tent_Desc": "全回復する",
+        "SP_Teleport": "テレポ",
+        "SP_Teleport_Desc": "最奥へ移動",
+        "Item_Herb": "テスト薬草",
+        "Item_Herb_Desc": "HPを少し回復",
+        "Item_Tent": "テストテント",
+        "Item_Tent_Desc": "セーブポイントで全回復",
+        "Item_Blade": "テスト大剣",
+        "Item_Vision": "テスト幻兵",
+        "Item_Vision_Desc": "破防が得意な幻兵",
+        "Item_Key": "テスト鍵",
+        "Item_Key_Desc": "古い扉を開く鍵",
+        "Item_Relic": "テスト聖遺物",
+        "Item_Relic_Desc": "獲得経験値を2倍にする",
+        "Quest_Lantern": "港の灯り",
+        "Quest_Lantern_Step1": "洞窟で火種を探す",
+        "Quest_Lantern_Sum1": "洞窟へ向かうことにした。",
+        "Quest_Lantern_Step2": "港へ戻る",
+        "Quest_Lantern_End": "灯台に光が戻った。",
+        "Quest_Bonus_Text": "称号：灯り守り",
+        "Quest_Followup": "続・港の灯り",
+        "Npc_Keeper": "灯台守",
+        "QB_Deliver": "薬草の納品",
+        "Shop_Item": "テスト道具屋",
+        "Chapter_1": "テスト第一章",
+        "Main_1020_Goal": "テスト洞窟へ向かう",
+        "Main_1020_Sum": "一行は洞窟の奥を目指す。",
+        "Map_Overworld": "テストワールド",
+        "Chapter_2": "テスト第二章",
+        "Chapter_3": "テスト第三章",
+        "Main_1050_Goal": "テスト港町へ戻る",
+        "Main_1050_Sum": "港町へ帰還する。",
+        "Main_2000_Goal": "試練場へ向かう",
+        "Main_2000_Sum": "第二章の試練へ。"
+      }
+    }
+  }
+]

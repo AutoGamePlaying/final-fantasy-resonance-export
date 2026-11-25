@@ -1,0 +1,31 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_SeedItemData",
+    "Package": "/Game/Datatable/Item/DT_SeedItemData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'SEED_ITEM_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "FakeSeed": {
+        "harvestList": [{ "combineItemId": 5000, "createItemId": 9000 }],
+        "ID": 9500,
+        "SortId": 9500,
+        "Name": {
+          "Namespace": "",
+          "Key": "FAKE_SEED_NAME",
+          "SourceString": "未翻訳の種",
+          "LocalizedString": "未翻訳の種"
+        },
+        "Description": { "CultureInvariantString": null },
+        "ItemType": "eItemType::Consumables",
+        "buyingPrice": 0,
+        "sellingPrice": 0,
+        "isAvailableSale": false
+      }
+    }
+  }
+]

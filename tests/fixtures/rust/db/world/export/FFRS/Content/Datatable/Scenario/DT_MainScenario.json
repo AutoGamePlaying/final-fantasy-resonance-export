@@ -1,0 +1,115 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MainScenario",
+    "Package": "/Game/Datatable/Scenario/DT_MainScenario",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'ScenarioSection'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Step_1020": {
+        "Condition": "{progress:0}>=1020",
+        "Text": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Main_1020_Goal",
+          "SourceString": "テスト洞窟へ向かう",
+          "LocalizedString": "テスト洞窟へ向かう"
+        },
+        "SummaryText": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Main_1020_Sum",
+          "SourceString": "一行は洞窟の奥を目指す。",
+          "LocalizedString": "一行は洞窟の奥を目指す。"
+        },
+        "DestinationList": [
+          {
+            "PointType": "EMapPointType::Goal",
+            "DestinationKey": {
+              "Type": "EWldMapDestination::Map",
+              "DestinationId": 3001
+            },
+            "IsPointToObject": false,
+            "Object": {
+              "Type": "eMapObjectType::None",
+              "ID": -1
+            },
+            "Condition": ""
+          }
+        ]
+      },
+      "NewRow": {
+        "Condition": "",
+        "Text": {
+          "CultureInvariantString": null
+        },
+        "SummaryText": {
+          "CultureInvariantString": null
+        },
+        "DestinationList": []
+      },
+      "Step_1050": {
+        "Condition": "{progress:0}>=1050",
+        "Text": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Main_1050_Goal",
+          "SourceString": "テスト港町へ戻る",
+          "LocalizedString": "テスト港町へ戻る"
+        },
+        "SummaryText": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Main_1050_Sum",
+          "SourceString": "港町へ帰還する。",
+          "LocalizedString": "港町へ帰還する。"
+        },
+        "DestinationList": [
+          {
+            "PointType": "EMapPointType::Goal",
+            "DestinationKey": {
+              "Type": "EWldMapDestination::Map",
+              "DestinationId": 2001
+            },
+            "IsPointToObject": false,
+            "Object": {
+              "Type": "eMapObjectType::None",
+              "ID": -1
+            },
+            "Condition": ""
+          }
+        ]
+      },
+      "Step_2000": {
+        "Condition": "{progress:0}>=2000",
+        "Text": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Main_2000_Goal",
+          "SourceString": "試練場へ向かう",
+          "LocalizedString": "試練場へ向かう"
+        },
+        "SummaryText": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Main_2000_Sum",
+          "SourceString": "第二章の試練へ。",
+          "LocalizedString": "第二章の試練へ。"
+        },
+        "DestinationList": [
+          {
+            "PointType": "EMapPointType::Goal",
+            "DestinationKey": {
+              "Type": "EWldMapDestination::Map",
+              "DestinationId": 10040
+            },
+            "IsPointToObject": false,
+            "Object": {
+              "Type": "eMapObjectType::None",
+              "ID": -1
+            },
+            "Condition": ""
+          }
+        ]
+      }
+    }
+  }
+]

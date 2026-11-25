@@ -1,0 +1,42 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_ChapterData",
+    "Package": "/Game/Datatable/Scenario/DT_ChapterData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'ChapterData'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Ch1": {
+        "ChapterNo": 1,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Chapter_1",
+          "SourceString": "テスト第一章",
+          "LocalizedString": "テスト第一章"
+        }
+      },
+      "Ch2": {
+        "ChapterNo": 2,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Chapter_2",
+          "SourceString": "テスト第二章",
+          "LocalizedString": "テスト第二章"
+        }
+      },
+      "Ch3": {
+        "ChapterNo": 3,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Chapter_3",
+          "SourceString": "テスト第三章",
+          "LocalizedString": "テスト第三章"
+        }
+      }
+    }
+  }
+]

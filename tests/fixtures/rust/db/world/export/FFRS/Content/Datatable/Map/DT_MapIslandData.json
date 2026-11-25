@@ -1,0 +1,26 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MapIslandData",
+    "Package": "/Game/Datatable/Map/DT_MapIslandData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'MAP_ISLAND_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Island_Alpha": {
+        "IslandType": "eMapIslandType::Grandshelt",
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Island_North",
+          "SourceString": "北のテスト島",
+          "LocalizedString": "北のテスト島"
+        },
+        "areaIds": [1],
+        "DisplayCondition": { "Expression": "" }
+      }
+    }
+  }
+]

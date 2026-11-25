@@ -1,0 +1,19 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MapReleaseConditionData",
+    "Package": "/Game/Datatable/Map/DT_MapReleaseConditionData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'MAP_RELEASE_CONDITION_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Rel_North": {
+        "Condition": "{progress:0}>=2000",
+        "IslandType": "eMapIslandType::Grandshelt"
+      }
+    }
+  }
+]

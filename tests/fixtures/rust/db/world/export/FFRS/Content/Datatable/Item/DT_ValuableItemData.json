@@ -1,0 +1,35 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_ValuableItemData",
+    "Package": "/Game/Datatable/Item/DT_ValuableItemData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'VALUABLE_ITEM_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "FakeKey": {
+        "ID": 20005,
+        "SortId": 20005,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Item_Key",
+          "SourceString": "テスト鍵",
+          "LocalizedString": "テスト鍵"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Item_Key_Desc",
+          "SourceString": "古い扉を開く鍵",
+          "LocalizedString": "古い扉を開く鍵"
+        },
+        "ItemType": "eItemType::Valuable",
+        "buyingPrice": 0,
+        "sellingPrice": 0,
+        "isAvailableSale": false
+      }
+    }
+  }
+]

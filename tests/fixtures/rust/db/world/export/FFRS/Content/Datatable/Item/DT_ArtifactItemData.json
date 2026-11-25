@@ -1,0 +1,38 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_ArtifactItemData",
+    "Package": "/Game/Datatable/Item/DT_ArtifactItemData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'ARTIFACT_ITEM_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "FakeRelic": {
+        "ItemTag": { "TagName": "Artifact.FakeExpBoost" },
+        "EffectValueList": [2.0],
+        "isInitialActive": false,
+        "ID": 30000,
+        "SortId": 30000,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Item_Relic",
+          "SourceString": "テスト聖遺物",
+          "LocalizedString": "テスト聖遺物"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Item_Relic_Desc",
+          "SourceString": "獲得経験値を2倍にする",
+          "LocalizedString": "獲得経験値を2倍にする"
+        },
+        "ItemType": "eItemType::Artifact",
+        "buyingPrice": 0,
+        "sellingPrice": 0,
+        "isAvailableSale": false
+      }
+    }
+  }
+]

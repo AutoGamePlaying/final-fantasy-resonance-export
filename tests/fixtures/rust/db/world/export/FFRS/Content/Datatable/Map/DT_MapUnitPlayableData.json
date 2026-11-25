@@ -1,0 +1,30 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MapUnitPlayableData",
+    "Package": "/Game/Datatable/Map/DT_MapUnitPlayableData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'MAP_UNIT_PLAYABLE_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "SynthHero_Debug": {
+        "MapUnitId": 10,
+        "EnableConditions": "{progress:0}==0",
+        "isIdleByFourDirection": false
+      },
+      "SynthHero": {
+        "MapUnitId": 10,
+        "EnableConditions": "{progress:0}>=1010",
+        "isIdleByFourDirection": false
+      },
+      "PrologueMage": {
+        "MapUnitId": 60,
+        "EnableConditions": "{progress:0}<=1010",
+        "isIdleByFourDirection": true
+      }
+    }
+  }
+]

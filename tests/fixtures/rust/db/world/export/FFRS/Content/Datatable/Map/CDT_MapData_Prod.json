@@ -1,0 +1,192 @@
+[
+  {
+    "Type": "CompositeDataTable",
+    "Name": "CDT_MapData_Prod",
+    "Package": "/Game/Datatable/Map/CDT_MapData_Prod",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'MAP_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "FakeTown01": {
+        "ID": 2001,
+        "SortId": 10,
+        "GroupId": 1,
+        "regionId": -1,
+        "sameMapId": -1,
+        "island": "eMapIslandType::Grandshelt",
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Map_Harbor",
+          "SourceString": "テスト港町",
+          "LocalizedString": "テスト港町"
+        },
+        "DangerLevel": 0,
+        "Level": {
+          "AssetPathName": "/Game/Map/Town/01Fake/Town_01Fake_01_PL.Town_01Fake_01_PL",
+          "SubPathString": ""
+        },
+        "MapType": "eMapType::Town",
+        "dungeonType": "eMapDungeonType::None",
+        "battleStage": -1,
+        "doMovementEncount": false,
+        "doEncountCondition": "",
+        "encountGroupId": -1,
+        "facilityDataList": [
+          {
+            "Condition": "",
+            "Type": "eMapInteractType::Inn"
+          },
+          {
+            "Condition": "",
+            "Type": "eMapInteractType::Shop"
+          },
+          {
+            "Condition": "",
+            "Type": "eMapInteractType::Shop_Weapon"
+          }
+        ],
+        "startupEventList": [
+          {
+            "Condition": "{progress:0}==1010",
+            "EventId": "Ev_FakeTown_Intro"
+          }
+        ]
+      },
+      "FakeDungeon01": {
+        "ID": 3001,
+        "SortId": 20,
+        "GroupId": 2,
+        "regionId": -1,
+        "sameMapId": -1,
+        "island": "eMapIslandType::Grandshelt",
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Map_Cavern",
+          "SourceString": "テスト洞窟",
+          "LocalizedString": "テスト洞窟"
+        },
+        "DangerLevel": 12,
+        "Level": {
+          "AssetPathName": "/Game/Map/Dng/01Fake/Dng_01Fake_43_PL.Dng_01Fake_43_PL",
+          "SubPathString": ""
+        },
+        "MapType": "eMapType::Dungeon",
+        "dungeonType": "eMapDungeonType::Cave",
+        "battleStage": 401,
+        "doMovementEncount": true,
+        "doEncountCondition": "",
+        "encountGroupId": 77,
+        "facilityDataList": [],
+        "startupEventList": []
+      },
+      "FakeArenaA": {
+        "ID": 10040,
+        "SortId": -1,
+        "GroupId": -1,
+        "regionId": -1,
+        "sameMapId": -1,
+        "island": "eMapIslandType::None",
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Map_TrialGround",
+          "SourceString": "テスト試練場",
+          "LocalizedString": "テスト試練場"
+        },
+        "DangerLevel": 5,
+        "Level": {
+          "AssetPathName": "/Game/Map/Com/00Fake/Com_00Fake_45_PL.Com_00Fake_45_PL",
+          "SubPathString": ""
+        },
+        "MapType": "eMapType::Dungeon",
+        "dungeonType": "eMapDungeonType::None",
+        "battleStage": 10,
+        "doMovementEncount": false,
+        "doEncountCondition": "",
+        "encountGroupId": -1,
+        "facilityDataList": [],
+        "startupEventList": []
+      },
+      "FakeArenaB": {
+        "ID": 10041,
+        "SortId": -1,
+        "GroupId": -1,
+        "regionId": -1,
+        "sameMapId": 10040,
+        "island": "eMapIslandType::None",
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Map_TrialGround",
+          "SourceString": "テスト試練場",
+          "LocalizedString": "テスト試練場"
+        },
+        "DangerLevel": 5,
+        "Level": {
+          "AssetPathName": "/Game/Map/Com/00Fake/Com_00Fake_46_PL.Com_00Fake_46_PL",
+          "SubPathString": ""
+        },
+        "MapType": "eMapType::Dungeon",
+        "dungeonType": "eMapDungeonType::None",
+        "battleStage": 11,
+        "doMovementEncount": false,
+        "doEncountCondition": "",
+        "encountGroupId": -1,
+        "facilityDataList": [],
+        "startupEventList": []
+      },
+      "FakeEventShip": {
+        "ID": 20000,
+        "SortId": -1,
+        "GroupId": -1,
+        "regionId": -1,
+        "sameMapId": -1,
+        "island": "eMapIslandType::None",
+        "Name": {
+          "CultureInvariantString": null
+        },
+        "DangerLevel": 0,
+        "Level": {
+          "AssetPathName": "/Game/Map/Event/00Fake/Event_00Fake_86_PL.Event_00Fake_86_PL",
+          "SubPathString": ""
+        },
+        "MapType": "eMapType::Town",
+        "dungeonType": "eMapDungeonType::None",
+        "battleStage": -1,
+        "doMovementEncount": false,
+        "doEncountCondition": "",
+        "encountGroupId": -1,
+        "facilityDataList": [],
+        "startupEventList": []
+      },
+      "FakeWorldField": {
+        "ID": 1000,
+        "SortId": 0,
+        "GroupId": -1,
+        "regionId": -1,
+        "sameMapId": -1,
+        "island": "eMapIslandType::None",
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "Map_Overworld",
+          "SourceString": "テストワールド",
+          "LocalizedString": "テストワールド"
+        },
+        "DangerLevel": 1,
+        "Level": {
+          "AssetPathName": "/Game/Map/Wld/Wld_Fake_PL.Wld_Fake_PL",
+          "SubPathString": ""
+        },
+        "MapType": "eMapType::Field",
+        "dungeonType": "eMapDungeonType::None",
+        "battleStage": -1,
+        "doMovementEncount": true,
+        "doEncountCondition": "",
+        "encountGroupId": 10,
+        "facilityDataList": [],
+        "startupEventList": []
+      }
+    }
+  }
+]

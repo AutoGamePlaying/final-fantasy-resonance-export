@@ -1,0 +1,120 @@
+[
+  {
+    "Type": "CompositeDataTable",
+    "Name": "CDT_QuestBoardData",
+    "Package": "/Game/Datatable/Quest/CDT_QuestBoardData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'Quest_BaseMenu_Data'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "NewRow": {
+        "QuestType": "EQuest_EntryType::Request",
+        "QuestBoardID": -1,
+        "QuestId": -1,
+        "QuestName": {
+          "CultureInvariantString": null
+        },
+        "Description": {
+          "CultureInvariantString": null
+        },
+        "MapName": {
+          "CultureInvariantString": null
+        },
+        "Condition": "",
+        "ClearConditionList": [
+          {
+            "ID": -1,
+            "DeliveryQuantity": -1
+          }
+        ],
+        "RewardList": [
+          {
+            "Money": -1,
+            "ItemId": -1,
+            "ItemNum": -1
+          }
+        ],
+        "RequestData": {
+          "EventList": []
+        }
+      },
+      "DeliverHerb": {
+        "QuestType": "EQuest_EntryType::Request",
+        "QuestBoardID": 1000,
+        "QuestId": 1001,
+        "QuestName": {
+          "TableId": "/Game/Datatable/Strings/WorldFake/ST_FakeWorld.ST_FakeWorld",
+          "Key": "QB_Deliver",
+          "SourceString": "薬草の納品",
+          "LocalizedString": "薬草の納品"
+        },
+        "Description": {
+          "CultureInvariantString": null
+        },
+        "MapName": {
+          "CultureInvariantString": null
+        },
+        "Condition": "{progress:10}==10",
+        "ClearConditionList": [
+          {
+            "ID": 1,
+            "DeliveryQuantity": 3
+          },
+          {
+            "ID": -1,
+            "DeliveryQuantity": -1
+          }
+        ],
+        "RewardList": [
+          {
+            "Money": 250,
+            "ItemId": -1,
+            "ItemNum": -1
+          },
+          {
+            "Money": -1,
+            "ItemId": 1,
+            "ItemNum": 2
+          }
+        ],
+        "RequestData": {
+          "EventList": ["Ev_DeliverHerb_Done"]
+        }
+      },
+      "NewRow_0": {
+        "QuestType": "EQuest_EntryType::Request",
+        "QuestBoardID": -1,
+        "QuestId": -1,
+        "QuestName": {
+          "CultureInvariantString": null
+        },
+        "Description": {
+          "CultureInvariantString": null
+        },
+        "MapName": {
+          "CultureInvariantString": null
+        },
+        "Condition": "",
+        "ClearConditionList": [
+          {
+            "ID": -1,
+            "DeliveryQuantity": -1
+          }
+        ],
+        "RewardList": [
+          {
+            "Money": -1,
+            "ItemId": -1,
+            "ItemNum": -1
+          }
+        ],
+        "RequestData": {
+          "EventList": []
+        }
+      }
+    }
+  }
+]

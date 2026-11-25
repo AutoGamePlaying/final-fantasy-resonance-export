@@ -1,0 +1,30 @@
+[
+  {
+    "Type": "CompositeDataTable",
+    "Name": "CDT_FlagCondition",
+    "Package": "/Game/Datatable/Flag/CDT_FlagCondition",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'FlagCondition'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "PlayerRideChocobo": {
+        "Condition": "9"
+      },
+      "GateSealed": {
+        "Condition": "!100&!102"
+      },
+      "GateHalfOpen": {
+        "Condition": "100&!102"
+      },
+      "SwitchReady": {
+        "Condition": "25"
+      },
+      "EventCombo": {
+        "Condition": "25&!99"
+      }
+    }
+  }
+]

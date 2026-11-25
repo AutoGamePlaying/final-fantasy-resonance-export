@@ -1,0 +1,19 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_InnList",
+    "Package": "/Game/Datatable/INN/DT_InnList",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'INN_Data'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "DefaultInn": {
+        "ID": -1,
+        "Price": 100
+      }
+    }
+  }
+]

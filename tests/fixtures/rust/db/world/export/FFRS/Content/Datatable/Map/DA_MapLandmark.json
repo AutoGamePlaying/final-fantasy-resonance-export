@@ -1,0 +1,72 @@
+[
+  {
+    "Type": "CPP_DA_MapLandmark",
+    "Name": "DA_MapLandmark",
+    "Package": "/Game/Datatable/Map/DA_MapLandmark",
+    "Properties": {
+      "landmarkDataList": [
+        {
+          "landmarkDataList": [
+            {
+              "Condition": "",
+              "mapId": 2001
+            }
+          ],
+          "Location": {
+            "X": 100.0,
+            "Y": 200.0,
+            "Z": 10.0
+          },
+          "airShipLandingPointId": 7001,
+          "airShipLandingLocation": {
+            "X": 120.0,
+            "Y": 210.0,
+            "Z": 5.0
+          }
+        },
+        {
+          "landmarkDataList": [
+            {
+              "Condition": "{progress:0}>=1020",
+              "mapId": 3001
+            },
+            {
+              "Condition": "",
+              "mapId": -1
+            }
+          ],
+          "Location": {
+            "X": -500.0,
+            "Y": 800.0,
+            "Z": 25.0
+          },
+          "airShipLandingPointId": 7002,
+          "airShipLandingLocation": {
+            "X": -480.0,
+            "Y": 810.0,
+            "Z": 15.0
+          }
+        },
+        {
+          "landmarkDataList": [
+            {
+              "Condition": "",
+              "mapId": 9997
+            }
+          ],
+          "Location": {
+            "X": 900.0,
+            "Y": -300.0,
+            "Z": 5.0
+          },
+          "airShipLandingPointId": -1,
+          "airShipLandingLocation": {
+            "X": 0.0,
+            "Y": 0.0,
+            "Z": 0.0
+          }
+        }
+      ]
+    }
+  }
+]
