@@ -1,0 +1,19 @@
+{
+  "ST_UI_QuestMenu": {
+    "QuestChapter": "第{Chapter}章{Name}"
+  },
+  "ST_CommandSkillName": {
+    "CmdName1": "招式",
+    "CmdName6": "幻兽召唤",
+    "CmdName7": "道具",
+    "CmdName10": "极限技",
+    "CmdName100": "幻兵秘技"
+  },
+  "ST_CommandSkillDescription": {
+    "CmdDesc1": "使用已习得的招式",
+    "CmdDesc6": "召唤同行幻兽助战",
+    "CmdDesc7": "使用背包中的消耗道具",
+    "CmdDesc10": "消耗极限槽释放强力技能",
+    "CmdDesc100": "施展装备幻兵的专属招式"
+  }
+}

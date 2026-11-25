@@ -1,0 +1,19 @@
+{
+  "ST_UI_QuestMenu": {
+    "QuestChapter": "第{Chapter}章 {Name}"
+  },
+  "ST_CommandSkillName": {
+    "CmdName1": "アビリティ",
+    "CmdName6": "幻獣召喚",
+    "CmdName7": "アイテム",
+    "CmdName10": "リミットバースト",
+    "CmdName100": "テスト幻兵技"
+  },
+  "ST_CommandSkillDescription": {
+    "CmdDesc1": "習得した技を使う",
+    "CmdDesc6": "幻獣を召喚する",
+    "CmdDesc7": "所持アイテムを使う",
+    "CmdDesc10": "リミット技を放つ",
+    "CmdDesc100": "幻兵の固有技を使う"
+  }
+}

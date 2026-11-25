@@ -1,0 +1,17 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_CommandSkillDescription",
+    "Package": "/Game/Datatable/Strings/ST_Skill/ST_CommandSkillDescription",
+    "StringTable": {
+      "TableNamespace": "ST_CommandSkillDescription",
+      "KeysToEntries": {
+        "CmdDesc1": "習得した技を使う",
+        "CmdDesc6": "幻獣を召喚する",
+        "CmdDesc7": "所持アイテムを使う",
+        "CmdDesc10": "リミット技を放つ",
+        "CmdDesc100": "幻兵の固有技を使う"
+      }
+    }
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_UI_QuestMenu",
+    "Package": "/Game/Datatable/Strings/UI/UI_Common/ST_UI_QuestMenu",
+    "StringTable": {
+      "TableNamespace": "ST_UI_QuestMenu",
+      "KeysToEntries": {
+        "QuestChapter": "第{Chapter}章 {Name}"
+      }
+    }
+  }
+]

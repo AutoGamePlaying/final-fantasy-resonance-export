@@ -1,0 +1,17 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_CommandSkillName",
+    "Package": "/Game/Datatable/Strings/ST_Skill/ST_CommandSkillName",
+    "StringTable": {
+      "TableNamespace": "ST_CommandSkillName",
+      "KeysToEntries": {
+        "CmdName1": "アビリティ",
+        "CmdName6": "幻獣召喚",
+        "CmdName7": "アイテム",
+        "CmdName10": "リミットバースト",
+        "CmdName100": "テスト幻兵技"
+      }
+    }
+  }
+]

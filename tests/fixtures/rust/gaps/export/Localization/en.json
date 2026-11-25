@@ -1,0 +1,19 @@
+{
+  "ST_UI_QuestMenu": {
+    "QuestChapter": "Chapter {Chapter} - {Name}"
+  },
+  "ST_CommandSkillName": {
+    "CmdName1": "Abilities",
+    "CmdName6": "Esper",
+    "CmdName7": "Items",
+    "CmdName10": "Limit Burst",
+    "CmdName100": "Vision Arts"
+  },
+  "ST_CommandSkillDescription": {
+    "CmdDesc1": "Use learned abilities.",
+    "CmdDesc6": "Summon an esper.",
+    "CmdDesc7": "Use consumables from inventory.",
+    "CmdDesc10": "Unleash a Limit Burst.",
+    "CmdDesc100": "Use the equipped vision's skills."
+  }
+}

@@ -1,0 +1,19 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_01Fake_43_01_Encount",
+    "Package": "/Game/Datatable/Encount/01Fake/DT_01Fake_43_01_Encount",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'ENCOUNT_GROUP_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "Slot1": {
+        "battleGroupId": 9801,
+        "encountRatio": 100
+      }
+    }
+  }
+]

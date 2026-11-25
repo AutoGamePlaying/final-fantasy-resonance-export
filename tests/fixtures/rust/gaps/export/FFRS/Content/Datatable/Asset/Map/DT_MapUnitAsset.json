@@ -1,0 +1,24 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MapUnitAsset",
+    "Package": "/Game/Datatable/Asset/Map/DT_MapUnitAsset",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'UNIT_ASSET_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "SynthHero": {
+        "ID": 10
+      },
+      "PrologueMage": {
+        "ID": 60
+      },
+      "TownGuardNpc": {
+        "ID": 901
+      }
+    }
+  }
+]
