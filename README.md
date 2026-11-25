@@ -4,9 +4,28 @@
 
 > 本仓库仅面向《FINAL FANTASY RESONANCE》服务，不做通用化；所有游戏文件、`.usmap` 映射文件与导出产物均留在 `.deps/`（或 `$FFR_DEPS`）下，不进入版本库。
 
-## 环境准备
+## 快速开始（Windows）
 
-### 1. 安装 .NET 10 SDK
+无需安装开发环境，直接下载打包好的 Windows 版本即可使用：
+
+1. **下载压缩包**：
+   - **正式版本**：前往仓库的 **Releases** 页面下载最新 `ffr-export-<版本>-win-x64.zip`；
+   - **最新开发构建**：前往仓库的 **Actions** 页面，打开最新一次 `main` 分支通过的 **CI** 记录，在底部的 **Artifacts** 中下载 `ffr-export-<版本>-<提交短号>-win-x64`（保留 30 天）。
+2. **解压到同一目录**：将压缩包完整解压到一个文件夹，确保 `ffr-export.exe`、`ffr-db.exe` 与 `known-builds.json` 位于同一目录（不要只单独移动 `ffr-export.exe`）。
+3. **准备 `.usmap` 映射文件**：`.usmap` 无法随工具分发，需要从运行中的《FINAL FANTASY RESONANCE》游戏里用 UE4SS 转储得到；`.jmap` 反射转储文件可选（可提供多份，也可以直接回车跳过）。
+4. **双击运行 `ffr-export.exe`**：不带任何参数运行时会自动进入交互式中文向导，按提示操作即可：
+   - 自动定位 Steam 并扫描所有游戏库中的《FINAL FANTASY RESONANCE》（若未找到，可直接粘贴游戏安装目录，支持带空格或带引号的路径）；
+   - 粘贴 `.usmap` 文件路径（必填）以及可选的 `.jmap` 文件路径；
+   - 直接回车使用默认输出目录（程序同目录下的 `output/ffr-<Steam 构建号>/`），或输入其他目录；
+   - 确认后开始导出并构建 SQLite 数据库（`ffr.sqlite`），完成后显示数据库路径、文件哈希、内容哈希以及与 `known-builds.json` 的比对结论，最后按回车退出。
+
+> 如果需要在脚本或终端里以非交互方式运行，直接带参数调用即可（例如 `ffr-export.exe build-db --game "<Steam 游戏目录>" --usmap <文件>`）；有参数时命令行行为保持不变。
+
+## 命令行与开发用法
+
+### 环境准备
+
+#### 1. 安装 .NET 10 SDK
 
 默认使用仓库根目录下的 `.deps/dotnet`（NuGet 缓存位于 `.deps/nuget`，不改动 `~/.dotnet`）：
 
@@ -18,7 +37,7 @@ bash .deps/dotnet-install.sh --channel 10.0 --install-dir .deps/dotnet --no-path
 
 也可以通过环境变量 `DOTNET_ROOT` 指定已安装好的 .NET 10 SDK 目录，`scripts/run.sh` 与 `scripts/check.sh` 会自动识别。
 
-### 2. 准备游戏文件与 `.usmap`
+#### 2. 准备游戏文件与 `.usmap`
 
 - **游戏文件（只读）**：将游戏安装目录放到 `.deps/ffr/files/`（或指向安装目录的软链接）。默认挂载目录为 `$FFR_DEPS/ffr/files/FFRS/Content/Paks`（未设 `FFR_DEPS` 时为 `.deps/ffr/files/FFRS/Content/Paks`）。工具绝不修改游戏文件。
 - **`.usmap` 映射文件**：`list`、`raw`、`locres`、`inventory` 不需要映射文件；`export`、`export-assets`、`export-maps` 需要从游戏进程中用 UE4SS 导出的 `.usmap`，运行时通过 `--usmap <文件>` 传入。
@@ -187,11 +206,12 @@ scripts/check.sh
 
 ### 持续集成（`.github/workflows/ci.yml`）
 
-每次向任意分支 `push` 或提交 `pull_request` 时触发（默认 `contents: read` 权限），包含三个 job：
+每次向任意分支 `push` 或提交 `pull_request` 时触发（默认 `contents: read` 权限），包含四个 job：
 
 1. **`check`**（`ubuntu-latest` + `windows-latest`）：安装 .NET 10 SDK 与 Rust stable，缓存 NuGet 与 Cargo 后执行 `scripts/check.sh`（Linux 上额外跑 `dotnet format --verify-no-changes` 与 `cargo fmt --check`，两个平台均执行 `dotnet build -c Release`、`dotnet test`、`cargo clippy --workspace --all-targets -- -D warnings` 与 `cargo test --workspace`；CI 上无 `.deps/`，真实数据测试自动跳过）。
 2. **`fixture-hash`**（`ubuntu-latest` + `windows-latest`）：执行 `scripts/fixture-db.sh`，汇总 `tests/fixtures/rust/db/` 下全部区域的合成假数据运行一次完整 `ffr-db build`，再运行 `ffr-db hash --json` 并将结果上传为 artifact。
 3. **`compare-hash`**（依赖两个 `fixture-hash`）：下载 Linux 与 Windows 两份哈希 JSON，比对 `file_sha256`、`content_sha256` 以及每张普通表的行数与哈希；任意一项不一致即失败并打印存在差异的表。
+4. **`package-windows`**（仅在 `push` 到 `main` 且 `check` 通过后运行，`windows-latest`）：执行 `scripts/package-windows.ps1` 原生打包 Windows x64 压缩包，并上传为名为 `ffr-export-<版本>-<提交短号>-win-x64` 的 artifact（保留 30 天）。
 
 ### 跨平台哈希核对的意义
 
