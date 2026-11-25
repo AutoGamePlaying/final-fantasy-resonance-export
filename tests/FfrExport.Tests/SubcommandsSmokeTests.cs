@@ -444,7 +444,7 @@ public sealed class SubcommandsSmokeTests
 
         foreach (var subpath in protectedSubpaths)
         {
-            var target = Path.Combine(workspace.DepsDir, subpath);
+            var target = Path.Combine(workspace.DepsDir, subpath.Replace('/', Path.DirectorySeparatorChar));
             var result = await TestHarness.RunCliAsync(
                 ["inventory", "--out", target],
                 ffrDeps: workspace.DepsDir);
@@ -476,18 +476,19 @@ public sealed class SubcommandsSmokeTests
     public async Task RunScript_RespectsDotnetRootOverride()
     {
         var repoRoot = TestHarness.FindRepoRoot();
-        var runScript = Path.Combine(repoRoot, "scripts", "run.sh");
 
         var startInfo = new System.Diagnostics.ProcessStartInfo
         {
-            FileName = "bash",
+            FileName = ResolveBashExecutable(),
             WorkingDirectory = repoRoot,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
-        startInfo.ArgumentList.Add(runScript);
+        startInfo.ArgumentList.Add("scripts/run.sh");
         startInfo.ArgumentList.Add("export-assets");
         startInfo.ArgumentList.Add("--classify");
         startInfo.ArgumentList.Add("DataTable");
@@ -495,10 +496,72 @@ public sealed class SubcommandsSmokeTests
 
         using var process = System.Diagnostics.Process.Start(startInfo)
             ?? throw new InvalidOperationException("无法启动 scripts/run.sh");
-        var stderr = await process.StandardError.ReadToEndAsync();
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
         await process.WaitForExitAsync();
+        _ = await stdoutTask;
+        var stderr = await stderrTask;
 
         Assert.Equal(2, process.ExitCode);
         Assert.Contains("找不到 dotnet 可执行文件", stderr, StringComparison.Ordinal);
+    }
+
+    private static string ResolveBashExecutable()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return "bash";
+        }
+
+        // On Windows, prefer Git Bash over the WSL System32\bash.exe launcher stub.
+        var systemDir = Environment.SystemDirectory;
+        var pathEnv = Environment.GetEnvironmentVariable("PATH");
+        if (!string.IsNullOrWhiteSpace(pathEnv))
+        {
+            foreach (var rawDir in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var dir = rawDir.Trim('"');
+                if (string.IsNullOrEmpty(dir))
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(systemDir)
+                    && Path.GetFullPath(dir).TrimEnd(Path.DirectorySeparatorChar)
+                        .Equals(Path.GetFullPath(systemDir).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var candidate = Path.Combine(dir, "bash.exe");
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        foreach (var programFiles in new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+        })
+        {
+            if (string.IsNullOrEmpty(programFiles))
+            {
+                continue;
+            }
+
+            foreach (var rel in new[] { Path.Combine("Git", "bin", "bash.exe"), Path.Combine("Git", "usr", "bin", "bash.exe") })
+            {
+                var candidate = Path.Combine(programFiles, rel);
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        return "bash";
     }
 }
