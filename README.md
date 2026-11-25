@@ -39,6 +39,7 @@ bash .deps/dotnet-install.sh --channel 10.0 --install-dir .deps/dotnet --no-path
 | `$DEPS/ffr/inventory` | `inventory` | 资源索引 `registry.jsonl`、`summary.json`、`manifest.json` |
 | `$DEPS/ffr/export-full` | `export-assets` | 全量非图像资源 JSON、原样拷贝的 `Config/*.ini`/`.uplugin`/`.uproject` 与 `manifest.json` |
 | `$DEPS/ffr/export-full/maps` | `export-maps` | 全量关卡 `<关卡名>.json`、地图图谱 `_graph.json` 与 `manifest.json` |
+| `$DEPS/ffr/db/ffr.sqlite` | `ffr-db build` | 汇总导出 JSON 与可选 `.jmap`/快照的本地 SQLite 游戏数据库 |
 
 ### 输出目录护栏
 
@@ -118,9 +119,37 @@ scripts/run.sh export-maps --usmap <Mappings.usmap> \
 
 也支持 `--from-json <夹具目录>` 离线模式（供测试与合成夹具验证摘要提取和图谱聚合，不需要游戏包与 `.usmap`）。
 
+## JSON → SQLite
+
+本仓库内置 Rust 数据层（`crates/ffr-data`）与本地数据库工具（`crates/ffr-db`），将前面导出的 JSON（数据表、多语言文本、资源索引、全量非图像资源、关卡图谱）以及可选的 `.jmap` 反射转储、真机快照统一构造成单个 SQLite 文件。表结构、索引与查询 API 设计见 [docs/database.md](docs/database.md)。
+
+### 用法
+
+```bash
+FFR_DEPS=.deps cargo run --release -p ffr-db -- build \
+  [--export <目录>] [--full <目录>] [--inventory <目录>] [--maps <目录>] \
+  [--jmap <文件>]... [--snapshots <目录>] [--stages <阶段列表>] [--out <文件>]
+```
+
+典型完整构建（合并多份 `.jmap`，不含真机快照）：
+
+```bash
+FFR_DEPS=.deps cargo run --release -p ffr-db -- build \
+  --jmap .deps/r1/<title-jmap>/<Mappings>.jmap \
+  --jmap .deps/r1/<battle-jmap>/<Mappings>.jmap
+```
+
+### 输入与输出位置
+
+- **默认输入**：全部从 `$FFR_DEPS/ffr/` 下读取（`export`、`export-full`、`inventory`、`export-full/maps`），可通过 `--export`、`--full`、`--inventory`、`--maps` 单独覆盖。
+- **显式输入**：`--jmap`（可多次传入合并，冲突以后者为准）与 `--snapshots` 必须显式指定；未传时跳过对应阶段。部署到游戏机的库不带 `--snapshots`。
+- **默认输出**：`$FFR_DEPS/ffr/db/ffr.sqlite`（例如 `FFR_DEPS=.deps` 时为 `.deps/ffr/db/ffr.sqlite`），可用 `--out <文件>` 覆盖。构建过程先写入临时文件并完成建索引、`ANALYZE`、`VACUUM`，全部成功后再原子替换目标文件。
+
+`ffr-db` 同时提供只读查询与检查子命令：`stats`（表行数与文件大小）、`sql "<SELECT ...>"`、`explain "<SELECT ...>"`、`bench`。
+
 ## 与共鸣仓库的关系
 
-本仓库的下游是同级目录的 `../Final-Fantasy-Resonance-Agent`（其中 Rust 数据层 `ffr-data` 与 SQLite 数据库构建工具 `ffr-db` 直接读取本工具产出的 JSON）。
+本仓库的下游是同级目录的 `../Final-Fantasy-Resonance-Agent`（其中的 `ffr-module` 直接依赖本仓库的 `ffr-data` / `ffr-db` 读取 API 以及构建出的 SQLite 数据库）。
 
 只需设置 `FFR_DEPS` 指向共鸣仓库的 `.deps`，即可直接向共鸣仓库输出全套数据：
 
@@ -148,6 +177,9 @@ scripts/check.sh
 1. `dotnet format FfrExport.sln --verify-no-changes`
 2. `dotnet build FfrExport.sln -c Release`（启用 `Nullable` 与警告当错误）
 3. `dotnet test FfrExport.sln -c Release --no-build`（xUnit，全部使用合成测试数据，不依赖真实游戏文件）
+4. `cargo fmt --check`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `cargo test --workspace`（`ffr-data` 与 `ffr-db` 单元/集成测试；真实数据测试通过 `FFR_DEPS` 或 `.deps` 发现，无数据时自动跳过）
 
 ## Oodle 与联网说明
 

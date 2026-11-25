@@ -10,6 +10,12 @@ TestResults/
 *.cache
 .vs/
 
+# Rust build artifacts
+target/
+
+# Distribution packages
+dist/
+
 # Unreal mappings / game dumps (never commit)
 *.usmap
 *.jmap
@@ -20,6 +26,7 @@ TestResults/
 *.umap
 *.ubulk
 *.locres
+!tests/fixtures/rust/db/**/*.jmap
 
 # OS / editor noise
 .DS_Store

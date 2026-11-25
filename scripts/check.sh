@@ -35,3 +35,19 @@ echo "==> dotnet build -c Release"
 
 echo "==> dotnet test"
 "$DOTNET_BIN" test FfrExport.sln -c Release --no-build
+
+export PATH="$HOME/.cargo/bin:$PATH"
+
+if ! command -v cargo >/dev/null 2>&1; then
+  echo "错误：找不到 cargo 可执行文件（请确认 \$HOME/.cargo/bin 已安装 Rust 工具链）" >&2
+  exit 2
+fi
+
+echo "==> cargo fmt --check"
+cargo fmt --check
+
+echo "==> cargo clippy --workspace --all-targets -- -D warnings"
+cargo clippy --workspace --all-targets -- -D warnings
+
+echo "==> cargo test --workspace"
+cargo test --workspace
