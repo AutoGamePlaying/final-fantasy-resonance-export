@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 
 namespace FfrExport.Tests;
 
@@ -83,27 +84,41 @@ internal static class TestHarness
         string? workingDirectory = null,
         string? pathEnvOverride = null)
     {
-        var dllPath = Path.Combine(AppContext.BaseDirectory, "FfrExport.dll");
-        if (!File.Exists(dllPath))
+        var cliHostDll = Path.Combine(AppContext.BaseDirectory, "cli-host", "FfrExport.TestCliHost.dll");
+        if (!File.Exists(cliHostDll))
         {
-            throw new FileNotFoundException($"测试构建产物不存在：{dllPath}");
+            throw new FileNotFoundException($"测试 CLI 宿主产物不存在：{cliHostDll}");
         }
 
+        var dotnetExe = ResolveDotnetExecutable();
         var startInfo = new ProcessStartInfo
         {
-            FileName = ResolveDotnetExecutable(),
+            FileName = dotnetExe,
             WorkingDirectory = workingDirectory ?? FindRepoRoot(),
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
 
         startInfo.ArgumentList.Add("exec");
-        startInfo.ArgumentList.Add(dllPath);
+        startInfo.ArgumentList.Add(cliHostDll);
         foreach (var arg in args)
         {
             startInfo.ArgumentList.Add(arg);
+        }
+
+        // Ensure child .NET apphost processes (such as FfrExport.FakeFfrDb) locate the active runtime.
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DOTNET_ROOT"))
+            && Path.IsPathRooted(dotnetExe))
+        {
+            var dotnetDir = Path.GetDirectoryName(dotnetExe);
+            if (!string.IsNullOrEmpty(dotnetDir))
+            {
+                startInfo.Environment["DOTNET_ROOT"] = dotnetDir;
+            }
         }
 
         if (ffrDeps is null)

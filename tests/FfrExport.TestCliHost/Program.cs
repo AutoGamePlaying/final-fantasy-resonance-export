@@ -1,0 +1,41 @@
+using System.Reflection;
+using System.Runtime.ExceptionServices;
+using System.Text;
+
+namespace FfrExport.TestCliHost;
+
+/// <summary>
+/// Test CLI host that forces UTF-8 standard output and error streams before invoking FfrExport,
+/// preventing Windows redirected-pipe code page fallback (CP437/CP1252) from corrupting Chinese text.
+/// </summary>
+internal static class Program
+{
+    public static async Task<int> Main(string[] args)
+    {
+        var utf8NoBom = new UTF8Encoding(false);
+        Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), utf8NoBom) { AutoFlush = true });
+        Console.SetError(new StreamWriter(Console.OpenStandardError(), utf8NoBom) { AutoFlush = true });
+
+        var assembly = Assembly.Load("FfrExport");
+        var entryPoint = assembly.EntryPoint
+            ?? throw new InvalidOperationException("找不到 FfrExport 程序入口点");
+
+        object? result;
+        try
+        {
+            result = entryPoint.Invoke(null, [args]);
+        }
+        catch (TargetInvocationException exception) when (exception.InnerException is not null)
+        {
+            ExceptionDispatchInfo.Capture(exception.InnerException).Throw();
+            throw;
+        }
+
+        return result switch
+        {
+            int code => code,
+            Task<int> task => await task,
+            _ => 0,
+        };
+    }
+}
