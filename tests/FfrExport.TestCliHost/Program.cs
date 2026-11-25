@@ -13,6 +13,7 @@ internal static class Program
     public static async Task<int> Main(string[] args)
     {
         var utf8NoBom = new UTF8Encoding(false);
+        Console.SetIn(new StreamReader(Console.OpenStandardInput(), utf8NoBom));
         Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), utf8NoBom) { AutoFlush = true });
         Console.SetError(new StreamWriter(Console.OpenStandardError(), utf8NoBom) { AutoFlush = true });
 

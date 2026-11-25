@@ -461,11 +461,12 @@ public sealed class SubcommandsSmokeTests
     }
 
     [Fact]
-    public async Task CliArguments_MissingOrUnknownSubcommand_ReturnsExitCode2()
+    public async Task CliArguments_NoArgsEntersWizardAndUnknownSubcommandReturnsExitCode2()
     {
-        var missing = await TestHarness.RunCliAsync([]);
-        Assert.Equal(2, missing.ExitCode);
-        Assert.Contains("缺少子命令", missing.Stderr, StringComparison.Ordinal);
+        var wizardEof = await TestHarness.RunCliAsync([], stdinInput: string.Empty);
+        Assert.Equal(2, wizardEof.ExitCode);
+        Assert.Contains("资源导出与建库向导", wizardEof.Stdout, StringComparison.Ordinal);
+        Assert.DoesNotContain("缺少子命令", wizardEof.Stderr, StringComparison.Ordinal);
 
         var unknown = await TestHarness.RunCliAsync(["unknown-cmd"]);
         Assert.Equal(2, unknown.ExitCode);

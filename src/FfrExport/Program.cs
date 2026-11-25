@@ -70,7 +70,7 @@ internal static partial class Program
     {
         if (args.Length == 0)
         {
-            throw new ArgumentException("缺少子命令；可用命令：list、raw、export、locres、inventory、export-assets、export-maps、build-db");
+            return await RunInteractiveWizardAsync();
         }
 
         switch (args[0])

@@ -82,7 +82,8 @@ internal static class TestHarness
         IReadOnlyList<string> args,
         string? ffrDeps = null,
         string? workingDirectory = null,
-        string? pathEnvOverride = null)
+        string? pathEnvOverride = null,
+        string? stdinInput = null)
     {
         var cliHostDll = Path.Combine(AppContext.BaseDirectory, "cli-host", "FfrExport.TestCliHost.dll");
         if (!File.Exists(cliHostDll))
@@ -95,6 +96,7 @@ internal static class TestHarness
         {
             FileName = dotnetExe,
             WorkingDirectory = workingDirectory ?? FindRepoRoot(),
+            RedirectStandardInput = stdinInput is not null,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             StandardOutputEncoding = Encoding.UTF8,
@@ -102,6 +104,10 @@ internal static class TestHarness
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        if (stdinInput is not null)
+        {
+            startInfo.StandardInputEncoding = Encoding.UTF8;
+        }
 
         startInfo.ArgumentList.Add("exec");
         startInfo.ArgumentList.Add(cliHostDll);
@@ -137,6 +143,12 @@ internal static class TestHarness
 
         using var process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("无法启动 FfrExport 子进程");
+
+        if (stdinInput is not null)
+        {
+            await process.StandardInput.WriteAsync(stdinInput);
+            process.StandardInput.Close();
+        }
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();
