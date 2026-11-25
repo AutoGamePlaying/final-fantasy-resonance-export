@@ -1,0 +1,199 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - name: Configure Git line endings and .NET cache paths
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          {
+            echo "DOTNET_CLI_HOME=${RUNNER_TEMP}/dotnet-home"
+            echo "NUGET_PACKAGES=${RUNNER_TEMP}/nuget"
+            echo "NUGET_HTTP_CACHE_PATH=${RUNNER_TEMP}/nuget-http"
+          } >> "${GITHUB_ENV}"
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Rust stable
+        id: rust
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+          components: ${{ matrix.os == 'ubuntu-latest' && 'clippy, rustfmt' || 'clippy' }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/nuget
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Cache Cargo registry and build artifacts
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ steps.rust.outputs.cachekey }}-
+            ${{ runner.os }}-cargo-
+
+      - name: Run check script
+        shell: bash
+        run: |
+          if [[ -e .deps ]]; then
+            echo "错误：CI 工作区中不应存在 .deps 目录" >&2
+            exit 1
+          fi
+          bash scripts/check.sh
+
+  fixture-hash:
+    name: Fixture Hash (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Disable Git autocrlf for consistent fixture bytes
+        shell: bash
+        run: git config --global core.autocrlf false
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Rust stable
+        id: rust
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+
+      - name: Cache Cargo registry and build artifacts
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-fixture-cargo-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-fixture-cargo-${{ steps.rust.outputs.cachekey }}-
+            ${{ runner.os }}-cargo-${{ steps.rust.outputs.cachekey }}-
+            ${{ runner.os }}-cargo-
+
+      - name: Build fixture database and compute hash
+        shell: bash
+        env:
+          MATRIX_OS: ${{ matrix.os }}
+        run: |
+          bash scripts/fixture-db.sh --hash-out "${RUNNER_TEMP}/fixture-hash-${MATRIX_OS}.json"
+
+      - name: Upload fixture hash report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fixture-hash-${{ matrix.os }}
+          path: ${{ runner.temp }}/fixture-hash-${{ matrix.os }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+  compare-hash:
+    name: Compare Cross-Platform Hashes
+    needs: fixture-hash
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download fixture hash reports
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: fixture-hash-*
+          path: ${{ runner.temp }}/hashes
+          merge-multiple: true
+
+      - name: Compare Linux and Windows database hashes
+        shell: bash
+        run: |
+          python3 - "${RUNNER_TEMP}/hashes/fixture-hash-ubuntu-latest.json" "${RUNNER_TEMP}/hashes/fixture-hash-windows-latest.json" <<'PY'
+          import json
+          import sys
+
+          linux_path, win_path = sys.argv[1], sys.argv[2]
+          with open(linux_path, "r", encoding="utf-8") as f:
+              linux_data = json.load(f)
+          with open(win_path, "r", encoding="utf-8") as f:
+              win_data = json.load(f)
+
+          print(f"Linux   file_sha256:    {linux_data['file_sha256']}")
+          print(f"Windows file_sha256:    {win_data['file_sha256']}")
+          print(f"Linux   content_sha256: {linux_data['content_sha256']}")
+          print(f"Windows content_sha256: {win_data['content_sha256']}")
+          print(f"Linux   sqlite_version: {linux_data.get('sqlite_version')} (schema v{linux_data.get('schema_version')})")
+          print(f"Windows sqlite_version: {win_data.get('sqlite_version')} (schema v{win_data.get('schema_version')})")
+
+          diffs = []
+          for field in ("file_sha256", "content_sha256", "schema_version"):
+              if linux_data.get(field) != win_data.get(field):
+                  diffs.append(f"字段 {field} 不一致：Linux={linux_data.get(field)} vs Windows={win_data.get(field)}")
+
+          linux_tables = {t["name"]: t for t in linux_data.get("tables", [])}
+          win_tables = {t["name"]: t for t in win_data.get("tables", [])}
+          all_names = sorted(set(linux_tables) | set(win_tables))
+
+          diff_tables = []
+          for name in all_names:
+              lt = linux_tables.get(name)
+              wt = win_tables.get(name)
+              if lt is None:
+                  diff_tables.append(f"  - {name}: Linux 缺失，Windows rows={wt['rows']} sha256={wt['sha256']}")
+              elif wt is None:
+                  diff_tables.append(f"  - {name}: Windows 缺失，Linux rows={lt['rows']} sha256={lt['sha256']}")
+              elif lt["rows"] != wt["rows"] or lt["sha256"] != wt["sha256"]:
+                  diff_tables.append(
+                      f"  - {name}: Linux(rows={lt['rows']}, sha256={lt['sha256']}) != "
+                      f"Windows(rows={wt['rows']}, sha256={wt['sha256']})"
+                  )
+
+          if diffs or diff_tables:
+              print("错误：Linux 与 Windows 构建的假数据库哈希不一致！", file=sys.stderr)
+              for line in diffs:
+                  print(line, file=sys.stderr)
+              if diff_tables:
+                  print(f"存在差异的表（共 {len(diff_tables)} 张）：", file=sys.stderr)
+                  for line in diff_tables:
+                      print(line, file=sys.stderr)
+              sys.exit(1)
+
+          print(f"核对通过：Linux 与 Windows 哈希完全一致（共 {len(all_names)} 张表）。")
+          PY
