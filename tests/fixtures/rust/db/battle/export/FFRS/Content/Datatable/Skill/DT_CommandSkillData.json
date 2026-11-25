@@ -1,0 +1,170 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_CommandSkillData",
+    "Package": "/Game/Datatable/Skill/DT_CommandSkillData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'COMMAND_SKILL_DATA'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "NONE": {
+        "ID": -1,
+        "SortId": 0,
+        "unitIdToUseSkill": -1,
+        "Name": {
+          "CultureInvariantString": "NONE"
+        },
+        "Description": {
+          "CultureInvariantString": null
+        },
+        "SkillIcon": {
+          "TagName": "None"
+        },
+        "isRemovable": false,
+        "equipCost": 0,
+        "filters": []
+      },
+      "Ability": {
+        "ID": 1,
+        "SortId": 10,
+        "unitIdToUseSkill": -1,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_CommandSkillName.ST_CommandSkillName",
+          "Key": "CmdName1",
+          "SourceString": "アビリティ",
+          "LocalizedString": "アビリティ"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_CommandSkillDescription.ST_CommandSkillDescription",
+          "Key": "CmdDesc1",
+          "SourceString": "習得した技を使う",
+          "LocalizedString": "習得した技を使う"
+        },
+        "SkillIcon": {
+          "TagName": "Icon.Command.Ability"
+        },
+        "isRemovable": false,
+        "equipCost": 0,
+        "filters": []
+      },
+      "Esper": {
+        "ID": 6,
+        "SortId": 60,
+        "unitIdToUseSkill": -1,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_CommandSkillName.ST_CommandSkillName",
+          "Key": "CmdName6",
+          "SourceString": "幻獣召喚",
+          "LocalizedString": "幻獣召喚"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_CommandSkillDescription.ST_CommandSkillDescription",
+          "Key": "CmdDesc6",
+          "SourceString": "幻獣を召喚する",
+          "LocalizedString": "幻獣を召喚する"
+        },
+        "SkillIcon": {
+          "TagName": "Icon.Command.Esper"
+        },
+        "isRemovable": false,
+        "equipCost": 0,
+        "filters": []
+      },
+      "Item": {
+        "ID": 7,
+        "SortId": 70,
+        "unitIdToUseSkill": -1,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_CommandSkillName.ST_CommandSkillName",
+          "Key": "CmdName7",
+          "SourceString": "アイテム",
+          "LocalizedString": "アイテム"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_CommandSkillDescription.ST_CommandSkillDescription",
+          "Key": "CmdDesc7",
+          "SourceString": "所持アイテムを使う",
+          "LocalizedString": "所持アイテムを使う"
+        },
+        "SkillIcon": {
+          "TagName": "Icon.Command.Item"
+        },
+        "isRemovable": false,
+        "equipCost": 0,
+        "filters": []
+      },
+      "LimitBurst": {
+        "ID": 10,
+        "SortId": 100,
+        "unitIdToUseSkill": -1,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_CommandSkillName.ST_CommandSkillName",
+          "Key": "CmdName10",
+          "SourceString": "リミットバースト",
+          "LocalizedString": "リミットバースト"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_CommandSkillDescription.ST_CommandSkillDescription",
+          "Key": "CmdDesc10",
+          "SourceString": "リミット技を放つ",
+          "LocalizedString": "リミット技を放つ"
+        },
+        "SkillIcon": {
+          "TagName": "Icon.Command.Limit"
+        },
+        "isRemovable": false,
+        "equipCost": 0,
+        "filters": []
+      },
+      "VisionArts": {
+        "ID": 100,
+        "SortId": 200,
+        "unitIdToUseSkill": 13017,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_CommandSkillName.ST_CommandSkillName",
+          "Key": "CmdName100",
+          "SourceString": "テスト幻兵技",
+          "LocalizedString": "テスト幻兵技"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_CommandSkillDescription.ST_CommandSkillDescription",
+          "Key": "CmdDesc100",
+          "SourceString": "幻兵の固有技を使う",
+          "LocalizedString": "幻兵の固有技を使う"
+        },
+        "SkillIcon": {
+          "TagName": "Icon.Command.Vision"
+        },
+        "isRemovable": true,
+        "equipCost": 3,
+        "filters": []
+      },
+      "VisionArtsDangling": {
+        "ID": 101,
+        "SortId": 201,
+        "unitIdToUseSkill": 19999,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_CommandSkillName.ST_CommandSkillName",
+          "Key": "CmdName100",
+          "SourceString": "テスト幻兵技",
+          "LocalizedString": "テスト幻兵技"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_CommandSkillDescription.ST_CommandSkillDescription",
+          "Key": "CmdDesc100",
+          "SourceString": "幻兵の固有技を使う",
+          "LocalizedString": "幻兵の固有技を使う"
+        },
+        "SkillIcon": {
+          "TagName": "Icon.Command.Vision"
+        },
+        "isRemovable": true,
+        "equipCost": 3,
+        "filters": []
+      }
+    }
+  }
+]

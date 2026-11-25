@@ -1,0 +1,18 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_VisionItemData",
+    "Package": "/Game/Datatable/Item/Vision/DT_VisionItemData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'VISION_ITEM_DATA'"
+      }
+    },
+    "Rows": {
+      "SynthVision": {
+        "ID": 13017,
+        "finishBlowSkill": 95003
+      }
+    }
+  }
+]

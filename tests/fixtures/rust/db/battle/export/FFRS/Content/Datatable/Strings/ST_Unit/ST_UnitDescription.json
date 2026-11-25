@@ -1,0 +1,19 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_UnitDescription",
+    "Package": "/Game/Datatable/Strings/ST_Unit/ST_UnitDescription",
+    "StringTable": {
+      "TableNamespace": "ST_UnitDescription",
+      "KeysToEntries": {
+        "UnitDescription9001": "テスト用味方",
+        "UnitDescription9101": "テスト用雑魚",
+        "UnitDescription9201": "テスト用ボス",
+        "UnitDescription9202": "テスト用強化個体",
+        "UnitDescription9203": "テスト用上位個体",
+        "UnitDescription9204": "テスト用未訳",
+        "UnitDescription13017": "テスト用幻兵"
+      }
+    }
+  }
+]

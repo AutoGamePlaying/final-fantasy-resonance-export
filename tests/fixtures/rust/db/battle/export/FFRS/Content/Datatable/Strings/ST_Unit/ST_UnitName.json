@@ -1,0 +1,19 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_UnitName",
+    "Package": "/Game/Datatable/Strings/ST_Unit/ST_UnitName",
+    "StringTable": {
+      "TableNamespace": "ST_UnitName",
+      "KeysToEntries": {
+        "UnitName9001": "テスト勇者",
+        "UnitName9101": "テスト氷翼獣",
+        "UnitName9201": "テスト熔核番人",
+        "UnitName9202": "テスト氷翼獣",
+        "UnitName9203": "テスト氷翼獣王",
+        "UnitName9204": "テスト未訳敵",
+        "UnitName13017": "テスト幻兵"
+      }
+    }
+  }
+]

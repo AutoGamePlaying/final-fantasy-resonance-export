@@ -1,0 +1,26 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_UnitLevelParameterSynthHero",
+    "Package": "/Game/Datatable/Unit/LevelParameter/Playable/DT_UnitLevelParameterSynthHero",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'UNIT_LEVEL_PARAMETER'"
+      }
+    },
+    "Rows": {
+      "1": {
+        "Level": 1,
+        "AddSkills": [95001, -1]
+      },
+      "2": {
+        "Level": 2,
+        "AddSkills": [-1, -1]
+      },
+      "3": {
+        "Level": 3,
+        "AddSkills": [95002, -1]
+      }
+    }
+  }
+]

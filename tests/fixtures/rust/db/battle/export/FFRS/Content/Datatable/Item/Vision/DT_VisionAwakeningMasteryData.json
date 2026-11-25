@@ -1,0 +1,29 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_VisionAwakeningMasteryData",
+    "Package": "/Game/Datatable/Item/Vision/DT_VisionAwakeningMasteryData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'VISION_MASTERY_DATA'"
+      }
+    },
+    "Rows": {
+      "Awk0": {
+        "ID": 13017,
+        "Level": 0,
+        "masteryPoint": 0,
+        "detailData": [
+          {
+            "parameterType": "eVisionMasteryParameterType::ActiveSkill",
+            "params": [95001, -1]
+          },
+          {
+            "parameterType": "eVisionMasteryParameterType::PassiveSkill",
+            "params": [1001, -1]
+          }
+        ]
+      }
+    }
+  }
+]

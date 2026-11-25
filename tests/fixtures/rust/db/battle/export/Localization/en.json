@@ -1,0 +1,50 @@
+{
+  "ST_UnitName": {
+    "UnitName9001": "Synth Hero",
+    "UnitName9101": "Frostwing Prototype",
+    "UnitName9201": "Core Guardian",
+    "UnitName9202": "Frostwing Prototype",
+    "UnitName9203": "Frostwing Prototype King",
+    "UnitName9204": "Untranslated Foe",
+    "UnitName13017": "Synthetic Vision"
+  },
+  "ST_UnitDescription": {
+    "UnitDescription9001": "Synthetic party member",
+    "UnitDescription9101": "Synthetic regular enemy",
+    "UnitDescription9201": "Synthetic boss enemy",
+    "UnitDescription9202": "Synthetic variant enemy",
+    "UnitDescription9203": "Elite synthetic variant",
+    "UnitDescription9204": "Untranslated test enemy",
+    "UnitDescription13017": "Synthetic test vision"
+  },
+  "ST_SkillName": {
+    "SkillName95001": "Synth Ice Spike",
+    "SkillName95002": "Synth Fire Wave",
+    "SkillName95003": "Core Detonation",
+    "SkillName95004": "Desperate Slash",
+    "SkillName95005": "Synth Ice Spike+",
+    "SkillName95006": "Synth Ice Spike"
+  },
+  "ST_SkillDescription": {
+    "SkillDescription95001": "Single-target ice magic",
+    "SkillDescription95002": "Group fire magic",
+    "SkillDescription95003": "High-risk all-target fire attack",
+    "SkillDescription95004": "HP-cost physical strike",
+    "SkillDescription95005": "Upgraded single ice spell",
+    "SkillDescription95006": "Enemy single ice spell"
+  },
+  "ST_CommandSkillName": {
+    "CmdName1": "Abilities",
+    "CmdName6": "Esper",
+    "CmdName7": "Items",
+    "CmdName10": "Limit Burst",
+    "CmdName100": "Vision Arts"
+  },
+  "ST_CommandSkillDescription": {
+    "CmdDesc1": "Use learned abilities.",
+    "CmdDesc6": "Summon an esper.",
+    "CmdDesc7": "Use consumables from inventory.",
+    "CmdDesc10": "Unleash a Limit Burst.",
+    "CmdDesc100": "Use the equipped vision's skills."
+  }
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_00Test_Encount",
+    "Package": "/Game/Datatable/Encount/00Test/DT_00Test_Encount",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'ENCOUNT_GROUP_DATA'"
+      }
+    },
+    "Rows": {
+      "Pool1": {
+        "battleGroupId": 9801,
+        "encountRatio": 70
+      },
+      "Pool2": {
+        "battleGroupId": 9802,
+        "encountRatio": 30
+      },
+      "PoolDangling": {
+        "battleGroupId": 99998,
+        "encountRatio": 10
+      }
+    }
+  }
+]

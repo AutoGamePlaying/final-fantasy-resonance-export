@@ -1,0 +1,24 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_PlayableUnitParameter",
+    "Package": "/Game/Datatable/Unit/DT_PlayableUnitParameter",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'UNIT_PLAYABLE_PARAMETER'"
+      }
+    },
+    "Rows": {
+      "SynthHero": {
+        "ID": 9001,
+        "attackType": "eSkillDamageType::Physic",
+        "roles": ["eUnitRole::Defender"],
+        "equipableWeaponType": "eEquipmentDetailType::GreatSowrd",
+        "equipableArmorTypeList": [
+          "eEquipmentDetailType::HeavyArmor",
+          "eEquipmentDetailType::LightArmor"
+        ]
+      }
+    }
+  }
+]

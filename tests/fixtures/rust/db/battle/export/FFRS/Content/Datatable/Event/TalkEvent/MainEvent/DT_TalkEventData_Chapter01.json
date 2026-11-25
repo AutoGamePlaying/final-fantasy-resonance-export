@@ -1,0 +1,21 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_TalkEventData_Chapter01",
+    "Package": "/Game/Datatable/Event/TalkEvent/MainEvent/DT_TalkEventData_Chapter01",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'TalkEventData'",
+        "ObjectPath": "/Script/mucha"
+      }
+    },
+    "Rows": {
+      "EV_CH1_BOSS": {
+        "encountGroupId": 9802
+      },
+      "EV_CH1_TALK": {
+        "encountGroupId": -1
+      }
+    }
+  }
+]

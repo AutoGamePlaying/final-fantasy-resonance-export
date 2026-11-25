@@ -1,0 +1,25 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_VisionSynchroMasteryData",
+    "Package": "/Game/Datatable/Item/Vision/DT_VisionSynchroMasteryData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'VISION_MASTERY_DATA'"
+      }
+    },
+    "Rows": {
+      "Syn2": {
+        "ID": 13017,
+        "Level": 2,
+        "masteryPoint": 30,
+        "detailData": [
+          {
+            "parameterType": "eVisionMasteryParameterType::ActiveSkill",
+            "params": [95005, -1]
+          }
+        ]
+      }
+    }
+  }
+]

@@ -1,0 +1,269 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_SkillData",
+    "Package": "/Game/Datatable/Skill/DT_SkillData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'SKILL_DATA'"
+      }
+    },
+    "Rows": {
+      "SynthIceSpike": {
+        "ID": 95001,
+        "SortId": 95001,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_SkillName.ST_SkillName",
+          "Key": "SkillName95001",
+          "SourceString": "テスト氷針",
+          "LocalizedString": "テスト氷針"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_SkillDescription.ST_SkillDescription",
+          "Key": "SkillDescription95001",
+          "SourceString": "単体氷魔法",
+          "LocalizedString": "単体氷魔法"
+        },
+        "hasUnit": "ePlayableUnit::All",
+        "belongCommandList": [1],
+        "skillAttrType": "eSkillAttributeType::Magic",
+        "skillEffectType": "eSkillEffectType::DamageAndRecovery",
+        "parameterVariationType": "eUnitParameterVariationType::Decrease",
+        "DamageType": "eSkillDamageType::Magic",
+        "damageCalcType": "eSkillDamageCalcType::Magic",
+        "parameterType": "eUnitParameterType::HitPoint",
+        "element": "eElement::Ice",
+        "TargetType": "eSkillTargetType::Single",
+        "defaultTargetRelation": "eRelation::Enemies",
+        "defaultTargetState": "eSkillTargetState::Alive",
+        "Cost": 8,
+        "magnification": 24,
+        "breakDamageValue": 30,
+        "accuracy": 100,
+        "criticalHitRate": 0,
+        "hitCount": 1,
+        "hitDamageRatioList": [1.0],
+        "equipCost": 10,
+        "availableLocation": "eAvailableLocation::BattleOnly",
+        "effectBundleList": [
+          {
+            "effectId": -1
+          }
+        ]
+      },
+      "SynthFireWave": {
+        "ID": 95002,
+        "SortId": 95002,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_SkillName.ST_SkillName",
+          "Key": "SkillName95002",
+          "SourceString": "テスト炎波",
+          "LocalizedString": "テスト炎波"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_SkillDescription.ST_SkillDescription",
+          "Key": "SkillDescription95002",
+          "SourceString": "グループ火魔法",
+          "LocalizedString": "グループ火魔法"
+        },
+        "hasUnit": "ePlayableUnit::All",
+        "belongCommandList": [1],
+        "skillAttrType": "eSkillAttributeType::Magic",
+        "skillEffectType": "eSkillEffectType::DamageAndRecovery",
+        "parameterVariationType": "eUnitParameterVariationType::Decrease",
+        "DamageType": "eSkillDamageType::Magic",
+        "damageCalcType": "eSkillDamageCalcType::Magic",
+        "parameterType": "eUnitParameterType::HitPoint",
+        "element": "eElement::Fire",
+        "TargetType": "eSkillTargetType::Group",
+        "defaultTargetRelation": "eRelation::Enemies",
+        "defaultTargetState": "eSkillTargetState::Alive",
+        "Cost": 14,
+        "magnification": 35,
+        "breakDamageValue": 25,
+        "accuracy": 100,
+        "criticalHitRate": 0,
+        "hitCount": 2,
+        "hitDamageRatioList": [0.5, 0.5],
+        "equipCost": 15,
+        "availableLocation": "eAvailableLocation::BattleOnly",
+        "effectBundleList": [
+          {
+            "effectId": 7001
+          },
+          {
+            "effectId": -1
+          }
+        ]
+      },
+      "SynthCoreBurst": {
+        "ID": 95003,
+        "SortId": 95003,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_SkillName.ST_SkillName",
+          "Key": "SkillName95003",
+          "SourceString": "テスト核爆",
+          "LocalizedString": "テスト核爆"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_SkillDescription.ST_SkillDescription",
+          "Key": "SkillDescription95003",
+          "SourceString": "全体高威力技",
+          "LocalizedString": "全体高威力技"
+        },
+        "hasUnit": "ePlayableUnit::All",
+        "belongCommandList": [-1],
+        "skillAttrType": "eSkillAttributeType::Ability",
+        "skillEffectType": "eSkillEffectType::DamageAndRecovery",
+        "parameterVariationType": "eUnitParameterVariationType::Decrease",
+        "DamageType": "eSkillDamageType::Magic",
+        "damageCalcType": "eSkillDamageCalcType::Magic",
+        "parameterType": "eUnitParameterType::HitPoint",
+        "element": "eElement::Fire",
+        "TargetType": "eSkillTargetType::All",
+        "defaultTargetRelation": "eRelation::Enemies",
+        "defaultTargetState": "eSkillTargetState::Alive",
+        "Cost": 0,
+        "magnification": 120,
+        "breakDamageValue": 40,
+        "accuracy": 100,
+        "criticalHitRate": 5,
+        "hitCount": 1,
+        "hitDamageRatioList": [1.0],
+        "equipCost": 0,
+        "availableLocation": "eAvailableLocation::BattleOnly",
+        "effectBundleList": [
+          {
+            "effectId": -1
+          }
+        ]
+      },
+      "SynthDesperateSlash": {
+        "ID": 95004,
+        "SortId": 95004,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_SkillName.ST_SkillName",
+          "Key": "SkillName95004",
+          "SourceString": "テスト捨て身斬り",
+          "LocalizedString": "テスト捨て身斬り"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_SkillDescription.ST_SkillDescription",
+          "Key": "SkillDescription95004",
+          "SourceString": "HP消費単体物理",
+          "LocalizedString": "HP消費単体物理"
+        },
+        "hasUnit": "ePlayableUnit::Rain",
+        "belongCommandList": [1],
+        "skillAttrType": "eSkillAttributeType::Ability",
+        "skillEffectType": "eSkillEffectType::DamageAndRecovery",
+        "parameterVariationType": "eUnitParameterVariationType::Decrease",
+        "DamageType": "eSkillDamageType::Physic",
+        "damageCalcType": "eSkillDamageCalcType::Physic",
+        "parameterType": "eUnitParameterType::HitPoint",
+        "element": "eElement::None",
+        "TargetType": "eSkillTargetType::Single",
+        "defaultTargetRelation": "eRelation::Enemies",
+        "defaultTargetState": "eSkillTargetState::Alive",
+        "Cost": 0,
+        "magnification": 80,
+        "breakDamageValue": 50,
+        "accuracy": 95,
+        "criticalHitRate": 15,
+        "hitCount": 1,
+        "hitDamageRatioList": [1.0],
+        "equipCost": 20,
+        "availableLocation": "eAvailableLocation::BattleOnly",
+        "effectBundleList": [
+          {
+            "effectId": -1
+          }
+        ]
+      },
+      "SynthIceSpikePlus": {
+        "ID": 95005,
+        "SortId": 95005,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_SkillName.ST_SkillName",
+          "Key": "SkillName95005",
+          "SourceString": "テスト氷針改",
+          "LocalizedString": "テスト氷針改"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_SkillDescription.ST_SkillDescription",
+          "Key": "SkillDescription95005",
+          "SourceString": "強化単体氷魔法",
+          "LocalizedString": "強化単体氷魔法"
+        },
+        "hasUnit": "ePlayableUnit::All",
+        "belongCommandList": [1],
+        "skillAttrType": "eSkillAttributeType::Magic",
+        "skillEffectType": "eSkillEffectType::DamageAndRecovery",
+        "parameterVariationType": "eUnitParameterVariationType::Decrease",
+        "DamageType": "eSkillDamageType::Magic",
+        "damageCalcType": "eSkillDamageCalcType::Magic",
+        "parameterType": "eUnitParameterType::HitPoint",
+        "element": "eElement::Ice",
+        "TargetType": "eSkillTargetType::Single",
+        "defaultTargetRelation": "eRelation::Enemies",
+        "defaultTargetState": "eSkillTargetState::Alive",
+        "Cost": 8,
+        "magnification": 24,
+        "breakDamageValue": 30,
+        "accuracy": 100,
+        "criticalHitRate": 0,
+        "hitCount": 1,
+        "hitDamageRatioList": [1.0],
+        "equipCost": 10,
+        "availableLocation": "eAvailableLocation::BattleOnly",
+        "effectBundleList": [
+          {
+            "effectId": -1
+          }
+        ]
+      },
+      "SynthIceSpikeDup": {
+        "ID": 95006,
+        "SortId": 95006,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_SkillName.ST_SkillName",
+          "Key": "SkillName95006",
+          "SourceString": "テスト氷針",
+          "LocalizedString": "テスト氷針"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Skill/ST_SkillDescription.ST_SkillDescription",
+          "Key": "SkillDescription95006",
+          "SourceString": "敵用単体氷魔法",
+          "LocalizedString": "敵用単体氷魔法"
+        },
+        "hasUnit": "ePlayableUnit::All",
+        "belongCommandList": [1],
+        "skillAttrType": "eSkillAttributeType::Magic",
+        "skillEffectType": "eSkillEffectType::DamageAndRecovery",
+        "parameterVariationType": "eUnitParameterVariationType::Decrease",
+        "DamageType": "eSkillDamageType::Magic",
+        "damageCalcType": "eSkillDamageCalcType::Magic",
+        "parameterType": "eUnitParameterType::HitPoint",
+        "element": "eElement::Ice",
+        "TargetType": "eSkillTargetType::Single",
+        "defaultTargetRelation": "eRelation::Enemies",
+        "defaultTargetState": "eSkillTargetState::Alive",
+        "Cost": 8,
+        "magnification": 24,
+        "breakDamageValue": 30,
+        "accuracy": 100,
+        "criticalHitRate": 0,
+        "hitCount": 1,
+        "hitDamageRatioList": [1.0],
+        "equipCost": 10,
+        "availableLocation": "eAvailableLocation::BattleOnly",
+        "effectBundleList": [
+          {
+            "effectId": -1
+          }
+        ]
+      }
+    }
+  }
+]

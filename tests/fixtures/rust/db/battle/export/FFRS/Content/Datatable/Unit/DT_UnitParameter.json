@@ -1,0 +1,707 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_UnitParameter",
+    "Package": "/Game/Datatable/Unit/DT_UnitParameter",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'UNIT_PARAMETER'"
+      }
+    },
+    "Rows": {
+      "SynthHero": {
+        "ID": 9001,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Unit/ST_UnitName.ST_UnitName",
+          "Key": "UnitName9001",
+          "SourceString": "テスト勇者",
+          "LocalizedString": "テスト勇者"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Unit/ST_UnitDescription.ST_UnitDescription",
+          "Key": "UnitDescription9001",
+          "SourceString": "テスト用味方",
+          "LocalizedString": "テスト用味方"
+        },
+        "SortId": 9001,
+        "SaveId": 9001,
+        "Level": 5,
+        "LevelParamId": 1,
+        "Sex": "eUnitSex::Male",
+        "Race": "eRace::Human",
+        "Category": "eUnitCategory::Playable",
+        "HitPoint": 0,
+        "MagicPoint": 100,
+        "Breakpoint": 0,
+        "LimitBurstPoint": 0,
+        "MaxSkillEquipCost": 10,
+        "MaxHitPoint": 320,
+        "MaxMagicPoint": 60,
+        "MaxBreakPoint": 100,
+        "Attack": 48,
+        "Defence": 35,
+        "Intelligence": 28,
+        "Mind": 30,
+        "Divine": 10,
+        "Agility": 18,
+        "ElementResistanceList": [
+          {
+            "Key": "eElement::Fire",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Ice",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Wind",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Earth",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Thunder",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Water",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Light",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Dark",
+            "Value": "eResistance::None"
+          }
+        ],
+        "StatusConditionResistanceList": [
+          {
+            "Key": "eUnitStatusCondition::Poison",
+            "Value": 0
+          },
+          {
+            "Key": "eUnitStatusCondition::Sleep",
+            "Value": 0
+          }
+        ],
+        "WeaponId": -1,
+        "ArmorId": -1,
+        "AccessoryIdList": [],
+        "VisionId": -1,
+        "passiveSkillList": [],
+        "IsBoss": false,
+        "IsAccent": false,
+        "Experience": 0,
+        "Money": 0,
+        "DropNormalItem": -1,
+        "DropNormalItemRate": 0,
+        "DropRareItem": -1,
+        "DropRareItemRate": 0,
+        "StealNormalItem": -1,
+        "StealRareItem": -1,
+        "StealItemRate": 0,
+        "BattleVoiceLabel": "",
+        "FaceIconId": 9001,
+        "Traits": []
+      },
+      "FrostWingAlpha": {
+        "ID": 9101,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Unit/ST_UnitName.ST_UnitName",
+          "Key": "UnitName9101",
+          "SourceString": "テスト氷翼獣",
+          "LocalizedString": "テスト氷翼獣"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Unit/ST_UnitDescription.ST_UnitDescription",
+          "Key": "UnitDescription9101",
+          "SourceString": "テスト用雑魚",
+          "LocalizedString": "テスト用雑魚"
+        },
+        "SortId": 9101,
+        "SaveId": 9101,
+        "Level": 3,
+        "LevelParamId": -1,
+        "Sex": "eUnitSex::None",
+        "Race": "eRace::Avian",
+        "Category": "eUnitCategory::Enemy",
+        "HitPoint": 0,
+        "MagicPoint": 100,
+        "Breakpoint": 0,
+        "LimitBurstPoint": 0,
+        "MaxSkillEquipCost": 0,
+        "MaxHitPoint": 140,
+        "MaxMagicPoint": 20,
+        "MaxBreakPoint": 60,
+        "Attack": 34,
+        "Defence": 22,
+        "Intelligence": 19,
+        "Mind": 24,
+        "Divine": 0,
+        "Agility": 16,
+        "ElementResistanceList": [
+          {
+            "Key": "eElement::Fire",
+            "Value": "eResistance::Weakness"
+          },
+          {
+            "Key": "eElement::Ice",
+            "Value": "eResistance::Halved"
+          },
+          {
+            "Key": "eElement::Wind",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Earth",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Thunder",
+            "Value": "eResistance::Weakness"
+          },
+          {
+            "Key": "eElement::Water",
+            "Value": "eResistance::Invalid"
+          },
+          {
+            "Key": "eElement::Light",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Dark",
+            "Value": "eResistance::None"
+          }
+        ],
+        "StatusConditionResistanceList": [
+          {
+            "Key": "eUnitStatusCondition::Poison",
+            "Value": 0
+          },
+          {
+            "Key": "eUnitStatusCondition::Sleep",
+            "Value": 50
+          }
+        ],
+        "WeaponId": -1,
+        "ArmorId": -1,
+        "AccessoryIdList": [],
+        "VisionId": -1,
+        "passiveSkillList": [-1],
+        "IsBoss": false,
+        "IsAccent": false,
+        "Experience": 25,
+        "Money": 40,
+        "DropNormalItem": 1,
+        "DropNormalItemRate": 15,
+        "DropRareItem": -1,
+        "DropRareItemRate": 0,
+        "StealNormalItem": 1,
+        "StealRareItem": -1,
+        "StealItemRate": 10,
+        "BattleVoiceLabel": "",
+        "FaceIconId": 9101,
+        "Traits": []
+      },
+      "CoreGuardian": {
+        "ID": 9201,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Unit/ST_UnitName.ST_UnitName",
+          "Key": "UnitName9201",
+          "SourceString": "テスト熔核番人",
+          "LocalizedString": "テスト熔核番人"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Unit/ST_UnitDescription.ST_UnitDescription",
+          "Key": "UnitDescription9201",
+          "SourceString": "テスト用ボス",
+          "LocalizedString": "テスト用ボス"
+        },
+        "SortId": 9201,
+        "SaveId": 9201,
+        "Level": 12,
+        "LevelParamId": -1,
+        "Sex": "eUnitSex::None",
+        "Race": "eRace::Machina",
+        "Category": "eUnitCategory::Boss",
+        "HitPoint": 0,
+        "MagicPoint": 100,
+        "Breakpoint": 0,
+        "LimitBurstPoint": 0,
+        "MaxSkillEquipCost": 0,
+        "MaxHitPoint": 4200,
+        "MaxMagicPoint": 200,
+        "MaxBreakPoint": 500,
+        "Attack": 95,
+        "Defence": 70,
+        "Intelligence": 85,
+        "Mind": 65,
+        "Divine": 0,
+        "Agility": 21,
+        "ElementResistanceList": [
+          {
+            "Key": "eElement::Fire",
+            "Value": "eResistance::Absorb"
+          },
+          {
+            "Key": "eElement::Ice",
+            "Value": "eResistance::Weakness"
+          },
+          {
+            "Key": "eElement::Wind",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Earth",
+            "Value": "eResistance::Halved"
+          },
+          {
+            "Key": "eElement::Thunder",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Water",
+            "Value": "eResistance::Weakness"
+          },
+          {
+            "Key": "eElement::Light",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Dark",
+            "Value": "eResistance::None"
+          }
+        ],
+        "StatusConditionResistanceList": [
+          {
+            "Key": "eUnitStatusCondition::Poison",
+            "Value": 100
+          },
+          {
+            "Key": "eUnitStatusCondition::Sleep",
+            "Value": 100
+          }
+        ],
+        "WeaponId": -1,
+        "ArmorId": -1,
+        "AccessoryIdList": [],
+        "VisionId": -1,
+        "passiveSkillList": [1001, -1],
+        "IsBoss": true,
+        "IsAccent": false,
+        "Experience": 600,
+        "Money": 900,
+        "DropNormalItem": 2,
+        "DropNormalItemRate": 100,
+        "DropRareItem": 3,
+        "DropRareItemRate": 30,
+        "StealNormalItem": -1,
+        "StealRareItem": 3,
+        "StealItemRate": 20,
+        "BattleVoiceLabel": "",
+        "FaceIconId": 9201,
+        "Traits": []
+      },
+      "FrostWingBeta": {
+        "ID": 9202,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Unit/ST_UnitName.ST_UnitName",
+          "Key": "UnitName9202",
+          "SourceString": "テスト氷翼獣",
+          "LocalizedString": "テスト氷翼獣"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Unit/ST_UnitDescription.ST_UnitDescription",
+          "Key": "UnitDescription9202",
+          "SourceString": "テスト用強化個体",
+          "LocalizedString": "テスト用強化個体"
+        },
+        "SortId": 9202,
+        "SaveId": 9202,
+        "Level": 8,
+        "LevelParamId": -1,
+        "Sex": "eUnitSex::None",
+        "Race": "eRace::Avian",
+        "Category": "eUnitCategory::Enemy",
+        "HitPoint": 0,
+        "MagicPoint": 100,
+        "Breakpoint": 0,
+        "LimitBurstPoint": 0,
+        "MaxSkillEquipCost": 0,
+        "MaxHitPoint": 360,
+        "MaxMagicPoint": 40,
+        "MaxBreakPoint": 120,
+        "Attack": 52,
+        "Defence": 38,
+        "Intelligence": 30,
+        "Mind": 35,
+        "Divine": 0,
+        "Agility": 20,
+        "ElementResistanceList": [
+          {
+            "Key": "eElement::Fire",
+            "Value": "eResistance::Weakness"
+          },
+          {
+            "Key": "eElement::Ice",
+            "Value": "eResistance::Halved"
+          },
+          {
+            "Key": "eElement::Wind",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Earth",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Thunder",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Water",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Light",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Dark",
+            "Value": "eResistance::None"
+          }
+        ],
+        "StatusConditionResistanceList": [
+          {
+            "Key": "eUnitStatusCondition::Poison",
+            "Value": 20
+          },
+          {
+            "Key": "eUnitStatusCondition::Sleep",
+            "Value": 80
+          }
+        ],
+        "WeaponId": -1,
+        "ArmorId": -1,
+        "AccessoryIdList": [],
+        "VisionId": -1,
+        "passiveSkillList": [],
+        "IsBoss": false,
+        "IsAccent": false,
+        "Experience": 80,
+        "Money": 110,
+        "DropNormalItem": -1,
+        "DropNormalItemRate": 0,
+        "DropRareItem": -1,
+        "DropRareItemRate": 0,
+        "StealNormalItem": -1,
+        "StealRareItem": -1,
+        "StealItemRate": 0,
+        "BattleVoiceLabel": "",
+        "FaceIconId": 9202,
+        "Traits": []
+      },
+      "FrostWingElite": {
+        "ID": 9203,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Unit/ST_UnitName.ST_UnitName",
+          "Key": "UnitName9203",
+          "SourceString": "テスト氷翼獣王",
+          "LocalizedString": "テスト氷翼獣王"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Unit/ST_UnitDescription.ST_UnitDescription",
+          "Key": "UnitDescription9203",
+          "SourceString": "テスト用上位個体",
+          "LocalizedString": "テスト用上位個体"
+        },
+        "SortId": 9203,
+        "SaveId": 9203,
+        "Level": 8,
+        "LevelParamId": -1,
+        "Sex": "eUnitSex::None",
+        "Race": "eRace::Avian",
+        "Category": "eUnitCategory::Enemy",
+        "HitPoint": 0,
+        "MagicPoint": 100,
+        "Breakpoint": 0,
+        "LimitBurstPoint": 0,
+        "MaxSkillEquipCost": 0,
+        "MaxHitPoint": 360,
+        "MaxMagicPoint": 40,
+        "MaxBreakPoint": 120,
+        "Attack": 52,
+        "Defence": 38,
+        "Intelligence": 30,
+        "Mind": 35,
+        "Divine": 0,
+        "Agility": 20,
+        "ElementResistanceList": [
+          {
+            "Key": "eElement::Fire",
+            "Value": "eResistance::Weakness"
+          },
+          {
+            "Key": "eElement::Ice",
+            "Value": "eResistance::Weakness"
+          },
+          {
+            "Key": "eElement::Wind",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Earth",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Thunder",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Water",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Light",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Dark",
+            "Value": "eResistance::None"
+          }
+        ],
+        "StatusConditionResistanceList": [
+          {
+            "Key": "eUnitStatusCondition::Poison",
+            "Value": 20
+          },
+          {
+            "Key": "eUnitStatusCondition::Sleep",
+            "Value": 80
+          }
+        ],
+        "WeaponId": -1,
+        "ArmorId": -1,
+        "AccessoryIdList": [],
+        "VisionId": -1,
+        "passiveSkillList": [],
+        "IsBoss": false,
+        "IsAccent": false,
+        "Experience": 80,
+        "Money": 110,
+        "DropNormalItem": -1,
+        "DropNormalItemRate": 0,
+        "DropRareItem": -1,
+        "DropRareItemRate": 0,
+        "StealNormalItem": -1,
+        "StealRareItem": -1,
+        "StealItemRate": 0,
+        "BattleVoiceLabel": "",
+        "FaceIconId": 9202,
+        "Traits": []
+      },
+      "UntranslatedMob": {
+        "ID": 9204,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Unit/ST_UnitName.ST_UnitName",
+          "Key": "UnitName9204",
+          "SourceString": "テスト未訳敵",
+          "LocalizedString": "テスト未訳敵"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Unit/ST_UnitDescription.ST_UnitDescription",
+          "Key": "UnitDescription9204",
+          "SourceString": "テスト用未訳",
+          "LocalizedString": "テスト用未訳"
+        },
+        "SortId": 9204,
+        "SaveId": 9204,
+        "Level": 8,
+        "LevelParamId": -1,
+        "Sex": "eUnitSex::None",
+        "Race": "eRace::Avian",
+        "Category": "eUnitCategory::Enemy",
+        "HitPoint": 0,
+        "MagicPoint": 100,
+        "Breakpoint": 0,
+        "LimitBurstPoint": 0,
+        "MaxSkillEquipCost": 0,
+        "MaxHitPoint": 360,
+        "MaxMagicPoint": 40,
+        "MaxBreakPoint": 120,
+        "Attack": 52,
+        "Defence": 38,
+        "Intelligence": 30,
+        "Mind": 35,
+        "Divine": 0,
+        "Agility": 20,
+        "ElementResistanceList": [
+          {
+            "Key": "eElement::Fire",
+            "Value": "eResistance::Weakness"
+          },
+          {
+            "Key": "eElement::Ice",
+            "Value": "eResistance::Halved"
+          },
+          {
+            "Key": "eElement::Wind",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Earth",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Thunder",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Water",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Light",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Dark",
+            "Value": "eResistance::None"
+          }
+        ],
+        "StatusConditionResistanceList": [
+          {
+            "Key": "eUnitStatusCondition::Poison",
+            "Value": 20
+          },
+          {
+            "Key": "eUnitStatusCondition::Sleep",
+            "Value": 80
+          }
+        ],
+        "WeaponId": -1,
+        "ArmorId": -1,
+        "AccessoryIdList": [],
+        "VisionId": -1,
+        "passiveSkillList": [],
+        "IsBoss": false,
+        "IsAccent": false,
+        "Experience": 80,
+        "Money": 110,
+        "DropNormalItem": -1,
+        "DropNormalItemRate": 0,
+        "DropRareItem": -1,
+        "DropRareItemRate": 0,
+        "StealNormalItem": -1,
+        "StealRareItem": -1,
+        "StealItemRate": 0,
+        "BattleVoiceLabel": "",
+        "FaceIconId": 9202,
+        "Traits": []
+      },
+      "SynthVision": {
+        "ID": 13017,
+        "Name": {
+          "TableId": "/Game/Datatable/Strings/ST_Unit/ST_UnitName.ST_UnitName",
+          "Key": "UnitName13017",
+          "SourceString": "テスト幻兵",
+          "LocalizedString": "テスト幻兵"
+        },
+        "Description": {
+          "TableId": "/Game/Datatable/Strings/ST_Unit/ST_UnitDescription.ST_UnitDescription",
+          "Key": "UnitDescription13017",
+          "SourceString": "テスト用幻兵",
+          "LocalizedString": "テスト用幻兵"
+        },
+        "SortId": 13017,
+        "SaveId": 13017,
+        "Level": 5,
+        "LevelParamId": -1,
+        "Sex": "eUnitSex::Male",
+        "Race": "eRace::Vision",
+        "Category": "eUnitCategory::Vision",
+        "HitPoint": 0,
+        "MagicPoint": 100,
+        "Breakpoint": 0,
+        "LimitBurstPoint": 0,
+        "MaxSkillEquipCost": 10,
+        "MaxHitPoint": 320,
+        "MaxMagicPoint": 60,
+        "MaxBreakPoint": 100,
+        "Attack": 48,
+        "Defence": 35,
+        "Intelligence": 28,
+        "Mind": 30,
+        "Divine": 10,
+        "Agility": 18,
+        "ElementResistanceList": [
+          {
+            "Key": "eElement::Fire",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Ice",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Wind",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Earth",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Thunder",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Water",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Light",
+            "Value": "eResistance::None"
+          },
+          {
+            "Key": "eElement::Dark",
+            "Value": "eResistance::None"
+          }
+        ],
+        "StatusConditionResistanceList": [
+          {
+            "Key": "eUnitStatusCondition::Poison",
+            "Value": 0
+          },
+          {
+            "Key": "eUnitStatusCondition::Sleep",
+            "Value": 0
+          }
+        ],
+        "WeaponId": -1,
+        "ArmorId": -1,
+        "AccessoryIdList": [],
+        "VisionId": -1,
+        "passiveSkillList": [],
+        "IsBoss": false,
+        "IsAccent": false,
+        "Experience": 0,
+        "Money": 0,
+        "DropNormalItem": -1,
+        "DropNormalItemRate": 0,
+        "DropRareItem": -1,
+        "DropRareItemRate": 0,
+        "StealNormalItem": -1,
+        "StealRareItem": -1,
+        "StealItemRate": 0,
+        "BattleVoiceLabel": "",
+        "FaceIconId": 9001,
+        "Traits": []
+      }
+    }
+  }
+]

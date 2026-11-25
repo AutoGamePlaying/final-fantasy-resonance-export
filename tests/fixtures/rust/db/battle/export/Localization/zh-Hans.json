@@ -1,0 +1,48 @@
+{
+  "ST_UnitName": {
+    "UnitName9001": "合成英雄",
+    "UnitName9101": "霜翼试作兽",
+    "UnitName9201": "熔核守护者",
+    "UnitName9202": "霜翼试作兽",
+    "UnitName9203": "霜翼试作兽王",
+    "UnitName13017": "试作幻兵"
+  },
+  "ST_UnitDescription": {
+    "UnitDescription9001": "测试用可操控角色",
+    "UnitDescription9101": "测试用普通敌人",
+    "UnitDescription9201": "测试用首领敌人",
+    "UnitDescription9202": "测试用强化个体",
+    "UnitDescription9203": "测试用上位个体",
+    "UnitDescription13017": "测试用幻兵"
+  },
+  "ST_SkillName": {
+    "SkillName95001": "试作冰刺",
+    "SkillName95002": "试作炎波",
+    "SkillName95003": "炽核爆裂",
+    "SkillName95004": "背水一击",
+    "SkillName95005": "试作冰刺改",
+    "SkillName95006": "试作冰刺"
+  },
+  "ST_SkillDescription": {
+    "SkillDescription95001": "单体冰属性魔法",
+    "SkillDescription95002": "群体火属性魔法",
+    "SkillDescription95003": "全体火属性强力技能",
+    "SkillDescription95004": "消耗HP的单体物理斩击",
+    "SkillDescription95005": "强化单体冰属性魔法",
+    "SkillDescription95006": "敌用单体冰属性魔法"
+  },
+  "ST_CommandSkillName": {
+    "CmdName1": "招式",
+    "CmdName6": "幻兽召唤",
+    "CmdName7": "道具",
+    "CmdName10": "极限技",
+    "CmdName100": "幻兵秘技"
+  },
+  "ST_CommandSkillDescription": {
+    "CmdDesc1": "使用已习得的招式",
+    "CmdDesc6": "召唤同行幻兽助战",
+    "CmdDesc7": "使用背包中的消耗道具",
+    "CmdDesc10": "消耗极限槽释放强力技能",
+    "CmdDesc100": "施展装备幻兵的专属招式"
+  }
+}

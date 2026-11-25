@@ -1,0 +1,22 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_MapReleaseConditionData",
+    "Package": "/Game/Datatable/Map/DT_MapReleaseConditionData",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'MAP_RELEASE_CONDITION_DATA'"
+      }
+    },
+    "Rows": {
+      "Rel_Grandshelt": {
+        "Condition": "{progress:0}>=2000",
+        "IslandType": "eMapIslandType::Grandshelt"
+      },
+      "Rel_Lanzelt": {
+        "Condition": "{progress:0}>=3000",
+        "IslandType": "eMapIslandType::Lanzelt"
+      }
+    }
+  }
+]

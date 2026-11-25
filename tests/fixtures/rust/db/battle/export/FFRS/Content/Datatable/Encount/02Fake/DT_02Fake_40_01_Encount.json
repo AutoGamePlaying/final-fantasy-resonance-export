@@ -1,0 +1,18 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_02Fake_40_01_Encount",
+    "Package": "/Game/Datatable/Encount/02Fake/DT_02Fake_40_01_Encount",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'ENCOUNT_GROUP_DATA'"
+      }
+    },
+    "Rows": {
+      "Slot1": {
+        "battleGroupId": 9804,
+        "encountRatio": 100
+      }
+    }
+  }
+]

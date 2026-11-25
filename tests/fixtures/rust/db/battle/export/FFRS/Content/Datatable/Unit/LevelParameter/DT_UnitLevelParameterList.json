@@ -1,0 +1,21 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_UnitLevelParameterList",
+    "Package": "/Game/Datatable/Unit/LevelParameter/DT_UnitLevelParameterList",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'UNIT_LEVEL_PARAMETER_LIST'"
+      }
+    },
+    "Rows": {
+      "SynthHero": {
+        "ID": 1,
+        "DataTable": {
+          "ObjectName": "DataTable'DT_UnitLevelParameterSynthHero'",
+          "ObjectPath": "/Game/Datatable/Unit/LevelParameter/Playable/DT_UnitLevelParameterSynthHero.0"
+        }
+      }
+    }
+  }
+]

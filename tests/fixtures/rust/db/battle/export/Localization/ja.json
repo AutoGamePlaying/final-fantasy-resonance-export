@@ -1,0 +1,50 @@
+{
+  "ST_UnitName": {
+    "UnitName9001": "テスト勇者",
+    "UnitName9101": "テスト氷翼獣",
+    "UnitName9201": "テスト熔核番人",
+    "UnitName9202": "テスト氷翼獣",
+    "UnitName9203": "テスト氷翼獣王",
+    "UnitName9204": "テスト未訳敵",
+    "UnitName13017": "テスト幻兵"
+  },
+  "ST_UnitDescription": {
+    "UnitDescription9001": "テスト用味方",
+    "UnitDescription9101": "テスト用雑魚",
+    "UnitDescription9201": "テスト用ボス",
+    "UnitDescription9202": "テスト用強化個体",
+    "UnitDescription9203": "テスト用上位個体",
+    "UnitDescription9204": "テスト用未訳",
+    "UnitDescription13017": "テスト用幻兵"
+  },
+  "ST_SkillName": {
+    "SkillName95001": "テスト氷針",
+    "SkillName95002": "テスト炎波",
+    "SkillName95003": "テスト核爆",
+    "SkillName95004": "テスト捨て身斬り",
+    "SkillName95005": "テスト氷針改",
+    "SkillName95006": "テスト氷針"
+  },
+  "ST_SkillDescription": {
+    "SkillDescription95001": "単体氷魔法",
+    "SkillDescription95002": "グループ火魔法",
+    "SkillDescription95003": "全体高威力技",
+    "SkillDescription95004": "HP消費単体物理",
+    "SkillDescription95005": "強化単体氷魔法",
+    "SkillDescription95006": "敵用単体氷魔法"
+  },
+  "ST_CommandSkillName": {
+    "CmdName1": "アビリティ",
+    "CmdName6": "幻獣召喚",
+    "CmdName7": "アイテム",
+    "CmdName10": "リミットバースト",
+    "CmdName100": "テスト幻兵技"
+  },
+  "ST_CommandSkillDescription": {
+    "CmdDesc1": "習得した技を使う",
+    "CmdDesc6": "幻獣を召喚する",
+    "CmdDesc7": "所持アイテムを使う",
+    "CmdDesc10": "リミット技を放つ",
+    "CmdDesc100": "幻兵の固有技を使う"
+  }
+}

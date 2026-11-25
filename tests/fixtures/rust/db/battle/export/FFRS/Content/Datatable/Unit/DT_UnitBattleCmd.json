@@ -1,0 +1,27 @@
+[
+  {
+    "Type": "DataTable",
+    "Name": "DT_UnitBattleCmd",
+    "Package": "/Game/Datatable/Unit/DT_UnitBattleCmd",
+    "Properties": {
+      "RowStruct": {
+        "ObjectName": "Class'UNIT_BATTLE_CMD_DATA'"
+      }
+    },
+    "Rows": {
+      "SynthHero": {
+        "ID": 9001,
+        "detailData": [
+          {
+            "SkillId": 95004,
+            "Conditions": []
+          },
+          {
+            "SkillId": 1,
+            "Conditions": []
+          }
+        ]
+      }
+    }
+  }
+]

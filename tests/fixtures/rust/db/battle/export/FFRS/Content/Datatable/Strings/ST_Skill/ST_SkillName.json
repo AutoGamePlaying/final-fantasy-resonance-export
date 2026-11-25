@@ -1,0 +1,18 @@
+[
+  {
+    "Type": "StringTable",
+    "Name": "ST_SkillName",
+    "Package": "/Game/Datatable/Strings/ST_Skill/ST_SkillName",
+    "StringTable": {
+      "TableNamespace": "ST_SkillName",
+      "KeysToEntries": {
+        "SkillName95001": "テスト氷針",
+        "SkillName95002": "テスト炎波",
+        "SkillName95003": "テスト核爆",
+        "SkillName95004": "テスト捨て身斬り",
+        "SkillName95005": "テスト氷針改",
+        "SkillName95006": "テスト氷針"
+      }
+    }
+  }
+]
