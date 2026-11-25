@@ -30,6 +30,11 @@ internal static partial class Program
 
     public static async Task<int> Main(string[] args)
     {
+        if (Console.IsOutputRedirected || Console.IsErrorRedirected)
+        {
+            ConfigureRedirectedUtf8Output();
+        }
+
         try
         {
             return await RunAsync(args);
@@ -38,6 +43,27 @@ internal static partial class Program
         {
             Console.Error.WriteLine($"错误：{exception.Message}");
             return 2;
+        }
+    }
+
+    private static void ConfigureRedirectedUtf8Output()
+    {
+        try
+        {
+            Console.OutputEncoding = Utf8WithoutBom;
+        }
+        catch (IOException)
+        {
+            // Fall back to direct UTF-8 stream wrappers if the host console rejects code page changes.
+            if (Console.IsOutputRedirected)
+            {
+                Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), Utf8WithoutBom) { AutoFlush = true });
+            }
+
+            if (Console.IsErrorRedirected)
+            {
+                Console.SetError(new StreamWriter(Console.OpenStandardError(), Utf8WithoutBom) { AutoFlush = true });
+            }
         }
     }
 
