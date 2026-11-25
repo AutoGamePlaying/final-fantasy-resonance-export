@@ -15,5 +15,19 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FfrExport\FfrExport.csproj" />
+    <ProjectReference Include="..\FfrExport.FakeFfrDb\FfrExport.FakeFfrDb.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\FfrExport.TestCliHost\FfrExport.TestCliHost.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <Target Name="CopyTestHelperArtifacts" AfterTargets="Build">
+    <ItemGroup>
+      <_FakeFfrDbFiles Include="..\FfrExport.FakeFfrDb\bin\$(Configuration)\$(TargetFramework)\**\*" />
+      <_TestCliHostFiles Include="..\FfrExport.TestCliHost\bin\$(Configuration)\$(TargetFramework)\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_FakeFfrDbFiles)"
+          DestinationFiles="@(_FakeFfrDbFiles->'$(OutputPath)fake-ffr-db\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_TestCliHostFiles)"
+          DestinationFiles="@(_TestCliHostFiles->'$(OutputPath)cli-host\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>
