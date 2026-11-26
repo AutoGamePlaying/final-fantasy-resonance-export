@@ -105,7 +105,8 @@ internal static class TestHarness
         string? workingDirectory = null,
         string? pathEnvOverride = null,
         string? stdinInput = null,
-        string? agpHome = null)
+        string? agpHome = null,
+        IReadOnlyDictionary<string, string?>? extraEnv = null)
     {
         var cliHostDll = Path.Combine(AppContext.BaseDirectory, "cli-host", "FfrExport.TestCliHost.dll");
         if (!File.Exists(cliHostDll))
@@ -168,6 +169,21 @@ internal static class TestHarness
         if (pathEnvOverride is not null)
         {
             startInfo.Environment["PATH"] = pathEnvOverride;
+        }
+
+        if (extraEnv is not null)
+        {
+            foreach (var (key, value) in extraEnv)
+            {
+                if (value is null)
+                {
+                    startInfo.Environment.Remove(key);
+                }
+                else
+                {
+                    startInfo.Environment[key] = value;
+                }
+            }
         }
 
         using var process = Process.Start(startInfo)

@@ -187,39 +187,156 @@ public sealed class UsmapFetcherTests
             Ue4ssArchiveInstaller.Uninstall(gameDir, runningLauncher, new StringWriter()));
         Assert.Contains("正在运行", runningEx.Message, StringComparison.Ordinal);
 
-        // 5. Uninstall deletes only files recorded in the marker and preserves user/runtime files.
+        // 5. Uninstall deletes files recorded in the marker AND cleans our remnants (Mods/FfrUsmapDump, .done, .tmp)
+        //    while preserving user/runtime files (UE4SS.log, UserCustomMod) and archived agp/ffr-export/usmap/.
         var runtimeLogPath = Path.Combine(ue4ssDir, "UE4SS.log");
         var userModFile = Path.Combine(ue4ssDir, "Mods", "UserCustomMod", "Scripts", "main.lua");
+        var dumpModScript = Path.Combine(ue4ssDir, "Mods", "FfrUsmapDump", "Scripts", "main.lua");
+        var doneFile = Path.Combine(ue4ssDir, "ffr-export-usmap.done");
+        var tmpFile = Path.Combine(ue4ssDir, "ffr-export-usmap.done.tmp");
         Directory.CreateDirectory(Path.GetDirectoryName(userModFile)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(dumpModScript)!);
         File.WriteAllText(runtimeLogPath, "runtime log", Encoding.UTF8);
         File.WriteAllText(userModFile, "-- user mod\n", Encoding.UTF8);
+        File.WriteAllText(dumpModScript, "-- dump mod\n", Encoding.UTF8);
+        File.WriteAllText(doneFile, "{}", Encoding.UTF8);
+        File.WriteAllText(tmpFile, "partial", Encoding.UTF8);
+
+        var archivedUsmapDir = AgpPaths.GetUsmapDirectoryForAgpRoot(workspace.AgpHomeDir);
+        Directory.CreateDirectory(archivedUsmapDir);
+        var archivedUsmap = Path.Combine(archivedUsmapDir, "FFRS-24250053-deadbeef.usmap");
+        File.WriteAllBytes(archivedUsmap, SyntheticFixtureBuilder.BuildUsmap());
+
+        var ownPlan = Ue4ssRuntimeSupport.InspectCleanupPlan(gameDir);
+        Assert.True(ownPlan.HasOurManagedInstall);
+        Assert.True(ownPlan.HasRemnants);
+        var ownPreview = Ue4ssRuntimeSupport.FormatCleanupPreviewText(ownPlan, includeForeign: false, "<backup>");
+        Assert.Contains("dwmapi.dll", ownPreview, StringComparison.Ordinal);
+        Assert.Contains("FfrUsmapDump", ownPreview, StringComparison.Ordinal);
 
         var stoppedLauncher = new FakeGameLauncher { Running = false };
         var uninstallOut = new StringWriter();
-        var (removedFiles, _, remaining) = Ue4ssArchiveInstaller.Uninstall(gameDir, stoppedLauncher, uninstallOut);
-        Assert.True(removedFiles >= 5);
-        Assert.Equal(2, remaining);
+        var ownRes = Ue4ssArchiveInstaller.Uninstall(
+            gameDir,
+            stoppedLauncher,
+            uninstallOut,
+            agpHomeOverride: workspace.AgpHomeDir);
+        Assert.Equal(Ue4ssUninstallOutcome.RemovedOwnInstall, ownRes.Outcome);
+        Assert.True(ownRes.RemovedFiles >= 8);
+        Assert.Equal(2, ownRes.RemainingFilesInUe4ss);
+        Assert.Null(ownRes.BackupDirectory);
         Assert.False(File.Exists(Path.Combine(win64Dir, "dwmapi.dll")));
         Assert.False(File.Exists(Path.Combine(ue4ssDir, "UE4SS.dll")));
         Assert.False(File.Exists(Path.Combine(ue4ssDir, "UE4SS-settings.ini")));
         Assert.False(File.Exists(Ue4ssRuntimeSupport.GetInstallMarkerPath(gameDir)));
+        Assert.False(Directory.Exists(Ue4ssRuntimeSupport.GetDumpModDirectory(gameDir)));
+        Assert.False(File.Exists(doneFile));
+        Assert.False(File.Exists(tmpFile));
         Assert.False(Ue4ssRuntimeSupport.HasOwnInstallMarker(gameDir));
         Assert.True(File.Exists(runtimeLogPath));
         Assert.True(File.Exists(userModFile));
+        Assert.True(File.Exists(archivedUsmap));
 
-        // 6. Uninstall refuses a pre-existing user UE4SS installation (no marker file).
+        // 6. Foreign UE4SS (no marker):
+        //    6a) Without --include-foreign: only cleans our remnants; leaves dwmapi.dll & ue4ss/ untouched.
         File.WriteAllText(Path.Combine(win64Dir, "dwmapi.dll"), "user-dwmapi", Encoding.UTF8);
         File.WriteAllText(Path.Combine(ue4ssDir, "UE4SS.dll"), "user-ue4ss", Encoding.UTF8);
+        File.WriteAllText(Path.Combine(ue4ssDir, "UE4SS-settings.ini"), "[Debug]\nConsoleEnabled = 1\n", Encoding.UTF8);
+        Directory.CreateDirectory(Path.GetDirectoryName(dumpModScript)!);
+        File.WriteAllText(dumpModScript, "-- dump mod\n", Encoding.UTF8);
+        File.WriteAllText(doneFile, "{}", Encoding.UTF8);
+        File.WriteAllText(tmpFile, "partial", Encoding.UTF8);
         Assert.Equal(Ue4ssInstallState.InstalledByUser, Ue4ssRuntimeSupport.InspectUe4ssState(gameDir).State);
         Assert.False(Ue4ssRuntimeSupport.HasOwnInstallMarker(gameDir));
 
-        var noMarkerEx = Assert.Throws<InvalidOperationException>(() =>
-            Ue4ssArchiveInstaller.Uninstall(gameDir, stoppedLauncher, new StringWriter()));
-        Assert.Contains("拒绝卸载", noMarkerEx.Message, StringComparison.Ordinal);
+        var foreignPlan = Ue4ssRuntimeSupport.InspectCleanupPlan(gameDir);
+        Assert.True(foreignPlan.IsForeignUe4ss);
+        Assert.True(foreignPlan.HasRemnants);
+        Assert.Contains("dwmapi.dll", foreignPlan.ForeignPathsToMove);
+        Assert.Contains("ue4ss/", foreignPlan.ForeignPathsToMove);
+
+        var foreignDefaultOut = new StringWriter();
+        var foreignDefaultRes = Ue4ssArchiveInstaller.Uninstall(
+            gameDir,
+            stoppedLauncher,
+            foreignDefaultOut,
+            includeForeign: false,
+            agpHomeOverride: workspace.AgpHomeDir);
+        Assert.Equal(Ue4ssUninstallOutcome.RemovedRemnantsOnly, foreignDefaultRes.Outcome);
+        Assert.Null(foreignDefaultRes.BackupDirectory);
+        Assert.False(Directory.Exists(Ue4ssRuntimeSupport.GetDumpModDirectory(gameDir)));
+        Assert.False(File.Exists(doneFile));
+        Assert.False(File.Exists(tmpFile));
+        Assert.True(File.Exists(Path.Combine(win64Dir, "dwmapi.dll")));
+        Assert.True(File.Exists(Path.Combine(ue4ssDir, "UE4SS.dll")));
+        Assert.True(File.Exists(userModFile));
+        Assert.Contains("--include-foreign", foreignDefaultOut.ToString(), StringComparison.Ordinal);
+
+        //    6b) With --include-foreign and declining interactive prompt -> cancelled, nothing moved.
+        var declineOut = new StringWriter();
+        var declineRes = Ue4ssArchiveInstaller.Uninstall(
+            gameDir,
+            stoppedLauncher,
+            declineOut,
+            includeForeign: true,
+            yes: false,
+            input: new StringReader("n\n"),
+            agpHomeOverride: workspace.AgpHomeDir);
+        Assert.Equal(Ue4ssUninstallOutcome.Cancelled, declineRes.Outcome);
         Assert.True(File.Exists(Path.Combine(win64Dir, "dwmapi.dll")));
         Assert.True(File.Exists(Path.Combine(ue4ssDir, "UE4SS.dll")));
 
+        //    6c) With --include-foreign --yes -> removes our remnants and MOVES dwmapi.dll + ue4ss/ into backup dir.
+        Directory.CreateDirectory(Path.GetDirectoryName(dumpModScript)!);
+        File.WriteAllText(dumpModScript, "-- temp remnant\n", Encoding.UTF8);
+        var fixedBackupTime = new DateTimeOffset(2026, 11, 26, 14, 30, 45, TimeSpan.FromHours(9));
+        var foreignBackupOut = new StringWriter();
+        var backupRes = Ue4ssArchiveInstaller.Uninstall(
+            gameDir,
+            stoppedLauncher,
+            foreignBackupOut,
+            includeForeign: true,
+            yes: true,
+            agpHomeOverride: workspace.AgpHomeDir,
+            nowOverride: () => fixedBackupTime);
+
+        Assert.Equal(Ue4ssUninstallOutcome.BackedUpForeignInstall, backupRes.Outcome);
+        var expectedBackupDir = Path.Combine(
+            workspace.AgpHomeDir,
+            "ffr-export",
+            "ue4ss-backup",
+            "20261126-143045");
+        Assert.Equal(expectedBackupDir, backupRes.BackupDirectory);
+
+        // Game directory is now clean of UE4SS.
+        Assert.False(File.Exists(Path.Combine(win64Dir, "dwmapi.dll")));
+        Assert.False(Directory.Exists(ue4ssDir));
+
+        // Backup directory preserves dwmapi.dll, ue4ss/UE4SS.dll, settings, user mods, and excludes cleaned dump mod.
+        Assert.Equal("user-dwmapi", File.ReadAllText(Path.Combine(expectedBackupDir, "dwmapi.dll"), Encoding.UTF8));
+        Assert.Equal("user-ue4ss", File.ReadAllText(Path.Combine(expectedBackupDir, "ue4ss", "UE4SS.dll"), Encoding.UTF8));
+        Assert.Equal(
+            "-- user mod\n",
+            File.ReadAllText(Path.Combine(expectedBackupDir, "ue4ss", "Mods", "UserCustomMod", "Scripts", "main.lua"), Encoding.UTF8));
+        Assert.False(Directory.Exists(Path.Combine(expectedBackupDir, "ue4ss", "Mods", "FfrUsmapDump")));
+        Assert.Contains("恢复方法", foreignBackupOut.ToString(), StringComparison.Ordinal);
+        Assert.Contains(expectedBackupDir, foreignBackupOut.ToString(), StringComparison.Ordinal);
+
+        // Archived .usmap in agp/ffr-export/usmap/ remains completely intact.
+        Assert.True(File.Exists(archivedUsmap));
+
+        //    6d) When nothing is installed -> reports "未发现 UE4SS".
+        var notFoundOut = new StringWriter();
+        var notFoundRes = Ue4ssArchiveInstaller.Uninstall(
+            gameDir,
+            stoppedLauncher,
+            notFoundOut,
+            agpHomeOverride: workspace.AgpHomeDir);
+        Assert.Equal(Ue4ssUninstallOutcome.NotFound, notFoundRes.Outcome);
+        Assert.Contains("未发现 UE4SS", notFoundOut.ToString(), StringComparison.Ordinal);
+
         // 7. Tampered marker with path traversal is rejected before deleting anything.
+        Directory.CreateDirectory(ue4ssDir);
         var tamperedMarkerPath = Ue4ssRuntimeSupport.GetInstallMarkerPath(gameDir);
         File.WriteAllText(
             tamperedMarkerPath,
@@ -579,9 +696,11 @@ public sealed class UsmapFetcherTests
         Assert.Equal(180, parsedFetch.TimeoutSeconds);
         Assert.True(parsedFetch.Yes);
 
-        var uninstallArgs = BuildCliCommand.BuildUninstallUe4ssArguments("/games/FFRS");
+        var uninstallArgs = BuildCliCommand.BuildUninstallUe4ssArguments("/games/FFRS", includeForeign: true, yes: true);
         var parsedUninstall = UsmapFetcher.ParseUninstallUe4ssArgs(uninstallArgs.Skip(1).ToArray());
         Assert.Equal("/games/FFRS", parsedUninstall.GameDirectory);
+        Assert.True(parsedUninstall.IncludeForeign);
+        Assert.True(parsedUninstall.Yes);
 
         // 2. InteractiveWizard auto-discovers .usmap in <AGP_HOME>/ffr-export/usmap/ and pressing Enter accepts it.
         var gameDir = CreateSyntheticGameDirectory(workspace.Root, "24250053", "GameWizard");
@@ -654,12 +773,69 @@ public sealed class UsmapFetcherTests
         Assert.Contains("已按安装标记卸载 UE4SS", cliUninstall.Stdout, StringComparison.Ordinal);
         Assert.False(Ue4ssRuntimeSupport.HasOwnInstallMarker(gameDir));
 
-        // Second uninstall (no marker) fails with exit code 2.
+        // Second uninstall (nothing installed) reports "未发现 UE4SS" cleanly.
         var cliUninstallAgain = await TestHarness.RunCliAsync(
             ["uninstall-ue4ss", "--game", gameDir],
             agpHome: workspace.AgpHomeDir);
-        Assert.Equal(2, cliUninstallAgain.ExitCode);
-        Assert.Contains("拒绝", cliUninstallAgain.Stderr, StringComparison.Ordinal);
+        Assert.Equal(0, cliUninstallAgain.ExitCode);
+        Assert.Contains("未发现 UE4SS", cliUninstallAgain.Stdout, StringComparison.Ordinal);
+
+        // End-to-end CLI test for foreign UE4SS: default leaves foreign UE4SS intact; --include-foreign --yes backs it up.
+        var win64Dir = Ue4ssRuntimeSupport.GetWin64Directory(gameDir);
+        var ue4ssDir = Ue4ssRuntimeSupport.GetUe4ssDirectory(gameDir);
+        Directory.CreateDirectory(Path.Combine(ue4ssDir, "Mods", "CustomForeignMod"));
+        await File.WriteAllTextAsync(Path.Combine(win64Dir, "dwmapi.dll"), "foreign-dwmapi");
+        await File.WriteAllTextAsync(Path.Combine(ue4ssDir, "UE4SS.dll"), "foreign-ue4ss");
+        await File.WriteAllTextAsync(Path.Combine(ue4ssDir, "Mods", "CustomForeignMod", "mod.txt"), "keep");
+
+        var cliForeignNoFlag = await TestHarness.RunCliAsync(
+            ["uninstall-ue4ss", "--game", gameDir],
+            agpHome: workspace.AgpHomeDir);
+        Assert.Equal(0, cliForeignNoFlag.ExitCode);
+        Assert.True(File.Exists(Path.Combine(win64Dir, "dwmapi.dll")));
+        Assert.True(File.Exists(Path.Combine(ue4ssDir, "UE4SS.dll")));
+
+        var cliForeignBackup = await TestHarness.RunCliAsync(
+            ["uninstall-ue4ss", "--game", gameDir, "--include-foreign", "--yes"],
+            agpHome: workspace.AgpHomeDir);
+        Assert.Equal(0, cliForeignBackup.ExitCode);
+        Assert.Contains("恢复方法", cliForeignBackup.Stdout, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(win64Dir, "dwmapi.dll")));
+        Assert.False(Directory.Exists(ue4ssDir));
+        var backupRoot = AgpPaths.GetUe4ssBackupDirectoryForAgpRoot(workspace.AgpHomeDir);
+        var backupFolder = Assert.Single(Directory.EnumerateDirectories(backupRoot));
+        Assert.Equal("foreign-dwmapi", await File.ReadAllTextAsync(Path.Combine(backupFolder, "dwmapi.dll")));
+        Assert.Equal("keep", await File.ReadAllTextAsync(Path.Combine(backupFolder, "ue4ss", "Mods", "CustomForeignMod", "mod.txt")));
+
+        // --help succeeds even when TEMP / TMP / TMPDIR point to an uncreatable path under a regular file.
+        var blockedTempFile = Path.Combine(workspace.Root, "blocked-temp-sentinel");
+        await File.WriteAllTextAsync(blockedTempFile, "blocked");
+        var unwritableTemp = Path.Combine(blockedTempFile, "sub");
+        var helpResult = await TestHarness.RunCliAsync(
+            ["--help"],
+            agpHome: workspace.AgpHomeDir,
+            extraEnv: new Dictionary<string, string?>
+            {
+                ["TEMP"] = unwritableTemp,
+                ["TMP"] = unwritableTemp,
+                ["TMPDIR"] = unwritableTemp,
+            });
+        Assert.Equal(0, helpResult.ExitCode);
+        Assert.Contains("uninstall-ue4ss", helpResult.Stdout, StringComparison.Ordinal);
+        Assert.Contains("AGP_HOME", helpResult.Stdout, StringComparison.Ordinal);
+
+        // Unwritable explicit AGP_HOME fails CLI immediately with clear Chinese error.
+        var unwritableAgp = Path.Combine(blockedTempFile, "agp");
+        var badAgpResult = await TestHarness.RunCliAsync(
+            ["uninstall-ue4ss", "--game", gameDir],
+            agpHome: workspace.AgpHomeDir,
+            extraEnv: new Dictionary<string, string?>
+            {
+                [AgpPaths.AgpHomeEnvVar] = unwritableAgp,
+            });
+        Assert.Equal(2, badAgpResult.ExitCode);
+        Assert.Contains("AGP_HOME", badAgpResult.Stderr, StringComparison.Ordinal);
+        Assert.Contains("不可写", badAgpResult.Stderr, StringComparison.Ordinal);
 
         if (!OperatingSystem.IsWindows())
         {

@@ -96,9 +96,29 @@ internal static class BuildCliCommand
         return args;
     }
 
-    internal static IReadOnlyList<string> BuildUninstallUe4ssArguments(string gameDirectory)
+    internal static IReadOnlyList<string> BuildUninstallUe4ssArguments(
+        string gameDirectory,
+        bool includeForeign = false,
+        bool yes = false)
     {
-        return ["uninstall-ue4ss", "--game", gameDirectory];
+        var args = new List<string>
+        {
+            "uninstall-ue4ss",
+            "--game",
+            gameDirectory,
+        };
+
+        if (includeForeign)
+        {
+            args.Add("--include-foreign");
+        }
+
+        if (yes)
+        {
+            args.Add("--yes");
+        }
+
+        return args;
     }
 
     internal static bool TryParseFetchedUsmapPath(string? line, out string usmapPath)
@@ -159,7 +179,8 @@ internal static class BuildCliCommand
     internal static ProcessStartInfo CreateStartInfo(
         string executablePath,
         IReadOnlyList<string> arguments,
-        string? workingDirectory = null)
+        string? workingDirectory = null,
+        string? agpHomeOverride = null)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -180,6 +201,11 @@ internal static class BuildCliCommand
             startInfo.ArgumentList.Add(arg);
         }
 
+        if (!string.IsNullOrWhiteSpace(agpHomeOverride))
+        {
+            startInfo.Environment[AgpPaths.AgpHomeEnvVar] = agpHomeOverride;
+        }
+
         return startInfo;
     }
 
@@ -189,11 +215,12 @@ internal static class BuildCliCommand
         Action<string> onStdoutLine,
         Action<string> onStderrLine,
         CancellationToken cancellationToken,
-        string? workingDirectory = null)
+        string? workingDirectory = null,
+        string? agpHomeOverride = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var startInfo = CreateStartInfo(executablePath, arguments, workingDirectory);
+        var startInfo = CreateStartInfo(executablePath, arguments, workingDirectory, agpHomeOverride);
         using var process = Process.Start(startInfo)
             ?? throw new InvalidOperationException($"无法启动命令行程序：{executablePath}");
 

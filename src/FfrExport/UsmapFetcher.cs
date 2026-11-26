@@ -14,7 +14,25 @@ internal sealed record FetchUsmapOptions(
     bool Yes);
 
 internal sealed record UninstallUe4ssOptions(
-    string GameDirectory);
+    string GameDirectory,
+    bool IncludeForeign = false,
+    bool Yes = false);
+
+internal enum Ue4ssUninstallOutcome
+{
+    NotFound,
+    RemovedOwnInstall,
+    RemovedRemnantsOnly,
+    BackedUpForeignInstall,
+    Cancelled,
+}
+
+internal sealed record Ue4ssUninstallResult(
+    Ue4ssUninstallOutcome Outcome,
+    int RemovedFiles,
+    int RemovedDirs,
+    int RemainingFilesInUe4ss,
+    string? BackupDirectory);
 
 internal sealed record Ue4ssInstallMarker(
     [property: JsonProperty("format")] int Format,
@@ -583,85 +601,359 @@ internal static class Ue4ssArchiveInstaller
         return hadTrailingNewline || result.Length > 0 ? result + lineEnding : result;
     }
 
-    internal static (int RemovedFiles, int RemovedDirs, int RemainingFilesInUe4ss) Uninstall(
+    internal static Ue4ssUninstallResult Uninstall(
         string gameDirectory,
         IGameLauncher launcher,
-        TextWriter output)
+        TextWriter output,
+        bool includeForeign = false,
+        bool yes = false,
+        TextReader? input = null,
+        string? agpHomeOverride = null,
+        Func<DateTimeOffset>? nowOverride = null)
     {
         var gamePaths = GameVersionDetector.ValidateGameDirectory(gameDirectory);
         if (launcher.IsGameRunning())
         {
             throw new InvalidOperationException(
-                $"卸载 UE4SS 被拒绝：游戏进程（{Ue4ssRuntimeSupport.GameExeFileName}）正在运行，请先关闭游戏后重试。");
+                $"清理 UE4SS 被拒绝：游戏进程（{Ue4ssRuntimeSupport.GameExeFileName}）正在运行，请先关闭游戏后重试。");
         }
 
         var inspection = Ue4ssRuntimeSupport.InspectUe4ssState(gamePaths.GameRoot);
-        if (!File.Exists(PathSupport.ToIoPath(inspection.MarkerPath)))
+        var markerExists = File.Exists(PathSupport.ToIoPath(inspection.MarkerPath));
+
+        // Case 1: Installed by ffr-export (marker file exists — validate strictly against path traversal).
+        if (markerExists)
         {
-            if (inspection.HasDwmapiDll || inspection.HasUe4ssDll)
+            var marker = ReadAndValidateMarker(inspection.MarkerPath, inspection.Win64Directory);
+
+            var (remnantFiles, remnantDirs) = Ue4ssRuntimeSupport.CleanOurRemnants(
+                gamePaths.GameRoot,
+                removeEmptyParentDirs: false,
+                log: message => output.WriteLine(message));
+
+            var removedFiles = remnantFiles;
+            foreach (var relativeFile in marker.Files)
             {
-                throw new InvalidOperationException(
-                    $"卸载 UE4SS 被拒绝：未找到本工具的安装标记文件（{inspection.MarkerPath}）。" +
-                    "当前游戏目录里的 UE4SS 似乎是您自行安装的，为避免误删您的配置和模组，本工具拒绝卸载。");
+                var fullPath = CombineUnderWin64(inspection.Win64Directory, relativeFile);
+                var ioPath = PathSupport.ToIoPath(fullPath);
+                if (File.Exists(ioPath))
+                {
+                    File.Delete(ioPath);
+                    removedFiles++;
+                }
             }
 
-            throw new InvalidOperationException(
-                $"卸载 UE4SS 被拒绝：未找到本工具的安装标记文件（{inspection.MarkerPath}），游戏目录中未检测到由本工具安装的 UE4SS。");
-        }
-
-        var marker = ReadAndValidateMarker(inspection.MarkerPath, inspection.Win64Directory);
-
-        var removedFiles = 0;
-        foreach (var relativeFile in marker.Files)
-        {
-            var fullPath = CombineUnderWin64(inspection.Win64Directory, relativeFile);
-            var ioPath = PathSupport.ToIoPath(fullPath);
-            if (File.Exists(ioPath))
+            // Ensure the marker file itself is removed even if an older marker omitted its own path.
+            var ioMarker = PathSupport.ToIoPath(inspection.MarkerPath);
+            if (File.Exists(ioMarker))
             {
-                File.Delete(ioPath);
+                File.Delete(ioMarker);
                 removedFiles++;
             }
-        }
 
-        // Ensure the marker file itself is removed even if an older marker omitted its own path.
-        var ioMarker = PathSupport.ToIoPath(inspection.MarkerPath);
-        if (File.Exists(ioMarker))
-        {
-            File.Delete(ioMarker);
-            removedFiles++;
-        }
-
-        var removedDirs = 0;
-        var dirsDeepestFirst = marker.Directories
-            .OrderByDescending(dir => dir.Length)
-            .ThenByDescending(dir => dir, StringComparer.Ordinal)
-            .ToArray();
-        foreach (var relativeDir in dirsDeepestFirst)
-        {
-            var fullDir = CombineUnderWin64(inspection.Win64Directory, relativeDir);
-            var ioDir = PathSupport.ToIoPath(fullDir);
-            if (Directory.Exists(ioDir) && !Directory.EnumerateFileSystemEntries(ioDir).Any())
+            var removedDirs = remnantDirs;
+            var dirsDeepestFirst = marker.Directories
+                .Concat(["ue4ss/Mods", "ue4ss"])
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(dir => dir.Length)
+                .ThenByDescending(dir => dir, StringComparer.Ordinal)
+                .ToArray();
+            foreach (var relativeDir in dirsDeepestFirst)
             {
-                Directory.Delete(ioDir, recursive: false);
-                removedDirs++;
+                var fullDir = CombineUnderWin64(inspection.Win64Directory, relativeDir);
+                var ioDir = PathSupport.ToIoPath(fullDir);
+                if (Directory.Exists(ioDir) && !Directory.EnumerateFileSystemEntries(ioDir).Any())
+                {
+                    Directory.Delete(ioDir, recursive: false);
+                    removedDirs++;
+                }
+            }
+
+            var remaining = CountFilesInDirectory(inspection.Ue4ssDirectory);
+            output.WriteLine($"已按安装标记卸载 UE4SS：删除 {removedFiles} 个文件，清理 {removedDirs} 个空目录。");
+            if (remaining > 0)
+            {
+                output.WriteLine(
+                    $"提示：{inspection.Ue4ssDirectory} 下仍保留 {remaining} 个非安装清单文件（如 UE4SS.log、用户模组或转储文件），未予删除。");
+            }
+
+            output.WriteLine("说明：已复制到 agp\\ffr-export\\usmap\\ 的 .usmap 文件不受影响，仍可继续使用。");
+            return new Ue4ssUninstallResult(
+                Ue4ssUninstallOutcome.RemovedOwnInstall,
+                removedFiles,
+                removedDirs,
+                remaining,
+                BackupDirectory: null);
+        }
+
+        // Case 2: Foreign UE4SS installation (dwmapi.dll and/or ue4ss/UE4SS.dll present without our marker).
+        if (inspection.HasDwmapiDll || inspection.HasUe4ssDll)
+        {
+            if (!includeForeign)
+            {
+                var (remnantFiles, remnantDirs) = Ue4ssRuntimeSupport.CleanOurRemnants(
+                    gamePaths.GameRoot,
+                    removeEmptyParentDirs: false,
+                    log: message => output.WriteLine(message));
+                var remaining = CountFilesInDirectory(inspection.Ue4ssDirectory);
+
+                if (remnantFiles > 0 || remnantDirs > 0)
+                {
+                    output.WriteLine(
+                        $"检测到游戏目录中的 UE4SS 不是本工具安装的（未找到 {Ue4ssRuntimeSupport.MarkerFileName}），" +
+                        $"已仅清理本工具残留（删除 {remnantFiles} 个文件，{remnantDirs} 个目录），原有 UE4SS 保持不动。");
+                }
+                else
+                {
+                    output.WriteLine(
+                        $"检测到游戏目录中的 UE4SS 不是本工具安装的（未找到 {Ue4ssRuntimeSupport.MarkerFileName}），" +
+                        "未发现本工具残留文件，原有 UE4SS 保持不动。");
+                }
+
+                output.WriteLine(
+                    "提示：如需连同非本工具安装的 UE4SS 一起移出游戏目录（移动至备份目录，不直接删除），请加上 --include-foreign。");
+                return new Ue4ssUninstallResult(
+                    Ue4ssUninstallOutcome.RemovedRemnantsOnly,
+                    remnantFiles,
+                    remnantDirs,
+                    remaining,
+                    BackupDirectory: null);
+            }
+
+            var backupRoot = AgpPaths.GetUe4ssBackupDirectory(agpHomeEnvOverride: agpHomeOverride);
+            var now = nowOverride?.Invoke() ?? DateTimeOffset.Now;
+            var backupDir = AllocateUniqueBackupDirectoryPath(backupRoot, now);
+
+            if (!yes)
+            {
+                var plan = Ue4ssRuntimeSupport.InspectCleanupPlan(gamePaths.GameRoot);
+                output.WriteLine("警告：当前游戏目录中的 UE4SS 不是本工具安装的，里面可能包含您自行安装的其他模组！");
+                output.WriteLine(Ue4ssRuntimeSupport.FormatCleanupPreviewText(plan, includeForeign: true, backupDir));
+                output.WriteLine();
+
+                var confirmed = PromptYesNoForCleanup(input ?? TextReader.Null, output);
+                if (confirmed is not true)
+                {
+                    output.WriteLine("已取消清理，未对游戏目录做任何修改。");
+                    return new Ue4ssUninstallResult(
+                        Ue4ssUninstallOutcome.Cancelled,
+                        0,
+                        0,
+                        CountFilesInDirectory(inspection.Ue4ssDirectory),
+                        BackupDirectory: null);
+                }
+            }
+
+            var (cleanedFiles, cleanedDirs) = Ue4ssRuntimeSupport.CleanOurRemnants(
+                gamePaths.GameRoot,
+                removeEmptyParentDirs: false,
+                log: message => output.WriteLine(message));
+
+            MoveForeignUe4ssToBackup(inspection, backupDir);
+
+            output.WriteLine($"已将非本工具安装的 UE4SS 移出游戏目录并完整备份到：{backupDir}");
+            if (cleanedFiles > 0 || cleanedDirs > 0)
+            {
+                output.WriteLine($"同时已清理本工具残留：{cleanedFiles} 个文件，{cleanedDirs} 个目录。");
+            }
+
+            output.WriteLine(
+                $"恢复方法：如需恢复原有的 UE4SS 与模组，将 {backupDir} 内的 dwmapi.dll 和 ue4ss 文件夹复制回 {inspection.Win64Directory} 即可。");
+            output.WriteLine("说明：已复制到 agp\\ffr-export\\usmap\\ 的 .usmap 文件不受影响，仍可继续使用。");
+
+            return new Ue4ssUninstallResult(
+                Ue4ssUninstallOutcome.BackedUpForeignInstall,
+                cleanedFiles,
+                cleanedDirs,
+                RemainingFilesInUe4ss: 0,
+                BackupDirectory: backupDir);
+        }
+
+        // Case 3: No UE4SS installed; clean any stray remnants of ours if present, otherwise report "未发现 UE4SS".
+        var (strayFiles, strayDirs) = Ue4ssRuntimeSupport.CleanOurRemnants(
+            gamePaths.GameRoot,
+            removeEmptyParentDirs: true,
+            log: message => output.WriteLine(message));
+        if (strayFiles > 0 || strayDirs > 0)
+        {
+            output.WriteLine($"未发现完整 UE4SS 安装，已清理本工具残留（删除 {strayFiles} 个文件，{strayDirs} 个目录）。");
+            return new Ue4ssUninstallResult(
+                Ue4ssUninstallOutcome.RemovedRemnantsOnly,
+                strayFiles,
+                strayDirs,
+                CountFilesInDirectory(inspection.Ue4ssDirectory),
+                BackupDirectory: null);
+        }
+
+        output.WriteLine("未发现 UE4SS（当前游戏目录未安装 UE4SS，也未发现本工具残留文件）。");
+        return new Ue4ssUninstallResult(
+            Ue4ssUninstallOutcome.NotFound,
+            0,
+            0,
+            0,
+            BackupDirectory: null);
+    }
+
+    private static int CountFilesInDirectory(string directoryPath)
+    {
+        var ioDir = PathSupport.ToIoPath(directoryPath);
+        return Directory.Exists(ioDir)
+            ? Directory.EnumerateFiles(ioDir, "*", SearchOption.AllDirectories).Count()
+            : 0;
+    }
+
+    private static string AllocateUniqueBackupDirectoryPath(string backupRoot, DateTimeOffset now)
+    {
+        var stamp = now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            var folderName = attempt == 0
+                ? stamp
+                : string.Create(CultureInfo.InvariantCulture, $"{stamp}-{attempt + 1}");
+            var candidate = Path.Combine(backupRoot, folderName);
+            if (!Directory.Exists(PathSupport.ToIoPath(candidate)) && !File.Exists(PathSupport.ToIoPath(candidate)))
+            {
+                return candidate;
             }
         }
 
-        var remaining = 0;
-        var ioUe4ssDir = PathSupport.ToIoPath(inspection.Ue4ssDirectory);
-        if (Directory.Exists(ioUe4ssDir))
+        return Path.Combine(backupRoot, $"{stamp}-{Guid.NewGuid().ToString("N")[..8]}");
+    }
+
+    /// <summary>
+    /// Moves dwmapi.dll and the entire ue4ss/ folder out of the game directory into backupDir.
+    /// Uses copy-verify-then-delete so cross-volume moves always succeed and any failure
+    /// leaves the original game directory intact.
+    /// </summary>
+    private static void MoveForeignUe4ssToBackup(Ue4ssInspection inspection, string backupDir)
+    {
+        var dwmapiSrc = Path.Combine(inspection.Win64Directory, Ue4ssRuntimeSupport.DwmapiFileName);
+        var hasDwmapi = File.Exists(PathSupport.ToIoPath(dwmapiSrc));
+        var hasUe4ssDir = Directory.Exists(PathSupport.ToIoPath(inspection.Ue4ssDirectory));
+
+        if (!hasDwmapi && !hasUe4ssDir)
         {
-            remaining = Directory.EnumerateFiles(ioUe4ssDir, "*", SearchOption.AllDirectories).Count();
+            return;
         }
 
-        output.WriteLine($"已按安装标记卸载 UE4SS：删除 {removedFiles} 个文件，清理 {removedDirs} 个空目录。");
-        if (remaining > 0)
+        Directory.CreateDirectory(PathSupport.ToIoPath(backupDir));
+        var copyCompleted = false;
+        try
         {
-            output.WriteLine(
-                $"提示：{inspection.Ue4ssDirectory} 下仍保留 {remaining} 个非安装清单文件（如 UE4SS.log、用户模组或转储文件），未予删除。");
+            if (hasDwmapi)
+            {
+                var dwmapiDst = Path.Combine(backupDir, Ue4ssRuntimeSupport.DwmapiFileName);
+                File.Copy(PathSupport.ToIoPath(dwmapiSrc), PathSupport.ToIoPath(dwmapiDst), overwrite: false);
+            }
+
+            if (hasUe4ssDir)
+            {
+                var ue4ssDst = Path.Combine(backupDir, "ue4ss");
+                CopyDirectoryRecursive(inspection.Ue4ssDirectory, ue4ssDst);
+            }
+
+            copyCompleted = true;
+        }
+        catch (Exception exception)
+        {
+            try
+            {
+                if (Directory.Exists(PathSupport.ToIoPath(backupDir)))
+                {
+                    Directory.Delete(PathSupport.ToIoPath(backupDir), recursive: true);
+                }
+            }
+            catch
+            {
+                // Ignore cleanup failures of incomplete backup directory.
+            }
+
+            throw new IOException(
+                $"备份非本工具安装的 UE4SS 失败（目标备份目录：{backupDir}）：{exception.Message}；游戏目录保持未修改。",
+                exception);
         }
 
-        return (removedFiles, removedDirs, remaining);
+        if (!copyCompleted)
+        {
+            return;
+        }
+
+        try
+        {
+            if (hasDwmapi && File.Exists(PathSupport.ToIoPath(dwmapiSrc)))
+            {
+                File.Delete(PathSupport.ToIoPath(dwmapiSrc));
+            }
+
+            if (hasUe4ssDir && Directory.Exists(PathSupport.ToIoPath(inspection.Ue4ssDirectory)))
+            {
+                Directory.Delete(PathSupport.ToIoPath(inspection.Ue4ssDirectory), recursive: true);
+            }
+        }
+        catch (Exception exception)
+        {
+            throw new IOException(
+                $"已完成 UE4SS 备份（{backupDir}），但移出原目录文件失败：{exception.Message}；" +
+                "请确认游戏及相关工具已关闭后重试，备份目录已完整保留。",
+                exception);
+        }
+    }
+
+    private static void CopyDirectoryRecursive(string sourceDir, string destinationDir)
+    {
+        Directory.CreateDirectory(PathSupport.ToIoPath(destinationDir));
+
+        foreach (var rawSubdir in Directory.EnumerateDirectories(PathSupport.ToIoPath(sourceDir), "*", SearchOption.AllDirectories))
+        {
+            var rel = Path.GetRelativePath(sourceDir, Path.GetFullPath(rawSubdir));
+            Directory.CreateDirectory(PathSupport.ToIoPath(Path.Combine(destinationDir, rel)));
+        }
+
+        foreach (var rawFile in Directory.EnumerateFiles(PathSupport.ToIoPath(sourceDir), "*", SearchOption.AllDirectories))
+        {
+            var fullSrc = Path.GetFullPath(rawFile);
+            var rel = Path.GetRelativePath(sourceDir, fullSrc);
+            var dstFile = Path.Combine(destinationDir, rel);
+            var dstParent = Path.GetDirectoryName(dstFile);
+            if (!string.IsNullOrEmpty(dstParent))
+            {
+                Directory.CreateDirectory(PathSupport.ToIoPath(dstParent));
+            }
+
+            File.Copy(PathSupport.ToIoPath(fullSrc), PathSupport.ToIoPath(dstFile), overwrite: false);
+        }
+    }
+
+    private static bool? PromptYesNoForCleanup(TextReader input, TextWriter output)
+    {
+        while (true)
+        {
+            output.Write("确认将上述非本工具安装的 UE4SS 移动到备份目录吗？（输入 y 确认，直接回车或输入 n 取消）：");
+            output.Flush();
+            var raw = input.ReadLine();
+            if (raw is null)
+            {
+                return null;
+            }
+
+            var trimmed = raw.Trim();
+            if (trimmed.Equals("y", StringComparison.OrdinalIgnoreCase)
+                || trimmed.Equals("yes", StringComparison.OrdinalIgnoreCase)
+                || trimmed.Equals("是", StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (string.IsNullOrEmpty(trimmed)
+                || trimmed.Equals("n", StringComparison.OrdinalIgnoreCase)
+                || trimmed.Equals("no", StringComparison.OrdinalIgnoreCase)
+                || trimmed.Equals("否", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            output.WriteLine("输入无效，请输入 y 确认或 n 取消。");
+        }
     }
 
     internal static Ue4ssInstallMarker ReadAndValidateMarker(string markerPath, string win64Dir)
@@ -1050,12 +1342,20 @@ internal static class UsmapFetcher
     internal static UninstallUe4ssOptions ParseUninstallUe4ssArgs(string[] args)
     {
         string? gameDirectory = null;
+        var includeForeign = false;
+        var yes = false;
         for (var index = 0; index < args.Length; index++)
         {
             switch (args[index])
             {
                 case "--game":
                     gameDirectory = RequireValue(args, ref index, "--game");
+                    break;
+                case "--include-foreign":
+                    includeForeign = true;
+                    break;
+                case "--yes":
+                    yes = true;
                     break;
                 default:
                     throw new ArgumentException($"uninstall-ue4ss 收到未知参数：{args[index]}");
@@ -1067,7 +1367,7 @@ internal static class UsmapFetcher
             throw new ArgumentException("uninstall-ue4ss 需要 --game <游戏目录>");
         }
 
-        return new UninstallUe4ssOptions(gameDirectory);
+        return new UninstallUe4ssOptions(gameDirectory, includeForeign, yes);
     }
 
     internal static async Task<int> RunFetchAsync(
@@ -1294,7 +1594,7 @@ internal static class UsmapFetcher
             {
                 var retainMessage = inspection.State == Ue4ssInstallState.InstalledByUser
                     ? "已保留您原有的 UE4SS 环境不动。"
-                    : "UE4SS 已保留在游戏目录中供下次复用（随时可运行 ffr-export uninstall-ue4ss 或在窗口「设置」中卸载）。";
+                    : "UE4SS 已保留在游戏目录中供下次复用（随时可运行 ffr-export uninstall-ue4ss 或在主窗口点击「清理 UE4SS…」清理）。";
                 output.WriteLine(retainMessage);
             }
         }
@@ -1628,7 +1928,10 @@ internal static partial class Program
     private static async Task<int> RunFetchUsmapAsync(string[] args)
     {
         var options = UsmapFetcher.ParseFetchUsmapArgs(args);
-        using var logOut = CliLogWriter.Create(Console.Out);
+        var agpResolution = AgpPaths.ResolveWritableAgpRootOrThrow(Console.Out);
+        using var logOut = CliLogWriter.Create(
+            Console.Out,
+            AgpPaths.GetLogsDirectoryForAgpRoot(agpResolution.AgpRoot!));
         using var cts = new CancellationTokenSource();
 
         ConsoleCancelEventHandler cancelHandler = (_, eventArgs) =>
@@ -1657,6 +1960,7 @@ internal static partial class Program
                 Console.Error,
                 downloader,
                 launcher,
+                agpHomeOverride: agpResolution.AgpRoot,
                 cancellationToken: cts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -1673,9 +1977,19 @@ internal static partial class Program
     private static Task<int> RunUninstallUe4ssAsync(string[] args)
     {
         var options = UsmapFetcher.ParseUninstallUe4ssArgs(args);
-        using var logOut = CliLogWriter.Create(Console.Out);
+        var agpResolution = AgpPaths.ResolveWritableAgpRootOrThrow(Console.Out);
+        using var logOut = CliLogWriter.Create(
+            Console.Out,
+            AgpPaths.GetLogsDirectoryForAgpRoot(agpResolution.AgpRoot!));
         var launcher = new WindowsSteamGameLauncher();
-        _ = Ue4ssArchiveInstaller.Uninstall(options.GameDirectory, launcher, logOut);
+        _ = Ue4ssArchiveInstaller.Uninstall(
+            options.GameDirectory,
+            launcher,
+            logOut,
+            includeForeign: options.IncludeForeign,
+            yes: options.Yes,
+            input: Console.In,
+            agpHomeOverride: agpResolution.AgpRoot);
         return Task.FromResult(0);
     }
 }
