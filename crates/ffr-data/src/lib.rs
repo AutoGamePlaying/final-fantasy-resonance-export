@@ -11,6 +11,7 @@ pub mod datatable;
 pub mod error;
 pub mod flags;
 pub mod ftext;
+pub mod gb2312_hanzi;
 pub mod paths;
 pub mod playable;
 pub mod scenario;
@@ -30,10 +31,11 @@ pub use flags::{
 pub use ftext::{
     DEFAULT_LOCRES_LANGUAGES, FTextValue, MODEL_LANGUAGE, NATIVE_LANGUAGE, ResolveOptions,
     ResolvedText, TextResolver, TextResolverOptions, TextSource, UNTRANSLATED_REASON,
-    UNTRANSLATED_REASON_CJK, UNTRANSLATED_REASON_KANA, is_cjk_ideograph, is_japanese_kana,
-    is_untranslated_entry, parse_ftext, resolve_ftext, resolve_model_text,
-    untranslated_reason_code,
+    UNTRANSLATED_REASON_CJK, UNTRANSLATED_REASON_KANA, UNTRANSLATED_REASON_NON_SIMPLIFIED_HANZI,
+    is_cjk_ideograph, is_japanese_kana, is_untranslated_entry, parse_ftext, resolve_ftext,
+    resolve_model_text, untranslated_reason_code,
 };
+pub use gb2312_hanzi::{GB2312_HANZI, is_gb2312_hanzi};
 pub use paths::{
     FFR_DEPS_ENV, datatable_dir, datatable_relative_path_to_json, export_dir_from_deps,
     export_dir_from_env, export_dir_from_env_value, is_safe_language_tag, localization_dir,

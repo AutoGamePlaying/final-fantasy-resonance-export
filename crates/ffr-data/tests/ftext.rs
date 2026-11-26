@@ -4,10 +4,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ffr_data::{
-    FTextValue, LocalizationCatalog, MODEL_LANGUAGE, NATIVE_LANGUAGE, ResolveOptions, TextResolver,
-    TextResolverOptions, TextSource, UNTRANSLATED_REASON, UNTRANSLATED_REASON_CJK,
-    UNTRANSLATED_REASON_KANA, is_cjk_ideograph, is_japanese_kana, is_untranslated_entry,
-    parse_ftext, resolve_ftext, resolve_model_text, untranslated_reason_code,
+    FTextValue, GB2312_HANZI, LocalizationCatalog, MODEL_LANGUAGE, NATIVE_LANGUAGE, ResolveOptions,
+    TextResolver, TextResolverOptions, TextSource, UNTRANSLATED_REASON, UNTRANSLATED_REASON_CJK,
+    UNTRANSLATED_REASON_KANA, UNTRANSLATED_REASON_NON_SIMPLIFIED_HANZI, is_cjk_ideograph,
+    is_gb2312_hanzi, is_japanese_kana, is_untranslated_entry, parse_ftext, resolve_ftext,
+    resolve_model_text, untranslated_reason_code,
 };
 use serde_json::json;
 use tempfile::tempdir;
@@ -420,6 +421,156 @@ fn untranslated_detection_rules_cover_kana_pure_hanzi_and_translated_cases() {
         Some("別の文章")
     ));
     assert!(!is_untranslated_entry("zh-Hans", "テスト未翻訳の技", None));
+}
+
+#[test]
+fn gb2312_hanzi_table_has_exact_size_strict_order_and_expected_membership() {
+    assert_eq!(GB2312_HANZI.len(), 6_763);
+    assert!(
+        GB2312_HANZI.windows(2).all(|pair| pair[0] < pair[1]),
+        "GB2312_HANZI must be strictly ascending for binary search"
+    );
+    for ch in ['剑', '贼', '骑', '术', '爱'] {
+        assert!(
+            is_gb2312_hanzi(ch),
+            "expected simplified Hanzi '{ch}' to be in GB2312"
+        );
+    }
+    for ch in ['剣', '賊', '騎', '術', '愛'] {
+        assert!(
+            !is_gb2312_hanzi(ch),
+            "expected Japanese/non-GB2312 Hanzi '{ch}' to be absent from GB2312"
+        );
+    }
+}
+
+#[test]
+fn simplified_chinese_flags_non_gb2312_hanzi_same_as_ja_and_keeps_resolver_aligned() {
+    // Same as ja, no kana, contains non-GB2312 Hanzi ('剣') -> untranslated for zh-Hans / zh-CN.
+    assert!(is_untranslated_entry("zh-Hans", "剣技", Some("剣技")));
+    assert_eq!(
+        untranslated_reason_code("zh-Hans", "剣技", Some("剣技")),
+        Some(UNTRANSLATED_REASON_NON_SIMPLIFIED_HANZI)
+    );
+    assert_eq!(
+        untranslated_reason_code("zh-CN", "剣技", Some("剣技")),
+        Some(UNTRANSLATED_REASON_NON_SIMPLIFIED_HANZI)
+    );
+    assert_eq!(
+        untranslated_reason_code("zh-Hans-CN", "剣技", Some("剣技")),
+        Some(UNTRANSLATED_REASON_NON_SIMPLIFIED_HANZI)
+    );
+    // Traditional Chinese tags are not governed by the GB2312 simplified-Hanzi rule.
+    assert_eq!(
+        untranslated_reason_code("zh-Hant", "剣技", Some("剣技")),
+        None
+    );
+    assert_eq!(
+        untranslated_reason_code("zh-TW", "剣技", Some("剣技")),
+        None
+    );
+
+    // Same as ja, all GB2312 simplified Hanzi -> remains a valid Chinese translation.
+    assert!(!is_untranslated_entry("zh-Hans", "兵法", Some("兵法")));
+    assert_eq!(
+        untranslated_reason_code("zh-Hans", "兵法", Some("兵法")),
+        None
+    );
+
+    // Different from ja -> translated.
+    assert!(!is_untranslated_entry("zh-Hans", "剑技", Some("剣技")));
+    assert_eq!(
+        untranslated_reason_code("zh-Hans", "剑技", Some("剣技")),
+        None
+    );
+
+    // Kana and English rules stay unchanged.
+    assert_eq!(
+        untranslated_reason_code("zh-Hans", "剣の技", Some("剣の技")),
+        Some(UNTRANSLATED_REASON_KANA)
+    );
+    assert_eq!(
+        untranslated_reason_code("en", "剣技", Some("剣技")),
+        Some(UNTRANSLATED_REASON_CJK)
+    );
+    assert_eq!(
+        untranslated_reason_code("en", "兵法", Some("兵法")),
+        Some(UNTRANSLATED_REASON_CJK)
+    );
+
+    // Verify TextResolver::untranslated_reason matches untranslated_reason_code.
+    let temp = tempdir().expect("tempdir");
+    let loc_dir = temp.path().join("Localization");
+    fs::create_dir_all(&loc_dir).expect("create Localization dir");
+    fs::write(
+        loc_dir.join("ja.json"),
+        serde_json::to_string_pretty(&json!({
+            "DemoSkill": {
+                "KanjiUntrans": "剣技",
+                "SameSimplified": "兵法",
+                "Translated": "剣技"
+            }
+        }))
+        .expect("serialize ja"),
+    )
+    .expect("write ja.json");
+    fs::write(
+        loc_dir.join("zh-Hans.json"),
+        serde_json::to_string_pretty(&json!({
+            "DemoSkill": {
+                "KanjiUntrans": "剣技",
+                "SameSimplified": "兵法",
+                "Translated": "剑技"
+            }
+        }))
+        .expect("serialize zh-Hans"),
+    )
+    .expect("write zh-Hans.json");
+
+    let resolver = TextResolver::new(temp.path());
+    let inline = |key: &str| FTextValue::Inline {
+        namespace: "DemoSkill".to_owned(),
+        key: key.to_owned(),
+        source_string: None,
+        localized_string: None,
+    };
+
+    let kanji_untrans = inline("KanjiUntrans");
+    let strict = resolver.resolve_in(&kanji_untrans, "zh-Hans");
+    assert_eq!(strict.text, None);
+    assert_eq!(strict.source, TextSource::Missing);
+    assert_eq!(strict.reason.as_deref(), Some(UNTRANSLATED_REASON));
+    let fallback = resolver.resolve_with(
+        &kanji_untrans,
+        Some("zh-Hans"),
+        ResolveOptions::with_fallback(),
+    );
+    assert_eq!(fallback.text.as_deref(), Some("剣技"));
+    assert_eq!(fallback.lang.as_deref(), Some("ja"));
+    assert_eq!(
+        resolver.untranslated_entry(&kanji_untrans, "zh-Hans"),
+        Some((
+            "DemoSkill".to_owned(),
+            "KanjiUntrans".to_owned(),
+            "剣技".to_owned(),
+            UNTRANSLATED_REASON_NON_SIMPLIFIED_HANZI,
+        ))
+    );
+
+    let same_simplified = inline("SameSimplified");
+    let resolved_same = resolver.resolve_in(&same_simplified, "zh-Hans");
+    assert_eq!(resolved_same.text.as_deref(), Some("兵法"));
+    assert_eq!(resolved_same.lang.as_deref(), Some("zh-Hans"));
+    assert_eq!(
+        resolver.untranslated_entry(&same_simplified, "zh-Hans"),
+        None
+    );
+
+    let translated = inline("Translated");
+    let resolved_tr = resolver.resolve_in(&translated, "zh-Hans");
+    assert_eq!(resolved_tr.text.as_deref(), Some("剑技"));
+    assert_eq!(resolved_tr.lang.as_deref(), Some("zh-Hans"));
+    assert_eq!(resolver.untranslated_entry(&translated, "zh-Hans"), None);
 }
 
 #[test]

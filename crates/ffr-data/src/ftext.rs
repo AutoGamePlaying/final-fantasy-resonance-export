@@ -19,6 +19,7 @@ use serde_json::Value;
 
 use crate::datatable::{LocalizationCatalog, StringTable, load_localization, load_string_table};
 use crate::error::{DataError, Result};
+use crate::gb2312_hanzi::is_gb2312_hanzi;
 use crate::paths::{is_safe_language_tag, localization_file, ue_object_path_to_export_json};
 
 /// Native source language of `StringTable` assets and inline `SourceString` fields.
@@ -35,6 +36,9 @@ pub const UNTRANSLATED_REASON_KANA: &str = "same_as_ja_with_kana";
 /// Machine-readable reason code stored in `text_untranslated.reason` when an English entry matches
 /// `ja` and contains CJK ideographs (without kana).
 pub const UNTRANSLATED_REASON_CJK: &str = "same_as_ja_with_cjk";
+/// Machine-readable reason code stored in `text_untranslated.reason` when a Simplified Chinese
+/// entry matches `ja`, contains no kana, and includes at least one CJK ideograph outside GB2312.
+pub const UNTRANSLATED_REASON_NON_SIMPLIFIED_HANZI: &str = "same_as_ja_with_non_simplified_hanzi";
 
 /// Returns `true` when `ch` is a Japanese Hiragana or Katakana character (excluding punctuation
 /// marks such as middle dot `・`/`･` and double hyphen `゠`).
@@ -73,12 +77,34 @@ fn is_english_language(lang: &str) -> bool {
             .is_some_and(|prefix| prefix.eq_ignore_ascii_case("en-"))
 }
 
+fn is_simplified_chinese_language(lang: &str) -> bool {
+    lang.eq_ignore_ascii_case("zh-Hans")
+        || lang
+            .get(..8)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("zh-Hans-"))
+        || lang.eq_ignore_ascii_case("zh-CN")
+        || lang
+            .get(..6)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("zh-CN-"))
+        || lang.eq_ignore_ascii_case("zh-SG")
+        || lang
+            .get(..6)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("zh-SG-"))
+}
+
 fn untranslated_script_reason(lang: &str, value: &str) -> Option<&'static str> {
     if value.chars().any(is_japanese_kana) {
         return Some(UNTRANSLATED_REASON_KANA);
     }
     if is_english_language(lang) && value.chars().any(is_cjk_ideograph) {
         return Some(UNTRANSLATED_REASON_CJK);
+    }
+    if is_simplified_chinese_language(lang)
+        && value
+            .chars()
+            .any(|ch| is_cjk_ideograph(ch) && !is_gb2312_hanzi(ch))
+    {
+        return Some(UNTRANSLATED_REASON_NON_SIMPLIFIED_HANZI);
     }
     None
 }
@@ -92,8 +118,12 @@ fn untranslated_script_reason(lang: &str, value: &str) -> Option<&'static str> {
 /// - If `value` contains Japanese kana, returns `Some("same_as_ja_with_kana")`.
 /// - For English (`en` / `en-*`), if `value` contains CJK ideographs without kana, returns
 ///   `Some("same_as_ja_with_cjk")`.
-/// - For all other non-native languages (including `zh-Hans`), pure-Hanzi strings return `None` so
-///   names legitimately matching Japanese Kanji are preserved.
+/// - For Simplified Chinese (`zh-Hans` / `zh-Hans-*` / `zh-CN` / `zh-SG`), if `value` contains no
+///   kana and has at least one CJK ideograph outside GB2312's 6,763 Hanzi set, returns
+///   `Some("same_as_ja_with_non_simplified_hanzi")`. Entries made solely of GB2312 Simplified Hanzi
+///   still return `None` so names and terms legitimately identical in Chinese and Japanese are
+///   preserved.
+/// - For other non-native languages, pure-Hanzi strings return `None`.
 pub fn untranslated_reason_code(
     lang: &str,
     value: &str,
