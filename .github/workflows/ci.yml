@@ -76,7 +76,7 @@ jobs:
         shell: bash
         run: |
           if [[ -e .deps ]]; then
-            echo "错误：CI 工作区中不应存在 .deps 目录" >&2
+            echo "Error: .deps directory must not exist in the CI workspace" >&2
             exit 1
           fi
           bash scripts/check.sh
@@ -87,7 +87,7 @@ jobs:
         run: |
           $guiExe = "src/FfrExport.Gui/bin/Release/net10.0-windows/ffr-export-gui.exe"
           if (-not (Test-Path -LiteralPath $guiExe -PathType Leaf)) {
-            throw "错误：找不到编译生成的窗口程序：$guiExe"
+            throw "Error: built GUI executable not found: $guiExe"
           }
           $workDir = Join-Path ([System.IO.Path]::GetTempPath()) ("ffr-gui-selftest-" + [System.Guid]::NewGuid().ToString("N"))
           $deniedTempDir = Join-Path $workDir "denied-temp"
@@ -98,9 +98,9 @@ jobs:
           $previousTmp = $env:TMP
           $hadTmp = Test-Path Env:TMP
           try {
-            & icacls $deniedTempDir /deny '*S-1-1-0:(OI)(CI)(W)' | Out-Null
+            & icacls $deniedTempDir /deny '*S-1-1-0:(OI)(CI)(WD,AD,WEA,WA)' | Out-Null
             if ($LASTEXITCODE -ne 0) {
-              throw "错误：使用 icacls 为临时目录设置拒绝写入 ACL 失败：$deniedTempDir（退出码 $LASTEXITCODE）"
+              throw "Error: icacls failed to apply deny-write ACL on temp directory: $deniedTempDir (exit code $LASTEXITCODE)"
             }
             $aclBlocked = $false
             try {
@@ -109,7 +109,7 @@ jobs:
               $aclBlocked = $true
             }
             if (-not $aclBlocked) {
-              throw "错误：icacls 拒绝写入 ACL 未生效，仍可向目录写入文件：$deniedTempDir"
+              throw "Error: icacls deny-write ACL did not take effect; file write still succeeded in $deniedTempDir"
             }
 
             $env:TEMP = $deniedTempDir
@@ -124,11 +124,13 @@ jobs:
                   [Console]::Error.WriteLine($stderrText)
                 }
               }
-              throw "错误：TEMP 被 icacls 拒绝写入时 ffr-export-gui.exe --self-test 失败（退出码 $selfTestExit）"
+              throw "Error: ffr-export-gui.exe --self-test failed with icacls deny-write TEMP (exit code $selfTestExit)"
             }
+            # Lift the deny ACE before inspecting the directory; the check itself must not be blocked by it.
+            & icacls $deniedTempDir /remove:d '*S-1-1-0' | Out-Null
             $leakedTempFiles = @(Get-ChildItem -LiteralPath $deniedTempDir -Force)
             if ($leakedTempFiles.Count -ne 0) {
-              throw "错误：拒绝写入的 TEMP 目录内出现了意外文件：$($leakedTempFiles.Name -join ', ')"
+              throw "Error: unexpected files appeared inside deny-write TEMP directory: $($leakedTempFiles.Name -join ', ')"
             }
           } finally {
             if ($hadTemp) { $env:TEMP = $previousTemp } else { Remove-Item Env:TEMP -ErrorAction SilentlyContinue }
@@ -140,7 +142,7 @@ jobs:
               Remove-Item -LiteralPath $workDir -Recurse -Force -ErrorAction SilentlyContinue
             }
           }
-          Write-Host "窗口程序构造自检通过（icacls 拒绝写入 TEMP 模拟）：$guiExe --self-test"
+          Write-Host "GUI self-test passed (icacls deny-write TEMP simulation): $guiExe --self-test"
 
   fixture-hash:
     name: Fixture Hash (${{ matrix.os }})
@@ -272,7 +274,7 @@ jobs:
           diffs = []
           for field in ("file_sha256", "content_sha256", "schema_version"):
               if linux_data.get(field) != win_data.get(field):
-                  diffs.append(f"字段 {field} 不一致：Linux={linux_data.get(field)} vs Windows={win_data.get(field)}")
+                  diffs.append(f"Field '{field}' mismatch: Linux={linux_data.get(field)} vs Windows={win_data.get(field)}")
 
           linux_tables = {t["name"]: t for t in linux_data.get("tables", [])}
           win_tables = {t["name"]: t for t in win_data.get("tables", [])}
@@ -283,9 +285,9 @@ jobs:
               lt = linux_tables.get(name)
               wt = win_tables.get(name)
               if lt is None:
-                  diff_tables.append(f"  - {name}: Linux 缺失，Windows rows={wt['rows']} sha256={wt['sha256']}")
+                  diff_tables.append(f"  - {name}: missing on Linux, Windows rows={wt['rows']} sha256={wt['sha256']}")
               elif wt is None:
-                  diff_tables.append(f"  - {name}: Windows 缺失，Linux rows={lt['rows']} sha256={lt['sha256']}")
+                  diff_tables.append(f"  - {name}: missing on Windows, Linux rows={lt['rows']} sha256={lt['sha256']}")
               elif lt["rows"] != wt["rows"] or lt["sha256"] != wt["sha256"]:
                   diff_tables.append(
                       f"  - {name}: Linux(rows={lt['rows']}, sha256={lt['sha256']}) != "
@@ -293,16 +295,16 @@ jobs:
                   )
 
           if diffs or diff_tables:
-              print("错误：Linux 与 Windows 构建的假数据库哈希不一致！", file=sys.stderr)
+              print("Error: Linux and Windows synthetic database hashes do not match!", file=sys.stderr)
               for line in diffs:
                   print(line, file=sys.stderr)
               if diff_tables:
-                  print(f"存在差异的表（共 {len(diff_tables)} 张）：", file=sys.stderr)
+                  print(f"Tables with differences ({len(diff_tables)}):", file=sys.stderr)
                   for line in diff_tables:
                       print(line, file=sys.stderr)
               sys.exit(1)
 
-          print(f"核对通过：Linux 与 Windows 哈希完全一致（共 {len(all_names)} 张表）。")
+          print(f"Hash verification passed: Linux and Windows match across all {len(all_names)} tables.")
           PY
 
       - name: Compare Linux and Windows export file manifests
@@ -326,7 +328,7 @@ jobs:
           print(f"Windows export files: {len(win_files)} ({win_data.get('os')})")
 
           if not all_paths:
-              print("错误：合成导出清单为空！", file=sys.stderr)
+              print("Error: synthetic export manifest is empty!", file=sys.stderr)
               sys.exit(1)
 
           diff_files = []
@@ -334,9 +336,9 @@ jobs:
               lf = linux_files.get(rel_path)
               wf = win_files.get(rel_path)
               if lf is None:
-                  diff_files.append(f"  - {rel_path}: Linux 缺失，Windows size={wf['size']} sha256={wf['sha256']}")
+                  diff_files.append(f"  - {rel_path}: missing on Linux, Windows size={wf['size']} sha256={wf['sha256']}")
               elif wf is None:
-                  diff_files.append(f"  - {rel_path}: Windows 缺失，Linux size={lf['size']} sha256={lf['sha256']}")
+                  diff_files.append(f"  - {rel_path}: missing on Windows, Linux size={lf['size']} sha256={lf['sha256']}")
               else:
                   mismatches = []
                   for key in ("sha256", "size", "has_cr", "has_bom", "normalized_volatile"):
@@ -346,12 +348,12 @@ jobs:
                       diff_files.append(f"  - {rel_path}: " + "; ".join(mismatches))
 
           if diff_files:
-              print(f"错误：Linux 与 Windows 合成导出存在差异（共 {len(diff_files)} 个文件）：", file=sys.stderr)
+              print(f"Error: Linux and Windows synthetic export manifests differ ({len(diff_files)} file(s)):", file=sys.stderr)
               for line in diff_files:
                   print(line, file=sys.stderr)
               sys.exit(1)
 
-          print(f"导出核对通过：Linux 与 Windows 全部 {len(all_paths)} 个输出文件 SHA-256 完全一致。")
+          print(f"Export verification passed: all {len(all_paths)} output files match SHA-256 across Linux and Windows.")
           PY
 
   package-windows:
@@ -382,12 +384,12 @@ jobs:
         shell: bash
         run: |
           if [[ ! -f VERSION ]]; then
-            echo "错误：仓库根目录缺少 VERSION 文件" >&2
+            echo "Error: VERSION file is missing at repository root" >&2
             exit 1
           fi
           VERSION_VAL="$(tr -d '[:space:]' < VERSION)"
           if [[ -z "$VERSION_VAL" ]]; then
-            echo "错误：VERSION 文件为空" >&2
+            echo "Error: VERSION file is empty" >&2
             exit 1
           fi
           SHORT_SHA="$(git rev-parse --short=7 HEAD)"
@@ -395,7 +397,7 @@ jobs:
             echo "version=${VERSION_VAL}"
             echo "short_sha=${SHORT_SHA}"
           } >> "${GITHUB_OUTPUT}"
-          echo "==> 打包版本：${VERSION_VAL}（提交短号：${SHORT_SHA}）"
+          echo "==> Package version: ${VERSION_VAL} (short SHA: ${SHORT_SHA})"
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
@@ -444,12 +446,12 @@ jobs:
           } finally {
             $zip.Dispose()
           }
-          foreach ($expected in @("ffr-export-gui.exe", "ffr-export.exe", "ffr-db.exe", "known-builds.json", "使用说明.txt", "SHA256SUMS")) {
+          foreach ($expected in @("ffr-export-gui.exe", "ffr-export.exe", "ffr-db.exe", "known-builds.json", "README-Windows.txt", "SHA256SUMS")) {
             if ($names -notcontains $expected) {
-              throw "错误：压缩包 $zipPath 缺少必需文件：$expected"
+              throw "Error: archive $zipPath is missing required file: $expected"
             }
           }
-          Write-Host "压缩包内容校验通过：$($names -join ', ')"
+          Write-Host "Archive contents verified: $($names -join ', ')"
 
       - name: Self-test packaged single-file binaries with unwritable TEMP
         shell: pwsh
@@ -474,6 +476,8 @@ jobs:
           $hadTmp = Test-Path Env:TMP
           $previousAgp = $env:AGP_HOME
           $hadAgp = Test-Path Env:AGP_HOME
+          $previousLang = $env:AGP_LANG
+          $hadLang = Test-Path Env:AGP_LANG
           try {
             New-Item -ItemType Directory -Path $extractDir, $selfTestAgpHome, $deniedTempDir -Force | Out-Null
             [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $extractDir)
@@ -483,14 +487,14 @@ jobs:
             $packagedDbExe = Join-Path $extractDir "ffr-db.exe"
             foreach ($bin in @($packagedGuiExe, $packagedCliExe, $packagedDbExe)) {
               if (-not (Test-Path -LiteralPath $bin -PathType Leaf)) {
-                throw "错误：解压后的压缩包缺少可执行文件：$bin"
+                throw "Error: extracted archive is missing executable: $bin"
               }
             }
 
             # Apply an explicit deny-write NTFS ACL to an existing temp directory via icacls.
-            & icacls $deniedTempDir /deny '*S-1-1-0:(OI)(CI)(W)' | Out-Null
+            & icacls $deniedTempDir /deny '*S-1-1-0:(OI)(CI)(WD,AD,WEA,WA)' | Out-Null
             if ($LASTEXITCODE -ne 0) {
-              throw "错误：使用 icacls 为临时目录设置拒绝写入 ACL 失败：$deniedTempDir（退出码 $LASTEXITCODE）"
+              throw "Error: icacls failed to apply deny-write ACL on temp directory: $deniedTempDir (exit code $LASTEXITCODE)"
             }
             $aclBlocked = $false
             try {
@@ -499,12 +503,13 @@ jobs:
               $aclBlocked = $true
             }
             if (-not $aclBlocked) {
-              throw "错误：icacls 拒绝写入 ACL 未生效，仍可向目录写入文件：$deniedTempDir"
+              throw "Error: icacls deny-write ACL did not take effect; file write still succeeded in $deniedTempDir"
             }
 
             $env:TEMP = $deniedTempDir
             $env:TMP = $deniedTempDir
             $env:AGP_HOME = $selfTestAgpHome
+            Remove-Item Env:AGP_LANG -ErrorAction SilentlyContinue
 
             # 1. GUI self-test (WinExe requires explicit Start-Process -Wait)
             $selfTest = Start-Process -FilePath $packagedGuiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow -RedirectStandardError $stderrFile
@@ -515,16 +520,28 @@ jobs:
                   [Console]::Error.WriteLine($stderrText)
                 }
               }
-              throw "错误：TEMP 被 icacls 拒绝写入时打包后的 ffr-export-gui.exe --self-test 失败（退出码 $($selfTest.ExitCode)）"
+              throw "Error: packaged ffr-export-gui.exe --self-test failed with icacls deny-write TEMP (exit code $($selfTest.ExitCode))"
             }
 
-            # 2. CLI --help
-            $cliHelp = Start-Process -FilePath $packagedCliExe -ArgumentList @('--help') -Wait -PassThru -NoNewWindow -RedirectStandardOutput $cliOutFile -RedirectStandardError $cliErrFile
-            if ($cliHelp.ExitCode -ne 0) {
-              if (Test-Path -LiteralPath $cliErrFile -PathType Leaf) {
-                [Console]::Error.WriteLine((Get-Content -LiteralPath $cliErrFile -Raw -Encoding UTF8))
+            # 2. CLI --help in all three languages (en, zh-Hans, ja)
+            $langChecks = @(
+              @{ Code = 'en'; Expected = 'Usage:' },
+              @{ Code = 'zh-Hans'; Expected = '用法' },
+              @{ Code = 'ja'; Expected = '使い方:' }
+            )
+            foreach ($check in $langChecks) {
+              $cliArgs = if ($check.Code -eq 'en') { @('--help') } else { @('--lang', $check.Code, '--help') }
+              $cliHelp = Start-Process -FilePath $packagedCliExe -ArgumentList $cliArgs -Wait -PassThru -NoNewWindow -RedirectStandardOutput $cliOutFile -RedirectStandardError $cliErrFile
+              if ($cliHelp.ExitCode -ne 0) {
+                if (Test-Path -LiteralPath $cliErrFile -PathType Leaf) {
+                  [Console]::Error.WriteLine((Get-Content -LiteralPath $cliErrFile -Raw -Encoding UTF8))
+                }
+                throw "Error: packaged ffr-export.exe ($($check.Code)) --help failed with icacls deny-write TEMP (exit code $($cliHelp.ExitCode))"
               }
-              throw "错误：TEMP 被 icacls 拒绝写入时打包后的 ffr-export.exe --help 失败（退出码 $($cliHelp.ExitCode)）"
+              $helpOut = Get-Content -LiteralPath $cliOutFile -Raw -Encoding UTF8
+              if (-not $helpOut.Contains($check.Expected)) {
+                throw "Error: packaged ffr-export.exe ($($check.Code)) --help output did not contain expected localized marker."
+              }
             }
 
             # 3. ffr-db --help
@@ -533,19 +550,22 @@ jobs:
               if (Test-Path -LiteralPath $dbErrFile -PathType Leaf) {
                 [Console]::Error.WriteLine((Get-Content -LiteralPath $dbErrFile -Raw -Encoding UTF8))
               }
-              throw "错误：TEMP 被 icacls 拒绝写入时打包后的 ffr-db.exe --help 失败（退出码 $($dbHelp.ExitCode)）"
+              throw "Error: packaged ffr-db.exe --help failed with icacls deny-write TEMP (exit code $($dbHelp.ExitCode))"
             }
 
+            # Lift the deny ACE before inspecting the directory; the check itself must not be blocked by it.
+            & icacls $deniedTempDir /remove:d '*S-1-1-0' | Out-Null
             $leakedTempFiles = @(Get-ChildItem -LiteralPath $deniedTempDir -Force)
             if ($leakedTempFiles.Count -ne 0) {
-              throw "错误：拒绝写入的 TEMP 目录内出现了意外文件：$($leakedTempFiles.Name -join ', ')"
+              throw "Error: unexpected files appeared inside deny-write TEMP directory: $($leakedTempFiles.Name -join ', ')"
             }
 
-            Write-Host "打包产物自检通过（icacls 拒绝写入 TEMP/TMP 模拟）：ffr-export-gui.exe --self-test、ffr-export.exe --help、ffr-db.exe --help"
+            Write-Host "Packaged single-file self-test passed (icacls deny-write TEMP/TMP): ffr-export-gui.exe --self-test, ffr-export.exe --help (en/zh-Hans/ja), ffr-db.exe --help"
           } finally {
             if ($hadTemp) { $env:TEMP = $previousTemp } else { Remove-Item Env:TEMP -ErrorAction SilentlyContinue }
             if ($hadTmp) { $env:TMP = $previousTmp } else { Remove-Item Env:TMP -ErrorAction SilentlyContinue }
             if ($hadAgp) { $env:AGP_HOME = $previousAgp } else { Remove-Item Env:AGP_HOME -ErrorAction SilentlyContinue }
+            if ($hadLang) { $env:AGP_LANG = $previousLang } else { Remove-Item Env:AGP_LANG -ErrorAction SilentlyContinue }
             if (Test-Path -LiteralPath $deniedTempDir) {
               & icacls $deniedTempDir /remove:d '*S-1-1-0' 2>$null | Out-Null
             }
