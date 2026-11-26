@@ -10,14 +10,16 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version Condition="'$(Version)' == '' and Exists('$(MSBuildProjectDirectory)/../../VERSION')">$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/../../VERSION').Trim())</Version>
     <Version Condition="'$(Version)' == ''">0.1.0</Version>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Share core path, Steam, text output, and UE4SS runtime helpers directly from FfrExport without duplicating source files. -->
+    <!-- Share core path, integrity, Steam, text output, and UE4SS runtime helpers directly from FfrExport without duplicating source files. -->
     <Compile Include="..\FfrExport\SteamLocator.cs" Link="Shared\SteamLocator.cs" />
     <Compile Include="..\FfrExport\PathSupport.cs" Link="Shared\PathSupport.cs" />
+    <Compile Include="..\FfrExport\ProcessIntegritySupport.cs" Link="Shared\ProcessIntegritySupport.cs" />
     <Compile Include="..\FfrExport\AgpPaths.cs" Link="Shared\AgpPaths.cs" />
     <Compile Include="..\FfrExport\TextOutput.cs" Link="Shared\TextOutput.cs" />
     <Compile Include="..\FfrExport\Ue4ssRuntimeSupport.cs" Link="Shared\Ue4ssRuntimeSupport.cs" />

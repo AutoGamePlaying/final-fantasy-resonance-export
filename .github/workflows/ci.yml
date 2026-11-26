@@ -89,8 +89,31 @@ jobs:
           if (-not (Test-Path -LiteralPath $guiExe -PathType Leaf)) {
             throw "错误：找不到编译生成的窗口程序：$guiExe"
           }
-          $stderrFile = Join-Path ([System.IO.Path]::GetTempPath()) ("ffr-gui-selftest-stderr-" + [System.Guid]::NewGuid().ToString("N") + ".log")
+          $workDir = Join-Path ([System.IO.Path]::GetTempPath()) ("ffr-gui-selftest-" + [System.Guid]::NewGuid().ToString("N"))
+          $deniedTempDir = Join-Path $workDir "denied-temp"
+          New-Item -ItemType Directory -Path $workDir, $deniedTempDir -Force | Out-Null
+          $stderrFile = Join-Path $workDir "stderr.log"
+          $previousTemp = $env:TEMP
+          $hadTemp = Test-Path Env:TEMP
+          $previousTmp = $env:TMP
+          $hadTmp = Test-Path Env:TMP
           try {
+            & icacls $deniedTempDir /deny '*S-1-1-0:(OI)(CI)(W)' | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              throw "错误：使用 icacls 为临时目录设置拒绝写入 ACL 失败：$deniedTempDir（退出码 $LASTEXITCODE）"
+            }
+            $aclBlocked = $false
+            try {
+              [System.IO.File]::WriteAllText((Join-Path $deniedTempDir "acl-probe.tmp"), "blocked")
+            } catch [System.UnauthorizedAccessException] {
+              $aclBlocked = $true
+            }
+            if (-not $aclBlocked) {
+              throw "错误：icacls 拒绝写入 ACL 未生效，仍可向目录写入文件：$deniedTempDir"
+            }
+
+            $env:TEMP = $deniedTempDir
+            $env:TMP = $deniedTempDir
             # WinExe (GUI subsystem): `& exe` does not wait and leaves $LASTEXITCODE unset, so wait explicitly.
             $selfTest = Start-Process -FilePath $guiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow -RedirectStandardError $stderrFile
             $selfTestExit = $selfTest.ExitCode
@@ -101,14 +124,23 @@ jobs:
                   [Console]::Error.WriteLine($stderrText)
                 }
               }
-              throw "错误：ffr-export-gui.exe --self-test 失败（退出码 $selfTestExit）"
+              throw "错误：TEMP 被 icacls 拒绝写入时 ffr-export-gui.exe --self-test 失败（退出码 $selfTestExit）"
+            }
+            $leakedTempFiles = @(Get-ChildItem -LiteralPath $deniedTempDir -Force)
+            if ($leakedTempFiles.Count -ne 0) {
+              throw "错误：拒绝写入的 TEMP 目录内出现了意外文件：$($leakedTempFiles.Name -join ', ')"
             }
           } finally {
-            if (Test-Path -LiteralPath $stderrFile) {
-              Remove-Item -LiteralPath $stderrFile -Force -ErrorAction SilentlyContinue
+            if ($hadTemp) { $env:TEMP = $previousTemp } else { Remove-Item Env:TEMP -ErrorAction SilentlyContinue }
+            if ($hadTmp) { $env:TMP = $previousTmp } else { Remove-Item Env:TMP -ErrorAction SilentlyContinue }
+            if (Test-Path -LiteralPath $deniedTempDir) {
+              & icacls $deniedTempDir /remove:d '*S-1-1-0' 2>$null | Out-Null
+            }
+            if (Test-Path -LiteralPath $workDir) {
+              Remove-Item -LiteralPath $workDir -Recurse -Force -ErrorAction SilentlyContinue
             }
           }
-          Write-Host "窗口程序构造自检通过：$guiExe --self-test"
+          Write-Host "窗口程序构造自检通过（icacls 拒绝写入 TEMP 模拟）：$guiExe --self-test"
 
   fixture-hash:
     name: Fixture Hash (${{ matrix.os }})
@@ -419,40 +451,106 @@ jobs:
           }
           Write-Host "压缩包内容校验通过：$($names -join ', ')"
 
-      - name: Self-test packaged single-file GUI binary
+      - name: Self-test packaged single-file binaries with unwritable TEMP
         shell: pwsh
         env:
           PACKAGE_VERSION: ${{ steps.meta.outputs.version }}
         run: |
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $zipPath = "dist/ffr-export-$($env:PACKAGE_VERSION)-win-x64.zip"
-          $extractDir = Join-Path ([System.IO.Path]::GetTempPath()) ("ffr-pkg-selftest-" + [System.Guid]::NewGuid().ToString("N"))
-          $stderrFile = Join-Path ([System.IO.Path]::GetTempPath()) ("ffr-pkg-selftest-stderr-" + [System.Guid]::NewGuid().ToString("N") + ".log")
+          $workDir = Join-Path ([System.IO.Path]::GetTempPath()) ("ffr-pkg-selftest-" + [System.Guid]::NewGuid().ToString("N"))
+          $extractDir = Join-Path $workDir "extracted"
+          $stderrFile = Join-Path $workDir "gui-stderr.log"
+          $cliOutFile = Join-Path $workDir "cli-help-stdout.log"
+          $cliErrFile = Join-Path $workDir "cli-help-stderr.log"
+          $dbOutFile = Join-Path $workDir "db-help-stdout.log"
+          $dbErrFile = Join-Path $workDir "db-help-stderr.log"
+          $deniedTempDir = Join-Path $workDir "denied-temp"
+          $selfTestAgpHome = Join-Path $workDir "agp-home"
+
+          $previousTemp = $env:TEMP
+          $hadTemp = Test-Path Env:TEMP
+          $previousTmp = $env:TMP
+          $hadTmp = Test-Path Env:TMP
+          $previousAgp = $env:AGP_HOME
+          $hadAgp = Test-Path Env:AGP_HOME
           try {
+            New-Item -ItemType Directory -Path $extractDir, $selfTestAgpHome, $deniedTempDir -Force | Out-Null
             [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $extractDir)
+
             $packagedGuiExe = Join-Path $extractDir "ffr-export-gui.exe"
-            if (-not (Test-Path -LiteralPath $packagedGuiExe -PathType Leaf)) {
-              throw "错误：解压后的压缩包缺少窗口程序：$packagedGuiExe"
+            $packagedCliExe = Join-Path $extractDir "ffr-export.exe"
+            $packagedDbExe = Join-Path $extractDir "ffr-db.exe"
+            foreach ($bin in @($packagedGuiExe, $packagedCliExe, $packagedDbExe)) {
+              if (-not (Test-Path -LiteralPath $bin -PathType Leaf)) {
+                throw "错误：解压后的压缩包缺少可执行文件：$bin"
+              }
             }
-            # WinExe (GUI subsystem): wait explicitly with Start-Process and capture stderr on failure.
+
+            # Apply an explicit deny-write NTFS ACL to an existing temp directory via icacls.
+            & icacls $deniedTempDir /deny '*S-1-1-0:(OI)(CI)(W)' | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              throw "错误：使用 icacls 为临时目录设置拒绝写入 ACL 失败：$deniedTempDir（退出码 $LASTEXITCODE）"
+            }
+            $aclBlocked = $false
+            try {
+              [System.IO.File]::WriteAllText((Join-Path $deniedTempDir "acl-probe.tmp"), "blocked")
+            } catch [System.UnauthorizedAccessException] {
+              $aclBlocked = $true
+            }
+            if (-not $aclBlocked) {
+              throw "错误：icacls 拒绝写入 ACL 未生效，仍可向目录写入文件：$deniedTempDir"
+            }
+
+            $env:TEMP = $deniedTempDir
+            $env:TMP = $deniedTempDir
+            $env:AGP_HOME = $selfTestAgpHome
+
+            # 1. GUI self-test (WinExe requires explicit Start-Process -Wait)
             $selfTest = Start-Process -FilePath $packagedGuiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow -RedirectStandardError $stderrFile
-            $selfTestExit = $selfTest.ExitCode
-            if ($selfTestExit -ne 0) {
+            if ($selfTest.ExitCode -ne 0) {
               if (Test-Path -LiteralPath $stderrFile -PathType Leaf) {
                 $stderrText = Get-Content -LiteralPath $stderrFile -Raw -Encoding UTF8
                 if (-not [string]::IsNullOrWhiteSpace($stderrText)) {
                   [Console]::Error.WriteLine($stderrText)
                 }
               }
-              throw "错误：打包后的单文件 ffr-export-gui.exe --self-test 失败（退出码 $selfTestExit）"
+              throw "错误：TEMP 被 icacls 拒绝写入时打包后的 ffr-export-gui.exe --self-test 失败（退出码 $($selfTest.ExitCode)）"
             }
-            Write-Host "打包后的单文件窗口自检通过：$packagedGuiExe --self-test"
+
+            # 2. CLI --help
+            $cliHelp = Start-Process -FilePath $packagedCliExe -ArgumentList @('--help') -Wait -PassThru -NoNewWindow -RedirectStandardOutput $cliOutFile -RedirectStandardError $cliErrFile
+            if ($cliHelp.ExitCode -ne 0) {
+              if (Test-Path -LiteralPath $cliErrFile -PathType Leaf) {
+                [Console]::Error.WriteLine((Get-Content -LiteralPath $cliErrFile -Raw -Encoding UTF8))
+              }
+              throw "错误：TEMP 被 icacls 拒绝写入时打包后的 ffr-export.exe --help 失败（退出码 $($cliHelp.ExitCode)）"
+            }
+
+            # 3. ffr-db --help
+            $dbHelp = Start-Process -FilePath $packagedDbExe -ArgumentList @('--help') -Wait -PassThru -NoNewWindow -RedirectStandardOutput $dbOutFile -RedirectStandardError $dbErrFile
+            if ($dbHelp.ExitCode -ne 0) {
+              if (Test-Path -LiteralPath $dbErrFile -PathType Leaf) {
+                [Console]::Error.WriteLine((Get-Content -LiteralPath $dbErrFile -Raw -Encoding UTF8))
+              }
+              throw "错误：TEMP 被 icacls 拒绝写入时打包后的 ffr-db.exe --help 失败（退出码 $($dbHelp.ExitCode)）"
+            }
+
+            $leakedTempFiles = @(Get-ChildItem -LiteralPath $deniedTempDir -Force)
+            if ($leakedTempFiles.Count -ne 0) {
+              throw "错误：拒绝写入的 TEMP 目录内出现了意外文件：$($leakedTempFiles.Name -join ', ')"
+            }
+
+            Write-Host "打包产物自检通过（icacls 拒绝写入 TEMP/TMP 模拟）：ffr-export-gui.exe --self-test、ffr-export.exe --help、ffr-db.exe --help"
           } finally {
-            if (Test-Path -LiteralPath $stderrFile) {
-              Remove-Item -LiteralPath $stderrFile -Force -ErrorAction SilentlyContinue
+            if ($hadTemp) { $env:TEMP = $previousTemp } else { Remove-Item Env:TEMP -ErrorAction SilentlyContinue }
+            if ($hadTmp) { $env:TMP = $previousTmp } else { Remove-Item Env:TMP -ErrorAction SilentlyContinue }
+            if ($hadAgp) { $env:AGP_HOME = $previousAgp } else { Remove-Item Env:AGP_HOME -ErrorAction SilentlyContinue }
+            if (Test-Path -LiteralPath $deniedTempDir) {
+              & icacls $deniedTempDir /remove:d '*S-1-1-0' 2>$null | Out-Null
             }
-            if (Test-Path -LiteralPath $extractDir) {
-              Remove-Item -LiteralPath $extractDir -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $workDir) {
+              Remove-Item -LiteralPath $workDir -Recurse -Force -ErrorAction SilentlyContinue
             }
           }
 

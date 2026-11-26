@@ -128,7 +128,7 @@ try {
     New-Item -ItemType Directory -Path $distDir -Force | Out-Null
 
     Write-Host "==> 打包版本：$packageVersion（git: $gitCommit）"
-    Write-Host "==> 发布 ffr-export.exe（win-x64 self-contained single-file）"
+    Write-Host "==> 发布 ffr-export.exe（win-x64 self-contained single-file，不向 TEMP 自解压原生库）"
 
     $csprojPath = Join-Path $root "src\FfrExport\FfrExport.csproj"
     & $dotnetBin publish $csprojPath `
@@ -136,7 +136,7 @@ try {
         -r win-x64 `
         --self-contained true `
         -p:PublishSingleFile=true `
-        -p:IncludeNativeLibrariesForSelfExtract=true `
+        -p:IncludeNativeLibrariesForSelfExtract=false `
         -p:EnableCompressionInSingleFile=true `
         -p:DebugType=None `
         -p:DebugSymbols=false `
@@ -153,14 +153,14 @@ try {
         throw "错误：dotnet publish 未生成 $ffrExportExe"
     }
 
-    Write-Host "==> 发布 ffr-export-gui.exe（win-x64 self-contained single-file WinForms）"
+    Write-Host "==> 发布 ffr-export-gui.exe（win-x64 self-contained single-file WinForms，不向 TEMP 自解压原生库）"
     $guiCsprojPath = Join-Path $root "src\FfrExport.Gui\FfrExport.Gui.csproj"
     & $dotnetBin publish $guiCsprojPath `
         -c Release `
         -r win-x64 `
         --self-contained true `
         -p:PublishSingleFile=true `
-        -p:IncludeNativeLibrariesForSelfExtract=true `
+        -p:IncludeNativeLibrariesForSelfExtract=false `
         -p:EnableCompressionInSingleFile=true `
         -p:DebugType=None `
         -p:DebugSymbols=false `
@@ -175,36 +175,6 @@ try {
     $ffrExportGuiExe = Join-Path $guiOut "ffr-export-gui.exe"
     if (-not (Test-Path -LiteralPath $ffrExportGuiExe -PathType Leaf)) {
         throw "错误：dotnet publish 未生成 $ffrExportGuiExe"
-    }
-
-    Write-Host "==> 自检 ffr-export-gui.exe --self-test（单文件窗口构造自检）"
-    $selfTestStderr = Join-Path $stageDir "gui-selftest-stderr.log"
-    $previousAgpHome = $env:AGP_HOME
-    $hadAgpHome = Test-Path Env:AGP_HOME
-    $env:AGP_HOME = Join-Path $stageDir "agp-home"
-    New-Item -ItemType Directory -Path $env:AGP_HOME -Force | Out-Null
-    try {
-        # WinExe (GUI subsystem): `& exe` does not wait and leaves $LASTEXITCODE unset, so wait explicitly.
-        $selfTest = Start-Process -FilePath $ffrExportGuiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow -RedirectStandardError $selfTestStderr
-        $selfTestExit = $selfTest.ExitCode
-        if ($selfTestExit -ne 0) {
-            if (Test-Path -LiteralPath $selfTestStderr -PathType Leaf) {
-                $stderrText = Get-Content -LiteralPath $selfTestStderr -Raw -Encoding UTF8
-                if (-not [string]::IsNullOrWhiteSpace($stderrText)) {
-                    [Console]::Error.WriteLine($stderrText)
-                }
-            }
-            throw "错误：ffr-export-gui.exe --self-test 自检失败（退出码 $selfTestExit）"
-        }
-    } finally {
-        if ($hadAgpHome) {
-            $env:AGP_HOME = $previousAgpHome
-        } else {
-            Remove-Item Env:AGP_HOME -ErrorAction SilentlyContinue
-        }
-        if (Test-Path -LiteralPath $selfTestStderr) {
-            Remove-Item -LiteralPath $selfTestStderr -Force -ErrorAction SilentlyContinue
-        }
     }
 
     Write-Host "==> 原生编译 ffr-db.exe（cargo build --release -p ffr-db）"
@@ -232,23 +202,139 @@ try {
     Copy-Item -LiteralPath (Join-Path $root "README.md") -Destination (Join-Path $packageDir "README.md") -Force
     Copy-Item -LiteralPath (Join-Path $root "LICENSE") -Destination (Join-Path $packageDir "LICENSE") -Force
 
+    # Copy any native sidecar DLLs emitted alongside the single-file executables and verify duplicates match.
+    $copiedNativeDlls = [System.Collections.Generic.List[string]]::new()
+    foreach ($publishDir in @($dotnetOut, $guiOut)) {
+        $dlls = @(Get-ChildItem -LiteralPath $publishDir -File -Filter "*.dll")
+        foreach ($dll in $dlls) {
+            $dstPath = Join-Path $packageDir $dll.Name
+            if (Test-Path -LiteralPath $dstPath -PathType Leaf) {
+                $existingHash = (Get-FileHash -LiteralPath $dstPath -Algorithm SHA256).Hash
+                $incomingHash = (Get-FileHash -LiteralPath $dll.FullName -Algorithm SHA256).Hash
+                if ($existingHash -ne $incomingHash) {
+                    throw "错误：CLI 与 GUI 产出的同名原生库内容不一致：$($dll.Name)"
+                }
+            } else {
+                Copy-Item -LiteralPath $dll.FullName -Destination $dstPath -Force
+                $copiedNativeDlls.Add($dll.Name)
+            }
+        }
+    }
+    if ($copiedNativeDlls.Count -gt 0) {
+        Write-Host "==> 已随包复制原生库（$($copiedNativeDlls.Count) 个）：$($copiedNativeDlls -join ', ')"
+    } else {
+        Write-Host "==> 本次 .NET 10 win-x64 单文件发布未产出额外外部原生 DLL（运行时原生代码已内置于 exe 中，不向 TEMP 解压）"
+    }
+
+    # Self-test packaged executables with TEMP / TMP pointed to an icacls deny-write directory.
+    Write-Host "==> 自检打包目录内的 exe（icacls 拒绝写入 TEMP / TMP 模拟）"
+    $selfTestStderr = Join-Path $stageDir "gui-selftest-stderr.log"
+    $cliHelpStdout = Join-Path $stageDir "cli-help-stdout.log"
+    $cliHelpStderr = Join-Path $stageDir "cli-help-stderr.log"
+    $dbHelpStdout = Join-Path $stageDir "db-help-stdout.log"
+    $dbHelpStderr = Join-Path $stageDir "db-help-stderr.log"
+    $deniedTempDir = Join-Path $stageDir "denied-temp"
+    New-Item -ItemType Directory -Path $deniedTempDir -Force | Out-Null
+
+    $previousAgpHome = $env:AGP_HOME
+    $hadAgpHome = Test-Path Env:AGP_HOME
+    $previousTemp = $env:TEMP
+    $hadTemp = Test-Path Env:TEMP
+    $previousTmp = $env:TMP
+    $hadTmp = Test-Path Env:TMP
+
+    $selfTestAgpHome = Join-Path $stageDir "agp-home"
+    New-Item -ItemType Directory -Path $selfTestAgpHome -Force | Out-Null
+    try {
+        & icacls $deniedTempDir /deny '*S-1-1-0:(OI)(CI)(W)' | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "错误：使用 icacls 为临时目录设置拒绝写入 ACL 失败：$deniedTempDir（退出码 $LASTEXITCODE）"
+        }
+        $aclBlocked = $false
+        try {
+            [System.IO.File]::WriteAllText((Join-Path $deniedTempDir "acl-probe.tmp"), "blocked")
+        } catch [System.UnauthorizedAccessException] {
+            $aclBlocked = $true
+        }
+        if (-not $aclBlocked) {
+            throw "错误：icacls 拒绝写入 ACL 未生效，仍可向目录写入文件：$deniedTempDir"
+        }
+
+        $env:AGP_HOME = $selfTestAgpHome
+        $env:TEMP = $deniedTempDir
+        $env:TMP = $deniedTempDir
+
+        $packagedGuiExe = Join-Path $packageDir "ffr-export-gui.exe"
+        $packagedCliExe = Join-Path $packageDir "ffr-export.exe"
+        $packagedDbExe = Join-Path $packageDir "ffr-db.exe"
+
+        # WinExe (GUI subsystem): wait explicitly with Start-Process and capture stderr on failure.
+        $selfTest = Start-Process -FilePath $packagedGuiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow -RedirectStandardError $selfTestStderr
+        if ($selfTest.ExitCode -ne 0) {
+            if (Test-Path -LiteralPath $selfTestStderr -PathType Leaf) {
+                $stderrText = Get-Content -LiteralPath $selfTestStderr -Raw -Encoding UTF8
+                if (-not [string]::IsNullOrWhiteSpace($stderrText)) {
+                    [Console]::Error.WriteLine($stderrText)
+                }
+            }
+            throw "错误：TEMP 被 icacls 拒绝写入时 ffr-export-gui.exe --self-test 自检失败（退出码 $($selfTest.ExitCode)）"
+        }
+
+        $cliHelp = Start-Process -FilePath $packagedCliExe -ArgumentList @('--help') -Wait -PassThru -NoNewWindow -RedirectStandardOutput $cliHelpStdout -RedirectStandardError $cliHelpStderr
+        if ($cliHelp.ExitCode -ne 0) {
+            if (Test-Path -LiteralPath $cliHelpStderr -PathType Leaf) {
+                [Console]::Error.WriteLine((Get-Content -LiteralPath $cliHelpStderr -Raw -Encoding UTF8))
+            }
+            throw "错误：TEMP 被 icacls 拒绝写入时 ffr-export.exe --help 失败（退出码 $($cliHelp.ExitCode)）"
+        }
+
+        $dbHelp = Start-Process -FilePath $packagedDbExe -ArgumentList @('--help') -Wait -PassThru -NoNewWindow -RedirectStandardOutput $dbHelpStdout -RedirectStandardError $dbHelpStderr
+        if ($dbHelp.ExitCode -ne 0) {
+            if (Test-Path -LiteralPath $dbHelpStderr -PathType Leaf) {
+                [Console]::Error.WriteLine((Get-Content -LiteralPath $dbHelpStderr -Raw -Encoding UTF8))
+            }
+            throw "错误：TEMP 被 icacls 拒绝写入时 ffr-db.exe --help 失败（退出码 $($dbHelp.ExitCode)）"
+        }
+
+        $leakedTempFiles = @(Get-ChildItem -LiteralPath $deniedTempDir -Force)
+        if ($leakedTempFiles.Count -ne 0) {
+            throw "错误：拒绝写入的 TEMP 目录内出现了意外文件：$($leakedTempFiles.Name -join ', ')"
+        }
+    } finally {
+        if ($hadAgpHome) { $env:AGP_HOME = $previousAgpHome } else { Remove-Item Env:AGP_HOME -ErrorAction SilentlyContinue }
+        if ($hadTemp) { $env:TEMP = $previousTemp } else { Remove-Item Env:TEMP -ErrorAction SilentlyContinue }
+        if ($hadTmp) { $env:TMP = $previousTmp } else { Remove-Item Env:TMP -ErrorAction SilentlyContinue }
+        if (Test-Path -LiteralPath $deniedTempDir) {
+            & icacls $deniedTempDir /remove:d '*S-1-1-0' 2>$null | Out-Null
+        }
+        foreach ($tmpLog in @($selfTestStderr, $cliHelpStdout, $cliHelpStderr, $dbHelpStdout, $dbHelpStderr)) {
+            if (Test-Path -LiteralPath $tmpLog) {
+                Remove-Item -LiteralPath $tmpLog -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
     # Write a concise Chinese quick-start guide (<= 10 lines, UTF-8 without BOM, CRLF for Windows Notepad).
     $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
     $usageLines = @(
         '《FINAL FANTASY RESONANCE》数据导出工具使用说明',
         '',
-        '1. 将本压缩包完整解压到同一个文件夹（不要单独移动某个 exe）。',
-        '2. 确保游戏已通过 Steam 安装，且已用 UE4SS 在游戏运行时转储 .usmap 文件',
-        '   （默认保存在游戏目录的 FFRS\Binaries\Win64\ue4ss\ 下）。',
-        '3. 双击打开 ffr-export-gui.exe，确认游戏与映射文件后点“开始导出”。',
-        '4. 导出完成后可点“打开输出文件夹”查看 ffr.sqlite，或点“复制哈希”核对版本。',
-        '5. 如需控制台向导或命令行用法，请运行 ffr-export.exe 或查看 README.md。'
+        '1. 将本压缩包完整解压到同一个文件夹（不要单独移动某个 exe 或原生库）。',
+        '2. 如双击时提示低完整性级别，可右键压缩包 -> 属性 -> 解除锁定，再用资源管理器重新解压。',
+        '3. 双击打开 ffr-export-gui.exe，可一键获取 .usmap 或手动选择，确认后点「开始导出」。',
+        '4. 导出完成后可点「打开输出文件夹」查看 ffr.sqlite，或点「复制哈希」核对版本。',
+        '5. 如需清理游戏目录中的 UE4SS，可点击主窗口「清理 UE4SS…」按钮；命令行用法见 README.md。'
     )
     $usagePath = Join-Path $packageDir "使用说明.txt"
     [System.IO.File]::WriteAllText($usagePath, (($usageLines -join "`r`n") + "`r`n"), $utf8NoBom)
 
-    # Write inner SHA256SUMS matching package-windows.sh layout (UTF-8 without BOM, LF endings).
-    $innerFiles = @("LICENSE", "README.md", "ffr-db.exe", "ffr-export-gui.exe", "ffr-export.exe", "known-builds.json", "使用说明.txt")
+    # Write inner SHA256SUMS covering every packaged file (sorted with Ordinal order, LF endings).
+    $innerFiles = @(
+        Get-ChildItem -LiteralPath $packageDir -File |
+            Where-Object { $_.Name -ne "SHA256SUMS" } |
+            ForEach-Object { $_.Name } |
+            Sort-Object { $_ } -CaseSensitive
+    )
     $innerLines = foreach ($name in $innerFiles) {
         $filePath = Join-Path $packageDir $name
         $digest = (Get-FileHash -LiteralPath $filePath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -264,7 +350,11 @@ try {
     }
 
     Write-Host "==> 生成压缩包：$zipPath"
-    $zipEntries = @("LICENSE", "README.md", "SHA256SUMS", "ffr-db.exe", "ffr-export-gui.exe", "ffr-export.exe", "known-builds.json", "使用说明.txt")
+    $zipEntries = @(
+        Get-ChildItem -LiteralPath $packageDir -File |
+            ForEach-Object { $_.Name } |
+            Sort-Object { $_ } -CaseSensitive
+    )
     $archive = [System.IO.Compression.ZipFile]::Open($zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
     try {
         foreach ($name in $zipEntries) {
@@ -295,6 +385,13 @@ try {
 
     Write-Host "==> 打包完成：$zipPath"
     Get-Item -LiteralPath $zipPath, $distSumsPath, $distKnownBuilds | Format-Table Name, Length -AutoSize
+    Write-Host "==> 压缩包内文件列表："
+    $verifyZip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+    try {
+        $verifyZip.Entries | Select-Object FullName, Length, CompressedLength | Format-Table -AutoSize
+    } finally {
+        $verifyZip.Dispose()
+    }
     Write-Host "==> 压缩包内文件与校验（zip 内 SHA256SUMS）："
     Write-Host ($innerLines -join "`n")
     Write-Host "==> 发布产物校验（dist/SHA256SUMS）："

@@ -65,13 +65,13 @@ trap 'rm -rf "$STAGE_DIR"' EXIT
 mkdir -p "$DOTNET_OUT" "$GUI_OUT" "$PACKAGE_DIR" "$ROOT/dist"
 
 echo "==> 打包版本：$VERSION（git: $GIT_COMMIT）"
-echo "==> 发布 ffr-export.exe（win-x64 self-contained single-file）"
+echo "==> 发布 ffr-export.exe（win-x64 self-contained single-file，不向 TEMP 自解压原生库）"
 "$DOTNET_BIN" publish "$ROOT/src/FfrExport/FfrExport.csproj" \
   -c Release \
   -r win-x64 \
   --self-contained true \
   -p:PublishSingleFile=true \
-  -p:IncludeNativeLibrariesForSelfExtract=true \
+  -p:IncludeNativeLibrariesForSelfExtract=false \
   -p:EnableCompressionInSingleFile=true \
   -p:DebugType=None \
   -p:DebugSymbols=false \
@@ -85,13 +85,13 @@ if [[ ! -f "$DOTNET_OUT/ffr-export.exe" ]]; then
   exit 2
 fi
 
-echo "==> 发布 ffr-export-gui.exe（win-x64 self-contained single-file WinForms）"
+echo "==> 发布 ffr-export-gui.exe（win-x64 self-contained single-file WinForms，不向 TEMP 自解压原生库）"
 "$DOTNET_BIN" publish "$ROOT/src/FfrExport.Gui/FfrExport.Gui.csproj" \
   -c Release \
   -r win-x64 \
   --self-contained true \
   -p:PublishSingleFile=true \
-  -p:IncludeNativeLibrariesForSelfExtract=true \
+  -p:IncludeNativeLibrariesForSelfExtract=false \
   -p:EnableCompressionInSingleFile=true \
   -p:DebugType=None \
   -p:DebugSymbols=false \
@@ -128,21 +128,49 @@ cp "$ROOT/known-builds.json" "$PACKAGE_DIR/known-builds.json"
 cp "$ROOT/README.md" "$PACKAGE_DIR/README.md"
 cp "$ROOT/LICENSE" "$PACKAGE_DIR/LICENSE"
 
+# Copy any native sidecar DLLs emitted alongside the single-file executables and verify duplicates match.
+COPIED_DLLS=()
+for publish_dir in "$DOTNET_OUT" "$GUI_OUT"; do
+  shopt -s nullglob
+  for dll in "$publish_dir"/*.dll; do
+    base="$(basename "$dll")"
+    dst="$PACKAGE_DIR/$base"
+    if [[ -f "$dst" ]]; then
+      existing_hash="$(sha256sum "$dst" | awk '{print $1}')"
+      incoming_hash="$(sha256sum "$dll" | awk '{print $1}')"
+      if [[ "$existing_hash" != "$incoming_hash" ]]; then
+        echo "错误：CLI 与 GUI 产出的同名原生库内容不一致：$base" >&2
+        exit 2
+      fi
+    else
+      cp "$dll" "$dst"
+      COPIED_DLLS+=("$base")
+    fi
+  done
+  shopt -u nullglob
+done
+
+if (( ${#COPIED_DLLS[@]} > 0 )); then
+  echo "==> 已随包复制原生库（${#COPIED_DLLS[@]} 个）：${COPIED_DLLS[*]}"
+else
+  echo "==> 本次 .NET 10 win-x64 单文件发布未产出额外外部原生 DLL（运行时原生代码已内置于 exe 中，不向 TEMP 解压）"
+fi
+
 # Write a concise Chinese quick-start guide (<= 10 lines, UTF-8 without BOM, CRLF for Windows Notepad).
 printf '%s\r\n' \
   '《FINAL FANTASY RESONANCE》数据导出工具使用说明' \
   '' \
-  '1. 将本压缩包完整解压到同一个文件夹（不要单独移动某个 exe）。' \
-  '2. 确保游戏已通过 Steam 安装，且已用 UE4SS 在游戏运行时转储 .usmap 文件' \
-  '   （默认保存在游戏目录的 FFRS\Binaries\Win64\ue4ss\ 下）。' \
-  '3. 双击打开 ffr-export-gui.exe，确认游戏与映射文件后点“开始导出”。' \
-  '4. 导出完成后可点“打开输出文件夹”查看 ffr.sqlite，或点“复制哈希”核对版本。' \
-  '5. 如需控制台向导或命令行用法，请运行 ffr-export.exe 或查看 README.md。' \
+  '1. 将本压缩包完整解压到同一个文件夹（不要单独移动某个 exe 或原生库）。' \
+  '2. 如双击时提示低完整性级别，可右键压缩包 -> 属性 -> 解除锁定，再用资源管理器重新解压。' \
+  '3. 双击打开 ffr-export-gui.exe，可一键获取 .usmap 或手动选择，确认后点「开始导出」。' \
+  '4. 导出完成后可点「打开输出文件夹」查看 ffr.sqlite，或点「复制哈希」核对版本。' \
+  '5. 如需清理游戏目录中的 UE4SS，可点击主窗口「清理 UE4SS…」按钮；命令行用法见 README.md。' \
   > "$PACKAGE_DIR/使用说明.txt"
 
 (
   cd "$PACKAGE_DIR"
-  sha256sum LICENSE README.md ffr-db.exe ffr-export-gui.exe ffr-export.exe known-builds.json 使用说明.txt > SHA256SUMS
+  mapfile -t INNER_FILES < <(LC_ALL=C find . -maxdepth 1 -type f ! -name 'SHA256SUMS' -printf '%f\n' | LC_ALL=C sort)
+  sha256sum "${INNER_FILES[@]}" > SHA256SUMS
 )
 
 ZIP_PATH="$ROOT/dist/ffr-export-${VERSION}-win-x64.zip"
@@ -157,25 +185,25 @@ import sys
 import zipfile
 
 pkg_dir, zip_path = sys.argv[1], sys.argv[2]
-files = [
-    "LICENSE",
-    "README.md",
-    "SHA256SUMS",
-    "ffr-db.exe",
-    "ffr-export-gui.exe",
-    "ffr-export.exe",
-    "known-builds.json",
-    "使用说明.txt",
-]
+files = sorted(
+    name for name in os.listdir(pkg_dir)
+    if os.path.isfile(os.path.join(pkg_dir, name))
+)
 with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
     for name in files:
         zf.write(os.path.join(pkg_dir, name), arcname=name)
+print("==> 压缩包内文件列表（zip 内容）：")
+with zipfile.ZipFile(zip_path, "r") as zf:
+    for info in zf.infolist():
+        print(f"  {info.filename}\t{info.file_size} 字节\t(压缩后 {info.compress_size} 字节)")
 PY
 elif command -v zip >/dev/null 2>&1; then
   (
     cd "$PACKAGE_DIR"
-    zip -q -9 "$ZIP_PATH" LICENSE README.md SHA256SUMS ffr-db.exe ffr-export-gui.exe ffr-export.exe known-builds.json 使用说明.txt
+    mapfile -t ZIP_FILES < <(LC_ALL=C find . -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort)
+    zip -q -9 "$ZIP_PATH" "${ZIP_FILES[@]}"
   )
+  unzip -l "$ZIP_PATH"
 else
   echo "错误：缺少 python3 或 zip，无法生成 .zip 压缩包" >&2
   exit 2

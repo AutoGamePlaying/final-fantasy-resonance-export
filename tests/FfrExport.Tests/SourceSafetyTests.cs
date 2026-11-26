@@ -222,4 +222,93 @@ public sealed class SourceSafetyTests
         var guiCsproj = File.ReadAllText(Path.Combine(root, "src", "FfrExport.Gui", "FfrExport.Gui.csproj"));
         Assert.Contains(@"..\FfrExport\TextOutput.cs", guiCsproj, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void AllSources_NeverTouchSystemTempPathOrTempFileName()
+    {
+        var root = TestHarness.FindRepoRoot();
+        var srcRoot = Path.Combine(root, "src");
+        var csFiles = Directory.EnumerateFiles(srcRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(path =>
+                !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+                && !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(csFiles.Length >= 15, "应扫描到 src/ 下全部 C# 源码");
+
+        string[] forbiddenTempApis = ["GetTempPath", "GetTempFileName"];
+        foreach (var path in csFiles)
+        {
+            var relativePath = Path.GetRelativePath(root, path).Replace('\\', '/');
+            var content = File.ReadAllText(path);
+            foreach (var token in forbiddenTempApis)
+            {
+                Assert.False(
+                    content.Contains(token, StringComparison.Ordinal),
+                    $"{relativePath} 不得调用 {token}；临时文件与探测文件必须放在当前数据根目录的 tmp 子目录下");
+            }
+        }
+    }
+
+    [Fact]
+    public void PackagingAndManifests_DisableTempSelfExtractAndNeverRequireAdministrator()
+    {
+        var root = TestHarness.FindRepoRoot();
+
+        foreach (var relCsproj in new[] { "src/FfrExport/FfrExport.csproj", "src/FfrExport.Gui/FfrExport.Gui.csproj" })
+        {
+            var content = File.ReadAllText(Path.Combine(root, relCsproj));
+            Assert.Contains("<IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>", content, StringComparison.Ordinal);
+            Assert.DoesNotContain("<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>", content, StringComparison.Ordinal);
+        }
+
+        foreach (var relScript in new[] { "scripts/package-windows.ps1", "scripts/package-windows.sh" })
+        {
+            var content = File.ReadAllText(Path.Combine(root, relScript));
+            Assert.Contains("IncludeNativeLibrariesForSelfExtract=false", content, StringComparison.Ordinal);
+            Assert.DoesNotContain("IncludeNativeLibrariesForSelfExtract=true", content, StringComparison.Ordinal);
+        }
+
+        foreach (var relManifest in new[] { "src/FfrExport/app.manifest", "src/FfrExport.Gui/app.manifest" })
+        {
+            var content = File.ReadAllText(Path.Combine(root, relManifest));
+            Assert.DoesNotContain("requireAdministrator", content, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void GuiProgramMain_ConfiguresProcessTempDirectoryBeforeWinFormsAndEnableVisualStyles()
+    {
+        var root = TestHarness.FindRepoRoot();
+        var programCs = File.ReadAllText(Path.Combine(root, "src", "FfrExport.Gui", "Program.cs"));
+
+        var mainStart = programCs.IndexOf("public static int Main(", StringComparison.Ordinal);
+        Assert.True(mainStart >= 0, "Program.cs 应包含 Program.Main");
+        var nextMethodStart = programCs.IndexOf("[MethodImpl(MethodImplOptions.NoInlining)]", mainStart, StringComparison.Ordinal);
+        Assert.True(nextMethodStart > mainStart, "Program.Main 后应有隔离的 WinForms 初始化方法");
+
+        var mainBody = programCs[mainStart..nextMethodStart];
+        var resolveIdx = mainBody.IndexOf("AgpPaths.ResolveWritableAgpRoot(", StringComparison.Ordinal);
+        var tempConfigIdx = mainBody.IndexOf("AgpPaths.TryConfigureProcessTempDirectory(", StringComparison.Ordinal);
+        var winFormsConfigIdx = mainBody.IndexOf("ConfigureWinFormsSafely(", StringComparison.Ordinal);
+
+        Assert.True(resolveIdx >= 0, "Program.Main 必须先解析可写数据根目录");
+        Assert.True(tempConfigIdx > resolveIdx, "Program.Main 必须在算出数据根目录之后调用 AgpPaths.TryConfigureProcessTempDirectory");
+        Assert.True(winFormsConfigIdx > tempConfigIdx, "Program.Main 必须在 TryConfigureProcessTempDirectory 之后才初始化 WinForms（SetHighDpiMode / EnableVisualStyles）");
+
+        var fileTempConfigIdx = programCs.IndexOf("AgpPaths.TryConfigureProcessTempDirectory(", StringComparison.Ordinal);
+        var fileHighDpiIdx = programCs.IndexOf("Application.SetHighDpiMode(", StringComparison.Ordinal);
+        var fileVisualStylesIdx = programCs.IndexOf("Application.EnableVisualStyles(", StringComparison.Ordinal);
+
+        Assert.True(fileHighDpiIdx > fileTempConfigIdx, "TryConfigureProcessTempDirectory 必须出现在 Application.SetHighDpiMode 之前");
+        Assert.True(fileVisualStylesIdx > fileTempConfigIdx, "TryConfigureProcessTempDirectory 必须出现在 Application.EnableVisualStyles 之前");
+        Assert.Equal(
+            fileVisualStylesIdx,
+            programCs.LastIndexOf("Application.EnableVisualStyles(", StringComparison.Ordinal));
+
+        Assert.Contains("EntryPoint = \"MessageBoxW\"", programCs, StringComparison.Ordinal);
+        Assert.DoesNotContain("Application.EnableVisualStyles(", mainBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("Application.SetHighDpiMode(", mainBody, StringComparison.Ordinal);
+    }
 }
