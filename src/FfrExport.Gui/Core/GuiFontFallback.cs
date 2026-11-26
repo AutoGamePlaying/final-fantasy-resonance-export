@@ -35,7 +35,7 @@ internal static class GuiFontFallback
         }
 
         var reason = string.IsNullOrWhiteSpace(preferredFailure)
-            ? $"系统未安装字体 {preferredFamily} 或不支持当前样式"
+            ? L.Format("GuiCore_FontMissingOrUnsupported", preferredFamily)
             : preferredFailure;
 
         try
@@ -47,7 +47,7 @@ internal static class GuiFontFallback
                     msgBoxFont,
                     IsOwned: true,
                     UsedFallback: true,
-                    WarningMessage: $"界面字体 {preferredFamily} 不可用（{reason}），已退回系统默认字体（MessageBoxFont）。");
+                    WarningMessage: L.Format("GuiCore_UiFontFallbackMsgBox", preferredFamily, reason));
             }
         }
         catch
@@ -66,7 +66,7 @@ internal static class GuiFontFallback
                         regularMsgBoxFont,
                         IsOwned: true,
                         UsedFallback: true,
-                        WarningMessage: $"界面字体 {preferredFamily} 不可用（{reason}），已退回系统默认常规字体（MessageBoxFont）。");
+                        WarningMessage: L.Format("GuiCore_UiFontFallbackMsgBoxRegular", preferredFamily, reason));
                 }
             }
             catch
@@ -80,7 +80,7 @@ internal static class GuiFontFallback
             defaultFont,
             IsOwned: false,
             UsedFallback: true,
-            WarningMessage: $"界面字体 {preferredFamily} 与 MessageBoxFont 均不可用（{reason}），已退回控件默认字体。");
+            WarningMessage: L.Format("GuiCore_UiFontFallbackControlDefault", preferredFamily, reason));
     }
 
     internal static FontFallbackResult<TFont> ResolveMonoFont<TFont>(
@@ -106,7 +106,7 @@ internal static class GuiFontFallback
         }
 
         var reason = string.IsNullOrWhiteSpace(preferredFailure)
-            ? $"系统未安装字体 {preferredFamily}"
+            ? L.Format("GuiCore_MonoFontNotInstalled", preferredFamily)
             : preferredFailure;
 
         try
@@ -118,7 +118,7 @@ internal static class GuiFontFallback
                     genericMono,
                     IsOwned: true,
                     UsedFallback: true,
-                    WarningMessage: $"等宽字体 {preferredFamily} 不可用（{reason}），已退回系统等宽字体。");
+                    WarningMessage: L.Format("GuiCore_MonoFontFallbackGeneric", preferredFamily, reason));
             }
         }
         catch
@@ -135,7 +135,7 @@ internal static class GuiFontFallback
                     msgBoxFont,
                     IsOwned: true,
                     UsedFallback: true,
-                    WarningMessage: $"等宽字体 {preferredFamily} 不可用（{reason}），已退回系统默认字体（MessageBoxFont）。");
+                    WarningMessage: L.Format("GuiCore_MonoFontFallbackMsgBox", preferredFamily, reason));
             }
         }
         catch
@@ -148,6 +148,6 @@ internal static class GuiFontFallback
             defaultFont,
             IsOwned: false,
             UsedFallback: true,
-            WarningMessage: $"等宽字体 {preferredFamily} 不可用（{reason}），已退回控件默认字体。");
+            WarningMessage: L.Format("GuiCore_MonoFontFallbackControlDefault", preferredFamily, reason));
     }
 }

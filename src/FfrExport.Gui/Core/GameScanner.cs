@@ -82,7 +82,7 @@ internal static class GameScanner
         {
             return new GameScanResult(
                 [],
-                $"自动扫描 Steam 失败：{exception.Message}；请点击右侧「手动选择游戏目录…」。");
+                L.Format("GuiCore_SteamScanFailed", exception.Message));
         }
 
         if (games.Count > 0)
@@ -100,14 +100,14 @@ internal static class GameScanner
         {
             return new GameScanResult(
                 [],
-                $"无法读取 Steam 游戏库（{accessError}）；请检查目录权限，或点击右侧「手动选择游戏目录…」。");
+                L.Format("GuiCore_SteamLibraryUnreadable", accessError));
         }
 
         if (!string.IsNullOrWhiteSpace(registryError))
         {
             return new GameScanResult(
                 [],
-                $"读取 Steam 注册表失败（{registryError}），且未在默认 Steam 目录找到游戏；请点击右侧「手动选择游戏目录…」。");
+                L.Format("GuiCore_SteamRegistryFailed", registryError));
         }
 
         return new GameScanResult([], null);
@@ -134,7 +134,7 @@ internal static class GameScanner
         var cleaned = GuiPaths.CleanPathInput(rawDirectory);
         if (string.IsNullOrWhiteSpace(cleaned))
         {
-            return new ManualGameValidationResult(false, null, "请选择游戏安装根目录。");
+            return new ManualGameValidationResult(false, null, L.Get("GuiCore_SelectGameRootPrompt"));
         }
 
         string fullRoot;
@@ -144,12 +144,12 @@ internal static class GameScanner
         }
         catch (Exception exception)
         {
-            return new ManualGameValidationResult(false, null, $"游戏目录路径无效（{cleaned}）：{exception.Message}");
+            return new ManualGameValidationResult(false, null, L.Format("GuiCore_GameDirInvalidPath", cleaned, exception.Message));
         }
 
         if (!Directory.Exists(PathSupport.ToIoPath(fullRoot)))
         {
-            return new ManualGameValidationResult(false, null, $"所选游戏目录不存在：{fullRoot}");
+            return new ManualGameValidationResult(false, null, L.Format("GuiCore_GameDirNotFound", fullRoot));
         }
 
         var paksDir = SteamLocator.CombineRelativeSubpath(fullRoot, GameVersionDetector.RelativePaksSubpath);
@@ -158,8 +158,7 @@ internal static class GameScanner
             return new ManualGameValidationResult(
                 false,
                 null,
-                $"所选目录不是支持的游戏目录：缺少 {GameVersionDetector.RelativePaksSubpath}（检查路径：{paksDir}）。" +
-                "请选择《FINAL FANTASY RESONANCE》的游戏安装根目录。");
+                L.Format("GuiCore_GameDirMissingPaks", GameVersionDetector.RelativePaksSubpath, paksDir));
         }
 
         var exePath = SteamLocator.CombineRelativeSubpath(fullRoot, GameVersionDetector.RelativeExeSubpath);
@@ -168,8 +167,7 @@ internal static class GameScanner
             return new ManualGameValidationResult(
                 false,
                 null,
-                $"所选目录不是支持的游戏目录：缺少游戏可执行文件 {GameVersionDetector.RelativeExeSubpath}（检查路径：{exePath}）。" +
-                "请选择《FINAL FANTASY RESONANCE》的游戏安装根目录。");
+                L.Format("GuiCore_GameDirMissingExe", GameVersionDetector.RelativeExeSubpath, exePath));
         }
 
         var (displayName, buildId) = TryReadSteamManifestInfo(fullRoot);
@@ -281,11 +279,11 @@ internal static class GameScanner
                 }
                 catch (UnauthorizedAccessException exception)
                 {
-                    return $"无权访问 {steamappsDir}：{exception.Message}";
+                    return L.Format("GuiCore_AccessDeniedPath", steamappsDir, exception.Message);
                 }
                 catch (Exception exception)
                 {
-                    return $"访问 {steamappsDir} 失败：{exception.Message}";
+                    return L.Format("GuiCore_AccessFailedPath", steamappsDir, exception.Message);
                 }
             }
         }

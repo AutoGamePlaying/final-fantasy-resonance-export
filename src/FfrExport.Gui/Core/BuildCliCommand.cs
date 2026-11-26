@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace FfrExport.Gui.Core;
 
@@ -11,7 +10,9 @@ internal sealed record BuildCommandRequest(
     IReadOnlyList<string> JmapPaths,
     string OutputDirectory,
     string? SteamBuildId,
-    bool Force);
+    bool Force,
+    string? Language = null,
+    bool ProgressJson = true);
 
 internal sealed record StepProgress(
     int CurrentStep,
@@ -20,16 +21,12 @@ internal sealed record StepProgress(
     int Percent);
 
 /// <summary>
-/// Assembles ffr-export build-db CLI arguments, parses step progress markers from stdout,
+/// Assembles ffr-export CLI arguments, parses language-independent machine-readable progress lines from stdout,
 /// and executes the child CLI process with UTF-8 pipes and whole-process-tree cancellation.
 /// </summary>
 internal static class BuildCliCommand
 {
     private static readonly UTF8Encoding Utf8WithoutBom = new(false);
-
-    private static readonly Regex StepLineRegex = new(
-        @"^\s*==>\s*步骤\s*(\d+)\s*/\s*(\d+)(?:\s*[：:]\s*(.*))?$",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     internal static IReadOnlyList<string> BuildArguments(BuildCommandRequest request)
     {
@@ -67,13 +64,26 @@ internal static class BuildCliCommand
             args.Add("--force");
         }
 
+        if (request.ProgressJson)
+        {
+            args.Add("--progress-json");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Language))
+        {
+            args.Add("--lang");
+            args.Add(request.Language.Trim());
+        }
+
         return args;
     }
 
     internal static IReadOnlyList<string> BuildFetchUsmapArguments(
         string gameDirectory,
         int? timeoutSeconds = null,
-        bool yes = true)
+        bool yes = true,
+        string? language = null,
+        bool progressJson = true)
     {
         var args = new List<string>
         {
@@ -93,13 +103,25 @@ internal static class BuildCliCommand
             args.Add("--yes");
         }
 
+        if (progressJson)
+        {
+            args.Add("--progress-json");
+        }
+
+        if (!string.IsNullOrWhiteSpace(language))
+        {
+            args.Add("--lang");
+            args.Add(language.Trim());
+        }
+
         return args;
     }
 
     internal static IReadOnlyList<string> BuildUninstallUe4ssArguments(
         string gameDirectory,
         bool includeForeign = false,
-        bool yes = false)
+        bool yes = false,
+        string? language = null)
     {
         var args = new List<string>
         {
@@ -118,58 +140,28 @@ internal static class BuildCliCommand
             args.Add("--yes");
         }
 
+        if (!string.IsNullOrWhiteSpace(language))
+        {
+            args.Add("--lang");
+            args.Add(language.Trim());
+        }
+
         return args;
     }
 
     internal static bool TryParseFetchedUsmapPath(string? line, out string usmapPath)
     {
-        usmapPath = string.Empty;
-        if (string.IsNullOrWhiteSpace(line))
-        {
-            return false;
-        }
-
-        const string prefix = "已保存 .usmap：";
-        var trimmed = line.Trim();
-        if (!trimmed.StartsWith(prefix, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        var path = trimmed[prefix.Length..].Trim();
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return false;
-        }
-
-        usmapPath = path;
-        return true;
+        return ProgressProtocol.TryParseUsmapLine(line, out usmapPath);
     }
 
     internal static bool TryParseStepProgress(string? line, out StepProgress progress)
     {
         progress = default!;
-        if (string.IsNullOrWhiteSpace(line))
+        if (!ProgressProtocol.TryParseProgressLine(line, out var current, out var total, out var title))
         {
             return false;
         }
 
-        var match = StepLineRegex.Match(line);
-        if (!match.Success)
-        {
-            return false;
-        }
-
-        if (!int.TryParse(match.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var current)
-            || !int.TryParse(match.Groups[2].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var total)
-            || current <= 0
-            || total <= 0
-            || current > total)
-        {
-            return false;
-        }
-
-        var title = match.Groups[3].Success ? match.Groups[3].Value.Trim() : string.Empty;
         // Reserve 90%..100% for final completion after the last step exits.
         var percent = Math.Clamp((int)Math.Round(current * 90.0 / total, MidpointRounding.AwayFromZero), 1, 95);
         progress = new StepProgress(current, total, title, percent);
@@ -222,7 +214,7 @@ internal static class BuildCliCommand
 
         var startInfo = CreateStartInfo(executablePath, arguments, workingDirectory, agpHomeOverride);
         using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException($"无法启动命令行程序：{executablePath}");
+            ?? throw new InvalidOperationException(L.Format("GuiCore_LaunchCliFailed", executablePath));
 
         var gate = new object();
         var disposed = false;

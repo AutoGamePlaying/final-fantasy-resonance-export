@@ -111,7 +111,7 @@ internal static class GuiPaths
             AgpPaths.OutputSubfolderName,
             UsedFallback: true,
             WarningMessage: resolution.ErrorMessage
-                ?? "默认数据目录与备选目录均不可写，请点击「浏览…」手动选择输出目录。");
+                ?? L.Get("GuiCore_DefaultOutputAllUnwritable"));
     }
 
     internal static bool TryNormalizeDirectoryPath(
@@ -125,13 +125,13 @@ internal static class GuiPaths
         var cleaned = CleanPathInput(rawPath);
         if (string.IsNullOrWhiteSpace(cleaned))
         {
-            errorMessage = "路径为空";
+            errorMessage = L.Get("GuiCore_PathEmpty");
             return false;
         }
 
         if (cleaned.IndexOf('\0') >= 0)
         {
-            errorMessage = "路径包含非法空字符";
+            errorMessage = L.Get("GuiCore_PathContainsNull");
             return false;
         }
 
@@ -140,7 +140,7 @@ internal static class GuiPaths
             var full = PathSupport.TrimTrailingSeparators(Path.GetFullPath(cleaned));
             if (string.IsNullOrWhiteSpace(full))
             {
-                errorMessage = "路径无效";
+                errorMessage = L.Get("Common_InvalidPath");
                 return false;
             }
 
@@ -206,7 +206,7 @@ internal static class GuiPaths
                     writeProbeOverride: writeProbeOverride);
                 baseRoot = fallback.Path;
                 usedFallback = true;
-                warning = $"上次保存的输出目录无效（{outputRootOverride}：{overrideError}），已改用默认目录：{baseRoot}。";
+                warning = L.Format("GuiCore_SavedOutputInvalidFallback", outputRootOverride, overrideError, baseRoot);
             }
         }
         else
@@ -291,7 +291,7 @@ internal static class GuiPaths
                 false,
                 baseDir,
                 fileName,
-                $"定位命令行程序 {fileName} 失败（程序目录路径无效：{baseDir}）：{exception.Message}");
+                L.Format("GuiCore_CliLookupInvalidBaseDir", fileName, baseDir, exception.Message));
         }
 
         var expectedPath = Path.Combine(normalizedBaseDir, fileName);
@@ -309,13 +309,11 @@ internal static class GuiPaths
                 false,
                 expectedPath,
                 fileName,
-                $"检查命令行程序 {fileName} 失败（{expectedPath}）：{exception.Message}");
+                L.Format("GuiCore_CliLookupCheckFailed", fileName, expectedPath, exception.Message));
         }
 
         var dbFileName = isWindows ? "ffr-db.exe" : "ffr-db";
-        var errorMessage =
-            $"找不到命令行程序 {fileName}（期望路径：{expectedPath}）。" +
-            $"请将压缩包完整解压到同一个文件夹，确保 ffr-export-gui.exe、{fileName}、{dbFileName} 与 known-builds.json 位于同一目录，不要单独移动窗口程序。";
+        var errorMessage = L.Format("GuiCore_CliNotFound", fileName, expectedPath, dbFileName);
         return new CliExecutableLookup(false, expectedPath, fileName, errorMessage);
     }
 
@@ -336,7 +334,7 @@ internal static class GuiPaths
                 string.Empty,
                 0,
                 false,
-                "输出目录不能为空，请选择一个输出文件夹。");
+                L.Get("GuiCore_OutputEmpty"));
         }
 
         string fullOutputPath;
@@ -351,7 +349,7 @@ internal static class GuiPaths
                 cleaned,
                 0,
                 false,
-                $"输出目录路径无效（{cleaned}）：{exception.Message}");
+                L.Format("GuiCore_OutputInvalidPath", cleaned, exception.Message));
         }
 
         if (!string.IsNullOrWhiteSpace(gameDirectory))
@@ -367,7 +365,7 @@ internal static class GuiPaths
                         fullOutputPath,
                         0,
                         true,
-                        $"输出目录不能与游戏安装目录重叠：{fullOutputPath}，请更换其他目录。");
+                        L.Format("GuiCore_OutputOverlapsGame", fullOutputPath));
                 }
             }
             catch
@@ -384,7 +382,7 @@ internal static class GuiPaths
                 fullOutputPath,
                 0,
                 false,
-                $"输出路径指向一个已存在的文件而非文件夹：{fullOutputPath}，请更换路径。");
+                L.Format("GuiCore_OutputIsFile", fullOutputPath));
         }
 
         if (!Directory.Exists(ioPath))
@@ -409,7 +407,7 @@ internal static class GuiPaths
                 fullOutputPath,
                 0,
                 false,
-                $"无法读取输出目录 {fullOutputPath}：{exception.Message}");
+                L.Format("GuiCore_OutputReadFailed", fullOutputPath, exception.Message));
         }
 
         if (entryCount == 0)
@@ -439,7 +437,7 @@ internal static class GuiPaths
             entryCount,
             isProtected,
             isProtected
-                ? $"输出目录 {fullOutputPath} 是系统或用户根级目录且非空，为防止误删个人文件，拒绝清空该目录；请在其下新建或指定专用子文件夹。"
+                ? L.Format("GuiCore_OutputProtectedRefused", fullOutputPath)
                 : null);
     }
 
@@ -453,7 +451,7 @@ internal static class GuiPaths
         var fullPath = PathSupport.TrimTrailingSeparators(Path.GetFullPath(directoryPath));
         if (IsProtectedDirectory(fullPath, additionalProtectedDirectories))
         {
-            throw new InvalidOperationException($"拒绝清空受保护目录：{fullPath}");
+            throw new InvalidOperationException(L.Format("GuiCore_RefuseClearProtected", fullPath));
         }
 
         var ioPath = PathSupport.ToIoPath(fullPath);

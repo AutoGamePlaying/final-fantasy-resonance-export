@@ -68,6 +68,7 @@ public sealed class GuiCoreTests
     [Fact]
     public void MappingDiscovery_FollowsUe4ssThenWin64PriorityPicksNewestUsmapAndListsJmaps()
     {
+        using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-gui-mappings");
 
         var gameDir = Path.Combine(workspace.Root, "Game");
@@ -250,6 +251,7 @@ public sealed class GuiCoreTests
                 "--usmap", "/games/ue4ss/FFRS.usmap",
                 "--out", "/out/ffr-24250053",
                 "--steam-buildid", "24250053",
+                "--progress-json",
             ],
             argsNoJmap);
 
@@ -261,6 +263,7 @@ public sealed class GuiCoreTests
         Assert.Equal("/out/ffr-24250053", parsedNoJmap.OutputArgument);
         Assert.Equal("24250053", parsedNoJmap.SteamBuildId);
         Assert.False(parsedNoJmap.Force);
+        Assert.True(parsedNoJmap.ProgressJson);
 
         var argsWithJmaps = BuildCliCommand.BuildArguments(new BuildCommandRequest(
             GameDirectory: "/games/FFRS",
@@ -268,28 +271,37 @@ public sealed class GuiCoreTests
             JmapPaths: ["/dumps/title.jmap", "/dumps/battle.jmap"],
             OutputDirectory: "/out/ffr-unknown",
             SteamBuildId: null,
-            Force: true));
+            Force: true,
+            Language: "ja",
+            ProgressJson: true));
+        Assert.Contains("--lang", argsWithJmaps);
+        Assert.Contains("ja", argsWithJmaps);
+        Assert.Contains("--progress-json", argsWithJmaps);
         var parsedWithJmaps = Program.ParseBuildDbArgs(argsWithJmaps.Skip(1).ToArray());
         Assert.Equal(["/dumps/title.jmap", "/dumps/battle.jmap"], parsedWithJmaps.JmapPaths);
         Assert.Null(parsedWithJmaps.SteamBuildId);
         Assert.True(parsedWithJmaps.Force);
+        Assert.True(parsedWithJmaps.ProgressJson);
 
-        // Progress parser tracks "==> 步骤 n/m" monotonically.
+        // Progress parser tracks language-independent "@@progress {...}" lines monotonically.
         var previousPercent = 0;
         for (var step = 1; step <= 5; step++)
         {
-            Assert.True(BuildCliCommand.TryParseStepProgress($"==> 步骤 {step}/5：测试阶段 {step}", out var parsed));
+            var progressLine = ProgressProtocol.FormatProgressLine(step, 5, $"Stage {step}");
+            Assert.True(BuildCliCommand.TryParseStepProgress(progressLine, out var parsed));
             Assert.Equal(step, parsed.CurrentStep);
             Assert.Equal(5, parsed.TotalSteps);
-            Assert.Equal($"测试阶段 {step}", parsed.Title);
+            Assert.Equal($"Stage {step}", parsed.Title);
             Assert.True(parsed.Percent > previousPercent);
             Assert.InRange(parsed.Percent, 1, 95);
             previousPercent = parsed.Percent;
         }
 
-        Assert.False(BuildCliCommand.TryParseStepProgress("普通日志行", out _));
-        Assert.False(BuildCliCommand.TryParseStepProgress("==> 步骤 0/5：非法", out _));
-        Assert.False(BuildCliCommand.TryParseStepProgress("==> 步骤 6/5：越界", out _));
+        Assert.False(BuildCliCommand.TryParseStepProgress("plain log line", out _));
+        Assert.False(BuildCliCommand.TryParseStepProgress("==> 步骤 1/5：旧格式不再解析", out _));
+        Assert.False(BuildCliCommand.TryParseStepProgress("==> Step 1/5: human readable only", out _));
+        Assert.False(BuildCliCommand.TryParseStepProgress(ProgressProtocol.FormatProgressLine(0, 5, "bad"), out _));
+        Assert.False(BuildCliCommand.TryParseStepProgress(ProgressProtocol.FormatProgressLine(6, 5, "oob"), out _));
 
         // ProcessStartInfo forces UTF-8 for stdout and stderr with no console window, and forwards AGP_HOME.
         var startInfo = BuildCliCommand.CreateStartInfo("/app/ffr-export", argsNoJmap, agpHomeOverride: "/data/agp-active");
@@ -305,6 +317,7 @@ public sealed class GuiCoreTests
     [Fact]
     public void BuildReportReader_ParsesStructuredBuildJsonAndExplainsBothInputCombinations()
     {
+        using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-gui-report");
 
         // 1. Matched (usmap only, 0 jmaps)
@@ -453,14 +466,15 @@ public sealed class GuiCoreTests
         Assert.False(File.Exists(legacyPath));
         Assert.True(File.Exists(legacyPath + ".migrated"));
 
-        // Save and reload roundtrip.
+        // Save and reload roundtrip (including Language setting).
         var customRoot = Path.Combine(workspace.Root, "My Exports");
-        GuiSettingsStore.Save(new GuiSettings(customRoot, true), settingsPath);
+        GuiSettingsStore.Save(new GuiSettings(customRoot, true, "ja"), settingsPath);
         Assert.True(File.Exists(settingsPath));
 
         var reloaded = GuiSettingsStore.Load(settingsPath);
         Assert.Equal(customRoot, reloaded.OutputRootDirectory);
         Assert.True(reloaded.IncludeJmap);
+        Assert.Equal("ja", reloaded.Language);
 
         // Existing new settings file is NOT overwritten by a newly placed legacy file.
         GuiSettingsStore.Save(new GuiSettings(Path.Combine(workspace.Root, "IgnoredLegacy"), false), legacyPath);
@@ -481,6 +495,7 @@ public sealed class GuiCoreTests
     [Fact]
     public void GuiStartupLog_WritesStartupBannerToSelectedRootWithIntegrityAndNeverFallsBackToTemp()
     {
+        using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-gui-startup-log");
 
         var localAppData = Path.Combine(workspace.Root, "LocalAppData");
@@ -676,6 +691,7 @@ public sealed class GuiCoreTests
     [Fact]
     public void GuiStartupLog_FormatsFullExceptionChainCrashDialogAndSelfTestError()
     {
+        using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-gui-exception-format");
 
         Exception captured;
@@ -753,6 +769,7 @@ public sealed class GuiCoreTests
     [Fact]
     public void GuiFallbacks_HandleCorruptOrDeniedSettingsFontOutputSteamAndMappings()
     {
+        using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-gui-fallbacks");
 
         // 1. Settings load diagnostics: missing -> no warning; corrupt / permission denied / invalid path -> warning + defaults.
@@ -939,10 +956,10 @@ public sealed class GuiCoreTests
         var stdoutLines = new List<string>();
         var stderrLines = new List<string>();
 
-        // Running an invalid subcommand verifies UTF-8 Chinese stderr streaming through BuildCliCommand.RunAsync.
+        // Running an invalid subcommand with --lang zh-Hans verifies UTF-8 Chinese stderr streaming through BuildCliCommand.RunAsync.
         var exitCode = await BuildCliCommand.RunAsync(
             dotnetExe,
-            ["exec", cliHostDll, "unknown-gui-probe"],
+            ["exec", cliHostDll, "--lang", "zh-Hans", "unknown-gui-probe"],
             line =>
             {
                 lock (stdoutLines)
@@ -1000,7 +1017,7 @@ public sealed class GuiCoreTests
         var errStderr = new List<string>();
         var invalidExit = await BuildCliCommand.RunAsync(
             exePath,
-            [.. prefixArgs, "unknown-utf8-probe"],
+            [.. prefixArgs, "--lang", "zh-Hans", "unknown-utf8-probe"],
             line =>
             {
                 lock (errStdout)
@@ -1078,11 +1095,13 @@ public sealed class GuiCoreTests
             exePath,
             [
                 .. prefixArgs,
+                "--lang", "zh-Hans",
                 "build-db",
                 "--game", gameDir,
                 "--usmap", usmapPath,
                 "--out", outDir,
                 "--ffr-db", fakeDbExe,
+                "--progress-json",
             ],
             line =>
             {
@@ -1144,7 +1163,7 @@ public sealed class GuiCoreTests
         Assert.Contains("ProcessIntegritySupport.DetectCurrent()", programCs, StringComparison.Ordinal);
 
         var mainFormCs = File.ReadAllText(Path.Combine(guiDir, "MainForm.cs"), Encoding.UTF8);
-        Assert.Contains("清理 UE4SS…", mainFormCs, StringComparison.Ordinal);
+        Assert.Contains("Gui_BtnCleanupUe4ss", mainFormCs, StringComparison.Ordinal);
         Assert.Contains("agpHomeOverride: _activeAgpRoot", mainFormCs, StringComparison.Ordinal);
         Assert.Contains("StatusStrip", mainFormCs, StringComparison.Ordinal);
 
@@ -1174,6 +1193,7 @@ public sealed class GuiCoreTests
     [Fact]
     public void AgpPaths_CandidateOrderLowIntegrityExplicitAgpHomeAndAllUnwritableHandling()
     {
+        using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-agp-candidates");
 
         var envAgp = Path.Combine(workspace.Root, "EnvAgp");
@@ -1200,7 +1220,7 @@ public sealed class GuiCoreTests
         var injectedLow = ProcessIntegritySupport.DetectCurrent(
             () => ProcessIntegritySupport.FromLevel(ProcessIntegrityLevel.Low));
         Assert.Equal(ProcessIntegrityLevel.Low, injectedLow.Level);
-        Assert.Equal("低完整性（Low IL）", injectedLow.DisplayTextZh);
+        Assert.Equal("低完整性（Low IL）", injectedLow.DisplayText);
 
         // 2. Explicit AGP_HOME fails immediately without falling back when unwritable.
         var envProbed = new List<string>();

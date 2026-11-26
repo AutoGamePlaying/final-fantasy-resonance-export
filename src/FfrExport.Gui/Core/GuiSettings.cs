@@ -6,9 +6,10 @@ namespace FfrExport.Gui.Core;
 
 internal sealed record GuiSettings(
     [property: JsonPropertyName("output_root_directory")] string? OutputRootDirectory,
-    [property: JsonPropertyName("include_jmap")] bool IncludeJmap)
+    [property: JsonPropertyName("include_jmap")] bool IncludeJmap,
+    [property: JsonPropertyName("language")] string? Language = null)
 {
-    internal static GuiSettings Default => new(null, false);
+    internal static GuiSettings Default => new(null, false, null);
 }
 
 internal sealed record GuiSettingsLoadResult(
@@ -97,7 +98,7 @@ internal static class GuiSettingsStore
         {
             return new GuiSettingsLoadResult(
                 GuiSettings.Default,
-                $"解析配置文件路径失败：{exception.Message}；已改用默认设置。");
+                L.Format("GuiCore_SettingsResolvePathFailed", exception.Message));
         }
 
         string? migratedFrom = null;
@@ -129,7 +130,7 @@ internal static class GuiSettingsStore
             {
                 if (path.IndexOf('\0') >= 0)
                 {
-                    throw new ArgumentException("路径包含非法空字符。", nameof(settingsPath));
+                    throw new ArgumentException(L.Get("GuiCore_SettingsNullChar"), nameof(settingsPath));
                 }
 
                 var fullPath = Path.GetFullPath(path);
@@ -147,15 +148,18 @@ internal static class GuiSettingsStore
             {
                 return new GuiSettingsLoadResult(
                     GuiSettings.Default,
-                    $"配置文件内容为空或格式无效（{path}），已改用默认设置。",
+                    L.Format("GuiCore_SettingsEmptyOrInvalid", path),
                     migratedFrom);
             }
 
             var outputRoot = string.IsNullOrWhiteSpace(parsed.OutputRootDirectory)
                 ? null
                 : parsed.OutputRootDirectory.Trim();
+            var language = Localization.TryNormalizeLanguageCode(parsed.Language, out var canonicalLang)
+                ? canonicalLang
+                : null;
             return new GuiSettingsLoadResult(
-                new GuiSettings(outputRoot, parsed.IncludeJmap),
+                new GuiSettings(outputRoot, parsed.IncludeJmap, language),
                 migrationWarning,
                 migratedFrom);
         }
@@ -163,21 +167,21 @@ internal static class GuiSettingsStore
         {
             return new GuiSettingsLoadResult(
                 GuiSettings.Default,
-                $"配置文件已损坏（{path}）：{exception.Message}；已改用默认设置。",
+                L.Format("GuiCore_SettingsCorrupt", path, exception.Message),
                 migratedFrom);
         }
         catch (UnauthorizedAccessException exception)
         {
             return new GuiSettingsLoadResult(
                 GuiSettings.Default,
-                $"无权读取配置文件（{path}）：{exception.Message}；已改用默认设置。",
+                L.Format("GuiCore_SettingsAccessDenied", path, exception.Message),
                 migratedFrom);
         }
         catch (Exception exception)
         {
             return new GuiSettingsLoadResult(
                 GuiSettings.Default,
-                $"读取配置文件失败（{path}）：{exception.Message}；已改用默认设置。",
+                L.Format("GuiCore_SettingsReadFailed", path, exception.Message),
                 migratedFrom);
         }
     }
@@ -227,12 +231,16 @@ internal static class GuiSettingsStore
             var parsed = JsonSerializer.Deserialize<GuiSettings>(legacyJson, JsonOptions);
             if (parsed is null)
             {
-                return (null, $"旧版配置文件内容无效（{fullLegacy}），跳过自动迁移。");
+                return (null, L.Format("GuiCore_LegacySettingsInvalid", fullLegacy));
             }
 
+            var migratedLanguage = Localization.TryNormalizeLanguageCode(parsed.Language, out var canonicalLang)
+                ? canonicalLang
+                : null;
             var normalized = new GuiSettings(
                 string.IsNullOrWhiteSpace(parsed.OutputRootDirectory) ? null : parsed.OutputRootDirectory.Trim(),
-                parsed.IncludeJmap);
+                parsed.IncludeJmap,
+                migratedLanguage);
             Save(normalized, fullTarget);
 
             var migratedPath = fullLegacy + MigratedSuffix;
@@ -241,7 +249,7 @@ internal static class GuiSettingsStore
         }
         catch (Exception exception)
         {
-            return (null, $"迁移旧版配置文件失败（{legacySettingsPath} -> {targetSettingsPath}）：{exception.Message}；已保留旧文件并继续使用默认设置。");
+            return (null, L.Format("GuiCore_LegacySettingsMigrateFailed", legacySettingsPath, targetSettingsPath, exception.Message));
         }
     }
 

@@ -36,8 +36,7 @@ internal sealed record BuildReportSummary(
 /// </summary>
 internal static class BuildReportReader
 {
-    internal const string DualComboHint =
-        "已知版本表里登记了两种输入组合：一种是“只有 .usmap”，一种是“.usmap 加两份 .jmap”，所以无论是否勾选 .jmap，都可能对得上。";
+    internal static string DualComboHint => L.Get("GuiCore_DualComboHint");
 
     private static readonly UTF8Encoding Utf8WithoutBom = new(false);
 
@@ -79,8 +78,7 @@ internal static class BuildReportReader
     internal static BuildReportSummary ReadFromOutputDirectory(string outputDirectory)
     {
         var reportPath = FindBuildReportPath(outputDirectory)
-            ?? throw new FileNotFoundException(
-                $"读取构建结果失败：在输出目录 {outputDirectory} 中找不到 *.build.json 文件。");
+            ?? throw new FileNotFoundException(L.Format("GuiCore_ReportNotFound", outputDirectory));
 
         string json;
         try
@@ -89,7 +87,7 @@ internal static class BuildReportReader
         }
         catch (Exception exception)
         {
-            throw new IOException($"读取构建报告失败（{reportPath}）：{exception.Message}", exception);
+            throw new IOException(L.Format("GuiCore_ReportReadFailed", reportPath, exception.Message), exception);
         }
 
         return Parse(json, reportPath, outputDirectory);
@@ -104,7 +102,7 @@ internal static class BuildReportReader
         }
         catch (JsonException exception)
         {
-            throw new InvalidDataException($"解析构建报告 JSON 失败（{reportPath}）：{exception.Message}", exception);
+            throw new InvalidDataException(L.Format("GuiCore_ReportInvalidJson", reportPath, exception.Message), exception);
         }
 
         using (doc)
@@ -112,7 +110,7 @@ internal static class BuildReportReader
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
             {
-                throw new InvalidDataException($"构建报告格式无效（根节点不是对象）：{reportPath}");
+                throw new InvalidDataException(L.Format("GuiCore_ReportRootNotObject", reportPath));
             }
 
             var status = ReadOptionalString(root, "status") ?? "unknown";
@@ -132,7 +130,7 @@ internal static class BuildReportReader
 
             if (string.IsNullOrWhiteSpace(fileSha256))
             {
-                throw new InvalidDataException($"构建报告缺少 database.file_sha256 字段：{reportPath}");
+                throw new InvalidDataException(L.Format("GuiCore_ReportMissingFileSha", reportPath));
             }
 
             var jmapCount = 0;
@@ -231,11 +229,11 @@ internal static class BuildReportReader
         bool hasPartialExportFailure)
     {
         var inputDesc = jmapCount == 0
-            ? "本次输入：仅 .usmap（未包含 .jmap）"
-            : string.Create(CultureInfo.InvariantCulture, $"本次输入：.usmap + {jmapCount} 份 .jmap");
+            ? L.Get("GuiCore_InputDescUsmapOnly")
+            : L.Format("GuiCore_InputDescWithJmaps", jmapCount);
 
         var partialNotice = hasPartialExportFailure
-            ? "（提示：导出过程中有少量资源包失败，详见日志与构建报告。）"
+            ? L.Get("GuiCore_PartialExportNotice")
             : string.Empty;
 
         switch (verdict)
@@ -244,16 +242,15 @@ internal static class BuildReportReader
                 {
                     var regPart = string.IsNullOrWhiteSpace(matchedRegisteredAt)
                         ? string.Empty
-                        : $"，匹配登记日期：{matchedRegisteredAt}";
-                    var explanation = $"{inputDesc}{regPart}。{DualComboHint}{partialNotice}";
-                    return ("✓", "与登记的版本一致", explanation);
+                        : L.Format("GuiCore_MatchedRegDatePart", matchedRegisteredAt);
+                    var explanation = L.Format("GuiCore_VerdictMatchedExplanation", inputDesc, regPart, DualComboHint, partialNotice);
+                    return ("✓", L.Get("GuiCore_VerdictMatchedTitle"), explanation);
                 }
 
             case BuildComparisonVerdict.NewVersion:
                 {
-                    var explanation =
-                        $"{inputDesc}。当前游戏版本尚未登记在 known-builds.json 中。{DualComboHint}{partialNotice}";
-                    return ("✗", "新版本，未登记", explanation);
+                    var explanation = L.Format("GuiCore_VerdictNewVersionExplanation", inputDesc, DualComboHint, partialNotice);
+                    return ("✗", L.Get("GuiCore_VerdictNewVersionTitle"), explanation);
                 }
 
             case BuildComparisonVerdict.HashMismatch:
@@ -261,44 +258,53 @@ internal static class BuildReportReader
                     string detail;
                     if (fileSha256MismatchOnly)
                     {
-                        detail = "所有表内容一致（content_sha256 相同），仅数据库文件哈希不同。";
+                        detail = L.Get("GuiCore_VerdictFileShaOnlyDetail");
                     }
                     else if (tableDiffCount > 0)
                     {
-                        detail = string.Create(
-                            CultureInfo.InvariantCulture,
-                            $"游戏版本已登记，但有 {tableDiffCount} 张表内容与登记记录不同。");
+                        detail = L.Format("GuiCore_VerdictTableDiffDetail", tableDiffCount);
                     }
                     else
                     {
-                        detail = "游戏版本已登记，但数据库哈希与登记记录不同。";
+                        detail = L.Get("GuiCore_VerdictGenericMismatchDetail");
                     }
 
                     var jmapNote = jmapCount is > 0 and not 2
-                        ? string.Create(
-                            CultureInfo.InvariantCulture,
-                            $"注意：当前提供了 {jmapCount} 份 .jmap，而登记组合为“0 份”或“2 份”。")
+                        ? L.Format("GuiCore_VerdictOddJmapCountNote", jmapCount)
                         : string.Empty;
 
-                    var explanation = $"{inputDesc}。{detail}{jmapNote}{DualComboHint}{partialNotice}";
-                    return ("✗", "哈希不同", explanation);
+                    var explanation = L.Format(
+                        "GuiCore_VerdictHashMismatchExplanation",
+                        inputDesc,
+                        detail,
+                        jmapNote,
+                        DualComboHint,
+                        partialNotice);
+                    return ("✗", L.Get("GuiCore_VerdictHashMismatchTitle"), explanation);
                 }
 
             default:
                 {
-                    var explanation = $"{inputDesc}。构建报告中未包含可识别的版本比对结论。{DualComboHint}{partialNotice}";
-                    return ("✗", "比对结论未知", explanation);
+                    var explanation = L.Format("GuiCore_VerdictUnknownExplanation", inputDesc, DualComboHint, partialNotice);
+                    return ("✗", L.Get("GuiCore_VerdictUnknownTitle"), explanation);
                 }
         }
     }
 
     internal static string FormatClipboardHashText(BuildReportSummary summary)
     {
+        var (symbol, title, _) = FormatVerdictDisplay(
+            summary.Verdict,
+            summary.JmapCount,
+            summary.MatchedRegisteredAt,
+            summary.FileSha256MismatchOnly,
+            summary.TableDiffCount,
+            summary.HasPartialExportFailure);
         var sb = new StringBuilder();
-        sb.AppendLine($"数据库路径：{summary.DatabasePath}");
-        sb.AppendLine($"文件哈希 (file_sha256)：{summary.FileSha256}");
-        sb.AppendLine($"内容哈希 (content_sha256)：{summary.ContentSha256 ?? "无"}");
-        sb.AppendLine($"比对结论：{summary.VerdictSymbol} {summary.VerdictTitle}");
+        sb.AppendLine(L.Format("GuiCore_ClipboardDbPath", summary.DatabasePath));
+        sb.AppendLine(L.Format("GuiCore_ClipboardFileSha", summary.FileSha256));
+        sb.AppendLine(L.Format("GuiCore_ClipboardContentSha", summary.ContentSha256 ?? L.Get("Common_None")));
+        sb.AppendLine(L.Format("GuiCore_ClipboardVerdict", symbol, title));
         return sb.ToString().TrimEnd();
     }
 

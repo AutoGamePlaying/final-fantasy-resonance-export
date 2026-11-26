@@ -4,7 +4,7 @@ namespace FfrExport.Gui;
 
 /// <summary>
 /// Modal settings dialog displaying the active data directory, selection reason, and process integrity level.
-/// UE4SS cleanup lives directly on the main window's .usmap row ("清理 UE4SS…").
+/// UE4SS cleanup lives directly on the main window's .usmap row ("Clean up UE4SS...").
 /// </summary>
 internal sealed class SettingsDialog : Form
 {
@@ -23,7 +23,7 @@ internal sealed class SettingsDialog : Form
 
         SuspendLayout();
 
-        Text = "设置";
+        Text = L.Get("Settings_Title");
         Font = uiFont;
         AutoScaleMode = AutoScaleMode.Dpi;
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -31,7 +31,7 @@ internal sealed class SettingsDialog : Form
         MinimizeBox = false;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterParent;
-        ClientSize = new Size(560, 260);
+        ClientSize = new Size(580, 270);
 
         var root = new TableLayoutPanel
         {
@@ -48,7 +48,7 @@ internal sealed class SettingsDialog : Form
         // 1. Active data directory
         var dataGroup = new GroupBox
         {
-            Text = "数据目录",
+            Text = L.Get("Settings_GroupDataDir"),
             Dock = DockStyle.Top,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
@@ -74,19 +74,21 @@ internal sealed class SettingsDialog : Form
         };
         _openDataDirButton = new Button
         {
-            Text = "打开数据目录",
-            Width = 112,
-            Height = 29,
+            Text = L.Get("Settings_BtnOpenDataDir"),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(120, 29),
+            Padding = new Padding(8, 0, 8, 0),
             Margin = new Padding(0, 1, 0, 4),
         };
         _openDataDirButton.Click += OnOpenDataDirClick;
 
         var dataNoteLabel = new Label
         {
-            Text = "包含 output\\（默认导出）、usmap\\（映射文件）、downloads\\（下载缓存）、logs\\、tmp\\、ue4ss-backup\\ 与 settings.json。",
+            Text = L.Get("Settings_DataDirContentsNote"),
             AutoSize = true,
             ForeColor = SystemColors.GrayText,
-            MaximumSize = new Size(500, 0),
+            MaximumSize = new Size(520, 0),
             Margin = new Padding(0, 2, 0, 4),
         };
 
@@ -99,7 +101,7 @@ internal sealed class SettingsDialog : Form
             ForeColor = agpResolution.UsedFallback || agpResolution.Integrity.IsLowOrUntrusted
                 ? Color.FromArgb(160, 85, 0)
                 : SystemColors.GrayText,
-            MaximumSize = new Size(500, 0),
+            MaximumSize = new Size(520, 0),
             Margin = new Padding(0, 2, 0, 0),
         };
 
@@ -114,10 +116,10 @@ internal sealed class SettingsDialog : Form
         // 2. Tip pointing to main window UE4SS cleanup button
         var ue4ssNoteLabel = new Label
         {
-            Text = "提示：UE4SS 清理功能位于主窗口「2. 映射与反射文件」区域的「清理 UE4SS…」按钮。",
+            Text = L.Get("Settings_Ue4ssTip"),
             AutoSize = true,
             ForeColor = SystemColors.GrayText,
-            MaximumSize = new Size(520, 0),
+            MaximumSize = new Size(540, 0),
             Margin = new Padding(2, 10, 0, 0),
         };
 
@@ -131,9 +133,11 @@ internal sealed class SettingsDialog : Form
         };
         _closeButton = new Button
         {
-            Text = "关闭",
-            Width = 96,
-            Height = 30,
+            Text = L.Get("Settings_BtnClose"),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(96, 30),
+            Padding = new Padding(8, 0, 8, 0),
             DialogResult = DialogResult.OK,
         };
         footerPanel.Controls.Add(_closeButton);
@@ -150,7 +154,7 @@ internal sealed class SettingsDialog : Form
 
     private static string BuildEnvironmentSummary(AgpRootResolution resolution)
     {
-        var integrityLine = $"进程完整性级别：{resolution.Integrity.DisplayTextZh}";
+        var integrityLine = L.Format("Settings_IntegrityLine", resolution.Integrity.DisplayText);
         var banner = AgpPaths.FormatGuiBannerMessage(resolution);
         return string.IsNullOrWhiteSpace(banner)
             ? integrityLine
@@ -173,8 +177,8 @@ internal sealed class SettingsDialog : Form
         {
             MessageBox.Show(
                 this,
-                $"打开数据目录失败（{dir}）：{exception.Message}",
-                "无法打开目录",
+                L.Format("Settings_OpenDataDirFailedBody", dir, exception.Message),
+                L.Get("Settings_OpenDataDirFailedTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }

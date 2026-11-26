@@ -5,13 +5,13 @@ using FfrExport.Gui.Core;
 namespace FfrExport.Gui;
 
 /// <summary>
-/// Single-window Chinese WinForms frontend for ffr-export build-db.
+/// Single-window WinForms frontend for ffr-export build-db (supports English, Simplified Chinese, and Japanese).
 /// Delegates all extraction and database building to the sibling ffr-export.exe CLI.
 /// </summary>
 internal sealed class MainForm : Form
 {
-    private const int MinimumWindowWidth = 760;
-    private const int MinimumWindowHeight = 740;
+    private const int MinimumWindowWidth = 800;
+    private const int MinimumWindowHeight = 760;
     private const int MaxLogCharacters = 400_000;
 
     private enum ActiveOperation
@@ -22,10 +22,68 @@ internal sealed class MainForm : Form
         CleaningUe4ss,
     }
 
+    private enum GameStatusKind
+    {
+        None,
+        FoundCount,
+        NotFound,
+        ManualAdded,
+        RawError,
+    }
+
+    private enum UsmapStatusKind
+    {
+        None,
+        AutoFound,
+        NotFound,
+        ManualSelected,
+        Fetched,
+        RawError,
+    }
+
+    private enum JmapStatusKind
+    {
+        Unchecked,
+        AutoFound,
+        NotFound,
+        SelectedCount,
+        EmptyList,
+        RawError,
+    }
+
+    private enum ProgressDisplayKind
+    {
+        Ready,
+        ExportComplete,
+        ExportCompletePartial,
+        ExportFailedExit,
+        ExportFailed,
+        ExportCancelled,
+        FetchComplete,
+        FetchFailedExit,
+        FetchCancelled,
+        FetchFailed,
+        CleanupComplete,
+        CleanupFailedExit,
+        CleanupCancelled,
+        Raw,
+    }
+
+    private enum ResultPanelKind
+    {
+        NotRun,
+        Exporting,
+        Cancelled,
+        ExportFailedExit,
+        Report,
+        Raw,
+    }
+
     private readonly GuiStartupLogSession? _startupLog;
     private readonly AgpRootResolution _agpResolution;
     private readonly string _activeAgpRoot;
-    private readonly string _defaultOutputHintText;
+    private readonly string _activeToolRoot;
+    private readonly string _defaultOutputRoot;
     private readonly List<Font> _ownedFonts = [];
     private readonly HashSet<string> _recordedFontWarnings = new(StringComparer.Ordinal);
 
@@ -38,26 +96,36 @@ internal sealed class MainForm : Form
     private readonly List<GameEntry> _games = [];
     private readonly List<DiscoveredMappingFile> _jmapFiles = [];
 
+    private readonly Label _languageLabel;
+    private readonly ComboBox _languageComboBox;
+
     private readonly Panel _dataRootBannerPanel;
     private readonly Label _dataRootBannerLabel;
 
+    private readonly GroupBox _gameGroup;
     private readonly ListView _gameListView;
     private readonly Button _manualGameButton;
     private readonly Button _rescanGameButton;
     private readonly Button _settingsButton;
     private readonly Label _gameStatusLabel;
 
+    private readonly GroupBox _mappingGroup;
+    private readonly Label _usmapCaption;
     private readonly Label _usmapStatusLabel;
+    private readonly Label _usmapPathCaption;
     private readonly TextBox _usmapPathTextBox;
     private readonly Button _browseUsmapButton;
     private readonly Button _cleanupUe4ssButton;
     private readonly Button _fetchUsmapButton;
     private readonly CheckBox _includeJmapCheckBox;
+    private readonly Label _jmapComboHint;
     private readonly ListBox _jmapListBox;
     private readonly Button _addJmapButton;
     private readonly Button _removeJmapButton;
     private readonly Label _jmapStatusLabel;
 
+    private readonly GroupBox _outputGroup;
+    private readonly Label _outputCaption;
     private readonly TextBox _outputDirTextBox;
     private readonly Button _browseOutputButton;
     private readonly Label _outputHintLabel;
@@ -68,10 +136,14 @@ internal sealed class MainForm : Form
     private readonly ProgressBar _progressBar;
     private readonly TextBox _logTextBox;
 
+    private readonly GroupBox _resultGroup;
     private readonly Label _verdictLabel;
     private readonly Label _verdictDetailLabel;
+    private readonly Label _dbPathCaption;
     private readonly TextBox _dbPathTextBox;
+    private readonly Label _fileShaCaption;
     private readonly TextBox _fileShaTextBox;
+    private readonly Label _contentShaCaption;
     private readonly TextBox _contentShaTextBox;
     private readonly Button _openOutputButton;
     private readonly Button _copyHashButton;
@@ -85,16 +157,28 @@ internal sealed class MainForm : Form
     private string _outputRootDirectory;
     private GameEntry? _selectedGame;
     private DiscoveredMappingFile? _selectedUsmap;
+    private int _usmapCandidateCount = 1;
     private bool _usmapManuallySelected;
     private bool _userCustomizedOutputDir;
     private bool _suppressOutputTextChanged;
     private bool _suppressJmapToggle;
+    private bool _suppressLanguageChanged;
     private ActiveOperation _activeOperation = ActiveOperation.None;
     private bool _isExporting => _activeOperation != ActiveOperation.None;
     private CancellationTokenSource? _exportCts;
     private string? _lastFetchedUsmapPath;
     private BuildReportSummary? _lastReport;
     private string? _lastCompletedOutputDir;
+
+    private GameStatusKind _gameStatusKind = GameStatusKind.None;
+    private string? _gameStatusArg;
+    private UsmapStatusKind _usmapStatusKind = UsmapStatusKind.None;
+    private JmapStatusKind _jmapStatusKind = JmapStatusKind.Unchecked;
+    private bool _outputHintIsDefault = true;
+    private ProgressDisplayKind _progressDisplayKind = ProgressDisplayKind.Ready;
+    private int _lastProgressExitCode;
+    private ResultPanelKind _resultPanelKind = ResultPanelKind.NotRun;
+    private int _lastResultExitCode;
 
     internal MainForm(GuiStartupLogSession? startupLog = null, AgpRootResolution? agpResolution = null)
     {
@@ -103,10 +187,8 @@ internal sealed class MainForm : Form
 
         _agpResolution = agpResolution ?? AgpPaths.ResolveWritableAgpRoot();
         _activeAgpRoot = _agpResolution.AgpRoot ?? AppContext.BaseDirectory;
-        var activeToolRoot = AgpPaths.ResolveToolRootForAgpRoot(_activeAgpRoot);
-        var defaultOutputRoot = AgpPaths.GetDefaultOutputRootForAgpRoot(_activeAgpRoot);
-        _defaultOutputHintText =
-            $"默认位置：{defaultOutputRoot}\\ffr-<Steam 构建号>\\（导出只读游戏文件，不会修改游戏目录）";
+        _activeToolRoot = AgpPaths.ResolveToolRootForAgpRoot(_activeAgpRoot);
+        _defaultOutputRoot = AgpPaths.GetDefaultOutputRootForAgpRoot(_activeAgpRoot);
 
         var bannerMessage = AgpPaths.FormatGuiBannerMessage(_agpResolution);
         if (!string.IsNullOrWhiteSpace(bannerMessage))
@@ -124,8 +206,7 @@ internal sealed class MainForm : Form
             legacySettingsPathOverride: legacyPath);
         if (!string.IsNullOrWhiteSpace(settingsResult.MigratedFromPath))
         {
-            var migratedNote =
-                $"已自动将旧版设置从 {settingsResult.MigratedFromPath} 迁移至 {_settingsPath}（旧文件已重命名为 .migrated）。";
+            var migratedNote = L.Format("Gui_SettingsMigratedNote", settingsResult.MigratedFromPath, _settingsPath);
             startupWarnings.Add(migratedNote);
             _startupLog?.WriteInfo(migratedNote);
         }
@@ -149,14 +230,17 @@ internal sealed class MainForm : Form
             }
             else
             {
-                _outputRootDirectory = defaultOutputRoot;
-                initialOutputWarning =
-                    $"上次保存的输出目录无效（{loadedSettings.OutputRootDirectory}：{savedRootError}），已改用默认目录：{_outputRootDirectory}（可点击「浏览…」重新选择）。";
+                _outputRootDirectory = _defaultOutputRoot;
+                initialOutputWarning = L.Format(
+                    "Gui_SavedOutputInvalidHint",
+                    loadedSettings.OutputRootDirectory,
+                    savedRootError,
+                    _outputRootDirectory);
             }
         }
         else
         {
-            _outputRootDirectory = defaultOutputRoot;
+            _outputRootDirectory = _defaultOutputRoot;
         }
 
         if (!string.IsNullOrWhiteSpace(initialOutputWarning))
@@ -173,27 +257,65 @@ internal sealed class MainForm : Form
 
         SuspendLayout();
 
-        Text = "《FINAL FANTASY RESONANCE》数据导出工具";
+        Text = L.Get("Gui_WindowTitle");
         Font = _uiFont;
         AutoScaleMode = AutoScaleMode.Dpi;
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(MinimumWindowWidth, MinimumWindowHeight);
-        ClientSize = new Size(880, 850);
+        ClientSize = new Size(920, 880);
 
         var rootLayout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 6,
-            Padding = new Padding(12, 10, 12, 8),
+            RowCount = 7,
+            Padding = new Padding(12, 8, 12, 8),
         };
         rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        // Top-right language selector bar
+        var topBarPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            FlowDirection = FlowDirection.RightToLeft,
+            WrapContents = false,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Margin = new Padding(0, 0, 0, 4),
+        };
+        _languageComboBox = new ComboBox
+        {
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Width = 136,
+            Margin = new Padding(4, 0, 0, 0),
+        };
+        foreach (var option in Localization.LanguageOptions)
+        {
+            _languageComboBox.Items.Add(option.NativeName);
+        }
+
+        _suppressLanguageChanged = true;
+        _languageComboBox.SelectedIndex = FindLanguageIndex(Localization.CurrentLanguage);
+        _suppressLanguageChanged = false;
+        _languageComboBox.SelectedIndexChanged += OnLanguageComboBoxSelectedIndexChanged;
+
+        _languageLabel = new Label
+        {
+            Text = L.Get("Gui_LanguageLabel"),
+            AutoSize = true,
+            Anchor = AnchorStyles.Right,
+            Margin = new Padding(0, 4, 4, 0),
+        };
+        // FlowDirection is RightToLeft, so add combo first to place it at the far right.
+        topBarPanel.Controls.Add(_languageComboBox);
+        topBarPanel.Controls.Add(_languageLabel);
 
         // Optional prominent banner for Low IL or fallback data root
         _dataRootBannerPanel = new Panel
@@ -213,15 +335,15 @@ internal sealed class MainForm : Form
             Font = _boldUiFont,
             ForeColor = Color.FromArgb(146, 64, 14),
             AutoSize = true,
-            MaximumSize = new Size(830, 0),
+            MaximumSize = new Size(870, 0),
             Dock = DockStyle.Fill,
         };
         _dataRootBannerPanel.Controls.Add(_dataRootBannerLabel);
 
         // Section 1: Game selection
-        var gameGroup = new GroupBox
+        _gameGroup = new GroupBox
         {
-            Text = "1. 游戏（FINAL FANTASY RESONANCE）",
+            Text = L.Get("Gui_GroupGame"),
             Dock = DockStyle.Top,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
@@ -251,9 +373,9 @@ internal sealed class MainForm : Form
             Height = 104,
             Margin = new Padding(0, 2, 8, 4),
         };
-        _gameListView.Columns.Add("游戏名称", 210);
-        _gameListView.Columns.Add("Steam 构建号", 110);
-        _gameListView.Columns.Add("安装目录", 320);
+        _gameListView.Columns.Add(L.Get("Gui_ColGameName"), 210);
+        _gameListView.Columns.Add(L.Get("Gui_ColSteamBuildId"), 115);
+        _gameListView.Columns.Add(L.Get("Gui_ColInstallDir"), 320);
         _gameListView.SelectedIndexChanged += OnGameSelectedIndexChanged;
         _gameListView.Resize += (_, _) => AdjustGameListColumnWidths();
 
@@ -266,27 +388,33 @@ internal sealed class MainForm : Form
         };
         _manualGameButton = new Button
         {
-            Text = "手动选择游戏目录…",
-            Width = 152,
-            Height = 30,
+            Text = L.Get("Gui_BtnManualGame"),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(168, 30),
+            Padding = new Padding(8, 0, 8, 0),
             Margin = new Padding(0, 0, 0, 5),
         };
         _manualGameButton.Click += OnManualSelectGameClick;
 
         _rescanGameButton = new Button
         {
-            Text = "重新扫描 Steam",
-            Width = 152,
-            Height = 30,
+            Text = L.Get("Gui_BtnRescanSteam"),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(168, 30),
+            Padding = new Padding(8, 0, 8, 0),
             Margin = new Padding(0, 0, 0, 5),
         };
         _rescanGameButton.Click += (_, _) => ScanAndPopulateGames();
 
         _settingsButton = new Button
         {
-            Text = "设置…",
-            Width = 152,
-            Height = 30,
+            Text = L.Get("Gui_BtnSettings"),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(168, 30),
+            Padding = new Padding(8, 0, 8, 0),
             Margin = new Padding(0),
         };
         _settingsButton.Click += OnOpenSettingsClick;
@@ -306,12 +434,12 @@ internal sealed class MainForm : Form
         gameLayout.Controls.Add(gameButtonPanel, 1, 0);
         gameLayout.Controls.Add(_gameStatusLabel, 0, 1);
         gameLayout.SetColumnSpan(_gameStatusLabel, 2);
-        gameGroup.Controls.Add(gameLayout);
+        _gameGroup.Controls.Add(gameLayout);
 
         // Section 2: Resonance-specific .usmap and optional .jmap inputs
-        var mappingGroup = new GroupBox
+        _mappingGroup = new GroupBox
         {
-            Text = "2. 映射与反射文件（.usmap / .jmap）",
+            Text = L.Get("Gui_GroupMappings"),
             Dock = DockStyle.Top,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
@@ -329,9 +457,9 @@ internal sealed class MainForm : Form
         mappingLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
         mappingLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        var usmapCaption = new Label
+        _usmapCaption = new Label
         {
-            Text = ".usmap（必填）：",
+            Text = L.Get("Gui_LabelUsmapRequired"),
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(0, 5, 6, 4),
@@ -345,18 +473,22 @@ internal sealed class MainForm : Form
         };
         _browseUsmapButton = new Button
         {
-            Text = "选择 .usmap…",
-            Width = 112,
-            Height = 30,
+            Text = L.Get("Gui_BtnBrowseUsmap"),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(118, 30),
+            Padding = new Padding(8, 0, 8, 0),
             Margin = new Padding(0, 0, 6, 0),
         };
         _browseUsmapButton.Click += OnBrowseUsmapClick;
 
         _cleanupUe4ssButton = new Button
         {
-            Text = "清理 UE4SS…",
-            Width = 112,
-            Height = 30,
+            Text = L.Get("Gui_BtnCleanupUe4ss"),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(124, 30),
+            Padding = new Padding(8, 0, 8, 0),
             Margin = new Padding(0),
         };
         _cleanupUe4ssButton.Click += OnCleanupUe4ssClick;
@@ -374,7 +506,7 @@ internal sealed class MainForm : Form
 
         _fetchUsmapButton = new Button
         {
-            Text = "一键获取 .usmap（会启动一次游戏）",
+            Text = L.Get("Gui_BtnFetchUsmap"),
             Font = _boldUiFont,
             AutoSize = true,
             Height = 32,
@@ -384,9 +516,9 @@ internal sealed class MainForm : Form
         };
         _fetchUsmapButton.Click += OnFetchUsmapClick;
 
-        var usmapPathCaption = new Label
+        _usmapPathCaption = new Label
         {
-            Text = "文件路径：",
+            Text = L.Get("Gui_LabelFilePath"),
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             ForeColor = SystemColors.GrayText,
@@ -402,13 +534,13 @@ internal sealed class MainForm : Form
 
         _includeJmapCheckBox = new CheckBox
         {
-            Text = "包含反射数据（.jmap，可选）",
+            Text = L.Get("Gui_CheckIncludeJmap"),
             AutoSize = true,
             Margin = new Padding(0, 4, 0, 2),
         };
         _includeJmapCheckBox.CheckedChanged += OnIncludeJmapCheckedChanged;
 
-        var jmapComboHint = new Label
+        _jmapComboHint = new Label
         {
             Text = BuildReportReader.DualComboHint,
             AutoSize = true,
@@ -435,18 +567,22 @@ internal sealed class MainForm : Form
         };
         _addJmapButton = new Button
         {
-            Text = "添加 .jmap…",
-            Width = 122,
-            Height = 29,
+            Text = L.Get("Gui_BtnAddJmap"),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(132, 29),
+            Padding = new Padding(8, 0, 8, 0),
             Margin = new Padding(0, 0, 0, 4),
         };
         _addJmapButton.Click += OnAddJmapClick;
 
         _removeJmapButton = new Button
         {
-            Text = "移除选中",
-            Width = 122,
-            Height = 29,
+            Text = L.Get("Gui_BtnRemoveJmap"),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(132, 29),
+            Padding = new Padding(8, 0, 8, 0),
             Margin = new Padding(0),
         };
         _removeJmapButton.Click += OnRemoveJmapClick;
@@ -460,22 +596,22 @@ internal sealed class MainForm : Form
             Margin = new Padding(0, 0, 0, 0),
         };
 
-        mappingLayout.Controls.Add(usmapCaption, 0, 0);
+        mappingLayout.Controls.Add(_usmapCaption, 0, 0);
         mappingLayout.Controls.Add(_usmapStatusLabel, 1, 0);
         mappingLayout.Controls.Add(usmapActionButtons, 2, 0);
 
         mappingLayout.Controls.Add(_fetchUsmapButton, 1, 1);
         mappingLayout.SetColumnSpan(_fetchUsmapButton, 2);
 
-        mappingLayout.Controls.Add(usmapPathCaption, 0, 2);
+        mappingLayout.Controls.Add(_usmapPathCaption, 0, 2);
         mappingLayout.Controls.Add(_usmapPathTextBox, 1, 2);
         mappingLayout.SetColumnSpan(_usmapPathTextBox, 2);
 
         mappingLayout.Controls.Add(_includeJmapCheckBox, 0, 3);
         mappingLayout.SetColumnSpan(_includeJmapCheckBox, 3);
 
-        mappingLayout.Controls.Add(jmapComboHint, 0, 4);
-        mappingLayout.SetColumnSpan(jmapComboHint, 3);
+        mappingLayout.Controls.Add(_jmapComboHint, 0, 4);
+        mappingLayout.SetColumnSpan(_jmapComboHint, 3);
 
         mappingLayout.Controls.Add(_jmapListBox, 0, 5);
         mappingLayout.SetColumnSpan(_jmapListBox, 2);
@@ -483,12 +619,12 @@ internal sealed class MainForm : Form
 
         mappingLayout.Controls.Add(_jmapStatusLabel, 0, 6);
         mappingLayout.SetColumnSpan(_jmapStatusLabel, 3);
-        mappingGroup.Controls.Add(mappingLayout);
+        _mappingGroup.Controls.Add(mappingLayout);
 
         // Section 3: Output directory
-        var outputGroup = new GroupBox
+        _outputGroup = new GroupBox
         {
-            Text = "3. 输出位置",
+            Text = L.Get("Gui_GroupOutput"),
             Dock = DockStyle.Top,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
@@ -506,9 +642,9 @@ internal sealed class MainForm : Form
         outputLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
         outputLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        var outputCaption = new Label
+        _outputCaption = new Label
         {
-            Text = "输出目录：",
+            Text = L.Get("Gui_LabelOutputDir"),
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(0, 6, 6, 4),
@@ -527,32 +663,35 @@ internal sealed class MainForm : Form
         };
         _browseOutputButton = new Button
         {
-            Text = "浏览…",
-            Width = 100,
-            Height = 30,
+            Text = L.Get("Gui_BtnBrowseOutput"),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(106, 30),
+            Padding = new Padding(8, 0, 8, 0),
             Margin = new Padding(0, 1, 0, 4),
         };
         _browseOutputButton.Click += OnBrowseOutputClick;
 
+        _outputHintIsDefault = string.IsNullOrWhiteSpace(initialOutputWarning);
         _outputHintLabel = new Label
         {
-            Text = string.IsNullOrWhiteSpace(initialOutputWarning)
-                ? _defaultOutputHintText
-                : initialOutputWarning,
+            Text = _outputHintIsDefault
+                ? FormatDefaultOutputHintText()
+                : initialOutputWarning!,
             AutoSize = true,
-            ForeColor = string.IsNullOrWhiteSpace(initialOutputWarning)
+            ForeColor = _outputHintIsDefault
                 ? SystemColors.GrayText
                 : Color.FromArgb(180, 100, 0),
             MaximumSize = new Size(900, 0),
             Margin = new Padding(0, 2, 0, 0),
         };
 
-        outputLayout.Controls.Add(outputCaption, 0, 0);
+        outputLayout.Controls.Add(_outputCaption, 0, 0);
         outputLayout.Controls.Add(_outputDirTextBox, 1, 0);
         outputLayout.Controls.Add(_browseOutputButton, 2, 0);
         outputLayout.Controls.Add(_outputHintLabel, 0, 1);
         outputLayout.SetColumnSpan(_outputHintLabel, 3);
-        outputGroup.Controls.Add(outputLayout);
+        _outputGroup.Controls.Add(outputLayout);
 
         // Section 4: Start / Cancel, progress bar, scrollable log
         var runPanel = new TableLayoutPanel
@@ -580,7 +719,7 @@ internal sealed class MainForm : Form
 
         _startButton = new Button
         {
-            Text = "开始导出",
+            Text = L.Get("Gui_BtnStartExport"),
             Font = _startButtonFont,
             Dock = DockStyle.Fill,
             Height = 42,
@@ -590,9 +729,11 @@ internal sealed class MainForm : Form
 
         _cancelButton = new Button
         {
-            Text = "取消",
-            Width = 112,
-            Height = 42,
+            Text = L.Get("Gui_BtnCancel"),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(112, 42),
+            Padding = new Padding(12, 0, 12, 0),
             Enabled = false,
             Margin = new Padding(0),
         };
@@ -614,7 +755,7 @@ internal sealed class MainForm : Form
 
         _progressLabel = new Label
         {
-            Text = "状态：就绪",
+            Text = L.Get("Gui_StatusReady"),
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(0, 3, 8, 0),
@@ -650,9 +791,9 @@ internal sealed class MainForm : Form
         runPanel.Controls.Add(_logTextBox, 0, 2);
 
         // Section 5: Completion summary
-        var resultGroup = new GroupBox
+        _resultGroup = new GroupBox
         {
-            Text = "4. 完成结果",
+            Text = L.Get("Gui_GroupResult"),
             Dock = DockStyle.Top,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
@@ -672,7 +813,7 @@ internal sealed class MainForm : Form
 
         _verdictLabel = new Label
         {
-            Text = "尚未导出",
+            Text = L.Get("Gui_ResultNotRun"),
             Font = _verdictFont,
             ForeColor = SystemColors.GrayText,
             AutoSize = true,
@@ -680,16 +821,16 @@ internal sealed class MainForm : Form
         };
         _verdictDetailLabel = new Label
         {
-            Text = "点击“开始导出”后，此处将显示数据库路径、哈希及与 known-builds.json 的比对结论。",
+            Text = L.Get("Gui_ResultNotRunDetail"),
             AutoSize = true,
             ForeColor = SystemColors.GrayText,
             MaximumSize = new Size(900, 0),
             Margin = new Padding(0, 0, 0, 6),
         };
 
-        var dbPathCaption = new Label
+        _dbPathCaption = new Label
         {
-            Text = "数据库路径：",
+            Text = L.Get("Gui_LabelDbPath"),
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(0, 5, 6, 4),
@@ -697,17 +838,19 @@ internal sealed class MainForm : Form
         _dbPathTextBox = CreateReadOnlyField(_uiFont);
         _openOutputButton = new Button
         {
-            Text = "打开输出文件夹",
-            Width = 132,
-            Height = 29,
+            Text = L.Get("Gui_BtnOpenOutput"),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(144, 29),
+            Padding = new Padding(8, 0, 8, 0),
             Enabled = false,
             Margin = new Padding(0, 1, 0, 4),
         };
         _openOutputButton.Click += OnOpenOutputFolderClick;
 
-        var fileShaCaption = new Label
+        _fileShaCaption = new Label
         {
-            Text = "文件哈希：",
+            Text = L.Get("Gui_LabelFileSha"),
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(0, 5, 6, 4),
@@ -715,17 +858,19 @@ internal sealed class MainForm : Form
         _fileShaTextBox = CreateReadOnlyField(_monoFont);
         _copyHashButton = new Button
         {
-            Text = "复制哈希",
-            Width = 132,
-            Height = 29,
+            Text = L.Get("Gui_BtnCopyHash"),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(144, 29),
+            Padding = new Padding(8, 0, 8, 0),
             Enabled = false,
             Margin = new Padding(0, 1, 0, 4),
         };
         _copyHashButton.Click += OnCopyHashClick;
 
-        var contentShaCaption = new Label
+        _contentShaCaption = new Label
         {
-            Text = "内容哈希：",
+            Text = L.Get("Gui_LabelContentSha"),
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(0, 5, 6, 2),
@@ -745,26 +890,27 @@ internal sealed class MainForm : Form
         resultLayout.Controls.Add(_verdictDetailLabel, 0, 1);
         resultLayout.SetColumnSpan(_verdictDetailLabel, 3);
 
-        resultLayout.Controls.Add(dbPathCaption, 0, 2);
+        resultLayout.Controls.Add(_dbPathCaption, 0, 2);
         resultLayout.Controls.Add(_dbPathTextBox, 1, 2);
         resultLayout.Controls.Add(_openOutputButton, 2, 2);
 
-        resultLayout.Controls.Add(fileShaCaption, 0, 3);
+        resultLayout.Controls.Add(_fileShaCaption, 0, 3);
         resultLayout.Controls.Add(_fileShaTextBox, 1, 3);
         resultLayout.Controls.Add(_copyHashButton, 2, 3);
 
-        resultLayout.Controls.Add(contentShaCaption, 0, 4);
+        resultLayout.Controls.Add(_contentShaCaption, 0, 4);
         resultLayout.Controls.Add(_contentShaTextBox, 1, 4);
         resultLayout.Controls.Add(_copyFeedbackLabel, 2, 4);
 
-        resultGroup.Controls.Add(resultLayout);
+        _resultGroup.Controls.Add(resultLayout);
 
-        rootLayout.Controls.Add(_dataRootBannerPanel, 0, 0);
-        rootLayout.Controls.Add(gameGroup, 0, 1);
-        rootLayout.Controls.Add(mappingGroup, 0, 2);
-        rootLayout.Controls.Add(outputGroup, 0, 3);
-        rootLayout.Controls.Add(runPanel, 0, 4);
-        rootLayout.Controls.Add(resultGroup, 0, 5);
+        rootLayout.Controls.Add(topBarPanel, 0, 0);
+        rootLayout.Controls.Add(_dataRootBannerPanel, 0, 1);
+        rootLayout.Controls.Add(_gameGroup, 0, 2);
+        rootLayout.Controls.Add(_mappingGroup, 0, 3);
+        rootLayout.Controls.Add(_outputGroup, 0, 4);
+        rootLayout.Controls.Add(runPanel, 0, 5);
+        rootLayout.Controls.Add(_resultGroup, 0, 6);
 
         _statusStrip = new StatusStrip
         {
@@ -773,7 +919,7 @@ internal sealed class MainForm : Form
         };
         _integrityStatusLabel = new ToolStripStatusLabel
         {
-            Text = $"完整性级别：{_agpResolution.Integrity.DisplayTextZh}",
+            Text = L.Format("Gui_StatusStripIntegrity", _agpResolution.Integrity.DisplayText),
             BorderSides = ToolStripStatusLabelBorderSides.Right,
             BorderStyle = Border3DStyle.Etched,
             ForeColor = _agpResolution.Integrity.IsLowOrUntrusted
@@ -782,7 +928,7 @@ internal sealed class MainForm : Form
         };
         _dataRootStatusLabel = new ToolStripStatusLabel
         {
-            Text = $"数据目录：{activeToolRoot}",
+            Text = L.Format("Gui_StatusStripDataRoot", _activeToolRoot),
             Spring = true,
             TextAlign = ContentAlignment.MiddleLeft,
         };
@@ -803,11 +949,290 @@ internal sealed class MainForm : Form
 
         foreach (var warning in startupWarnings)
         {
-            AppendLogLine($"[提示] {warning}");
+            AppendLogLine(L.Format("Gui_LogPrefixInfo", warning));
         }
 
         ScanAndPopulateGames();
         UpdateJmapControlsEnabledState();
+    }
+
+    private string FormatDefaultOutputHintText()
+    {
+        return L.Format("Gui_DefaultOutputHint", _defaultOutputRoot);
+    }
+
+    private static int FindLanguageIndex(string languageCode)
+    {
+        for (var i = 0; i < Localization.LanguageOptions.Count; i++)
+        {
+            if (string.Equals(Localization.LanguageOptions[i].Code, languageCode, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private void OnLanguageComboBoxSelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (_suppressLanguageChanged || _isExporting)
+        {
+            return;
+        }
+
+        var index = _languageComboBox.SelectedIndex;
+        if (index < 0 || index >= Localization.LanguageOptions.Count)
+        {
+            return;
+        }
+
+        var chosenCode = Localization.LanguageOptions[index].Code;
+        if (string.Equals(chosenCode, Localization.CurrentLanguage, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        Localization.SetLanguage(chosenCode);
+        ApplyLocalizedTexts();
+        SaveSettingsSafely();
+    }
+
+    private void ApplyLocalizedTexts()
+    {
+        SuspendLayout();
+        try
+        {
+            Text = L.Get("Gui_WindowTitle");
+            _languageLabel.Text = L.Get("Gui_LanguageLabel");
+
+            var bannerMessage = AgpPaths.FormatGuiBannerMessage(_agpResolution);
+            _dataRootBannerPanel.Visible = !string.IsNullOrWhiteSpace(bannerMessage);
+            _dataRootBannerLabel.Text = bannerMessage ?? string.Empty;
+
+            _gameGroup.Text = L.Get("Gui_GroupGame");
+            if (_gameListView.Columns.Count >= 3)
+            {
+                _gameListView.Columns[0].Text = L.Get("Gui_ColGameName");
+                _gameListView.Columns[1].Text = L.Get("Gui_ColSteamBuildId");
+                _gameListView.Columns[2].Text = L.Get("Gui_ColInstallDir");
+            }
+
+            foreach (ListViewItem item in _gameListView.Items)
+            {
+                if (item.Tag is GameEntry entry && item.SubItems.Count >= 2)
+                {
+                    item.SubItems[1].Text = entry.SteamBuildId ?? L.Get("Common_Unknown");
+                }
+            }
+
+            _manualGameButton.Text = L.Get("Gui_BtnManualGame");
+            _rescanGameButton.Text = L.Get("Gui_BtnRescanSteam");
+            _settingsButton.Text = L.Get("Gui_BtnSettings");
+            RefreshGameStatusLabelText();
+
+            _mappingGroup.Text = L.Get("Gui_GroupMappings");
+            _usmapCaption.Text = L.Get("Gui_LabelUsmapRequired");
+            _browseUsmapButton.Text = L.Get("Gui_BtnBrowseUsmap");
+            _cleanupUe4ssButton.Text = L.Get("Gui_BtnCleanupUe4ss");
+            _fetchUsmapButton.Text = L.Get("Gui_BtnFetchUsmap");
+            _usmapPathCaption.Text = L.Get("Gui_LabelFilePath");
+            _includeJmapCheckBox.Text = L.Get("Gui_CheckIncludeJmap");
+            _jmapComboHint.Text = BuildReportReader.DualComboHint;
+            _addJmapButton.Text = L.Get("Gui_BtnAddJmap");
+            _removeJmapButton.Text = L.Get("Gui_BtnRemoveJmap");
+            RefreshUsmapStatusLabelText();
+            RefreshJmapListAndStatusText();
+
+            _outputGroup.Text = L.Get("Gui_GroupOutput");
+            _outputCaption.Text = L.Get("Gui_LabelOutputDir");
+            _browseOutputButton.Text = L.Get("Gui_BtnBrowseOutput");
+            if (_outputHintIsDefault)
+            {
+                _outputHintLabel.Text = FormatDefaultOutputHintText();
+            }
+
+            _startButton.Text = L.Get("Gui_BtnStartExport");
+            _cancelButton.Text = L.Get("Gui_BtnCancel");
+            RefreshProgressLabelText();
+
+            _resultGroup.Text = L.Get("Gui_GroupResult");
+            _dbPathCaption.Text = L.Get("Gui_LabelDbPath");
+            _openOutputButton.Text = L.Get("Gui_BtnOpenOutput");
+            _fileShaCaption.Text = L.Get("Gui_LabelFileSha");
+            _copyHashButton.Text = L.Get("Gui_BtnCopyHash");
+            _contentShaCaption.Text = L.Get("Gui_LabelContentSha");
+            RefreshResultPanelText();
+
+            if (!string.IsNullOrEmpty(_copyFeedbackLabel.Text))
+            {
+                _copyFeedbackLabel.Text = L.Get("Gui_CopiedFeedback");
+            }
+
+            _integrityStatusLabel.Text = L.Format("Gui_StatusStripIntegrity", _agpResolution.Integrity.DisplayText);
+            _dataRootStatusLabel.Text = L.Format("Gui_StatusStripDataRoot", _activeToolRoot);
+        }
+        finally
+        {
+            ResumeLayout(true);
+            PerformLayout();
+            AdjustGameListColumnWidths();
+        }
+    }
+
+    private void RefreshGameStatusLabelText()
+    {
+        switch (_gameStatusKind)
+        {
+            case GameStatusKind.FoundCount:
+                _gameStatusLabel.Text = L.Format("Gui_GamesFoundStatus", _games.Count);
+                break;
+            case GameStatusKind.NotFound:
+                _gameStatusLabel.Text = L.Get("Gui_GamesNotFoundStatus");
+                break;
+            case GameStatusKind.ManualAdded:
+                _gameStatusLabel.Text = L.Format("Gui_GameAddedManually", _gameStatusArg);
+                break;
+        }
+    }
+
+    private void RefreshUsmapStatusLabelText()
+    {
+        switch (_usmapStatusKind)
+        {
+            case UsmapStatusKind.AutoFound when _selectedUsmap is not null:
+                _usmapStatusLabel.Text = L.Format(
+                    "Gui_UsmapAutoFoundStatus",
+                    MappingDiscovery.FormatUsmapDisplay(_selectedUsmap, _usmapCandidateCount));
+                break;
+            case UsmapStatusKind.NotFound:
+                _usmapStatusLabel.Text = MappingDiscovery.UsmapNotFoundGuidance;
+                break;
+            case UsmapStatusKind.ManualSelected when _selectedUsmap is not null:
+                _usmapStatusLabel.Text = L.Format(
+                    "Gui_UsmapManualStatus",
+                    MappingDiscovery.FormatUsmapDisplay(_selectedUsmap));
+                break;
+            case UsmapStatusKind.Fetched when _selectedUsmap is not null:
+                _usmapStatusLabel.Text = L.Format(
+                    "Gui_UsmapFetchedStatus",
+                    MappingDiscovery.FormatUsmapDisplay(_selectedUsmap));
+                break;
+        }
+    }
+
+    private void RefreshJmapListAndStatusText()
+    {
+        var selectedIndex = _jmapListBox.SelectedIndex;
+        _jmapListBox.BeginUpdate();
+        try
+        {
+            _jmapListBox.Items.Clear();
+            foreach (var file in _jmapFiles)
+            {
+                _jmapListBox.Items.Add(MappingDiscovery.FormatJmapDisplay(file));
+            }
+
+            if (selectedIndex >= 0 && selectedIndex < _jmapListBox.Items.Count)
+            {
+                _jmapListBox.SelectedIndex = selectedIndex;
+            }
+        }
+        finally
+        {
+            _jmapListBox.EndUpdate();
+        }
+
+        switch (_jmapStatusKind)
+        {
+            case JmapStatusKind.Unchecked:
+                _jmapStatusLabel.Text = L.Get("Gui_JmapUncheckedStatus");
+                break;
+            case JmapStatusKind.AutoFound:
+                _jmapStatusLabel.Text = L.Format("Gui_JmapAutoFoundStatus", _jmapFiles.Count);
+                break;
+            case JmapStatusKind.NotFound:
+                _jmapStatusLabel.Text = L.Get("Gui_JmapNotFoundStatus");
+                break;
+            case JmapStatusKind.SelectedCount:
+                _jmapStatusLabel.Text = L.Format("Gui_JmapSelectedCountStatus", _jmapFiles.Count);
+                break;
+            case JmapStatusKind.EmptyList:
+                _jmapStatusLabel.Text = L.Get("Gui_JmapEmptyListStatus");
+                break;
+        }
+    }
+
+    private void RefreshProgressLabelText()
+    {
+        switch (_progressDisplayKind)
+        {
+            case ProgressDisplayKind.Ready:
+                _progressLabel.Text = L.Get("Gui_StatusReady");
+                break;
+            case ProgressDisplayKind.ExportComplete:
+                _progressLabel.Text = L.Get("Gui_StatusExportComplete");
+                break;
+            case ProgressDisplayKind.ExportCompletePartial:
+                _progressLabel.Text = L.Get("Gui_StatusExportCompletePartial");
+                break;
+            case ProgressDisplayKind.ExportFailedExit:
+                _progressLabel.Text = L.Format("Gui_StatusExportFailedExit", _lastProgressExitCode);
+                break;
+            case ProgressDisplayKind.ExportFailed:
+                _progressLabel.Text = L.Get("Gui_StatusExportFailed");
+                break;
+            case ProgressDisplayKind.ExportCancelled:
+                _progressLabel.Text = L.Get("Gui_StatusCancelled");
+                break;
+            case ProgressDisplayKind.FetchComplete:
+                _progressLabel.Text = L.Get("Gui_StatusFetchUsmapComplete");
+                break;
+            case ProgressDisplayKind.FetchFailedExit:
+                _progressLabel.Text = L.Format("Gui_StatusFetchUsmapFailedExit", _lastProgressExitCode);
+                break;
+            case ProgressDisplayKind.FetchCancelled:
+                _progressLabel.Text = L.Get("Gui_StatusFetchUsmapCancelled");
+                break;
+            case ProgressDisplayKind.FetchFailed:
+                _progressLabel.Text = L.Get("Gui_StatusFetchUsmapFailed");
+                break;
+            case ProgressDisplayKind.CleanupComplete:
+                _progressLabel.Text = L.Get("Gui_StatusCleanupComplete");
+                break;
+            case ProgressDisplayKind.CleanupFailedExit:
+                _progressLabel.Text = L.Format("Gui_StatusCleanupFailedExit", _lastProgressExitCode);
+                break;
+            case ProgressDisplayKind.CleanupCancelled:
+                _progressLabel.Text = L.Get("Gui_StatusCleanupCancelled");
+                break;
+        }
+    }
+
+    private void RefreshResultPanelText()
+    {
+        switch (_resultPanelKind)
+        {
+            case ResultPanelKind.NotRun:
+                _verdictLabel.Text = L.Get("Gui_ResultNotRun");
+                _verdictDetailLabel.Text = L.Get("Gui_ResultNotRunDetail");
+                break;
+            case ResultPanelKind.Exporting:
+                _verdictLabel.Text = L.Get("Gui_ResultExporting");
+                _verdictDetailLabel.Text = L.Get("Gui_ResultExportingDetail");
+                break;
+            case ResultPanelKind.Cancelled:
+                _verdictLabel.Text = L.Get("Gui_ResultCancelled");
+                _verdictDetailLabel.Text = L.Get("Gui_ResultCancelledDetail");
+                break;
+            case ResultPanelKind.ExportFailedExit:
+                _verdictLabel.Text = L.Get("Gui_ResultExportFailed");
+                _verdictDetailLabel.Text = L.Format("Gui_ResultExportFailedDetail", _lastResultExitCode);
+                break;
+            case ResultPanelKind.Report when _lastReport is not null && !string.IsNullOrWhiteSpace(_lastCompletedOutputDir):
+                DisplayBuildReport(_lastReport, _lastCompletedOutputDir);
+                break;
+        }
     }
 
     protected override void Dispose(bool disposing)
@@ -847,14 +1272,14 @@ internal sealed class MainForm : Form
         {
             var opName = _activeOperation switch
             {
-                ActiveOperation.FetchingUsmap => "获取 .usmap",
-                ActiveOperation.CleaningUe4ss => "清理 UE4SS",
-                _ => "导出",
+                ActiveOperation.FetchingUsmap => L.Get("Gui_OpNameFetchUsmap"),
+                ActiveOperation.CleaningUe4ss => L.Get("Gui_OpNameCleanUe4ss"),
+                _ => L.Get("Gui_OpNameExport"),
             };
             var answer = MessageBox.Show(
                 this,
-                $"{opName}仍在进行中。关闭窗口会取消{opName}并清理后台进程，确定要退出吗？",
-                "确认退出",
+                L.Format("Gui_ConfirmCloseBody", opName),
+                L.Get("Gui_ConfirmCloseTitle"),
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning,
                 MessageBoxDefaultButton.Button2);
@@ -891,13 +1316,13 @@ internal sealed class MainForm : Form
             var cliLookup = GuiPaths.ResolveCliExecutable();
             if (!cliLookup.Found)
             {
-                var errorMessage = cliLookup.ErrorMessage ?? "找不到命令行程序 ffr-export.exe。";
-                AppendLogLine($"[提示] {errorMessage}");
+                var errorMessage = cliLookup.ErrorMessage ?? L.Get("Gui_CliMissingFallback");
+                AppendLogLine(L.Format("Gui_LogPrefixInfo", errorMessage));
                 _startupLog?.WriteWarning(errorMessage);
                 MessageBox.Show(
                     this,
                     errorMessage,
-                    "缺少命令行程序",
+                    L.Get("Gui_CliMissingTitle"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
             }
@@ -905,7 +1330,7 @@ internal sealed class MainForm : Form
         catch (Exception exception)
         {
             _startupLog?.WriteException("OnFormShown", exception);
-            AppendLogLine($"[警告] 窗口首次显示检查失败：{exception.Message}");
+            AppendLogLine(L.Format("Gui_LogPrefixWarn", L.Format("Gui_ShownCheckFailed", exception.Message)));
         }
     }
 
@@ -925,16 +1350,17 @@ internal sealed class MainForm : Form
         {
             scanResult = new GameScanResult(
                 [],
-                $"自动扫描 Steam 失败：{exception.Message}；请点击右侧「手动选择游戏目录…」。");
+                L.Format("GuiCore_SteamScanFailed", exception.Message));
         }
 
         var scanFailed = !string.IsNullOrWhiteSpace(scanResult.ErrorMessage);
         if (scanFailed)
         {
+            _gameStatusKind = GameStatusKind.RawError;
             _gameStatusLabel.ForeColor = Color.FromArgb(185, 28, 28);
             _gameStatusLabel.Text = scanResult.ErrorMessage!;
             _startupLog?.WriteWarning(scanResult.ErrorMessage!);
-            AppendLogLine($"[提示] {scanResult.ErrorMessage}");
+            AppendLogLine(L.Format("Gui_LogPrefixInfo", scanResult.ErrorMessage));
         }
 
         foreach (var game in scanResult.Games)
@@ -944,8 +1370,9 @@ internal sealed class MainForm : Form
 
         if (_games.Count > 0)
         {
+            _gameStatusKind = GameStatusKind.FoundCount;
             _gameStatusLabel.ForeColor = SystemColors.GrayText;
-            _gameStatusLabel.Text = $"已在 Steam 游戏库中找到 {_games.Count} 个可导出游戏。";
+            _gameStatusLabel.Text = L.Format("Gui_GamesFoundStatus", _games.Count);
 
             var indexToSelect = 0;
             if (!string.IsNullOrWhiteSpace(previousSelectedDir))
@@ -971,9 +1398,9 @@ internal sealed class MainForm : Form
         {
             if (!scanFailed)
             {
+                _gameStatusKind = GameStatusKind.NotFound;
                 _gameStatusLabel.ForeColor = Color.FromArgb(180, 100, 0);
-                _gameStatusLabel.Text =
-                    "未在 Steam 库中自动找到《FINAL FANTASY RESONANCE》，请点击右侧“手动选择游戏目录…”。";
+                _gameStatusLabel.Text = L.Get("Gui_GamesNotFoundStatus");
             }
 
             RefreshMappingsForSelectedGame(resetManualUsmap: false);
@@ -987,7 +1414,7 @@ internal sealed class MainForm : Form
     {
         _games.Add(entry);
         var item = new ListViewItem(entry.DisplayName);
-        item.SubItems.Add(entry.SteamBuildId ?? "未知");
+        item.SubItems.Add(entry.SteamBuildId ?? L.Get("Common_Unknown"));
         item.SubItems.Add(entry.GameDirectory);
         item.Tag = entry;
         _gameListView.Items.Add(item);
@@ -1027,7 +1454,7 @@ internal sealed class MainForm : Form
     {
         using var dialog = new FolderBrowserDialog
         {
-            Description = "选择《FINAL FANTASY RESONANCE》的游戏安装根目录（包含 FFRS 文件夹）",
+            Description = L.Get("Gui_SelectGameDialogDesc"),
             UseDescriptionForTitle = true,
             ShowNewFolderButton = false,
         };
@@ -1046,8 +1473,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                validation.ErrorMessage ?? "所选目录不是支持的游戏目录。",
-                "游戏目录检查失败",
+                validation.ErrorMessage ?? L.Get("Gui_GameInvalidFallback"),
+                L.Get("Gui_GameCheckFailedTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
@@ -1060,7 +1487,7 @@ internal sealed class MainForm : Form
             _games[existingIndex] = validation.Entry;
             var existingItem = _gameListView.Items[existingIndex];
             existingItem.Text = validation.Entry.DisplayName;
-            existingItem.SubItems[1].Text = validation.Entry.SteamBuildId ?? "未知";
+            existingItem.SubItems[1].Text = validation.Entry.SteamBuildId ?? L.Get("Common_Unknown");
             existingItem.SubItems[2].Text = validation.Entry.GameDirectory;
             existingItem.Tag = validation.Entry;
             existingItem.Selected = true;
@@ -1074,8 +1501,10 @@ internal sealed class MainForm : Form
             _gameListView.Items[addedIndex].Focused = true;
         }
 
+        _gameStatusKind = GameStatusKind.ManualAdded;
+        _gameStatusArg = validation.Entry.GameDirectory;
         _gameStatusLabel.ForeColor = SystemColors.GrayText;
-        _gameStatusLabel.Text = $"已手动添加游戏目录：{validation.Entry.GameDirectory}";
+        _gameStatusLabel.Text = L.Format("Gui_GameAddedManually", validation.Entry.GameDirectory);
     }
 
     private void RefreshMappingsForSelectedGame(bool resetManualUsmap)
@@ -1089,24 +1518,30 @@ internal sealed class MainForm : Form
                     _selectedGame?.GameDirectory,
                     agpUsmapDirectoryOverride: AgpPaths.GetUsmapDirectoryForAgpRoot(_activeAgpRoot));
                 _selectedUsmap = usmapResult.Selected;
+                _usmapCandidateCount = usmapResult.Candidates.Count;
                 if (!string.IsNullOrWhiteSpace(usmapResult.ScanError))
                 {
-                    var warn = $"自动查找 .usmap 时遇到目录访问错误：{usmapResult.ScanError}";
+                    var warn = L.Format("Gui_UsmapDirAccessWarn", usmapResult.ScanError);
                     _startupLog?.WriteWarning(warn);
-                    AppendLogLine($"[提示] {warn}");
+                    AppendLogLine(L.Format("Gui_LogPrefixInfo", warn));
                 }
 
                 if (usmapResult.Selected is not null)
                 {
+                    _usmapStatusKind = UsmapStatusKind.AutoFound;
                     _usmapStatusLabel.ForeColor = Color.FromArgb(0, 120, 0);
                     _usmapStatusLabel.Font = _boldUiFont;
-                    _usmapStatusLabel.Text =
-                        $"已自动找到：{MappingDiscovery.FormatUsmapDisplay(usmapResult.Selected, usmapResult.Candidates.Count)}";
+                    _usmapStatusLabel.Text = L.Format(
+                        "Gui_UsmapAutoFoundStatus",
+                        MappingDiscovery.FormatUsmapDisplay(usmapResult.Selected, usmapResult.Candidates.Count));
                     _usmapPathTextBox.Text = usmapResult.Selected.FullPath;
                     _fetchUsmapButton.Visible = false;
                 }
                 else
                 {
+                    _usmapStatusKind = string.IsNullOrWhiteSpace(usmapResult.ScanError)
+                        ? UsmapStatusKind.NotFound
+                        : UsmapStatusKind.RawError;
                     _usmapStatusLabel.ForeColor = Color.FromArgb(185, 28, 28);
                     _usmapStatusLabel.Font = _uiFont;
                     _usmapStatusLabel.Text = usmapResult.NotFoundGuidance ?? MappingDiscovery.UsmapNotFoundGuidance;
@@ -1117,14 +1552,15 @@ internal sealed class MainForm : Form
             catch (Exception exception)
             {
                 _selectedUsmap = null;
-                var errorMessage = $"自动查找 .usmap 失败：{exception.Message}；请点击「一键获取 .usmap」或「选择 .usmap…」。";
+                _usmapStatusKind = UsmapStatusKind.RawError;
+                var errorMessage = L.Format("Gui_UsmapAutoFindError", exception.Message);
                 _usmapStatusLabel.ForeColor = Color.FromArgb(185, 28, 28);
                 _usmapStatusLabel.Font = _uiFont;
                 _usmapStatusLabel.Text = errorMessage;
                 _usmapPathTextBox.Text = string.Empty;
                 _fetchUsmapButton.Visible = true;
                 _startupLog?.WriteWarning(errorMessage);
-                AppendLogLine($"[提示] {errorMessage}");
+                AppendLogLine(L.Format("Gui_LogPrefixInfo", errorMessage));
             }
         }
 
@@ -1134,8 +1570,9 @@ internal sealed class MainForm : Form
         }
         else
         {
+            _jmapStatusKind = JmapStatusKind.Unchecked;
             _jmapStatusLabel.ForeColor = SystemColors.GrayText;
-            _jmapStatusLabel.Text = "未勾选（仅使用 .usmap 导出）。";
+            _jmapStatusLabel.Text = L.Get("Gui_JmapUncheckedStatus");
         }
     }
 
@@ -1143,8 +1580,8 @@ internal sealed class MainForm : Form
     {
         using var dialog = new OpenFileDialog
         {
-            Title = "选择 .usmap 映射文件",
-            Filter = "UE 映射文件 (*.usmap)|*.usmap|所有文件 (*.*)|*.*",
+            Title = L.Get("Gui_OpenUsmapDialogTitle"),
+            Filter = L.Get("Gui_OpenUsmapDialogFilter"),
             CheckFileExists = true,
             Multiselect = false,
         };
@@ -1184,11 +1621,13 @@ internal sealed class MainForm : Form
             return;
         }
 
-        _selectedUsmap = MappingDiscovery.CreateFromExistingFile(dialog.FileName, "手动选择");
+        _selectedUsmap = MappingDiscovery.CreateFromExistingFile(dialog.FileName, "manual");
+        _usmapCandidateCount = 1;
         _usmapManuallySelected = true;
+        _usmapStatusKind = UsmapStatusKind.ManualSelected;
         _usmapStatusLabel.ForeColor = Color.FromArgb(0, 120, 0);
         _usmapStatusLabel.Font = _boldUiFont;
-        _usmapStatusLabel.Text = $"已手动选择：{MappingDiscovery.FormatUsmapDisplay(_selectedUsmap)}";
+        _usmapStatusLabel.Text = L.Format("Gui_UsmapManualStatus", MappingDiscovery.FormatUsmapDisplay(_selectedUsmap));
         _usmapPathTextBox.Text = _selectedUsmap.FullPath;
         _fetchUsmapButton.Visible = false;
     }
@@ -1220,12 +1659,12 @@ internal sealed class MainForm : Form
         }
         catch (Exception exception)
         {
-            AppendLogLine($"[错误] 清理 UE4SS 时发生未预期异常：{exception.Message}");
+            AppendLogLine(L.Format("Gui_LogPrefixError", L.Format("Gui_CleanupUnexpectedLog", exception.Message)));
             _startupLog?.WriteException("OnCleanupUe4ssClick", exception);
             MessageBox.Show(
                 this,
-                $"清理 UE4SS 失败：{exception.Message}",
-                "清理 UE4SS 失败",
+                L.Format("Gui_CleanupFailedBody", exception.Message),
+                L.Get("Gui_CleanupFailedTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
@@ -1238,8 +1677,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                cliLookup.ErrorMessage ?? "找不到命令行程序 ffr-export.exe。",
-                "缺少命令行程序",
+                cliLookup.ErrorMessage ?? L.Get("Gui_CliMissingFallback"),
+                L.Get("Gui_CliMissingTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
             return;
@@ -1249,8 +1688,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                "请先选择一个游戏，或点击「手动选择游戏目录…」指定《FINAL FANTASY RESONANCE》安装目录。",
-                "未选择游戏",
+                L.Get("Gui_NoGameSelectedBody"),
+                L.Get("Gui_NoGameSelectedTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
@@ -1261,8 +1700,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                gameCheck.ErrorMessage ?? "所选游戏目录无效，请重新选择。",
-                "游戏目录无效",
+                gameCheck.ErrorMessage ?? L.Get("Gui_GameDirInvalidBody"),
+                L.Get("Gui_GameDirInvalidTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
@@ -1272,8 +1711,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                $"检测到游戏（{Ue4ssRuntimeSupport.GameExeFileName}）正在运行，请先关闭游戏后再清理 UE4SS。",
-                "游戏正在运行",
+                L.Format("Gui_GameRunningCleanupBody", Ue4ssRuntimeSupport.GameExeFileName),
+                L.Get("Gui_GameRunningTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
@@ -1285,8 +1724,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                "未发现 UE4SS（当前游戏目录未安装 UE4SS，也未发现本工具残留文件）。",
-                "未发现 UE4SS",
+                L.Get("Ue4ss_UninstallNotFound"),
+                L.Get("Gui_Ue4ssNotFoundTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
             return;
@@ -1307,8 +1746,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                $"检测到游戏（{Ue4ssRuntimeSupport.GameExeFileName}）正在运行，请先关闭游戏后再清理 UE4SS。",
-                "游戏正在运行",
+                L.Format("Gui_GameRunningCleanupBody", Ue4ssRuntimeSupport.GameExeFileName),
+                L.Get("Gui_GameRunningTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
@@ -1317,11 +1756,13 @@ internal sealed class MainForm : Form
         var cliArgs = BuildCliCommand.BuildUninstallUe4ssArguments(
             gameDir,
             includeForeign: cleanupDialog.IncludeForeign,
-            yes: true);
-        AppendLogLine($"启动命令：{cliLookup.FileName} {string.Join(" ", cliArgs.Select(QuoteForLog))}");
-        _startupLog?.WriteInfo($"开始清理 UE4SS：game={gameDir}, includeForeign={cleanupDialog.IncludeForeign}");
+            yes: true,
+            language: Localization.CurrentLanguage);
+        AppendLogLine(L.Format("Gui_LaunchCommandLog", cliLookup.FileName, string.Join(" ", cliArgs.Select(QuoteForLog))));
+        _startupLog?.WriteInfo(L.Format("Gui_LogStartCleanup", gameDir, cleanupDialog.IncludeForeign));
         _progressBar.Value = 20;
-        _progressLabel.Text = "状态：正在清理 UE4SS……";
+        _progressDisplayKind = ProgressDisplayKind.Raw;
+        _progressLabel.Text = L.Get("Gui_StatusCleaningUe4ss");
 
         var stdoutLines = new List<string>();
         var stderrLines = new List<string>();
@@ -1360,32 +1801,33 @@ internal sealed class MainForm : Form
             if (exitCode == 0)
             {
                 _progressBar.Value = 100;
-                _progressLabel.Text = "状态：UE4SS 清理完成";
+                _progressDisplayKind = ProgressDisplayKind.CleanupComplete;
+                _progressLabel.Text = L.Get("Gui_StatusCleanupComplete");
                 var summary = stdoutLines.Count > 0
                     ? string.Join(Environment.NewLine, stdoutLines)
-                    : "UE4SS 清理已完成。";
-                _startupLog?.WriteInfo($"UE4SS 清理完成：{GuiStartupLog.SanitizeSingleLine(summary)}");
+                    : L.Get("Gui_CleanupCompleteDefaultBody");
+                _startupLog?.WriteInfo(L.Format("Gui_LogCleanupComplete", GuiStartupLog.SanitizeSingleLine(summary)));
                 MessageBox.Show(
                     this,
                     summary,
-                    "清理 UE4SS 完成",
+                    L.Get("Gui_CleanupCompleteTitle"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
             else
             {
                 _progressBar.Value = 0;
-                _progressLabel.Text = string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"状态：清理 UE4SS 失败（退出码：{exitCode}）");
+                _progressDisplayKind = ProgressDisplayKind.CleanupFailedExit;
+                _lastProgressExitCode = exitCode;
+                _progressLabel.Text = L.Format("Gui_StatusCleanupFailedExit", exitCode);
                 var errDetail = stderrLines.Count > 0
                     ? string.Join(Environment.NewLine, stderrLines)
-                    : $"清理 UE4SS 失败（退出码：{exitCode}）。";
-                _startupLog?.WriteWarning($"UE4SS 清理失败（exit={exitCode}）：{errDetail}");
+                    : L.Format("Gui_CleanupFailedExitBody", exitCode);
+                _startupLog?.WriteWarning(L.Format("Gui_LogCleanupFailedExit", exitCode, errDetail));
                 MessageBox.Show(
                     this,
                     errDetail,
-                    "清理 UE4SS 失败",
+                    L.Get("Gui_CleanupFailedTitle"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
@@ -1393,8 +1835,9 @@ internal sealed class MainForm : Form
         catch (OperationCanceledException)
         {
             _progressBar.Value = 0;
-            _progressLabel.Text = "状态：已取消清理 UE4SS";
-            AppendLogLine("[已取消] 已取消清理 UE4SS。");
+            _progressDisplayKind = ProgressDisplayKind.CleanupCancelled;
+            _progressLabel.Text = L.Get("Gui_StatusCleanupCancelled");
+            AppendLogLine(L.Format("Gui_LogPrefixCancelled", L.Get("Gui_CleanupCancelledLog")));
         }
         finally
         {
@@ -1418,11 +1861,11 @@ internal sealed class MainForm : Form
         }
         catch (Exception exception)
         {
-            AppendLogLine($"[错误] 一键获取 .usmap 时发生未预期异常：{exception.Message}");
+            AppendLogLine(L.Format("Gui_LogPrefixError", L.Format("Gui_FetchUsmapUnexpectedLog", exception.Message)));
             MessageBox.Show(
                 this,
-                $"获取 .usmap 过程发生错误：{exception.Message}",
-                "获取 .usmap 失败",
+                L.Format("Gui_FetchUsmapErrorBody", exception.Message),
+                L.Get("Gui_FetchUsmapFailedTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
@@ -1436,7 +1879,7 @@ internal sealed class MainForm : Form
             MessageBox.Show(
                 this,
                 cliLookup.ErrorMessage,
-                "缺少命令行程序",
+                L.Get("Gui_CliMissingTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
             return;
@@ -1446,8 +1889,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                "请先选择一个游戏，或点击「手动选择游戏目录…」指定《FINAL FANTASY RESONANCE》安装目录。",
-                "未选择游戏",
+                L.Get("Gui_NoGameSelectedBody"),
+                L.Get("Gui_NoGameSelectedTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
@@ -1458,8 +1901,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                gameCheck.ErrorMessage ?? "所选游戏目录无效，请重新选择。",
-                "游戏目录无效",
+                gameCheck.ErrorMessage ?? L.Get("Gui_GameDirInvalidBody"),
+                L.Get("Gui_GameDirInvalidTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
@@ -1469,25 +1912,19 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                $"检测到游戏（{Ue4ssRuntimeSupport.GameExeFileName}）正在运行，请先关闭游戏后再获取 .usmap。",
-                "游戏正在运行",
+                L.Format("Gui_GameRunningFetchBody", Ue4ssRuntimeSupport.GameExeFileName),
+                L.Get("Gui_GameRunningTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
         }
 
-        var confirmText =
-            "即将一键获取 .usmap 映射文件，执行前请知悉：\n\n"
-            + "1. 若游戏目录尚未安装 UE4SS，将从 UE4SS 官方 GitHub（RE-UE4SS v4.0.0）下载约 8.4 MB 压缩包并严格校验 SHA-256，安装进游戏目录；若您原本已安装 UE4SS，则完全不动原有配置。\n"
-            + "2. 会放入临时转储模组并通过 Steam 启动一次游戏，等待引擎初始化后在标题画面转储 .usmap，随后自动移除临时模组并关闭游戏。\n"
-            + "3. 转储完成后会保留 UE4SS 供下次复用，您可以随时点击主窗口「清理 UE4SS…」按钮清理本工具安装的文件。\n"
-            + "4. 全程只读取类型映射，停留在标题画面，不会触碰或修改任何游戏存档。\n\n"
-            + "确定要开始获取 .usmap 吗？";
+        var confirmText = L.Get("Gui_FetchUsmapConfirmBody");
 
         var answer = MessageBox.Show(
             this,
             confirmText,
-            "确认一键获取 .usmap",
+            L.Get("Gui_FetchUsmapConfirmTitle"),
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Question,
             MessageBoxDefaultButton.Button1);
@@ -1497,13 +1934,18 @@ internal sealed class MainForm : Form
         }
 
         var gameDir = _selectedGame.GameDirectory;
-        var cliArgs = BuildCliCommand.BuildFetchUsmapArguments(gameDir, yes: true);
+        var cliArgs = BuildCliCommand.BuildFetchUsmapArguments(
+            gameDir,
+            yes: true,
+            language: Localization.CurrentLanguage,
+            progressJson: true);
 
         _lastFetchedUsmapPath = null;
         _logTextBox.Clear();
-        AppendLogLine($"启动命令：{cliLookup.FileName} {string.Join(" ", cliArgs.Select(QuoteForLog))}");
+        AppendLogLine(L.Format("Gui_LaunchCommandLog", cliLookup.FileName, string.Join(" ", cliArgs.Select(QuoteForLog))));
         _progressBar.Value = 5;
-        _progressLabel.Text = "状态：正在准备获取 .usmap……";
+        _progressDisplayKind = ProgressDisplayKind.Raw;
+        _progressLabel.Text = L.Get("Gui_StatusPreparingFetchUsmap");
 
         _exportCts?.Dispose();
         _exportCts = new CancellationTokenSource();
@@ -1523,16 +1965,19 @@ internal sealed class MainForm : Form
             if (exitCode == 0)
             {
                 _progressBar.Value = 100;
-                _progressLabel.Text = "状态：.usmap 获取完成";
+                _progressDisplayKind = ProgressDisplayKind.FetchComplete;
+                _progressLabel.Text = L.Get("Gui_StatusFetchUsmapComplete");
 
                 if (!string.IsNullOrWhiteSpace(_lastFetchedUsmapPath)
                     && File.Exists(PathSupport.ToIoPath(_lastFetchedUsmapPath)))
                 {
-                    _selectedUsmap = MappingDiscovery.CreateFromExistingFile(_lastFetchedUsmapPath, "一键获取");
+                    _selectedUsmap = MappingDiscovery.CreateFromExistingFile(_lastFetchedUsmapPath, "fetched");
+                    _usmapCandidateCount = 1;
                     _usmapManuallySelected = false;
+                    _usmapStatusKind = UsmapStatusKind.Fetched;
                     _usmapStatusLabel.ForeColor = Color.FromArgb(0, 120, 0);
                     _usmapStatusLabel.Font = _boldUiFont;
-                    _usmapStatusLabel.Text = $"已自动获取：{MappingDiscovery.FormatUsmapDisplay(_selectedUsmap)}";
+                    _usmapStatusLabel.Text = L.Format("Gui_UsmapFetchedStatus", MappingDiscovery.FormatUsmapDisplay(_selectedUsmap));
                     _usmapPathTextBox.Text = _selectedUsmap.FullPath;
                     _fetchUsmapButton.Visible = false;
                 }
@@ -1541,18 +1986,18 @@ internal sealed class MainForm : Form
                     RefreshMappingsForSelectedGame(resetManualUsmap: true);
                 }
 
-                AppendLogLine("[完成] .usmap 已获取并自动选中，现在可以点击「开始导出」。");
+                AppendLogLine(L.Format("Gui_LogPrefixDone", L.Get("Gui_FetchUsmapDoneLog")));
             }
             else
             {
-                _progressLabel.Text = string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"状态：获取 .usmap 失败（退出码：{exitCode}）");
-                AppendLogLine($"[错误] fetch-usmap 异常结束（退出码：{exitCode}）。");
+                _progressDisplayKind = ProgressDisplayKind.FetchFailedExit;
+                _lastProgressExitCode = exitCode;
+                _progressLabel.Text = L.Format("Gui_StatusFetchUsmapFailedExit", exitCode);
+                AppendLogLine(L.Format("Gui_LogPrefixError", L.Format("Gui_FetchUsmapFailedExitLog", exitCode)));
                 MessageBox.Show(
                     this,
-                    $"获取 .usmap 失败（退出码：{exitCode}），请查看窗口日志了解具体原因和排查建议。",
-                    "获取 .usmap 失败",
+                    L.Format("Gui_FetchUsmapFailedExitBody", exitCode),
+                    L.Get("Gui_FetchUsmapFailedTitle"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
@@ -1560,8 +2005,9 @@ internal sealed class MainForm : Form
         catch (OperationCanceledException)
         {
             _progressBar.Value = 0;
-            _progressLabel.Text = "状态：正在取消——停用临时模组并关闭游戏……";
-            AppendLogLine("[已取消] 用户取消了获取 .usmap，正在停用临时模组并关闭游戏……");
+            _progressDisplayKind = ProgressDisplayKind.Raw;
+            _progressLabel.Text = L.Get("Gui_StatusCancellingFetchUsmap");
+            AppendLogLine(L.Format("Gui_LogPrefixCancelled", L.Get("Gui_FetchUsmapCancellingLog")));
 
             await Task.Run(async () =>
             {
@@ -1573,17 +2019,19 @@ internal sealed class MainForm : Form
                     msg => PostLogLineSafely(msg)).ConfigureAwait(false);
             });
 
-            _progressLabel.Text = "状态：已取消获取 .usmap";
-            AppendLogLine("[已取消] 已停用临时转储模组并结束游戏进程。");
+            _progressDisplayKind = ProgressDisplayKind.FetchCancelled;
+            _progressLabel.Text = L.Get("Gui_StatusFetchUsmapCancelled");
+            AppendLogLine(L.Format("Gui_LogPrefixCancelled", L.Get("Gui_FetchUsmapCancelledDoneLog")));
         }
         catch (Exception exception)
         {
-            _progressLabel.Text = "状态：获取 .usmap 失败";
-            AppendLogLine($"[错误] 获取 .usmap 失败：{exception.Message}");
+            _progressDisplayKind = ProgressDisplayKind.FetchFailed;
+            _progressLabel.Text = L.Get("Gui_StatusFetchUsmapFailed");
+            AppendLogLine(L.Format("Gui_LogPrefixError", L.Format("Gui_FetchUsmapErrorBody", exception.Message)));
             MessageBox.Show(
                 this,
-                $"获取 .usmap 失败：{exception.Message}",
-                "获取 .usmap 失败",
+                L.Format("Gui_FetchUsmapErrorBody", exception.Message),
+                L.Get("Gui_FetchUsmapFailedTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
@@ -1607,8 +2055,9 @@ internal sealed class MainForm : Form
         }
         else
         {
+            _jmapStatusKind = JmapStatusKind.Unchecked;
             _jmapStatusLabel.ForeColor = SystemColors.GrayText;
-            _jmapStatusLabel.Text = "未勾选（仅使用 .usmap 导出）。";
+            _jmapStatusLabel.Text = L.Get("Gui_JmapUncheckedStatus");
         }
 
         SaveSettingsSafely();
@@ -1626,11 +2075,12 @@ internal sealed class MainForm : Form
         }
         catch (Exception exception)
         {
-            var errorMessage = $"自动查找 .jmap 失败：{exception.Message}；请点「添加 .jmap…」手动选择，或取消勾选继续导出。";
+            _jmapStatusKind = JmapStatusKind.RawError;
+            var errorMessage = L.Format("Gui_JmapAutoFindError", exception.Message);
             _jmapStatusLabel.ForeColor = Color.FromArgb(185, 28, 28);
             _jmapStatusLabel.Text = errorMessage;
             _startupLog?.WriteWarning(errorMessage);
-            AppendLogLine($"[提示] {errorMessage}");
+            AppendLogLine(L.Format("Gui_LogPrefixInfo", errorMessage));
             return;
         }
 
@@ -1642,36 +2092,37 @@ internal sealed class MainForm : Form
 
         if (!string.IsNullOrWhiteSpace(jmapResult.ScanError))
         {
-            var warn = $"自动查找 .jmap 时遇到目录访问错误：{jmapResult.ScanError}";
+            var warn = L.Format("Gui_JmapDirAccessWarn", jmapResult.ScanError);
             _startupLog?.WriteWarning(warn);
-            AppendLogLine($"[提示] {warn}");
+            AppendLogLine(L.Format("Gui_LogPrefixInfo", warn));
         }
 
         if (_jmapFiles.Count > 0)
         {
             if (string.IsNullOrWhiteSpace(jmapResult.ScanError))
             {
+                _jmapStatusKind = JmapStatusKind.AutoFound;
                 _jmapStatusLabel.ForeColor = Color.FromArgb(0, 120, 0);
-                _jmapStatusLabel.Text = $"已自动找到 {_jmapFiles.Count} 份 .jmap 文件（可继续添加或移除）。";
+                _jmapStatusLabel.Text = L.Format("Gui_JmapAutoFoundStatus", _jmapFiles.Count);
             }
             else
             {
+                _jmapStatusKind = JmapStatusKind.RawError;
                 _jmapStatusLabel.ForeColor = Color.FromArgb(180, 100, 0);
-                _jmapStatusLabel.Text =
-                    $"已找到 {_jmapFiles.Count} 份 .jmap，但部分目录无法读取（{jmapResult.ScanError}），可点「添加 .jmap…」手动补充。";
+                _jmapStatusLabel.Text = L.Format("Gui_JmapPartialFoundStatus", _jmapFiles.Count, jmapResult.ScanError);
             }
         }
         else if (!string.IsNullOrWhiteSpace(jmapResult.ScanError))
         {
+            _jmapStatusKind = JmapStatusKind.RawError;
             _jmapStatusLabel.ForeColor = Color.FromArgb(185, 28, 28);
-            _jmapStatusLabel.Text =
-                $"自动查找 .jmap 失败（{jmapResult.ScanError}）；请检查权限，或点「添加 .jmap…」手动选择。";
+            _jmapStatusLabel.Text = L.Format("Gui_JmapScanErrorStatus", jmapResult.ScanError);
         }
         else
         {
+            _jmapStatusKind = JmapStatusKind.NotFound;
             _jmapStatusLabel.ForeColor = Color.FromArgb(180, 100, 0);
-            _jmapStatusLabel.Text =
-                "未在游戏目录的 ue4ss / Win64 下找到 .jmap 文件，可点“添加 .jmap…”手动选择，或取消勾选继续导出。";
+            _jmapStatusLabel.Text = L.Get("Gui_JmapNotFoundStatus");
         }
     }
 
@@ -1679,8 +2130,8 @@ internal sealed class MainForm : Form
     {
         using var dialog = new OpenFileDialog
         {
-            Title = "选择 .jmap 反射转储文件（可多选）",
-            Filter = "UE 反射转储 (*.jmap)|*.jmap|所有文件 (*.*)|*.*",
+            Title = L.Get("Gui_OpenJmapDialogTitle"),
+            Filter = L.Get("Gui_OpenJmapDialogFilter"),
             CheckFileExists = true,
             Multiselect = true,
         };
@@ -1703,7 +2154,7 @@ internal sealed class MainForm : Form
         var added = 0;
         foreach (var fileName in dialog.FileNames)
         {
-            var entry = MappingDiscovery.CreateFromExistingFile(fileName, "手动添加");
+            var entry = MappingDiscovery.CreateFromExistingFile(fileName, "manual-add");
             var duplicate = _jmapFiles.Any(existing =>
                 string.Equals(existing.FullPath, entry.FullPath, StringComparison.OrdinalIgnoreCase));
             if (duplicate)
@@ -1718,8 +2169,9 @@ internal sealed class MainForm : Form
 
         if (added > 0 || _jmapFiles.Count > 0)
         {
+            _jmapStatusKind = JmapStatusKind.SelectedCount;
             _jmapStatusLabel.ForeColor = Color.FromArgb(0, 120, 0);
-            _jmapStatusLabel.Text = $"当前共选择 {_jmapFiles.Count} 份 .jmap 文件。";
+            _jmapStatusLabel.Text = L.Format("Gui_JmapSelectedCountStatus", _jmapFiles.Count);
         }
     }
 
@@ -1735,13 +2187,15 @@ internal sealed class MainForm : Form
         _jmapListBox.Items.RemoveAt(index);
         if (_jmapFiles.Count == 0)
         {
+            _jmapStatusKind = JmapStatusKind.EmptyList;
             _jmapStatusLabel.ForeColor = Color.FromArgb(180, 100, 0);
-            _jmapStatusLabel.Text = "当前 .jmap 列表为空，可点“添加 .jmap…”手动选择，或取消勾选继续导出。";
+            _jmapStatusLabel.Text = L.Get("Gui_JmapEmptyListStatus");
         }
         else
         {
+            _jmapStatusKind = JmapStatusKind.SelectedCount;
             _jmapStatusLabel.ForeColor = Color.FromArgb(0, 120, 0);
-            _jmapStatusLabel.Text = $"当前共选择 {_jmapFiles.Count} 份 .jmap 文件。";
+            _jmapStatusLabel.Text = L.Format("Gui_JmapSelectedCountStatus", _jmapFiles.Count);
         }
     }
 
@@ -1749,7 +2203,7 @@ internal sealed class MainForm : Form
     {
         using var dialog = new FolderBrowserDialog
         {
-            Description = "选择导出输出目录",
+            Description = L.Get("Gui_BrowseOutputDialogDesc"),
             UseDescriptionForTitle = true,
             ShowNewFolderButton = true,
         };
@@ -1769,8 +2223,9 @@ internal sealed class MainForm : Form
         }
 
         SetOutputDirectoryText(dialog.SelectedPath, userCustomized: true);
+        _outputHintIsDefault = true;
         _outputHintLabel.ForeColor = SystemColors.GrayText;
-        _outputHintLabel.Text = _defaultOutputHintText;
+        _outputHintLabel.Text = FormatDefaultOutputHintText();
         var gameCode = _selectedGame?.GameCode ?? SteamLocator.ResonanceGame.Code;
         var extractedRoot = GuiPaths.ExtractOutputRootDirectory(dialog.SelectedPath, gameCode);
         if (!string.IsNullOrWhiteSpace(extractedRoot))
@@ -1794,11 +2249,11 @@ internal sealed class MainForm : Form
         }
         catch (Exception exception)
         {
-            AppendLogLine($"[错误] 启动导出时发生未预期异常：{exception.Message}");
+            AppendLogLine(L.Format("Gui_LogPrefixError", L.Format("Gui_ExportUnexpectedLog", exception.Message)));
             MessageBox.Show(
                 this,
-                $"导出过程发生错误：{exception.Message}",
-                "导出失败",
+                L.Format("Gui_ExportErrorBody", exception.Message),
+                L.Get("Gui_ExportFailedTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
@@ -1813,7 +2268,7 @@ internal sealed class MainForm : Form
             MessageBox.Show(
                 this,
                 cliLookup.ErrorMessage,
-                "缺少命令行程序",
+                L.Get("Gui_CliMissingTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
             return;
@@ -1824,8 +2279,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                "请先选择一个游戏，或点击“手动选择游戏目录…”指定《FINAL FANTASY RESONANCE》安装目录。",
-                "未选择游戏",
+                L.Get("Gui_NoGameSelectedBody"),
+                L.Get("Gui_NoGameSelectedTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
@@ -1836,8 +2291,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                gameCheck.ErrorMessage ?? "所选游戏目录无效，请重新选择。",
-                "游戏目录无效",
+                gameCheck.ErrorMessage ?? L.Get("Gui_GameDirInvalidBody"),
+                L.Get("Gui_GameDirInvalidTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
@@ -1848,8 +2303,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                "请先指定有效的 .usmap 映射文件。\n\n" + MappingDiscovery.UsmapNotFoundGuidance,
-                "缺少 .usmap 映射文件",
+                L.Format("Gui_MissingUsmapBody", MappingDiscovery.UsmapNotFoundGuidance),
+                L.Get("Gui_MissingUsmapTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
@@ -1865,8 +2320,8 @@ internal sealed class MainForm : Form
                 {
                     MessageBox.Show(
                         this,
-                        $"反射数据文件不存在：{file.FullPath}\n请移除该条目或重新选择。",
-                        "找不到 .jmap 文件",
+                        L.Format("Gui_MissingJmapFileBody", file.FullPath),
+                        L.Get("Gui_MissingJmapFileTitle"),
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                     return;
@@ -1879,8 +2334,8 @@ internal sealed class MainForm : Form
             {
                 var proceedWithoutJmap = MessageBox.Show(
                     this,
-                    "已勾选“包含反射数据（.jmap，可选）”，但当前列表里没有 .jmap 文件。\n\n是否按“仅使用 .usmap”继续导出？",
-                    "未选择 .jmap 文件",
+                    L.Get("Gui_NoJmapConfirmBody"),
+                    L.Get("Gui_NoJmapConfirmTitle"),
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question,
                     MessageBoxDefaultButton.Button1);
@@ -1902,8 +2357,8 @@ internal sealed class MainForm : Form
             case OutputDirectoryStatus.TargetIsFile:
                 MessageBox.Show(
                     this,
-                    inspection.ErrorMessage ?? "输出目录无效，请重新选择。",
-                    "输出目录无效",
+                    inspection.ErrorMessage ?? L.Get("Gui_OutputDirInvalidFallback"),
+                    L.Get("Gui_OutputDirInvalidTitle"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
                 return;
@@ -1912,8 +2367,8 @@ internal sealed class MainForm : Form
                 {
                     var confirmRebuild = MessageBox.Show(
                         this,
-                        $"目标输出目录已存在之前的导出结果：\n{inspection.NormalizedPath}\n\n是否清空该目录并重新导出？",
-                        "确认覆盖已有导出",
+                        L.Format("Gui_OverwritePrevBuildBody", inspection.NormalizedPath),
+                        L.Get("Gui_OverwritePrevBuildTitle"),
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question,
                         MessageBoxDefaultButton.Button1);
@@ -1932,8 +2387,8 @@ internal sealed class MainForm : Form
                     {
                         MessageBox.Show(
                             this,
-                            inspection.ErrorMessage ?? "拒绝覆盖受保护目录，请选择其他子文件夹。",
-                            "无法使用该输出目录",
+                            inspection.ErrorMessage ?? L.Get("Gui_ProtectedDirFallback"),
+                            L.Get("Gui_CannotUseOutputDirTitle"),
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Error);
                         return;
@@ -1941,11 +2396,8 @@ internal sealed class MainForm : Form
 
                     var confirmForeign = MessageBox.Show(
                         this,
-                        $"输出目录已存在，且不是本工具创建的目录（当前包含 {inspection.EntryCount} 个项目）：\n"
-                        + $"{inspection.NormalizedPath}\n\n"
-                        + "为避免与无关文件混杂，继续导出前需要清空该目录内的所有原有文件。\n"
-                        + "确定要清空并继续导出吗？（如不想删除原有文件，请点“否”并更换输出目录）",
-                        "确认覆盖非本工具目录",
+                        L.Format("Gui_OverwriteForeignDirBody", inspection.EntryCount, inspection.NormalizedPath),
+                        L.Get("Gui_OverwriteForeignDirTitle"),
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Warning,
                         MessageBoxDefaultButton.Button2);
@@ -1962,8 +2414,8 @@ internal sealed class MainForm : Form
                     {
                         MessageBox.Show(
                             this,
-                            $"清空输出目录失败（{inspection.NormalizedPath}）：{exception.Message}",
-                            "清理目录失败",
+                            L.Format("Gui_ClearDirFailedBody", inspection.NormalizedPath, exception.Message),
+                            L.Get("Gui_ClearDirFailedTitle"),
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Error);
                         return;
@@ -1988,14 +2440,18 @@ internal sealed class MainForm : Form
             jmapPaths,
             inspection.NormalizedPath,
             _selectedGame.SteamBuildId,
-            useForce);
+            useForce,
+            Language: Localization.CurrentLanguage,
+            ProgressJson: true);
         var cliArgs = BuildCliCommand.BuildArguments(request);
 
-        ResetResultPanel("正在导出……", "导出完成后将自动读取构建报告（*.build.json）并展示哈希与比对结论。");
+        _resultPanelKind = ResultPanelKind.Exporting;
+        ResetResultPanel(L.Get("Gui_ResultExporting"), L.Get("Gui_ResultExportingDetail"));
         _logTextBox.Clear();
-        AppendLogLine($"启动命令：{cliLookup.FileName} {string.Join(" ", cliArgs.Select(QuoteForLog))}");
+        AppendLogLine(L.Format("Gui_LaunchCommandLog", cliLookup.FileName, string.Join(" ", cliArgs.Select(QuoteForLog))));
         _progressBar.Value = 5;
-        _progressLabel.Text = "状态：正在启动导出流程……";
+        _progressDisplayKind = ProgressDisplayKind.Raw;
+        _progressLabel.Text = L.Get("Gui_StatusStartingExport");
 
         _exportCts?.Dispose();
         _exportCts = new CancellationTokenSource();
@@ -2015,9 +2471,12 @@ internal sealed class MainForm : Form
             if (exitCode is 0 or 1)
             {
                 _progressBar.Value = 100;
+                _progressDisplayKind = exitCode == 0
+                    ? ProgressDisplayKind.ExportComplete
+                    : ProgressDisplayKind.ExportCompletePartial;
                 _progressLabel.Text = exitCode == 0
-                    ? "状态：导出完成"
-                    : "状态：导出完成（有少量资源包失败）";
+                    ? L.Get("Gui_StatusExportComplete")
+                    : L.Get("Gui_StatusExportCompletePartial");
 
                 try
                 {
@@ -2026,25 +2485,28 @@ internal sealed class MainForm : Form
                 }
                 catch (Exception reportException)
                 {
-                    ResetResultPanel("✗ 无法读取构建报告", reportException.Message);
+                    _resultPanelKind = ResultPanelKind.Raw;
+                    ResetResultPanel(L.Get("Gui_ResultReadReportFailed"), reportException.Message);
                     _lastCompletedOutputDir = inspection.NormalizedPath;
                     _openOutputButton.Enabled = Directory.Exists(inspection.NormalizedPath);
-                    AppendLogLine($"[错误] {reportException.Message}");
+                    AppendLogLine(L.Format("Gui_LogPrefixError", reportException.Message));
                 }
             }
             else
             {
-                _progressLabel.Text = string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"状态：导出失败（退出码：{exitCode}）");
+                _progressDisplayKind = ProgressDisplayKind.ExportFailedExit;
+                _lastProgressExitCode = exitCode;
+                _progressLabel.Text = L.Format("Gui_StatusExportFailedExit", exitCode);
+                _resultPanelKind = ResultPanelKind.ExportFailedExit;
+                _lastResultExitCode = exitCode;
                 ResetResultPanel(
-                    "✗ 导出失败",
-                    $"命令行程序返回退出码 {exitCode}，请查看上方日志定位具体原因。");
-                AppendLogLine($"[错误] 命令行程序异常结束（退出码：{exitCode}）。");
+                    L.Get("Gui_ResultExportFailed"),
+                    L.Format("Gui_ResultExportFailedDetail", exitCode));
+                AppendLogLine(L.Format("Gui_LogPrefixError", L.Format("Gui_ExportFailedExitLog", exitCode)));
                 MessageBox.Show(
                     this,
-                    $"导出失败（退出码：{exitCode}），请查看窗口中的日志信息。",
-                    "导出失败",
+                    L.Format("Gui_ExportFailedExitBody", exitCode),
+                    L.Get("Gui_ExportFailedTitle"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
@@ -2052,19 +2514,23 @@ internal sealed class MainForm : Form
         catch (OperationCanceledException)
         {
             _progressBar.Value = 0;
-            _progressLabel.Text = "状态：已取消";
-            ResetResultPanel("已取消导出", "已终止后台导出进程。");
-            AppendLogLine("[已取消] 用户已取消导出，后台进程树已终止。");
+            _progressDisplayKind = ProgressDisplayKind.ExportCancelled;
+            _progressLabel.Text = L.Get("Gui_StatusCancelled");
+            _resultPanelKind = ResultPanelKind.Cancelled;
+            ResetResultPanel(L.Get("Gui_ResultCancelled"), L.Get("Gui_ResultCancelledDetail"));
+            AppendLogLine(L.Format("Gui_LogPrefixCancelled", L.Get("Gui_ExportCancelledLog")));
         }
         catch (Exception exception)
         {
-            _progressLabel.Text = "状态：导出失败";
-            ResetResultPanel("✗ 导出失败", exception.Message);
-            AppendLogLine($"[错误] 执行失败：{exception.Message}");
+            _progressDisplayKind = ProgressDisplayKind.ExportFailed;
+            _progressLabel.Text = L.Get("Gui_StatusExportFailed");
+            _resultPanelKind = ResultPanelKind.Raw;
+            ResetResultPanel(L.Get("Gui_ResultExportFailed"), exception.Message);
+            AppendLogLine(L.Format("Gui_LogPrefixError", L.Format("Gui_ExportExecFailedLog", exception.Message)));
             MessageBox.Show(
                 this,
-                $"启动或执行导出程序失败：{exception.Message}",
-                "导出失败",
+                L.Format("Gui_ExportExecFailedBody", exception.Message),
+                L.Get("Gui_ExportFailedTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
@@ -2082,8 +2548,9 @@ internal sealed class MainForm : Form
         }
 
         _cancelButton.Enabled = false;
-        _progressLabel.Text = "状态：正在取消并结束后台进程……";
-        AppendLogLine("[提示] 正在取消导出并结束子进程树……");
+        _progressDisplayKind = ProgressDisplayKind.Raw;
+        _progressLabel.Text = L.Get("Gui_StatusCancellingExport");
+        AppendLogLine(L.Format("Gui_LogPrefixInfo", L.Get("Gui_ExportCancellingLog")));
         try
         {
             _exportCts?.Cancel();
@@ -2110,7 +2577,6 @@ internal sealed class MainForm : Form
                     return;
                 }
 
-                AppendLogLine(line);
                 if (BuildCliCommand.TryParseFetchedUsmapPath(line, out var savedUsmap))
                 {
                     _lastFetchedUsmapPath = savedUsmap;
@@ -2119,11 +2585,16 @@ internal sealed class MainForm : Form
                 if (BuildCliCommand.TryParseStepProgress(line, out var step))
                 {
                     _progressBar.Value = Math.Clamp(step.Percent, _progressBar.Minimum, _progressBar.Maximum);
+                    _progressDisplayKind = ProgressDisplayKind.Raw;
                     _progressLabel.Text = string.IsNullOrEmpty(step.Title)
-                        ? string.Create(CultureInfo.InvariantCulture, $"状态：步骤 {step.CurrentStep}/{step.TotalSteps}")
-                        : string.Create(
-                            CultureInfo.InvariantCulture,
-                            $"状态：步骤 {step.CurrentStep}/{step.TotalSteps} — {step.Title}");
+                        ? L.Format("Gui_StatusStep", step.CurrentStep, step.TotalSteps)
+                        : L.Format("Gui_StatusStepWithTitle", step.CurrentStep, step.TotalSteps, step.Title);
+                }
+
+                // Keep machine-readable @@progress / @@usmap lines out of the human-readable log window.
+                if (!ProgressProtocol.IsMachineProtocolLine(line))
+                {
+                    AppendLogLine(line);
                 }
             });
         }
@@ -2170,9 +2641,18 @@ internal sealed class MainForm : Form
     {
         _lastReport = report;
         _lastCompletedOutputDir = outputDirectory;
+        _resultPanelKind = ResultPanelKind.Report;
         _copyFeedbackLabel.Text = string.Empty;
 
-        _verdictLabel.Text = $"{report.VerdictSymbol} {report.VerdictTitle}";
+        var (symbol, title, explanation) = BuildReportReader.FormatVerdictDisplay(
+            report.Verdict,
+            report.JmapCount,
+            report.MatchedRegisteredAt,
+            report.FileSha256MismatchOnly,
+            report.TableDiffCount,
+            report.HasPartialExportFailure);
+
+        _verdictLabel.Text = $"{symbol} {title}";
         _verdictLabel.ForeColor = report.Verdict switch
         {
             BuildComparisonVerdict.Matched => Color.FromArgb(0, 128, 0),
@@ -2181,14 +2661,14 @@ internal sealed class MainForm : Form
         };
 
         var elapsedSuffix = report.TotalElapsedMs.HasValue
-            ? string.Create(CultureInfo.InvariantCulture, $"（总耗时：{report.TotalElapsedMs.Value / 1000.0:F2}s）")
+            ? L.Format("Gui_ResultElapsedSuffix", (report.TotalElapsedMs.Value / 1000.0).ToString("F2", CultureInfo.InvariantCulture))
             : string.Empty;
         _verdictDetailLabel.ForeColor = SystemColors.ControlText;
-        _verdictDetailLabel.Text = report.VerdictExplanation + elapsedSuffix;
+        _verdictDetailLabel.Text = explanation + elapsedSuffix;
 
         _dbPathTextBox.Text = report.DatabasePath;
         _fileShaTextBox.Text = report.FileSha256;
-        _contentShaTextBox.Text = report.ContentSha256 ?? "无";
+        _contentShaTextBox.Text = report.ContentSha256 ?? L.Get("Common_None");
 
         _openOutputButton.Enabled = Directory.Exists(outputDirectory);
         _copyHashButton.Enabled = true;
@@ -2218,8 +2698,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                "输出文件夹不存在或已被移动。",
-                "无法打开文件夹",
+                L.Get("Gui_OpenOutputMissingBody"),
+                L.Get("Gui_OpenOutputFailedTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
@@ -2237,8 +2717,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                $"打开输出文件夹失败（{dir}）：{exception.Message}",
-                "无法打开文件夹",
+                L.Format("Gui_OpenOutputFailedBody", dir, exception.Message),
+                L.Get("Gui_OpenOutputFailedTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
@@ -2255,14 +2735,14 @@ internal sealed class MainForm : Form
         {
             var text = BuildReportReader.FormatClipboardHashText(_lastReport);
             Clipboard.SetText(text);
-            _copyFeedbackLabel.Text = "已复制到剪贴板";
+            _copyFeedbackLabel.Text = L.Get("Gui_CopiedFeedback");
         }
         catch (Exception exception)
         {
             MessageBox.Show(
                 this,
-                $"复制到剪贴板失败：{exception.Message}",
-                "复制失败",
+                L.Format("Gui_CopyFailedBody", exception.Message),
+                L.Get("Gui_CopyFailedTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
         }
@@ -2273,6 +2753,7 @@ internal sealed class MainForm : Form
         _activeOperation = operation;
         var busy = operation != ActiveOperation.None;
 
+        _languageComboBox.Enabled = !busy;
         _gameListView.Enabled = !busy;
         _manualGameButton.Enabled = !busy;
         _rescanGameButton.Enabled = !busy;
@@ -2336,19 +2817,21 @@ internal sealed class MainForm : Form
             SetOutputDirectoryText(result.Path, userCustomized: false);
             if (!string.IsNullOrWhiteSpace(result.WarningMessage))
             {
+                _outputHintIsDefault = false;
                 _outputHintLabel.ForeColor = Color.FromArgb(180, 100, 0);
                 _outputHintLabel.Text = result.WarningMessage;
                 _startupLog?.WriteWarning(result.WarningMessage);
-                AppendLogLine($"[提示] {result.WarningMessage}");
+                AppendLogLine(L.Format("Gui_LogPrefixInfo", result.WarningMessage));
             }
         }
         catch (Exception exception)
         {
-            var errorMessage = $"计算默认输出目录失败：{exception.Message}；请点击「浏览…」手动选择输出目录。";
+            _outputHintIsDefault = false;
+            var errorMessage = L.Format("Gui_CalcDefaultOutputFailed", exception.Message);
             _outputHintLabel.ForeColor = Color.FromArgb(185, 28, 28);
             _outputHintLabel.Text = errorMessage;
             _startupLog?.WriteWarning(errorMessage);
-            AppendLogLine($"[提示] {errorMessage}");
+            AppendLogLine(L.Format("Gui_LogPrefixInfo", errorMessage));
         }
     }
 
@@ -2390,7 +2873,10 @@ internal sealed class MainForm : Form
     {
         try
         {
-            var settings = new GuiSettings(_outputRootDirectory, _includeJmapCheckBox.Checked);
+            var settings = new GuiSettings(
+                _outputRootDirectory,
+                _includeJmapCheckBox.Checked,
+                Localization.CurrentLanguage);
             GuiSettingsStore.Save(settings, _settingsPath);
         }
         catch

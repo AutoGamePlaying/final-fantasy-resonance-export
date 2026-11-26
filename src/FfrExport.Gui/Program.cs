@@ -23,6 +23,40 @@ internal static class Program
         var isSelfTest = args.Any(arg => string.Equals(arg, "--self-test", StringComparison.OrdinalIgnoreCase));
         var mode = isSelfTest ? "self-test" : "gui";
 
+        // 0. Pre-apply language from --lang or AGP_LANG (default: en) so even early error dialogs are localized.
+        Localization.SetLanguage(Localization.ResolveLanguage(null));
+        string? cliLanguageOverride = null;
+        try
+        {
+            var extractedLang = Localization.ExtractCliLanguageArgs(args, stopAfterLocresSubcommand: false);
+            if (extractedLang.CliLanguage is not null)
+            {
+                if (!Localization.TryNormalizeLanguageCode(extractedLang.CliLanguage, out var canonicalCli))
+                {
+                    throw new ArgumentException(L.Format("Common_UnsupportedLanguage", extractedLang.CliLanguage));
+                }
+
+                cliLanguageOverride = canonicalCli;
+                Localization.SetLanguage(canonicalCli);
+            }
+        }
+        catch (ArgumentException exception)
+        {
+            var errorLine = L.Format("Common_ErrorPrefix", exception.Message);
+            if (isSelfTest)
+            {
+                TryConfigureUtf8Console();
+                Console.Error.WriteLine(errorLine);
+            }
+            else
+            {
+                ShowNativeMessageBoxSafely(errorLine, L.Get("Gui_WindowTitle"), MbOk | MbIconError);
+            }
+
+            Environment.ExitCode = 2;
+            return 2;
+        }
+
         // 1. Detect process integrity level and resolve a writable data root BEFORE initializing
         //    any WinForms API (including SetHighDpiMode / EnableVisualStyles).
         var integrity = ProcessIntegritySupport.DetectCurrent();
@@ -32,7 +66,7 @@ internal static class Program
             if (isSelfTest)
             {
                 TryConfigureUtf8Console();
-                Console.Error.WriteLine($"窗口程序自检失败：{agpResolution.ErrorMessage}");
+                Console.Error.WriteLine(L.Format("Gui_SelfTestFailedPrefix", agpResolution.ErrorMessage));
                 Environment.ExitCode = 1;
                 return 1;
             }
@@ -42,8 +76,8 @@ internal static class Program
                 // Explicit AGP_HOME must never silently fall back; use native Win32 MessageBoxW
                 // which requires neither WinForms visual styles nor a writable %TEMP%.
                 ShowNativeMessageBoxSafely(
-                    agpResolution.ErrorMessage ?? "环境变量 AGP_HOME 指定的目录不可写。",
-                    "数据目录不可写",
+                    agpResolution.ErrorMessage ?? L.Get("Gui_AgpEnvUnwritableFallback"),
+                    L.Get("Gui_DataDirUnwritableTitle"),
                     MbOk | MbIconError);
                 Environment.ExitCode = 1;
                 return 1;
@@ -57,6 +91,13 @@ internal static class Program
             }
 
             agpResolution = selectedResolution;
+        }
+
+        // Apply saved GUI language from settings.json unless overridden by --lang or AGP_LANG.
+        if (cliLanguageOverride is null)
+        {
+            var savedLang = Localization.TryReadSavedLanguageFromSettings(agpHomeOverride: agpResolution.AgpRoot);
+            Localization.SetLanguage(Localization.ResolveLanguage(null, savedLanguage: savedLang));
         }
 
         // 2. Redirect process-local TEMP/TMP into <agpRoot>\ffr-export\tmp on Windows BEFORE
@@ -82,22 +123,24 @@ internal static class Program
 
         if (tempConfigured && !string.IsNullOrWhiteSpace(configuredTempDir))
         {
-            startupLog.WriteInfo($"进程临时目录已指向数据根目录子目录：{configuredTempDir}");
+            startupLog.WriteInfo(L.Format("Gui_LogProcessTempRedirected", configuredTempDir));
         }
         else if (!string.IsNullOrWhiteSpace(tempConfigError))
         {
-            startupLog.WriteWarning($"配置数据根目录 tmp 子目录失败：{tempConfigError}");
+            startupLog.WriteWarning(L.Format("Gui_LogProcessTempFailed", tempConfigError));
         }
 
         if (!string.IsNullOrWhiteSpace(dpiError))
         {
-            startupLog.WriteWarning($"高 DPI 初始化失败：{dpiError}");
+            startupLog.WriteWarning(L.Format("Gui_LogDpiInitFailed", dpiError));
         }
 
         if (visualStylesException is not null)
         {
-            startupLog.WriteWarning(
-                $"视觉样式初始化失败（将沿用应用清单中的视觉样式）：{visualStylesException.GetType().FullName}: {visualStylesException.Message}");
+            startupLog.WriteWarning(L.Format(
+                "Gui_LogVisualStylesFailed",
+                visualStylesException.GetType().FullName,
+                visualStylesException.Message));
         }
 
         if (isSelfTest)
@@ -172,7 +215,7 @@ internal static class Program
             var promptText = AgpPaths.FormatAllCandidatesFailedGuiMessage(currentFailure);
             var answer = ShowNativeMessageBoxSafely(
                 promptText,
-                "请选择可写的数据目录",
+                L.Get("Gui_ChooseWritableDataDirTitle"),
                 MbYesNo | MbIconWarning | MbDefButton1);
             if (answer != IdYes)
             {
@@ -184,7 +227,7 @@ internal static class Program
             {
                 using var dialog = new FolderBrowserDialog
                 {
-                    Description = "选择一个可写文件夹作为本工具的数据根目录（用于保存日志、设置和导出文件）",
+                    Description = L.Get("Gui_ChooseWritableDataDirDesc"),
                     UseDescriptionForTitle = true,
                     ShowNewFolderButton = true,
                 };
@@ -198,10 +241,8 @@ internal static class Program
             catch (Exception exception)
             {
                 ShowNativeMessageBoxSafely(
-                    $"无法打开「选择文件夹」对话框（{exception.GetType().Name}: {exception.Message}）。\n\n"
-                    + $"请设置环境变量 {AgpPaths.AgpHomeEnvVar} 指向一个可写文件夹后重新启动本工具，"
-                    + "或右键压缩包 -> 属性 -> 解除锁定后重新解压。",
-                    "无法打开文件夹选择器",
+                    L.Format("Gui_FolderPickerFailedBody", exception.GetType().Name, exception.Message, AgpPaths.AgpHomeEnvVar),
+                    L.Get("Gui_FolderPickerFailedTitle"),
                     MbOk | MbIconError);
                 return null;
             }
@@ -216,8 +257,8 @@ internal static class Program
             }
 
             ShowNativeMessageBoxSafely(
-                accepted.ErrorMessage ?? "所选文件夹不可写，请重新选择其他目录。",
-                "所选目录不可写",
+                accepted.ErrorMessage ?? L.Get("Gui_SelectedDirUnwritableFallback"),
+                L.Get("Gui_SelectedDirUnwritableTitle"),
                 MbOk | MbIconError);
             currentFailure = accepted;
         }
@@ -240,7 +281,9 @@ internal static class Program
                 return;
             }
 
-            var headline = mainFormShown ? "窗口程序运行异常" : "窗口程序启动失败";
+            var headline = mainFormShown
+                ? L.Get("Gui_CrashRuntimeHeadline")
+                : L.Get("GuiCore_CrashDefaultHeadline");
             var message = GuiStartupLog.FormatCrashDialogMessage(
                 exception,
                 startupLog.LogFilePath,
@@ -276,8 +319,10 @@ internal static class Program
             if (Interlocked.Exchange(ref fatalDialogShown, 1) == 0)
             {
                 var synthetic = new InvalidOperationException(
-                    $"发生未处理的非异常对象：{eventArgs.ExceptionObject?.ToString() ?? "(null)"}");
-                var headline = mainFormShown ? "窗口程序运行异常" : "窗口程序启动失败";
+                    L.Format("Gui_UnhandledNonException", eventArgs.ExceptionObject?.ToString() ?? "(null)"));
+                var headline = mainFormShown
+                    ? L.Get("Gui_CrashRuntimeHeadline")
+                    : L.Get("GuiCore_CrashDefaultHeadline");
                 var message = GuiStartupLog.FormatCrashDialogMessage(
                     synthetic,
                     startupLog.LogFilePath,
@@ -294,19 +339,19 @@ internal static class Program
 
         try
         {
-            startupLog.WriteInfo("正在构造主窗口 MainForm...");
+            startupLog.WriteInfo(L.Get("Gui_LogConstructingMainForm"));
             using var mainForm = new MainForm(startupLog, agpResolution);
             mainForm.Shown += (_, _) =>
             {
                 mainFormShown = true;
-                startupLog.WriteInfo("主窗口已显示。");
+                startupLog.WriteInfo(L.Get("Gui_LogMainFormShown"));
             };
 
-            startupLog.WriteInfo("正在启动 WinForms 消息循环...");
+            startupLog.WriteInfo(L.Get("Gui_LogStartingMessageLoop"));
             Application.Run(mainForm);
 
             var finalExitCode = Volatile.Read(ref exitCode);
-            startupLog.WriteInfo(string.Create(CultureInfo.InvariantCulture, $"窗口程序退出，退出码={finalExitCode}。"));
+            startupLog.WriteInfo(L.Format("Gui_LogGuiExited", finalExitCode));
             if (finalExitCode != 0)
             {
                 Environment.ExitCode = finalExitCode;
@@ -316,7 +361,7 @@ internal static class Program
         }
         catch (Exception exception)
         {
-            ReportFatal(mainFormShown ? "Application.Run" : "MainForm 构造或启动", exception);
+            ReportFatal(mainFormShown ? "Application.Run" : L.Get("Gui_LogMainFormInitPhase"), exception);
             Environment.ExitCode = 1;
             return 1;
         }
@@ -324,8 +369,8 @@ internal static class Program
 
     /// <summary>
     /// Headless Windows CI self-test: verifies process TEMP/TMP redirection, WinForms visual styles
-    /// &amp; assemblies, shared SteamLocator, JSON serialization, writable agp tmp/ directory (never
-    /// touching system %TEMP%), and constructs MainForm with real Win32 control handles.
+    /// &amp; assemblies, shared SteamLocator, localization across en/zh-Hans/ja, JSON serialization,
+    /// writable agp tmp/ directory (never touching system %TEMP%), and constructs MainForm with real Win32 control handles.
     /// </summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static int RunSelfTest(
@@ -336,12 +381,12 @@ internal static class Program
         TryConfigureUtf8Console();
         try
         {
-            startupLog.WriteInfo("开始执行窗口程序自检（--self-test）...");
+            startupLog.WriteInfo(L.Get("Gui_SelfTestStart"));
 
             if (visualStylesException is not null)
             {
                 throw new InvalidOperationException(
-                    $"Application.EnableVisualStyles 初始化失败（可能误触不可写的系统 TEMP）：{visualStylesException.Message}",
+                    L.Format("Gui_SelfTestVisualStylesFailed", visualStylesException.Message),
                     visualStylesException);
             }
 
@@ -353,23 +398,37 @@ internal static class Program
                 || string.IsNullOrEmpty(listViewType)
                 || string.IsNullOrEmpty(progressBarType))
             {
-                throw new InvalidOperationException("WinForms 程序集元数据加载异常。");
+                throw new InvalidOperationException(L.Get("Gui_SelfTestWinFormsMetadataFailed"));
             }
 
             if (SteamLocator.ResonanceGame.AppId != 3259780)
             {
-                throw new InvalidOperationException("共享 SteamLocator 配置异常。");
+                throw new InvalidOperationException(L.Get("Gui_SelfTestSteamLocatorFailed"));
             }
 
-            if (!BuildCliCommand.TryParseStepProgress("==> 步骤 2/5：导出游戏数据为 JSON", out var step)
+            if (!BuildCliCommand.TryParseStepProgress("@@progress {\"step\":2,\"total\":5,\"message\":\"Exporting\"}", out var step)
                 || step.CurrentStep != 2
-                || step.TotalSteps != 5)
+                || step.TotalSteps != 5
+                || BuildCliCommand.TryParseStepProgress("==> Step 2/5: Exporting", out _))
             {
-                throw new InvalidOperationException("进度解析自检失败。");
+                throw new InvalidOperationException(L.Get("Gui_SelfTestProgressParseFailed"));
+            }
+
+            var titleEn = Localization.GetForLanguage("Gui_WindowTitle", Localization.DefaultLanguage);
+            var titleZh = Localization.GetForLanguage("Gui_WindowTitle", Localization.ChineseSimplifiedLanguage);
+            var titleJa = Localization.GetForLanguage("Gui_WindowTitle", Localization.JapaneseLanguage);
+            if (string.IsNullOrWhiteSpace(titleEn)
+                || string.IsNullOrWhiteSpace(titleZh)
+                || string.IsNullOrWhiteSpace(titleJa)
+                || string.Equals(titleEn, titleZh, StringComparison.Ordinal)
+                || string.Equals(titleEn, titleJa, StringComparison.Ordinal)
+                || string.Equals(titleZh, titleJa, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(L.Get("Gui_SelfTestLocalizationFailed"));
             }
 
             var activeAgpRoot = agpResolution.AgpRoot
-                ?? throw new InvalidOperationException("数据根目录解析结果为空。");
+                ?? throw new InvalidOperationException(L.Get("Gui_SelfTestAgpRootEmpty"));
             var expectedTmpDir = AgpPaths.GetTempDirectoryForAgpRoot(activeAgpRoot);
             if (OperatingSystem.IsWindows())
             {
@@ -379,14 +438,14 @@ internal static class Program
                     || !string.Equals(currentTmp, expectedTmpDir, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new InvalidOperationException(
-                        $"进程 TEMP/TMP 未重定向到数据根目录 tmp 子目录：expected={expectedTmpDir}, TEMP={currentTemp}, TMP={currentTmp}");
+                        L.Format("Gui_SelfTestTempNotRedirected", expectedTmpDir, currentTemp, currentTmp));
                 }
             }
 
             var probeResult = AgpPaths.ProbeDirectoryWritable(activeAgpRoot);
             if (!probeResult.IsWritable)
             {
-                throw new InvalidOperationException($"数据根目录试写自检失败：{probeResult.ErrorMessage}");
+                throw new InvalidOperationException(L.Format("Gui_SelfTestProbeFailed", probeResult.ErrorMessage));
             }
 
             var sampleOutputRoot = AgpPaths.GetDefaultOutputRootForAgpRoot(activeAgpRoot);
@@ -396,24 +455,26 @@ internal static class Program
                 "24250053");
             if (string.IsNullOrWhiteSpace(sampleOutput))
             {
-                throw new InvalidOperationException("默认输出路径计算自检失败。");
+                throw new InvalidOperationException(L.Get("Gui_SelfTestOutputCalcFailed"));
             }
 
-            var serialized = TextOutput.SerializeSystemJson(new GuiSettings(sampleOutputRoot, true));
+            var serialized = TextOutput.SerializeSystemJson(new GuiSettings(sampleOutputRoot, true, Localization.DefaultLanguage));
             var deserialized = JsonSerializer.Deserialize<GuiSettings>(serialized);
-            if (deserialized is null || !deserialized.IncludeJmap)
+            if (deserialized is null
+                || !deserialized.IncludeJmap
+                || !string.Equals(deserialized.Language, Localization.DefaultLanguage, StringComparison.Ordinal))
             {
-                throw new InvalidOperationException("配置 JSON 序列化自检失败。");
+                throw new InvalidOperationException(L.Get("Gui_SelfTestSettingsJsonFailed"));
             }
 
-            startupLog.WriteInfo("自检：正在构造 MainForm 并调用 CreateControl()（不显示窗口）...");
+            startupLog.WriteInfo(L.Get("Gui_SelfTestCreatingMainForm"));
             using (var form = new MainForm(startupLog, agpResolution))
             {
                 form.CreateControl();
                 var handle = form.Handle;
                 if (handle == IntPtr.Zero || !form.IsHandleCreated)
                 {
-                    throw new InvalidOperationException("主窗口句柄创建失败。");
+                    throw new InvalidOperationException(L.Get("Gui_SelfTestMainFormHandleFailed"));
                 }
 
                 EnsureChildControlHandlesCreated(form);
@@ -421,27 +482,32 @@ internal static class Program
 
                 if (form.Visible)
                 {
-                    throw new InvalidOperationException("自检期间主窗口不应可见。");
+                    throw new InvalidOperationException(L.Get("Gui_SelfTestMainFormShouldBeHidden"));
                 }
 
-                startupLog.WriteInfo(string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"自检：MainForm 创建成功（handle=0x{handle.ToInt64():X}, topControls={form.Controls.Count}），正在校验 SettingsDialog。"));
+                startupLog.WriteInfo(L.Format(
+                    "Gui_SelfTestMainFormCreated",
+                    handle.ToInt64().ToString("X", CultureInfo.InvariantCulture),
+                    form.Controls.Count));
 
                 using var settingsDialog = new SettingsDialog(agpResolution, form.Font, form.Font);
                 settingsDialog.CreateControl();
                 if (settingsDialog.Handle == IntPtr.Zero || !settingsDialog.IsHandleCreated)
                 {
-                    throw new InvalidOperationException("设置对话框句柄创建失败。");
+                    throw new InvalidOperationException(L.Get("Gui_SelfTestSettingsHandleFailed"));
                 }
 
                 EnsureChildControlHandlesCreated(settingsDialog);
                 settingsDialog.PerformLayout();
             }
 
-            startupLog.WriteInfo(string.Create(
-                CultureInfo.InvariantCulture,
-                $"自检通过：assembly={winFormsAssembly}, dpi={highDpiMode}, integrity={agpResolution.Integrity.Label}, data_root={agpResolution.ToolRoot}, appid={SteamLocator.ResonanceGame.AppId}"));
+            startupLog.WriteInfo(L.Format(
+                "Gui_SelfTestPassed",
+                winFormsAssembly,
+                highDpiMode,
+                agpResolution.Integrity.Label,
+                agpResolution.ToolRoot,
+                SteamLocator.ResonanceGame.AppId));
             Debug.WriteLine(string.Create(
                 CultureInfo.InvariantCulture,
                 $"self-test ok: {winFormsAssembly}, dpi={highDpiMode}, integrity={agpResolution.Integrity.Label}, appid={SteamLocator.ResonanceGame.AppId}"));
@@ -476,7 +542,7 @@ internal static class Program
             var childHandle = child.Handle;
             if (childHandle == IntPtr.Zero || !child.IsHandleCreated)
             {
-                throw new InvalidOperationException($"子控件 {child.GetType().Name} 句柄创建失败。");
+                throw new InvalidOperationException(L.Format("Gui_SelfTestChildHandleFailed", child.GetType().Name));
             }
 
             EnsureChildControlHandlesCreated(child);
@@ -494,7 +560,7 @@ internal static class Program
         }
         catch (Exception dialogException)
         {
-            startupLog.WriteException("MessageBox.Show 失败", dialogException);
+            startupLog.WriteException(L.Get("Gui_LogMessageBoxFailed"), dialogException);
             ShowNativeMessageBoxSafely(message, caption, MbOk | MbIconError);
         }
     }

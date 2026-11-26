@@ -26,8 +26,7 @@ internal static class MappingDiscovery
     internal const string RelativeUe4ssSubpath = "FFRS/Binaries/Win64/ue4ss";
     internal const string RelativeWin64Subpath = "FFRS/Binaries/Win64";
 
-    internal const string UsmapNotFoundGuidance =
-        "未自动找到 .usmap 文件。可点击下方「一键获取 .usmap（会启动一次游戏）」自动转储，或点击「选择 .usmap…」手动指定。";
+    internal static string UsmapNotFoundGuidance => L.Get("GuiCore_UsmapNotFoundGuidance");
 
     /// <summary>
     /// Searches %LOCALAPPDATA%\agp\ffr-export\usmap\*.usmap and FFRS\Binaries\Win64\ue4ss\*.usmap first
@@ -88,7 +87,7 @@ internal static class MappingDiscovery
         if (primaryFiles.Count > 0)
         {
             var ordered = OrderNewestFirstPreferringAgp(primaryFiles);
-            var partialError = errors.Count > 0 ? string.Join("；", errors) : null;
+            var partialError = errors.Count > 0 ? string.Join(L.Get("Common_SemicolonSeparator"), errors) : null;
             return new UsmapDiscoveryResult(ordered[0], ordered, null, partialError);
         }
 
@@ -102,15 +101,14 @@ internal static class MappingDiscovery
         if (win64Scan.Files.Count > 0)
         {
             var ordered = OrderNewestFirstPreferringAgp(win64Scan.Files);
-            var partialError = errors.Count > 0 ? string.Join("；", errors) : null;
+            var partialError = errors.Count > 0 ? string.Join(L.Get("Common_SemicolonSeparator"), errors) : null;
             return new UsmapDiscoveryResult(ordered[0], ordered, null, partialError);
         }
 
         if (errors.Count > 0)
         {
-            var combinedError = string.Join("；", errors);
-            var errorGuidance =
-                $"自动查找 .usmap 失败（{combinedError}）。请检查目录权限，或点击「一键获取 .usmap」/「选择 .usmap…」。";
+            var combinedError = string.Join(L.Get("Common_SemicolonSeparator"), errors);
+            var errorGuidance = L.Format("GuiCore_UsmapDiscoveryErrorGuidance", combinedError);
             return new UsmapDiscoveryResult(null, [], errorGuidance, combinedError);
         }
 
@@ -174,15 +172,26 @@ internal static class MappingDiscovery
             }
         }
 
-        var combinedError = errors.Count > 0 ? string.Join("；", errors) : null;
+        var combinedError = errors.Count > 0 ? string.Join(L.Get("Common_SemicolonSeparator"), errors) : null;
         return new JmapDiscoveryResult(results, combinedError);
     }
 
-    internal static DiscoveredMappingFile CreateFromExistingFile(string filePath, string sourceLabel = "手动选择")
+    internal static DiscoveredMappingFile CreateFromExistingFile(string filePath, string sourceLabel = "manual")
     {
         var fullPath = Path.GetFullPath(filePath);
         var modifiedUtc = TryReadLastWriteTimeUtc(fullPath);
         return new DiscoveredMappingFile(fullPath, Path.GetFileName(fullPath), modifiedUtc, sourceLabel);
+    }
+
+    internal static string FormatSourceLabel(string sourceLabel)
+    {
+        return sourceLabel switch
+        {
+            "manual" => L.Get("GuiCore_SourceManualSelect"),
+            "manual-add" => L.Get("GuiCore_SourceManualAdd"),
+            "fetched" => L.Get("GuiCore_SourceFetched"),
+            _ => sourceLabel,
+        };
     }
 
     internal static string FormatUsmapDisplay(
@@ -193,10 +202,10 @@ internal static class MappingDiscovery
         var formattedDate = FormatModifiedDate(file.LastWriteTimeUtc, displayTimeZone);
         if (candidateCount > 1)
         {
-            return $"{file.FileName}（修改日期：{formattedDate}，共找到 {candidateCount} 份，已选最新）";
+            return L.Format("GuiCore_UsmapDisplayMultiple", file.FileName, formattedDate, candidateCount);
         }
 
-        return $"{file.FileName}（修改日期：{formattedDate}）";
+        return L.Format("GuiCore_UsmapDisplaySingle", file.FileName, formattedDate);
     }
 
     internal static string FormatJmapDisplay(
@@ -204,7 +213,7 @@ internal static class MappingDiscovery
         TimeZoneInfo? displayTimeZone = null)
     {
         var formattedDate = FormatModifiedDate(file.LastWriteTimeUtc, displayTimeZone);
-        return $"{file.FileName}（修改日期：{formattedDate}，{file.SourceLabel}） — {file.FullPath}";
+        return L.Format("GuiCore_JmapDisplay", file.FileName, formattedDate, FormatSourceLabel(file.SourceLabel), file.FullPath);
     }
 
     internal static string FormatModifiedDate(
@@ -213,7 +222,7 @@ internal static class MappingDiscovery
     {
         if (lastWriteTimeUtc == DateTimeOffset.MinValue)
         {
-            return "未知";
+            return L.Get("Common_Unknown");
         }
 
         TimeZoneInfo targetZone;
@@ -255,7 +264,7 @@ internal static class MappingDiscovery
         }
         catch (Exception exception)
         {
-            return (results, $"无法访问目录 {directoryPath}：{exception.Message}");
+            return (results, L.Format("GuiCore_ScanDirCannotAccess", directoryPath, exception.Message));
         }
 
         try
@@ -285,11 +294,11 @@ internal static class MappingDiscovery
         }
         catch (UnauthorizedAccessException exception)
         {
-            return (results, $"无权读取目录 {directoryPath}：{exception.Message}");
+            return (results, L.Format("GuiCore_ScanDirAccessDenied", directoryPath, exception.Message));
         }
         catch (Exception exception)
         {
-            return (results, $"扫描目录 {directoryPath} 失败：{exception.Message}");
+            return (results, L.Format("GuiCore_ScanDirFailed", directoryPath, exception.Message));
         }
 
         return (results, null);

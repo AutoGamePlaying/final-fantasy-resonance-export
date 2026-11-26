@@ -81,8 +81,8 @@ internal sealed class GuiStartupLogSession
         }
 
         var timestamp = DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss.fff zzz", CultureInfo.InvariantCulture);
-        var text = $"[{timestamp}] [ERROR] 阶段：{context}{TextOutput.LineEnding}"
-            + $"非 Exception 未处理异常对象：{exceptionObject?.ToString() ?? "(null)"}{TextOutput.LineEnding}";
+        var text = L.Format("GuiCore_LogStageLine", timestamp, context) + TextOutput.LineEnding
+            + L.Format("GuiCore_LogNonExceptionObject", exceptionObject?.ToString() ?? "(null)") + TextOutput.LineEnding;
         AppendRawText(text);
     }
 
@@ -294,7 +294,7 @@ internal static class GuiStartupLog
                 : PathSupport.TrimTrailingSeparators(Path.GetFullPath(logsDirectoryOverride));
             if (targetDir is null)
             {
-                primaryError = "未指定可写的日志目录";
+                primaryError = L.Get("GuiCore_LogNoWritableDir");
             }
         }
         else
@@ -309,7 +309,7 @@ internal static class GuiStartupLog
             else
             {
                 targetDir = null;
-                primaryError = effectiveResolution.ErrorMessage ?? "没有可写的数据目录";
+                primaryError = effectiveResolution.ErrorMessage ?? L.Get("GuiCore_LogNoWritableDataDir");
             }
         }
 
@@ -321,7 +321,7 @@ internal static class GuiStartupLog
                 usedFallbackDirectory: usedFallback,
                 primaryDirectoryError: primaryError,
                 isWritable: false,
-                lastWriteError: primaryError ?? "没有可写的数据目录，未写入日志文件");
+                lastWriteError: primaryError ?? L.Get("GuiCore_LogNotWrittenNoDataDir"));
         }
 
         var enrichedInfo = string.IsNullOrWhiteSpace(startupInfo.DataRoot) && effectiveResolution?.ToolRoot is not null
@@ -355,7 +355,7 @@ internal static class GuiStartupLog
             usedFallbackDirectory: usedFallback,
             primaryDirectoryError: primaryError ?? writeError,
             isWritable: false,
-            lastWriteError: writeError ?? "无法创建启动日志文件");
+            lastWriteError: writeError ?? L.Get("GuiCore_LogCreateFailed"));
     }
 
     /// <summary>
@@ -463,7 +463,7 @@ internal static class GuiStartupLog
 
         var ts = (timestamp ?? DateTimeOffset.Now).ToString("yyyy-MM-dd HH:mm:ss.fff zzz", CultureInfo.InvariantCulture);
         var sb = new StringBuilder();
-        sb.AppendLine($"[{ts}] [ERROR] 阶段：{SanitizeSingleLine(context)}");
+        sb.AppendLine(L.Format("GuiCore_LogStageLine", ts, SanitizeSingleLine(context)));
         AppendExceptionBlock(sb, exception, depth: 0);
         return sb.ToString();
     }
@@ -472,32 +472,38 @@ internal static class GuiStartupLog
         Exception exception,
         string? logFilePath,
         string? logError = null,
-        string headline = "窗口程序启动失败")
+        string? headline = null)
     {
         ArgumentNullException.ThrowIfNull(exception);
 
+        var effectiveHeadline = string.IsNullOrWhiteSpace(headline)
+            ? L.Get("GuiCore_CrashDefaultHeadline")
+            : headline;
+
         var sb = new StringBuilder();
-        sb.AppendLine($"{headline}。");
+        sb.AppendLine(effectiveHeadline);
         sb.AppendLine();
-        sb.AppendLine($"异常信息：{exception.GetType().Name}: {exception.Message}");
+        sb.AppendLine(L.Format("GuiCore_CrashExceptionLine", exception.GetType().Name, exception.Message));
 
         if (exception.InnerException is not null)
         {
-            sb.AppendLine(
-                $"内部异常：{exception.InnerException.GetType().Name}: {exception.InnerException.Message}");
+            sb.AppendLine(L.Format(
+                "GuiCore_CrashInnerExceptionLine",
+                exception.InnerException.GetType().Name,
+                exception.InnerException.Message));
         }
 
         sb.AppendLine();
         if (!string.IsNullOrWhiteSpace(logFilePath))
         {
-            sb.AppendLine($"日志文件：{logFilePath}");
-            sb.Append("请将上述日志文件发送给开发者，以便定位问题。");
+            sb.AppendLine(L.Format("GuiCore_CrashLogFileLine", logFilePath));
+            sb.Append(L.Get("GuiCore_CrashSendLogToDev"));
         }
         else
         {
-            var reason = string.IsNullOrWhiteSpace(logError) ? "日志目录不可写" : logError;
-            sb.AppendLine($"日志文件：未能写入日志文件（{reason}）");
-            sb.Append("请将本错误窗口截图发送给开发者，以便定位问题。");
+            var reason = string.IsNullOrWhiteSpace(logError) ? L.Get("GuiCore_CrashLogDirUnwritable") : logError;
+            sb.AppendLine(L.Format("GuiCore_CrashLogNotWrittenLine", reason));
+            sb.Append(L.Get("GuiCore_CrashSendScreenshotToDev"));
         }
 
         return sb.ToString();
@@ -511,11 +517,11 @@ internal static class GuiStartupLog
         ArgumentNullException.ThrowIfNull(exception);
 
         var logLine = !string.IsNullOrWhiteSpace(logFilePath)
-            ? $"日志文件：{logFilePath}"
-            : $"日志文件：未能写入（{logError ?? "未知原因"}）";
+            ? L.Format("GuiCore_CrashLogFileLine", logFilePath)
+            : L.Format("GuiCore_SelfTestLogNotWritten", logError ?? L.Get("Common_UnknownReason"));
 
         var sb = new StringBuilder();
-        sb.AppendLine($"窗口程序自检失败：{exception.GetType().FullName}: {exception.Message}");
+        sb.AppendLine(L.Format("GuiCore_SelfTestFailedLine", exception.GetType().FullName, exception.Message));
         sb.AppendLine(logLine);
         sb.Append(FormatExceptionDetails("self-test", exception));
         return sb.ToString();
@@ -542,25 +548,34 @@ internal static class GuiStartupLog
         }
 
         var ts = timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff zzz", CultureInfo.InvariantCulture);
-        lines.Add(
-            $"[{ts}] [INFO] 进程完整性级别：{SanitizeSingleLine(resolution.Integrity.DisplayTextZh)} " +
-            $"({SanitizeSingleLine(resolution.Integrity.FormatForLog())})；数据目录来源={resolution.Source}；路径={SanitizeSingleLine(resolution.ToolRoot)}");
+        lines.Add(L.Format(
+            "GuiCore_LogIntegrityInfoLine",
+            ts,
+            SanitizeSingleLine(resolution.Integrity.DisplayText),
+            SanitizeSingleLine(resolution.Integrity.FormatForLog()),
+            resolution.Source,
+            SanitizeSingleLine(resolution.ToolRoot)));
 
         if (resolution.Failures.Count > 0)
         {
             foreach (var failure in resolution.Failures)
             {
-                lines.Add(
-                    $"[{ts}] [WARN] 跳过不可写候选目录：{SanitizeSingleLine(failure.Label)} " +
-                    $"({SanitizeSingleLine(failure.Path)})：{SanitizeSingleLine(failure.Reason)}");
+                lines.Add(L.Format(
+                    "GuiCore_LogSkippedCandidateLine",
+                    ts,
+                    SanitizeSingleLine(failure.Label),
+                    SanitizeSingleLine(failure.Path),
+                    SanitizeSingleLine(failure.Reason)));
             }
         }
 
         if (resolution.Source == AgpRootSource.UserSelected && !resolution.LocationFileSaved)
         {
-            lines.Add(
-                $"[{ts}] [WARN] 未能保存 {AgpPaths.SavedLocationFileName}（下次启动时需重新选择数据目录）：" +
-                $"{SanitizeSingleLine(resolution.LocationFileSaveError ?? "程序目录不可写")}");
+            lines.Add(L.Format(
+                "GuiCore_LogLocationSaveFailedLine",
+                ts,
+                AgpPaths.SavedLocationFileName,
+                SanitizeSingleLine(resolution.LocationFileSaveError ?? L.Get("GuiCore_ExeDirUnwritable"))));
         }
 
         return lines;
@@ -573,17 +588,17 @@ internal static class GuiStartupLog
 
     private static void AppendExceptionBlock(StringBuilder sb, Exception exception, int depth)
     {
-        sb.AppendLine($"异常类型：{exception.GetType().FullName ?? exception.GetType().Name}");
-        sb.AppendLine($"异常消息：{exception.Message}");
-        sb.AppendLine(string.Create(CultureInfo.InvariantCulture, $"HResult：0x{exception.HResult:X8}"));
-        sb.AppendLine("堆栈跟踪：");
-        sb.AppendLine(string.IsNullOrWhiteSpace(exception.StackTrace) ? "(无堆栈信息)" : exception.StackTrace);
+        sb.AppendLine(L.Format("GuiCore_LogExceptionType", exception.GetType().FullName ?? exception.GetType().Name));
+        sb.AppendLine(L.Format("GuiCore_LogExceptionMessage", exception.Message));
+        sb.AppendLine(L.Format("GuiCore_LogHResult", exception.HResult.ToString("X8", CultureInfo.InvariantCulture)));
+        sb.AppendLine(L.Get("GuiCore_LogStackTraceHeader"));
+        sb.AppendLine(string.IsNullOrWhiteSpace(exception.StackTrace) ? L.Get("GuiCore_LogNoStackTrace") : exception.StackTrace);
 
         if (depth >= MaxInnerExceptionDepth)
         {
             if (exception.InnerException is not null)
             {
-                sb.AppendLine("...（InnerException 嵌套层数过多，已截断）");
+                sb.AppendLine(L.Get("GuiCore_LogInnerTruncated"));
             }
 
             return;
