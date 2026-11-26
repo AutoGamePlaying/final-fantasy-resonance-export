@@ -17,6 +17,11 @@ internal static class Program
         Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), utf8NoBom) { AutoFlush = true });
         Console.SetError(new StreamWriter(Console.OpenStandardError(), utf8NoBom) { AutoFlush = true });
 
+        if (args.Length > 0 && string.Equals(args[0], "--fixture-export", StringComparison.Ordinal))
+        {
+            return await FixtureExportRunner.RunAsync(args[1..]);
+        }
+
         var assembly = Assembly.Load("FfrExport");
         var entryPoint = assembly.EntryPoint
             ?? throw new InvalidOperationException("找不到 FfrExport 程序入口点");

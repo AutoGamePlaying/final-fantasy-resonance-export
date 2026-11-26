@@ -13,5 +13,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FfrExport\FfrExport.csproj" />
+    <Compile Include="..\FfrExport.Tests\SyntheticFixtureBuilder.cs" Link="SyntheticFixtureBuilder.cs" />
   </ItemGroup>
 </Project>

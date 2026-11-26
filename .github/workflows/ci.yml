@@ -117,19 +117,42 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
     steps:
-      - name: Disable Git autocrlf for consistent fixture bytes
+      - name: Disable Git autocrlf and configure .NET cache paths
         shell: bash
-        run: git config --global core.autocrlf false
+        run: |
+          git config --global core.autocrlf false
+          {
+            echo "DOTNET_CLI_HOME=${RUNNER_TEMP}/dotnet-home"
+            echo "NUGET_PACKAGES=${RUNNER_TEMP}/nuget"
+            echo "NUGET_HTTP_CACHE_PATH=${RUNNER_TEMP}/nuget-http"
+            echo "AGP_HOME=${RUNNER_TEMP}/agp-home"
+          } >> "${GITHUB_ENV}"
 
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: '10.0.x'
 
       - name: Setup Rust stable
         id: rust
         uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           toolchain: stable
+
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/nuget
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
       - name: Cache Cargo registry and build artifacts
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -152,11 +175,26 @@ jobs:
         run: |
           bash scripts/fixture-db.sh --hash-out "${RUNNER_TEMP}/fixture-hash-${MATRIX_OS}.json"
 
+      - name: Run synthetic export and collect file SHA-256 manifest
+        shell: bash
+        env:
+          MATRIX_OS: ${{ matrix.os }}
+        run: |
+          bash scripts/fixture-export.sh --manifest-out "${RUNNER_TEMP}/fixture-export-${MATRIX_OS}.json"
+
       - name: Upload fixture hash report
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fixture-hash-${{ matrix.os }}
           path: ${{ runner.temp }}/fixture-hash-${{ matrix.os }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload fixture export manifest
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fixture-export-${{ matrix.os }}
+          path: ${{ runner.temp }}/fixture-export-${{ matrix.os }}.json
           if-no-files-found: error
           retention-days: 7
 
@@ -170,6 +208,13 @@ jobs:
         with:
           pattern: fixture-hash-*
           path: ${{ runner.temp }}/hashes
+          merge-multiple: true
+
+      - name: Download fixture export manifests
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: fixture-export-*
+          path: ${{ runner.temp }}/exports
           merge-multiple: true
 
       - name: Compare Linux and Windows database hashes
@@ -226,6 +271,55 @@ jobs:
               sys.exit(1)
 
           print(f"核对通过：Linux 与 Windows 哈希完全一致（共 {len(all_names)} 张表）。")
+          PY
+
+      - name: Compare Linux and Windows export file manifests
+        shell: bash
+        run: |
+          python3 - "${RUNNER_TEMP}/exports/fixture-export-ubuntu-latest.json" "${RUNNER_TEMP}/exports/fixture-export-windows-latest.json" <<'PY'
+          import json
+          import sys
+
+          linux_path, win_path = sys.argv[1], sys.argv[2]
+          with open(linux_path, "r", encoding="utf-8") as f:
+              linux_data = json.load(f)
+          with open(win_path, "r", encoding="utf-8") as f:
+              win_data = json.load(f)
+
+          linux_files = {item["path"]: item for item in linux_data.get("files", [])}
+          win_files = {item["path"]: item for item in win_data.get("files", [])}
+          all_paths = sorted(set(linux_files) | set(win_files))
+
+          print(f"Linux   export files: {len(linux_files)} ({linux_data.get('os')})")
+          print(f"Windows export files: {len(win_files)} ({win_data.get('os')})")
+
+          if not all_paths:
+              print("错误：合成导出清单为空！", file=sys.stderr)
+              sys.exit(1)
+
+          diff_files = []
+          for rel_path in all_paths:
+              lf = linux_files.get(rel_path)
+              wf = win_files.get(rel_path)
+              if lf is None:
+                  diff_files.append(f"  - {rel_path}: Linux 缺失，Windows size={wf['size']} sha256={wf['sha256']}")
+              elif wf is None:
+                  diff_files.append(f"  - {rel_path}: Windows 缺失，Linux size={lf['size']} sha256={lf['sha256']}")
+              else:
+                  mismatches = []
+                  for key in ("sha256", "size", "has_cr", "has_bom", "normalized_volatile"):
+                      if lf.get(key) != wf.get(key):
+                          mismatches.append(f"{key}: Linux={lf.get(key)} != Windows={wf.get(key)}")
+                  if mismatches:
+                      diff_files.append(f"  - {rel_path}: " + "; ".join(mismatches))
+
+          if diff_files:
+              print(f"错误：Linux 与 Windows 合成导出存在差异（共 {len(diff_files)} 个文件）：", file=sys.stderr)
+              for line in diff_files:
+                  print(line, file=sys.stderr)
+              sys.exit(1)
+
+          print(f"导出核对通过：Linux 与 Windows 全部 {len(all_paths)} 个输出文件 SHA-256 完全一致。")
           PY
 
   package-windows:
