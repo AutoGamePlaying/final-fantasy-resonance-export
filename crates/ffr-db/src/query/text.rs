@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::GameDb;
 use crate::error::{DbError, Result};
+use crate::schema::LangCol;
 
 /// One localized text search result (from `text`, which excludes untranslated non-native rows).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -43,13 +44,76 @@ pub struct UntranslatedField<K> {
     pub value: String,
 }
 
+/// Exposed SQL statements executed by `01_text` queries so integration tests can verify every
+/// query plan with `assert_db_uses_index`.
+pub mod sql {
+    pub const TEXT_BY_KEY_JA: &str = "SELECT ja FROM text WHERE ns = ?1 AND key = ?2";
+    pub const TEXT_BY_KEY_EN: &str = "SELECT en FROM text WHERE ns = ?1 AND key = ?2";
+    pub const TEXT_BY_KEY_ZH: &str = "SELECT zh FROM text WHERE ns = ?1 AND key = ?2";
+    pub const TEXT_ALL_LANGS: &str = "SELECT en, ja, zh FROM text WHERE ns = ?1 AND key = ?2";
+    pub const TEXT_LANGUAGE_COLUMN: &str = "SELECT column_name FROM text_language WHERE lang = ?1";
+
+    pub const SEARCH_TEXT_FTS_JA: &str = "\
+        SELECT t.ns, t.key, t.ja \
+        FROM text_fts JOIN text AS t ON t.id = text_fts.rowid \
+        WHERE text_fts MATCH ?1 \
+        ORDER BY t.ns, t.key LIMIT ?2";
+    pub const SEARCH_TEXT_FTS_EN: &str = "\
+        SELECT t.ns, t.key, t.en \
+        FROM text_fts JOIN text AS t ON t.id = text_fts.rowid \
+        WHERE text_fts MATCH ?1 \
+        ORDER BY t.ns, t.key LIMIT ?2";
+    pub const SEARCH_TEXT_FTS_ZH: &str = "\
+        SELECT t.ns, t.key, t.zh \
+        FROM text_fts JOIN text AS t ON t.id = text_fts.rowid \
+        WHERE text_fts MATCH ?1 \
+        ORDER BY t.ns, t.key LIMIT ?2";
+    pub const SEARCH_TEXT_FTS_ALL: &str = "\
+        SELECT t.ns, t.key, t.en, t.ja, t.zh \
+        FROM text_fts JOIN text AS t ON t.id = text_fts.rowid \
+        WHERE text_fts MATCH ?1 \
+        ORDER BY t.ns, t.key LIMIT ?2";
+
+    pub const SEARCH_TEXT_LIKE_JA: &str = "\
+        SELECT ns, key, ja \
+        FROM text INDEXED BY idx_text_ja \
+        WHERE ja IS NOT NULL AND ja LIKE ?1 ESCAPE '\\' \
+        ORDER BY ns, key LIMIT ?2";
+    pub const SEARCH_TEXT_LIKE_EN: &str = "\
+        SELECT ns, key, en \
+        FROM text INDEXED BY idx_text_en \
+        WHERE en IS NOT NULL AND en LIKE ?1 ESCAPE '\\' \
+        ORDER BY ns, key LIMIT ?2";
+    pub const SEARCH_TEXT_LIKE_ZH: &str = "\
+        SELECT ns, key, zh \
+        FROM text INDEXED BY idx_text_zh \
+        WHERE zh IS NOT NULL AND zh LIKE ?1 ESCAPE '\\' \
+        ORDER BY ns, key LIMIT ?2";
+    pub const SEARCH_TEXT_LIKE_ALL: &str = "\
+        SELECT ns, key, 'en' AS lang, en AS value \
+        FROM text INDEXED BY idx_text_en \
+        WHERE en IS NOT NULL AND en LIKE ?1 ESCAPE '\\' \
+        UNION ALL \
+        SELECT ns, key, 'ja' AS lang, ja AS value \
+        FROM text INDEXED BY idx_text_ja \
+        WHERE ja IS NOT NULL AND ja LIKE ?1 ESCAPE '\\' \
+        UNION ALL \
+        SELECT ns, key, 'zh-Hans' AS lang, zh AS value \
+        FROM text INDEXED BY idx_text_zh \
+        WHERE zh IS NOT NULL AND zh LIKE ?1 ESCAPE '\\' \
+        ORDER BY ns, key, lang LIMIT ?2";
+}
+
 impl GameDb {
-    /// Look up one translated localized string (or native `ja` string) by its primary key.
+    /// Look up one translated localized string (or native `ja` string) by `(ns, key, lang)`.
     ///
     /// Game-official untranslated entries live in `text_untranslated` instead of `text`, so this
     /// strictly returns `None` for them.
     pub fn text(&self, ns: &str, key: &str, lang: &str) -> Result<Option<String>> {
-        self.with_conn(|conn| lookup_text(conn, ns, key, lang))
+        let Some(col) = LangCol::from_lang(lang) else {
+            return Ok(None);
+        };
+        self.with_conn(|conn| lookup_text_col(conn, ns, key, col))
     }
 
     /// Return all translated entries (plus native `ja`) as `(lang, value)` pairs ordered by
@@ -57,26 +121,24 @@ impl GameDb {
     pub fn text_all_langs(&self, ns: &str, key: &str) -> Result<Vec<(String, String)>> {
         self.with_conn(|conn| {
             let mut stmt = conn
-                .prepare_cached(
-                    "SELECT lang, value FROM text \
-                     WHERE ns = ?1 AND key = ?2 \
-                     ORDER BY lang",
-                )
+                .prepare_cached(sql::TEXT_ALL_LANGS)
                 .map_err(|err| DbError::sqlite("准备查询 text 的全部语言", err))?;
-            let mut rows = stmt
-                .query(params![ns, key])
+            let row: Option<(Option<String>, Option<String>, Option<String>)> = stmt
+                .query_row(params![ns, key], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+                .optional()
                 .map_err(|err| DbError::sqlite("查询 text 的全部语言", err))?;
-            let mut out = Vec::new();
-            while let Some(row) = rows
-                .next()
-                .map_err(|err| DbError::sqlite("读取 text 的全部语言", err))?
-            {
-                out.push((
-                    row.get(0)
-                        .map_err(|err| DbError::sqlite("读取 text.lang", err))?,
-                    row.get(1)
-                        .map_err(|err| DbError::sqlite("读取 text.value", err))?,
-                ));
+            let Some((en, ja, zh)) = row else {
+                return Ok(Vec::new());
+            };
+            let mut out = Vec::with_capacity(3);
+            for (lang, value) in [
+                (LangCol::En.lang(), en),
+                (LangCol::Ja.lang(), ja),
+                (LangCol::Zh.lang(), zh),
+            ] {
+                if let Some(val) = value {
+                    out.push((lang.to_owned(), val));
+                }
             }
             Ok(out)
         })
@@ -192,8 +254,9 @@ impl GameDb {
         })
     }
 
-    /// Search localized values in `text` by literal substring, using trigram FTS or a short-query
-    /// LIKE fallback.
+    /// Search localized values in `text` by literal substring, using 3-column trigram FTS5
+    /// (with column filtering when `lang` is specified) or a short-query covering-index LIKE
+    /// fallback.
     pub fn search_text(
         &self,
         query: &str,
@@ -203,53 +266,89 @@ impl GameDb {
         if query.is_empty() || limit == 0 {
             return Ok(Vec::new());
         }
-        let limit = i64::try_from(limit).unwrap_or(i64::MAX);
+        let limit_i64 = i64::try_from(limit).unwrap_or(i64::MAX);
         self.with_conn(|conn| {
             if query.chars().count() >= 3 {
-                let match_query = format!("\"{}\"", query.replace('"', "\"\""));
                 if let Some(lang) = lang {
+                    let Some(col) = LangCol::from_lang(lang) else {
+                        return Ok(Vec::new());
+                    };
+                    let match_query = fts_column_phrase(col, query);
+                    let query_sql = match col {
+                        LangCol::Ja => sql::SEARCH_TEXT_FTS_JA,
+                        LangCol::En => sql::SEARCH_TEXT_FTS_EN,
+                        LangCol::Zh => sql::SEARCH_TEXT_FTS_ZH,
+                    };
                     let mut stmt = conn
-                        .prepare_cached(
-                            "SELECT t.ns, t.key, t.lang, t.value \
-                             FROM text_fts JOIN text AS t ON t.id = text_fts.rowid \
-                             WHERE text_fts MATCH ?1 AND t.lang = ?2 \
-                             ORDER BY t.ns, t.key LIMIT ?3",
-                        )
+                        .prepare_cached(query_sql)
                         .map_err(|err| DbError::sqlite("准备按语言 trigram 文本搜索", err))?;
-                    query_hits(&mut stmt, params![match_query, lang, limit])
+                    query_single_lang_hits(&mut stmt, params![match_query, limit_i64], col.lang())
                 } else {
+                    let match_query = fts_all_columns_phrase(query);
+                    let query_lower = query.to_lowercase();
                     let mut stmt = conn
-                        .prepare_cached(
-                            "SELECT t.ns, t.key, t.lang, t.value \
-                             FROM text_fts JOIN text AS t ON t.id = text_fts.rowid \
-                             WHERE text_fts MATCH ?1 \
-                             ORDER BY t.ns, t.key, t.lang LIMIT ?2",
-                        )
+                        .prepare_cached(sql::SEARCH_TEXT_FTS_ALL)
                         .map_err(|err| DbError::sqlite("准备全语言 trigram 文本搜索", err))?;
-                    query_hits(&mut stmt, params![match_query, limit])
+                    let mut rows = stmt
+                        .query(params![match_query, limit_i64])
+                        .map_err(|err| DbError::sqlite("执行全语言 trigram 文本搜索", err))?;
+                    let mut out = Vec::new();
+                    while let Some(row) = rows
+                        .next()
+                        .map_err(|err| DbError::sqlite("读取全语言文本搜索结果", err))?
+                    {
+                        let ns: String = row
+                            .get(0)
+                            .map_err(|err| DbError::sqlite("读取搜索结果的 ns", err))?;
+                        let key: String = row
+                            .get(1)
+                            .map_err(|err| DbError::sqlite("读取搜索结果的 key", err))?;
+                        let cols: [Option<String>; 3] = [
+                            row.get(2)
+                                .map_err(|err| DbError::sqlite("读取搜索结果的 en", err))?,
+                            row.get(3)
+                                .map_err(|err| DbError::sqlite("读取搜索结果的 ja", err))?,
+                            row.get(4)
+                                .map_err(|err| DbError::sqlite("读取搜索结果的 zh", err))?,
+                        ];
+                        for (lang_col, maybe_val) in LangCol::BY_LANG_ORDER.into_iter().zip(cols) {
+                            if let Some(val) = maybe_val
+                                && val.to_lowercase().contains(&query_lower)
+                            {
+                                out.push(TextHit {
+                                    ns: ns.clone(),
+                                    key: key.clone(),
+                                    lang: lang_col.lang().to_owned(),
+                                    value: val,
+                                });
+                                if out.len() >= limit {
+                                    return Ok(out);
+                                }
+                            }
+                        }
+                    }
+                    Ok(out)
                 }
             } else {
                 let pattern = like_pattern(query);
                 if let Some(lang) = lang {
+                    let Some(col) = LangCol::from_lang(lang) else {
+                        return Ok(Vec::new());
+                    };
+                    let query_sql = match col {
+                        LangCol::Ja => sql::SEARCH_TEXT_LIKE_JA,
+                        LangCol::En => sql::SEARCH_TEXT_LIKE_EN,
+                        LangCol::Zh => sql::SEARCH_TEXT_LIKE_ZH,
+                    };
                     let mut stmt = conn
-                        .prepare_cached(
-                            "SELECT ns, key, lang, value \
-                             FROM text INDEXED BY idx_text_lang_ns_key \
-                             WHERE lang = ?1 AND value LIKE ?2 ESCAPE '\\' \
-                             ORDER BY ns, key LIMIT ?3",
-                        )
+                        .prepare_cached(query_sql)
                         .map_err(|err| DbError::sqlite("准备按语言短文本 LIKE 搜索", err))?;
-                    query_hits(&mut stmt, params![lang, pattern, limit])
+                    query_single_lang_hits(&mut stmt, params![pattern, limit_i64], col.lang())
                 } else {
                     let mut stmt = conn
-                        .prepare_cached(
-                            "SELECT ns, key, lang, value \
-                             FROM text INDEXED BY idx_text_lang_ns_key \
-                             WHERE value LIKE ?1 ESCAPE '\\' \
-                             ORDER BY ns, key, lang LIMIT ?2",
-                        )
+                        .prepare_cached(sql::SEARCH_TEXT_LIKE_ALL)
                         .map_err(|err| DbError::sqlite("准备全语言短文本 LIKE 搜索", err))?;
-                    query_hits(&mut stmt, params![pattern, limit])
+                    query_hits(&mut stmt, params![pattern, limit_i64])
                 }
             }
         })
@@ -384,7 +483,40 @@ fn query_hits<P: Params>(stmt: &mut Statement<'_>, params: P) -> Result<Vec<Text
     Ok(out)
 }
 
-fn like_pattern(query: &str) -> String {
+fn query_single_lang_hits<P: Params>(
+    stmt: &mut Statement<'_>,
+    params: P,
+    lang: &str,
+) -> Result<Vec<TextHit>> {
+    let mut rows = stmt
+        .query(params)
+        .map_err(|err| DbError::sqlite("执行文本搜索", err))?;
+    let mut out = Vec::new();
+    while let Some(row) = rows
+        .next()
+        .map_err(|err| DbError::sqlite("读取文本搜索结果", err))?
+    {
+        let value: Option<String> = row
+            .get(2)
+            .map_err(|err| DbError::sqlite("读取搜索结果的 value", err))?;
+        if let Some(value) = value {
+            out.push(TextHit {
+                ns: row
+                    .get(0)
+                    .map_err(|err| DbError::sqlite("读取搜索结果的 ns", err))?,
+                key: row
+                    .get(1)
+                    .map_err(|err| DbError::sqlite("读取搜索结果的 key", err))?,
+                lang: lang.to_owned(),
+                value,
+            });
+        }
+    }
+    Ok(out)
+}
+
+/// Escape `%`, `_`, and `\` for a literal SQLite `LIKE ... ESCAPE '\'` substring match.
+pub(crate) fn like_pattern(query: &str) -> String {
     let mut escaped = String::with_capacity(query.len() + 2);
     escaped.push('%');
     for ch in query.chars() {
@@ -397,8 +529,20 @@ fn like_pattern(query: &str) -> String {
     escaped
 }
 
+/// Build an FTS5 column-filtered literal phrase query (`<col> : "<escaped>"`).
+pub(crate) fn fts_column_phrase(col: LangCol, query: &str) -> String {
+    let escaped = query.replace('"', "\"\"");
+    format!("{} : \"{escaped}\"", col.column())
+}
+
+/// Build an FTS5 all-column literal phrase query (`"<escaped>"`).
+pub(crate) fn fts_all_columns_phrase(query: &str) -> String {
+    let escaped = query.replace('"', "\"\"");
+    format!("\"{escaped}\"")
+}
+
 enum CatalogState {
-    Loaded,
+    Loaded(LangCol),
     NotFound(String),
     Error(String),
 }
@@ -408,14 +552,16 @@ fn catalog_state(conn: &Connection, language: &str) -> Result<CatalogState> {
         return Ok(CatalogState::Error(format!("语言代码不合法：{language}")));
     }
     let mut stmt = conn
-        .prepare_cached("SELECT 1 FROM text_language WHERE lang = ?1")
+        .prepare_cached(sql::TEXT_LANGUAGE_COLUMN)
         .map_err(|err| DbError::sqlite("准备检查本地化语言", err))?;
-    let loaded: Option<i64> = stmt
+    let loaded: Option<String> = stmt
         .query_row([language], |row| row.get(0))
         .optional()
         .map_err(|err| DbError::sqlite("检查本地化语言", err))?;
-    if loaded.is_some() {
-        Ok(CatalogState::Loaded)
+    if let Some(col_name) = loaded
+        && let Some(col) = LangCol::from_column(&col_name)
+    {
+        Ok(CatalogState::Loaded(col))
     } else {
         Ok(CatalogState::NotFound(format!(
             "缺少语言 {language} 的本地化表（可运行 ../final-fantasy-resonance-export/scripts/run.sh locres --lang {language} 导出到 Localization/{language}.json）"
@@ -423,13 +569,20 @@ fn catalog_state(conn: &Connection, language: &str) -> Result<CatalogState> {
     }
 }
 
-fn lookup_text(conn: &Connection, ns: &str, key: &str, lang: &str) -> Result<Option<String>> {
+fn lookup_text_col(conn: &Connection, ns: &str, key: &str, col: LangCol) -> Result<Option<String>> {
+    let query_sql = match col {
+        LangCol::Ja => sql::TEXT_BY_KEY_JA,
+        LangCol::En => sql::TEXT_BY_KEY_EN,
+        LangCol::Zh => sql::TEXT_BY_KEY_ZH,
+    };
     let mut stmt = conn
-        .prepare_cached("SELECT value FROM text WHERE ns = ?1 AND key = ?2 AND lang = ?3")
+        .prepare_cached(query_sql)
         .map_err(|err| DbError::sqlite("准备查询 text", err))?;
-    stmt.query_row(params![ns, key, lang], |row| row.get(0))
+    let value: Option<Option<String>> = stmt
+        .query_row(params![ns, key], |row| row.get(0))
         .optional()
-        .map_err(|err| DbError::sqlite(format!("查询文本 {ns}/{key}（{lang}）"), err))
+        .map_err(|err| DbError::sqlite(format!("查询文本 {ns}/{key}（{}）", col.lang()), err))?;
+    Ok(value.flatten())
 }
 
 fn lookup_text_untranslated(
@@ -506,8 +659,8 @@ fn resolve_string_table(
     if let CatalogState::Error(reason) = &catalog {
         return Ok(missing(language, reason.clone()));
     }
-    if matches!(catalog, CatalogState::Loaded) {
-        if let Some(value) = lookup_text(conn, &namespace, key, language)? {
+    if let CatalogState::Loaded(col) = catalog {
+        if let Some(value) = lookup_text_col(conn, &namespace, key, col)? {
             return Ok(localized(value, language, TextSource::Localization));
         }
         if let Some(value) = lookup_text_untranslated(conn, &namespace, key, language)? {
@@ -565,8 +718,8 @@ fn resolve_inline(
     if let CatalogState::Error(reason) = &catalog {
         return Ok(missing(language, reason.clone()));
     }
-    if matches!(catalog, CatalogState::Loaded) {
-        if let Some(value) = lookup_text(conn, namespace, key, language)? {
+    if let CatalogState::Loaded(col) = catalog {
+        if let Some(value) = lookup_text_col(conn, namespace, key, col)? {
             return Ok(localized(value, language, TextSource::Localization));
         }
         if let Some(value) = lookup_text_untranslated(conn, namespace, key, language)? {

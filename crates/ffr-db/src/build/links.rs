@@ -23,10 +23,10 @@ use ffr_data::world::{
     talk_table_relative_path,
 };
 use ffr_data::{datatable_relative_path_to_json, normalize_row_struct_name};
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, params};
 use serde_json::Value;
 
-use crate::build::{ImportCtx, StageStats, format_untranslated_table_counts};
+use crate::build::{ImportCtx, StageStats, UePathLookup, format_untranslated_table_counts};
 use crate::error::{DbError, Result};
 use crate::query::links::{MapUnit, MapUnitAnimationAsset};
 use crate::record::encode_doc;
@@ -39,9 +39,11 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
     let mut any_subpass_ran = false;
 
     let (non_native_langs, text_untranslated) = load_text_untranslated_lookup(ctx.tx())?;
+    let dt_lookup = load_dt_table_lookup(ctx.tx())?;
+    dt_lookup.record_collisions(ctx)?;
 
     // 1. Talk events, next-event edges, dialogue lines, and level_object -> talk links.
-    match import_talk_chain(ctx, &text_untranslated, &mut skipped_parts)? {
+    match import_talk_chain(ctx, &dt_lookup, &text_untranslated, &mut skipped_parts)? {
         Some(stats) => {
             any_subpass_ran = true;
             total_rows = total_rows.saturating_add(stats.total_rows());
@@ -61,7 +63,7 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
     }
 
     // 2. Map units (`DT_MapUnitAsset`) and `level_object` map-unit reference validation.
-    match import_map_units(ctx, &text_untranslated, &mut skipped_parts)? {
+    match import_map_units(ctx, &dt_lookup, &text_untranslated, &mut skipped_parts)? {
         Some(stats) => {
             any_subpass_ran = true;
             total_rows = total_rows
@@ -128,11 +130,12 @@ impl TalkImportStats {
 
 fn import_talk_chain(
     ctx: &mut ImportCtx<'_>,
+    dt_lookup: &UePathLookup<i64>,
     text_untranslated: &UntranslatedByKey,
     skipped_parts: &mut Vec<String>,
 ) -> Result<Option<TalkImportStats>> {
     let tx = ctx.tx();
-    let Some(talk_table_id) = lookup_dt_table_id(tx, TALK_EVENT_DATA_TABLE)? else {
+    let Some(talk_table_id) = dt_lookup.get(TALK_EVENT_DATA_TABLE).copied() else {
         return Ok(None);
     };
 
@@ -150,8 +153,9 @@ fn import_talk_chain(
     events.sort_by(|a, b| a.id.cmp(&b.id));
 
     // Load upstream lookup indexes once (secondary indexes are not yet created during build).
-    let (seq_by_path, seq_by_lower) = load_sequence_lookup(tx)?;
-    let has_sequences = !seq_by_path.is_empty();
+    let seq_lookup = load_sequence_lookup(tx)?;
+    seq_lookup.record_collisions(ctx)?;
+    let has_sequences = !seq_lookup.is_empty();
     if !has_sequences {
         skipped_parts.push("过场关联（sequence 表为空）".to_owned());
     }
@@ -162,8 +166,8 @@ fn import_talk_chain(
         skipped_parts.push("对话战斗组校验（battle_group 表为空）".to_owned());
     }
 
-    let (dt_by_rel, dt_by_lower) = load_dt_table_lookup(tx)?;
     let string_table_ns = load_string_table_ns_map(tx)?;
+    string_table_ns.record_collisions(ctx)?;
     if string_table_ns.is_empty() {
         skipped_parts.push("对话字符串表命名空间（string_table 表为空，改用路径推断）".to_owned());
     }
@@ -193,10 +197,7 @@ fn import_talk_chain(
         for event in &events {
             let sequence_id = match event.event_sequence_path.as_deref() {
                 Some(seq_path) if has_sequences => {
-                    let resolved = seq_by_path
-                        .get(seq_path)
-                        .or_else(|| seq_by_lower.get(&seq_path.to_ascii_lowercase()))
-                        .copied();
+                    let resolved = seq_lookup.get(seq_path).copied();
                     if resolved.is_none() {
                         let detail = if is_developer_asset_path(seq_path) {
                             format!("对话事件引用了开发者测试过场（未导出）：{seq_path}")
@@ -212,10 +213,9 @@ fn import_talk_chain(
 
             if let Some(table_path) = event.talk_table_path.as_deref() {
                 let matched_dt = talk_table_relative_path(table_path).and_then(|rel| {
-                    dt_by_rel
-                        .get(&rel)
-                        .map(|&tid| (rel.clone(), tid))
-                        .or_else(|| dt_by_lower.get(&rel.to_ascii_lowercase()).cloned())
+                    dt_lookup
+                        .get_entry(&rel)
+                        .map(|(canonical_rel, &tid)| (canonical_rel.to_owned(), tid))
                 });
                 match matched_dt {
                     Some((rel, table_id)) => {
@@ -601,11 +601,12 @@ struct MapUnitImportStats {
 
 fn import_map_units(
     ctx: &mut ImportCtx<'_>,
+    dt_lookup: &UePathLookup<i64>,
     text_untranslated: &UntranslatedByKey,
     skipped_parts: &mut Vec<String>,
 ) -> Result<Option<MapUnitImportStats>> {
     let tx = ctx.tx();
-    let Some(table_id) = lookup_dt_table_id(tx, MAP_UNIT_ASSET_TABLE)? else {
+    let Some(table_id) = dt_lookup.get(MAP_UNIT_ASSET_TABLE).copied() else {
         return Ok(None);
     };
 
@@ -642,10 +643,10 @@ fn import_map_units(
         let shadow_scale = obj.get("shadowScale").and_then(Value::as_f64);
         let specular_scale = obj.get("specularScale").and_then(Value::as_f64);
 
-        let (name_ns, name_key, name_zh) = playable_names
+        let (name_ns, name_key, name_ja, name_en, name_zh) = playable_names
             .get(&id)
             .cloned()
-            .unwrap_or((None, None, None));
+            .unwrap_or((None, None, None, None, None));
 
         units_by_id.insert(
             id,
@@ -655,6 +656,8 @@ fn import_map_units(
                 name: row_key.clone(),
                 name_ns,
                 name_key,
+                name_ja,
+                name_en,
                 name_zh,
                 primary_asset,
                 animations,
@@ -674,8 +677,8 @@ fn import_map_units(
         let mut insert_stmt = tx
             .prepare_cached(
                 "INSERT INTO map_unit \
-                 (id, row_key, name, name_ns, name_key, name_zh, primary_asset, doc) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                 (id, row_key, name, name_ns, name_key, name_ja, name_en, name_zh, primary_asset, doc) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             )
             .map_err(|err| DbError::sqlite("准备写入 map_unit", err))?;
         let mut insert_untrans = tx
@@ -695,6 +698,8 @@ fn import_map_units(
                     unit.name,
                     unit.name_ns,
                     unit.name_key,
+                    unit.name_ja,
+                    unit.name_en,
                     unit.name_zh,
                     unit.primary_asset,
                     doc,
@@ -825,7 +830,9 @@ fn import_class_refs(
 ) -> Result<Option<(u64, u64)>> {
     let tx = ctx.tx();
     let ue_index = UeClassLookup::load(tx)?;
+    ue_index.record_collisions(ctx)?;
     let bp_index = BlueprintLookup::load(tx)?;
+    bp_index.record_collisions(ctx)?;
 
     if ue_index.is_empty() {
         skipped_parts.push("反射类连接（ue_class 表为空）".to_owned());
@@ -933,15 +940,13 @@ pub(crate) fn clean_raw_class_name(raw: &str) -> String {
 }
 
 struct UeClassLookup {
-    by_path: BTreeMap<String, String>,
-    by_path_lower: BTreeMap<String, String>,
+    by_path: UePathLookup<String>,
     by_short: BTreeMap<String, Vec<String>>,
 }
 
 impl UeClassLookup {
     fn load(conn: &Connection) -> Result<Self> {
-        let mut by_path = BTreeMap::new();
-        let mut by_path_lower = BTreeMap::new();
+        let mut by_path = UePathLookup::new();
         let mut by_short: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
         let mut stmt = conn
@@ -960,30 +965,23 @@ impl UeClassLookup {
             let short_name: String = row
                 .get(1)
                 .map_err(|err| DbError::sqlite("读取 ue_class.short_name", err))?;
-            by_path_lower
-                .entry(path.to_ascii_lowercase())
-                .or_insert_with(|| path.clone());
             by_short.entry(short_name).or_default().push(path.clone());
             by_path.insert(path.clone(), path);
         }
 
-        Ok(Self {
-            by_path,
-            by_path_lower,
-            by_short,
-        })
+        Ok(Self { by_path, by_short })
     }
 
     fn is_empty(&self) -> bool {
         self.by_path.is_empty()
     }
 
+    fn record_collisions(&self, ctx: &ImportCtx<'_>) -> Result<()> {
+        self.by_path.record_collisions(ctx)
+    }
+
     fn resolve(&self, cleaned: &str) -> Option<String> {
         if let Some(p) = self.by_path.get(cleaned) {
-            return Some(p.clone());
-        }
-        let lower = cleaned.to_ascii_lowercase();
-        if let Some(p) = self.by_path_lower.get(&lower) {
             return Some(p.clone());
         }
         if cleaned.starts_with('/')
@@ -992,11 +990,7 @@ impl UeClassLookup {
             && !stem.is_empty()
         {
             let with_c = format!("{cleaned}.{stem}_C");
-            if let Some(p) = self
-                .by_path
-                .get(&with_c)
-                .or_else(|| self.by_path_lower.get(&with_c.to_ascii_lowercase()))
-            {
+            if let Some(p) = self.by_path.get(&with_c) {
                 return Some(p.clone());
             }
         }
@@ -1043,16 +1037,14 @@ impl UeClassLookup {
 }
 
 struct BlueprintLookup {
-    by_path: BTreeMap<String, (String, String)>,
-    by_path_lower: BTreeMap<String, (String, String)>,
+    by_path: UePathLookup<(String, String)>,
     by_class: BTreeMap<String, Vec<(String, String)>>,
     by_class_lower: BTreeMap<String, Vec<(String, String)>>,
 }
 
 impl BlueprintLookup {
     fn load(conn: &Connection) -> Result<Self> {
-        let mut by_path = BTreeMap::new();
-        let mut by_path_lower = BTreeMap::new();
+        let mut by_path = UePathLookup::new();
         let mut by_class: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
         let mut by_class_lower: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
 
@@ -1073,9 +1065,6 @@ impl BlueprintLookup {
                 .get(1)
                 .map_err(|err| DbError::sqlite("读取 blueprint.class_name", err))?;
             let pair = (path.clone(), class_name.clone());
-            by_path_lower
-                .entry(path.to_ascii_lowercase())
-                .or_insert_with(|| pair.clone());
             by_class
                 .entry(class_name.clone())
                 .or_default()
@@ -1089,7 +1078,6 @@ impl BlueprintLookup {
 
         Ok(Self {
             by_path,
-            by_path_lower,
             by_class,
             by_class_lower,
         })
@@ -1099,19 +1087,20 @@ impl BlueprintLookup {
         self.by_path.is_empty()
     }
 
+    fn record_collisions(&self, ctx: &ImportCtx<'_>) -> Result<()> {
+        self.by_path.record_collisions(ctx)
+    }
+
     fn resolve(&self, cleaned: &str) -> Option<(String, String)> {
         if cleaned.starts_with('/') {
-            if cleaned.starts_with("/Script/") {
+            if cleaned
+                .get(..8)
+                .is_some_and(|prefix| prefix.eq_ignore_ascii_case("/Script/"))
+            {
                 return None;
             }
             let pkg = cleaned.split('.').next().unwrap_or(cleaned);
-            if let Some(hit) = self.by_path.get(pkg) {
-                return Some(hit.clone());
-            }
-            if let Some(hit) = self.by_path_lower.get(&pkg.to_ascii_lowercase()) {
-                return Some(hit.clone());
-            }
-            return None;
+            return self.by_path.get(pkg).cloned();
         }
 
         if let Some(list) = self.by_class.get(cleaned) {
@@ -1182,15 +1171,6 @@ fn is_likely_level_blueprint(normalized: &str) -> bool {
 
 // ---- SQLite bulk-read helpers ----
 
-fn lookup_dt_table_id(conn: &Connection, rel_path: &str) -> Result<Option<i64>> {
-    let mut stmt = conn
-        .prepare_cached("SELECT id FROM dt_table WHERE path = ?1")
-        .map_err(|err| DbError::sqlite("准备查询 dt_table.id", err))?;
-    stmt.query_row([rel_path], |row| row.get(0))
-        .optional()
-        .map_err(|err| DbError::sqlite(format!("查询 dt_table ({rel_path})"), err))
-}
-
 fn load_dt_rows(conn: &Connection, table_id: i64) -> Result<Vec<(String, String)>> {
     let mut stmt = conn
         .prepare_cached("SELECT row_name, doc FROM dt_row WHERE table_id = ?1 ORDER BY row_name")
@@ -1235,11 +1215,8 @@ fn load_dt_rows_by_rowid(conn: &Connection, table_id: i64) -> Result<Vec<(String
     Ok(out)
 }
 
-type DtTableLookup = (BTreeMap<String, i64>, BTreeMap<String, (String, i64)>);
-
-fn load_dt_table_lookup(conn: &Connection) -> Result<DtTableLookup> {
-    let mut by_rel = BTreeMap::new();
-    let mut by_lower = BTreeMap::new();
+fn load_dt_table_lookup(conn: &Connection) -> Result<UePathLookup<i64>> {
+    let mut lookup = UePathLookup::new();
     let mut stmt = conn
         .prepare_cached("SELECT id, path FROM dt_table ORDER BY path")
         .map_err(|err| DbError::sqlite("准备读取 dt_table 目录", err))?;
@@ -1256,19 +1233,13 @@ fn load_dt_table_lookup(conn: &Connection) -> Result<DtTableLookup> {
         let path: String = row
             .get(1)
             .map_err(|err| DbError::sqlite("读取 dt_table.path", err))?;
-        by_lower
-            .entry(path.to_ascii_lowercase())
-            .or_insert_with(|| (path.clone(), id));
-        by_rel.insert(path, id);
+        lookup.insert(path, id);
     }
-    Ok((by_rel, by_lower))
+    Ok(lookup)
 }
 
-fn load_sequence_lookup(
-    conn: &Connection,
-) -> Result<(BTreeMap<String, i64>, BTreeMap<String, i64>)> {
-    let mut by_path = BTreeMap::new();
-    let mut by_lower = BTreeMap::new();
+fn load_sequence_lookup(conn: &Connection) -> Result<UePathLookup<i64>> {
+    let mut lookup = UePathLookup::new();
     let mut stmt = conn
         .prepare_cached("SELECT id, path FROM sequence ORDER BY path")
         .map_err(|err| DbError::sqlite("准备读取 sequence 路径表", err))?;
@@ -1285,14 +1256,13 @@ fn load_sequence_lookup(
         let path: String = row
             .get(1)
             .map_err(|err| DbError::sqlite("读取 sequence.path", err))?;
-        by_lower.entry(path.to_ascii_lowercase()).or_insert(id);
-        by_path.insert(path, id);
+        lookup.insert(path, id);
     }
-    Ok((by_path, by_lower))
+    Ok(lookup)
 }
 
-fn load_string_table_ns_map(conn: &Connection) -> Result<BTreeMap<String, String>> {
-    let mut map = BTreeMap::new();
+fn load_string_table_ns_map(conn: &Connection) -> Result<UePathLookup<String>> {
+    let mut map = UePathLookup::new();
     let mut stmt = conn
         .prepare_cached("SELECT table_id, ns FROM string_table ORDER BY table_id")
         .map_err(|err| DbError::sqlite("准备读取 string_table", err))?;
@@ -1367,13 +1337,20 @@ fn load_text_untranslated_lookup(conn: &Connection) -> Result<(Vec<String>, Untr
     Ok((langs, by_key))
 }
 
-type PlayableNameTuple = (Option<String>, Option<String>, Option<String>);
+type PlayableNameTuple = (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
 
 fn load_playable_unit_names(conn: &Connection) -> Result<BTreeMap<i64, PlayableNameTuple>> {
     let mut map = BTreeMap::new();
     let mut stmt = conn
         .prepare_cached(
-            "SELECT map_unit_id, name_ns, name_key, name_zh FROM playable_unit ORDER BY map_unit_id",
+            "SELECT map_unit_id, name_ns, name_key, name_ja, name_en, name_zh \
+             FROM playable_unit ORDER BY map_unit_id",
         )
         .map_err(|err| DbError::sqlite("准备读取 playable_unit 名称", err))?;
     let mut rows = stmt
@@ -1392,10 +1369,16 @@ fn load_playable_unit_names(conn: &Connection) -> Result<BTreeMap<i64, PlayableN
         let key: Option<String> = row
             .get(2)
             .map_err(|err| DbError::sqlite("读取 playable_unit.name_key", err))?;
-        let zh: Option<String> = row
+        let ja: Option<String> = row
             .get(3)
+            .map_err(|err| DbError::sqlite("读取 playable_unit.name_ja", err))?;
+        let en: Option<String> = row
+            .get(4)
+            .map_err(|err| DbError::sqlite("读取 playable_unit.name_en", err))?;
+        let zh: Option<String> = row
+            .get(5)
             .map_err(|err| DbError::sqlite("读取 playable_unit.name_zh", err))?;
-        map.insert(id, (ns, key, zh));
+        map.insert(id, (ns, key, ja, en, zh));
     }
     Ok(map)
 }

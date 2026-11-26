@@ -6,7 +6,6 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use ffr_data::MODEL_LANGUAGE;
 use ffr_data::battle::{
     BattleGroup, BreakCalcParams, CommandSkill, Element, EncounterPoolEntry, EnemyChapterSource,
     EnemyChapterSourceKind, EnemyProfile, Resistance, Skill, SkillAttributeType, SkillCostType,
@@ -17,8 +16,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::GameDb;
 use crate::error::{DbError, Result};
-use crate::query::text::{UntranslatedField, query_untranslated_single_key};
+use crate::query::text::{
+    UntranslatedField, fts_column_phrase, like_pattern, query_untranslated_single_key,
+};
 use crate::record;
+use crate::schema::LangCol;
 
 /// One skill link belonging to a unit, paired with its provenance (`source`, optional `level`)
 /// and resolved [`Skill`] document when the target skill exists.
@@ -72,6 +74,10 @@ pub struct SkillCatalogRow {
 }
 
 pub(crate) const SQL_UNIT_BY_ID: &str = "SELECT doc FROM unit WHERE id = ?1";
+pub(crate) const SQL_UNITS_EXACT_JA: &str =
+    "SELECT id, doc FROM unit WHERE name_ja = ?1 ORDER BY id";
+pub(crate) const SQL_UNITS_EXACT_EN: &str =
+    "SELECT id, doc FROM unit WHERE name_en = ?1 ORDER BY id";
 pub(crate) const SQL_UNITS_EXACT_ZH: &str =
     "SELECT id, doc FROM unit WHERE name_zh = ?1 ORDER BY id";
 pub(crate) const SQL_ENEMIES_EXACT_ZH: &str = "SELECT u.id, u.doc, a.doc \
@@ -97,32 +103,76 @@ pub(crate) const SQL_HAS_COMMAND_SKILLS: &str =
 pub(crate) const SQL_MISSING_ENEMY_CHAPTER_ISSUE: &str = "SELECT 1 FROM build_issue \
      WHERE stage = 'battle' AND kind = 'missing_optional_table' AND subject = 'enemy_chapter' \
      LIMIT 1";
-pub(crate) const SQL_UNITS_EXACT_LANG: &str = "SELECT u.id, u.doc \
-     FROM unit_name n \
-     JOIN unit u ON u.id = n.unit_id \
-     WHERE n.lang = ?1 AND n.name = ?2 \
+pub(crate) const SQL_UNITS_CONTAINS_FTS_JA: &str = "SELECT u.id, u.doc \
+     FROM unit_name_fts \
+     JOIN unit u ON u.id = unit_name_fts.rowid \
+     WHERE unit_name_fts MATCH ?1 AND u.name_ja != ?2 \
      ORDER BY u.id";
-pub(crate) const SQL_UNITS_CONTAINS_FTS: &str = "SELECT u.id, f.name, u.doc \
-     FROM unit_name_fts f \
-     JOIN unit u ON u.id = f.unit_id \
-     WHERE f.name LIKE ?1 AND f.lang = ?2 AND f.name != ?3 \
+pub(crate) const SQL_UNITS_CONTAINS_FTS_EN: &str = "SELECT u.id, u.doc \
+     FROM unit_name_fts \
+     JOIN unit u ON u.id = unit_name_fts.rowid \
+     WHERE unit_name_fts MATCH ?1 AND u.name_en != ?2 \
+     ORDER BY u.id";
+pub(crate) const SQL_UNITS_CONTAINS_FTS_ZH: &str = "SELECT u.id, u.doc \
+     FROM unit_name_fts \
+     JOIN unit u ON u.id = unit_name_fts.rowid \
+     WHERE unit_name_fts MATCH ?1 AND u.name_zh != ?2 \
+     ORDER BY u.id";
+pub(crate) const SQL_UNITS_CONTAINS_LIKE_JA: &str = "SELECT u.id, u.doc \
+     FROM unit_name n INDEXED BY idx_unit_name_col_ja \
+     JOIN unit u ON u.id = n.unit_id \
+     WHERE n.ja IS NOT NULL AND n.ja LIKE ?1 ESCAPE '\\' AND n.ja != ?2 \
+     ORDER BY u.id";
+pub(crate) const SQL_UNITS_CONTAINS_LIKE_EN: &str = "SELECT u.id, u.doc \
+     FROM unit_name n INDEXED BY idx_unit_name_col_en \
+     JOIN unit u ON u.id = n.unit_id \
+     WHERE n.en IS NOT NULL AND n.en LIKE ?1 ESCAPE '\\' AND n.en != ?2 \
+     ORDER BY u.id";
+pub(crate) const SQL_UNITS_CONTAINS_LIKE_ZH: &str = "SELECT u.id, u.doc \
+     FROM unit_name n INDEXED BY idx_unit_name_col_zh \
+     JOIN unit u ON u.id = n.unit_id \
+     WHERE n.zh IS NOT NULL AND n.zh LIKE ?1 ESCAPE '\\' AND n.zh != ?2 \
      ORDER BY u.id";
 pub(crate) const SQL_ENEMY_PROFILE: &str = "SELECT u.doc, a.doc \
      FROM unit u \
      LEFT JOIN unit_ai a ON a.unit_id = u.id \
      WHERE u.id = ?1";
 pub(crate) const SQL_SKILL_BY_ID: &str = "SELECT doc FROM skill WHERE id = ?1";
+pub(crate) const SQL_SKILLS_EXACT_JA: &str =
+    "SELECT id, doc FROM skill WHERE name_ja = ?1 ORDER BY id";
+pub(crate) const SQL_SKILLS_EXACT_EN: &str =
+    "SELECT id, doc FROM skill WHERE name_en = ?1 ORDER BY id";
 pub(crate) const SQL_SKILLS_EXACT_ZH: &str =
     "SELECT id, doc FROM skill WHERE name_zh = ?1 ORDER BY id";
-pub(crate) const SQL_SKILLS_EXACT_LANG: &str = "SELECT s.id, s.doc \
-     FROM skill_name n \
-     JOIN skill s ON s.id = n.skill_id \
-     WHERE n.lang = ?1 AND n.name = ?2 \
+pub(crate) const SQL_SKILLS_CONTAINS_FTS_JA: &str = "SELECT s.id, s.doc \
+     FROM skill_name_fts \
+     JOIN skill s ON s.id = skill_name_fts.rowid \
+     WHERE skill_name_fts MATCH ?1 AND s.name_ja != ?2 \
      ORDER BY s.id";
-pub(crate) const SQL_SKILLS_CONTAINS_FTS: &str = "SELECT s.id, f.name, s.doc \
-     FROM skill_name_fts f \
-     JOIN skill s ON s.id = f.skill_id \
-     WHERE f.name LIKE ?1 AND f.lang = ?2 AND f.name != ?3 \
+pub(crate) const SQL_SKILLS_CONTAINS_FTS_EN: &str = "SELECT s.id, s.doc \
+     FROM skill_name_fts \
+     JOIN skill s ON s.id = skill_name_fts.rowid \
+     WHERE skill_name_fts MATCH ?1 AND s.name_en != ?2 \
+     ORDER BY s.id";
+pub(crate) const SQL_SKILLS_CONTAINS_FTS_ZH: &str = "SELECT s.id, s.doc \
+     FROM skill_name_fts \
+     JOIN skill s ON s.id = skill_name_fts.rowid \
+     WHERE skill_name_fts MATCH ?1 AND s.name_zh != ?2 \
+     ORDER BY s.id";
+pub(crate) const SQL_SKILLS_CONTAINS_LIKE_JA: &str = "SELECT s.id, s.doc \
+     FROM skill_name n INDEXED BY idx_skill_name_col_ja \
+     JOIN skill s ON s.id = n.skill_id \
+     WHERE n.ja IS NOT NULL AND n.ja LIKE ?1 ESCAPE '\\' AND n.ja != ?2 \
+     ORDER BY s.id";
+pub(crate) const SQL_SKILLS_CONTAINS_LIKE_EN: &str = "SELECT s.id, s.doc \
+     FROM skill_name n INDEXED BY idx_skill_name_col_en \
+     JOIN skill s ON s.id = n.skill_id \
+     WHERE n.en IS NOT NULL AND n.en LIKE ?1 ESCAPE '\\' AND n.en != ?2 \
+     ORDER BY s.id";
+pub(crate) const SQL_SKILLS_CONTAINS_LIKE_ZH: &str = "SELECT s.id, s.doc \
+     FROM skill_name n INDEXED BY idx_skill_name_col_zh \
+     JOIN skill s ON s.id = n.skill_id \
+     WHERE n.zh IS NOT NULL AND n.zh LIKE ?1 ESCAPE '\\' AND n.zh != ?2 \
      ORDER BY s.id";
 pub(crate) const SQL_SKILLS_OF_UNIT: &str = "SELECT us.unit_id, us.skill_id, us.source, us.level, s.doc \
      FROM unit_skill us \
@@ -200,16 +250,28 @@ impl GameDb {
         if query.is_empty() || lang.is_empty() {
             return Ok(Vec::new());
         }
-        self.with_conn(|conn| {
-            query_named_docs(
-                conn,
-                "unit",
-                query,
-                lang,
+        let Some(col) = LangCol::from_lang(lang) else {
+            return Ok(Vec::new());
+        };
+        let (sql_exact, sql_fts, sql_like) = match col {
+            LangCol::Ja => (
+                SQL_UNITS_EXACT_JA,
+                SQL_UNITS_CONTAINS_FTS_JA,
+                SQL_UNITS_CONTAINS_LIKE_JA,
+            ),
+            LangCol::En => (
+                SQL_UNITS_EXACT_EN,
+                SQL_UNITS_CONTAINS_FTS_EN,
+                SQL_UNITS_CONTAINS_LIKE_EN,
+            ),
+            LangCol::Zh => (
                 SQL_UNITS_EXACT_ZH,
-                SQL_UNITS_EXACT_LANG,
-                SQL_UNITS_CONTAINS_FTS,
-            )
+                SQL_UNITS_CONTAINS_FTS_ZH,
+                SQL_UNITS_CONTAINS_LIKE_ZH,
+            ),
+        };
+        self.with_conn(|conn| {
+            query_named_docs(conn, "unit", query, col, sql_exact, sql_fts, sql_like)
         })
     }
 
@@ -246,16 +308,28 @@ impl GameDb {
         if query.is_empty() || lang.is_empty() {
             return Ok(Vec::new());
         }
-        self.with_conn(|conn| {
-            query_named_docs(
-                conn,
-                "skill",
-                query,
-                lang,
+        let Some(col) = LangCol::from_lang(lang) else {
+            return Ok(Vec::new());
+        };
+        let (sql_exact, sql_fts, sql_like) = match col {
+            LangCol::Ja => (
+                SQL_SKILLS_EXACT_JA,
+                SQL_SKILLS_CONTAINS_FTS_JA,
+                SQL_SKILLS_CONTAINS_LIKE_JA,
+            ),
+            LangCol::En => (
+                SQL_SKILLS_EXACT_EN,
+                SQL_SKILLS_CONTAINS_FTS_EN,
+                SQL_SKILLS_CONTAINS_LIKE_EN,
+            ),
+            LangCol::Zh => (
                 SQL_SKILLS_EXACT_ZH,
-                SQL_SKILLS_EXACT_LANG,
-                SQL_SKILLS_CONTAINS_FTS,
-            )
+                SQL_SKILLS_CONTAINS_FTS_ZH,
+                SQL_SKILLS_CONTAINS_LIKE_ZH,
+            ),
+        };
+        self.with_conn(|conn| {
+            query_named_docs(conn, "skill", query, col, sql_exact, sql_fts, sql_like)
         })
     }
 
@@ -805,10 +879,10 @@ fn query_named_docs<T>(
     conn: &Connection,
     table: &str,
     query: &str,
-    lang: &str,
-    sql_exact_zh: &str,
-    sql_exact_lang: &str,
+    col: LangCol,
+    sql_exact: &str,
     sql_contains_fts: &str,
+    sql_contains_like: &str,
 ) -> Result<Vec<T>>
 where
     T: serde::de::DeserializeOwned,
@@ -816,17 +890,12 @@ where
     let mut results = Vec::new();
     let mut seen_ids = HashSet::new();
 
-    // 1. Exact matches first (ordered by ID), using indexed name column / exact lookup table.
-    let exact_rows: Vec<(i64, String)> = if lang == MODEL_LANGUAGE {
+    // 1. Exact matches first (ordered by ID), using the indexed per-language name column.
+    let exact_rows = {
         let mut stmt = conn
-            .prepare_cached(sql_exact_zh)
-            .map_err(|err| DbError::sqlite(format!("准备按中文精确查询 {table}"), err))?;
+            .prepare_cached(sql_exact)
+            .map_err(|err| DbError::sqlite(format!("准备精确查询 {table}"), err))?;
         collect_id_doc_rows(&mut stmt, [query], table)?
-    } else {
-        let mut stmt = conn
-            .prepare_cached(sql_exact_lang)
-            .map_err(|err| DbError::sqlite(format!("准备按语言精确查询 {table}"), err))?;
-        collect_id_doc_rows(&mut stmt, [lang, query], table)?
     };
     for (id, raw) in exact_rows {
         if seen_ids.insert(id) {
@@ -834,38 +903,22 @@ where
         }
     }
 
-    // 2. Substring matches via FTS5 trigram index (ordered by ID), deduplicated against exact hits.
-    let like_pattern = format!("%{query}%");
-    let has_like_wildcard = query.contains('%') || query.contains('_');
-    let query_lower = has_like_wildcard.then(|| query.to_lowercase());
-
-    let mut stmt = conn
-        .prepare_cached(sql_contains_fts)
-        .map_err(|err| DbError::sqlite(format!("准备按子串查询 {table}"), err))?;
-    let mut rows = stmt
-        .query(params![like_pattern, lang, query])
-        .map_err(|err| DbError::sqlite(format!("按子串查询 {table}"), err))?;
-    while let Some(row) = rows
-        .next()
-        .map_err(|err| DbError::sqlite(format!("读取 {table} 子串查询结果"), err))?
-    {
-        let id: i64 = row
-            .get(0)
-            .map_err(|err| DbError::sqlite(format!("读取 {table}.id"), err))?;
-        if seen_ids.contains(&id) {
-            continue;
-        }
-        let name: String = row
-            .get(1)
-            .map_err(|err| DbError::sqlite(format!("读取 {table} 名称"), err))?;
-        if let Some(ref needle) = query_lower
-            && !name.to_lowercase().contains(needle)
-        {
-            continue;
-        }
-        let raw: String = row
-            .get(2)
-            .map_err(|err| DbError::sqlite(format!("读取 {table}.doc"), err))?;
+    // 2. Substring matches via 3-column FTS5 trigram (>= 3 chars) or partial covering index
+    //    LIKE (< 3 chars), ordered by ID and deduplicated against exact hits.
+    let contains_rows = if query.chars().count() >= 3 {
+        let match_query = fts_column_phrase(col, query);
+        let mut stmt = conn
+            .prepare_cached(sql_contains_fts)
+            .map_err(|err| DbError::sqlite(format!("准备按 FTS 子串查询 {table}"), err))?;
+        collect_id_doc_rows(&mut stmt, params![match_query, query], table)?
+    } else {
+        let pattern = like_pattern(query);
+        let mut stmt = conn
+            .prepare_cached(sql_contains_like)
+            .map_err(|err| DbError::sqlite(format!("准备按短子串查询 {table}"), err))?;
+        collect_id_doc_rows(&mut stmt, params![pattern, query], table)?
+    };
+    for (id, raw) in contains_rows {
         if seen_ids.insert(id) {
             results.push(record::decode_doc(table, id, &raw)?);
         }
@@ -1093,32 +1146,84 @@ mod tests {
         ];
 
         assert_db_uses_index(db, SQL_UNIT_BY_ID, [9101_i64], battle_tables);
+        assert_db_uses_index(db, SQL_UNITS_EXACT_JA, ["テスト未訳敵"], battle_tables);
+        assert_db_uses_index(db, SQL_UNITS_EXACT_EN, ["Core Guardian"], battle_tables);
         assert_db_uses_index(db, SQL_UNITS_EXACT_ZH, ["霜翼试作兽"], battle_tables);
         assert_db_uses_index(
             db,
-            SQL_UNITS_EXACT_LANG,
-            ["en", "Core Guardian"],
+            SQL_UNITS_CONTAINS_FTS_JA,
+            ["ja : \"テスト\"", "テスト"],
             battle_tables,
         );
         assert_db_uses_index(
             db,
-            SQL_UNITS_CONTAINS_FTS,
-            ["%霜翼%", "zh-Hans", "霜翼"],
+            SQL_UNITS_CONTAINS_FTS_EN,
+            ["en : \"guardian\"", "guardian"],
+            battle_tables,
+        );
+        assert_db_uses_index(
+            db,
+            SQL_UNITS_CONTAINS_FTS_ZH,
+            ["zh : \"霜翼试\"", "霜翼试"],
+            battle_tables,
+        );
+        assert_db_uses_index(
+            db,
+            SQL_UNITS_CONTAINS_LIKE_JA,
+            ["%テス%", "テス"],
+            battle_tables,
+        );
+        assert_db_uses_index(
+            db,
+            SQL_UNITS_CONTAINS_LIKE_EN,
+            ["%Co%", "Co"],
+            battle_tables,
+        );
+        assert_db_uses_index(
+            db,
+            SQL_UNITS_CONTAINS_LIKE_ZH,
+            ["%霜翼%", "霜翼"],
             battle_tables,
         );
         assert_db_uses_index(db, SQL_ENEMY_PROFILE, [9201_i64], battle_tables);
         assert_db_uses_index(db, SQL_SKILL_BY_ID, [95001_i64], battle_tables);
+        assert_db_uses_index(db, SQL_SKILLS_EXACT_JA, ["テスト氷槍"], battle_tables);
+        assert_db_uses_index(db, SQL_SKILLS_EXACT_EN, ["Synth Ice Spike"], battle_tables);
         assert_db_uses_index(db, SQL_SKILLS_EXACT_ZH, ["试作冰刺"], battle_tables);
         assert_db_uses_index(
             db,
-            SQL_SKILLS_EXACT_LANG,
-            ["en", "Synth Ice Spike"],
+            SQL_SKILLS_CONTAINS_FTS_JA,
+            ["ja : \"テスト\"", "テスト"],
             battle_tables,
         );
         assert_db_uses_index(
             db,
-            SQL_SKILLS_CONTAINS_FTS,
-            ["%冰刺%", "zh-Hans", "冰刺"],
+            SQL_SKILLS_CONTAINS_FTS_EN,
+            ["en : \"Ice\"", "Ice"],
+            battle_tables,
+        );
+        assert_db_uses_index(
+            db,
+            SQL_SKILLS_CONTAINS_FTS_ZH,
+            ["zh : \"试作冰\"", "试作冰"],
+            battle_tables,
+        );
+        assert_db_uses_index(
+            db,
+            SQL_SKILLS_CONTAINS_LIKE_JA,
+            ["%氷槍%", "氷槍"],
+            battle_tables,
+        );
+        assert_db_uses_index(
+            db,
+            SQL_SKILLS_CONTAINS_LIKE_EN,
+            ["%Ic%", "Ic"],
+            battle_tables,
+        );
+        assert_db_uses_index(
+            db,
+            SQL_SKILLS_CONTAINS_LIKE_ZH,
+            ["%冰刺%", "冰刺"],
             battle_tables,
         );
         assert_db_uses_index(db, SQL_SKILLS_OF_UNIT, [9001_i64], battle_tables);

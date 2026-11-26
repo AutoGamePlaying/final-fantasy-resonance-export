@@ -1,13 +1,18 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use ffr_data::world::WorldData;
 use ffr_data::{
-    FTextValue, ResolveOptions, TextResolver, TextSource, UNTRANSLATED_REASON,
-    UNTRANSLATED_REASON_CJK, UNTRANSLATED_REASON_KANA,
+    DataStore, FTextValue, ResolveOptions, TextResolver, TextSource, UNTRANSLATED_REASON,
+    UNTRANSLATED_REASON_CJK, UNTRANSLATED_REASON_KANA, UNTRANSLATED_REASON_NON_SIMPLIFIED_HANZI,
+    untranslated_reason_code,
 };
+use ffr_db::query::text::sql as text_sql;
 use ffr_db::testing::{
-    assert_db_uses_index, build_fixture_db_stages, build_temp_db, fixture_area_dir,
+    assert_db_uses_index, build_fixture_db, build_fixture_db_stages, build_temp_db,
+    fixture_area_dir,
 };
 use ffr_db::{BuildInputs, Stage, UntranslatedField, UntranslatedTextEntry};
 use rusqlite::params;
@@ -34,16 +39,34 @@ fn localized_lookup_and_search_use_indexes() {
         text_stage.note
     );
 
-    // `text` must NOT carry an `untranslated` column anymore.
+    // Schema v4: `text` has one row per (ns, key) with `ja`, `en`, `zh` columns and no
+    // `untranslated` column; `text_language` maps BCP-47 tags to column names.
     let text_cols: Vec<String> = db
-        .query_readonly_json("SELECT name FROM pragma_table_info('text')")
+        .query_readonly_json("SELECT name FROM pragma_table_info('text') ORDER BY cid")
         .expect("pragma_table_info(text)")
         .into_iter()
         .map(|row| row["name"].as_str().expect("col name").to_owned())
         .collect();
-    assert!(
-        !text_cols.iter().any(|c| c == "untranslated"),
-        "text table must not have untranslated column: {text_cols:?}"
+    assert_eq!(text_cols, vec!["id", "ns", "key", "ja", "en", "zh"]);
+
+    let lang_map: Vec<(String, String)> = db
+        .query_readonly_json("SELECT lang, column_name FROM text_language ORDER BY lang")
+        .expect("query text_language")
+        .into_iter()
+        .map(|row| {
+            (
+                row["lang"].as_str().expect("lang").to_owned(),
+                row["column_name"].as_str().expect("column_name").to_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        lang_map,
+        vec![
+            ("en".to_owned(), "en".to_owned()),
+            ("ja".to_owned(), "ja".to_owned()),
+            ("zh-Hans".to_owned(), "zh".to_owned()),
+        ]
     );
 
     assert_eq!(
@@ -275,13 +298,25 @@ fn localized_lookup_and_search_use_indexes() {
 
     assert_db_uses_index(
         db,
-        "SELECT value FROM text WHERE ns = ?1 AND key = ?2 AND lang = ?3",
-        params!["FakeTextNamespace", "Greeting", "zh-Hans"],
+        text_sql::TEXT_BY_KEY_JA,
+        params!["FakeTextNamespace", "Greeting"],
         &["text"],
     );
     assert_db_uses_index(
         db,
-        "SELECT lang, value FROM text WHERE ns = ?1 AND key = ?2 ORDER BY lang",
+        text_sql::TEXT_BY_KEY_EN,
+        params!["FakeTextNamespace", "Greeting"],
+        &["text"],
+    );
+    assert_db_uses_index(
+        db,
+        text_sql::TEXT_BY_KEY_ZH,
+        params!["FakeTextNamespace", "Greeting"],
+        &["text"],
+    );
+    assert_db_uses_index(
+        db,
+        text_sql::TEXT_ALL_LANGS,
         params!["FakeTextNamespace", "Greeting"],
         &["text"],
     );
@@ -307,35 +342,49 @@ fn localized_lookup_and_search_use_indexes() {
     );
     assert_db_uses_index(
         db,
-        "SELECT t.ns, t.key, t.lang, t.value FROM text_fts \
-         JOIN text AS t ON t.id = text_fts.rowid \
-         WHERE text_fts MATCH ?1 AND t.lang = ?2 \
-         ORDER BY t.ns, t.key LIMIT ?3",
-        params!["\"钢铁蝙\"", "zh-Hans", 20_i64],
+        text_sql::SEARCH_TEXT_FTS_JA,
+        params!["ja : \"未翻訳\"", 20_i64],
         &["text_fts", "text"],
     );
     assert_db_uses_index(
         db,
-        "SELECT t.ns, t.key, t.lang, t.value FROM text_fts \
-         JOIN text AS t ON t.id = text_fts.rowid \
-         WHERE text_fts MATCH ?1 \
-         ORDER BY t.ns, t.key, t.lang LIMIT ?2",
+        text_sql::SEARCH_TEXT_FTS_EN,
+        params!["en : \"deep\"", 20_i64],
+        &["text_fts", "text"],
+    );
+    assert_db_uses_index(
+        db,
+        text_sql::SEARCH_TEXT_FTS_ZH,
+        params!["zh : \"钢铁蝙\"", 20_i64],
+        &["text_fts", "text"],
+    );
+    assert_db_uses_index(
+        db,
+        text_sql::SEARCH_TEXT_FTS_ALL,
         params!["\"钢铁蝙\"", 20_i64],
         &["text_fts", "text"],
     );
     assert_db_uses_index(
         db,
-        "SELECT ns, key, lang, value FROM text INDEXED BY idx_text_lang_ns_key \
-         WHERE lang = ?1 AND value LIKE ?2 ESCAPE '\\' \
-         ORDER BY ns, key LIMIT ?3",
-        params!["zh-Hans", "%钢蝠%", 20_i64],
+        text_sql::SEARCH_TEXT_LIKE_JA,
+        params!["%白虎%", 20_i64],
         &["text"],
     );
     assert_db_uses_index(
         db,
-        "SELECT ns, key, lang, value FROM text INDEXED BY idx_text_lang_ns_key \
-         WHERE value LIKE ?1 ESCAPE '\\' \
-         ORDER BY ns, key, lang LIMIT ?2",
+        text_sql::SEARCH_TEXT_LIKE_EN,
+        params!["%ba%", 20_i64],
+        &["text"],
+    );
+    assert_db_uses_index(
+        db,
+        text_sql::SEARCH_TEXT_LIKE_ZH,
+        params!["%钢蝠%", 20_i64],
+        &["text"],
+    );
+    assert_db_uses_index(
+        db,
+        text_sql::SEARCH_TEXT_LIKE_ALL,
         params!["%钢蝠%", 20_i64],
         &["text"],
     );
@@ -479,7 +528,7 @@ fn resolve_ftext_matches_text_resolver_for_every_shape_and_branch() {
 
     assert_db_uses_index(
         db,
-        "SELECT 1 FROM text_language WHERE lang = ?1",
+        text_sql::TEXT_LANGUAGE_COLUMN,
         ["zh-Hans"],
         &["text_language"],
     );
@@ -573,33 +622,43 @@ fn battle_stage_sets_untranslated_name_zh_to_null_and_keeps_pure_hanzi() {
     let db = test_db.db();
 
     let rows = db
-        .query_readonly_json("SELECT id, name_zh FROM unit WHERE id IN (9101, 9201) ORDER BY id")
-        .expect("query unit name_zh");
+        .query_readonly_json(
+            "SELECT id, name_ja, name_en, name_zh FROM unit WHERE id IN (9101, 9201) ORDER BY id",
+        )
+        .expect("query unit names");
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0]["id"], 9101);
+    assert_eq!(rows[0]["name_ja"].as_str(), Some(ja_9101.as_str()));
+    assert!(!rows[0]["name_en"].is_null());
     assert!(
         rows[0]["name_zh"].is_null(),
         "untranslated Japanese kana must become NULL name_zh: {:?}",
         rows[0]
     );
     assert_eq!(rows[1]["id"], 9201);
+    assert_eq!(rows[1]["name_ja"].as_str(), Some("青龙"));
+    assert!(
+        rows[1]["name_en"].is_null(),
+        "untranslated CJK in en must become NULL name_en: {:?}",
+        rows[1]
+    );
     assert_eq!(rows[1]["name_zh"].as_str(), Some("青龙"));
 
-    let langs_9101: Vec<String> = db
-        .query_readonly_json("SELECT lang FROM unit_name WHERE unit_id = 9101 ORDER BY lang")
-        .expect("unit_name 9101")
-        .into_iter()
-        .map(|r| r["lang"].as_str().expect("lang").to_owned())
-        .collect();
-    assert_eq!(langs_9101, vec!["en", "ja"]);
+    let un_9101 = db
+        .query_readonly_json("SELECT ja, en, zh FROM unit_name WHERE unit_id = 9101")
+        .expect("unit_name 9101");
+    assert_eq!(un_9101.len(), 1);
+    assert_eq!(un_9101[0]["ja"].as_str(), Some(ja_9101.as_str()));
+    assert!(!un_9101[0]["en"].is_null());
+    assert!(un_9101[0]["zh"].is_null());
 
-    let langs_9201: Vec<String> = db
-        .query_readonly_json("SELECT lang FROM unit_name WHERE unit_id = 9201 ORDER BY lang")
-        .expect("unit_name 9201")
-        .into_iter()
-        .map(|r| r["lang"].as_str().expect("lang").to_owned())
-        .collect();
-    assert_eq!(langs_9201, vec!["ja", "zh-Hans"]);
+    let un_9201 = db
+        .query_readonly_json("SELECT ja, en, zh FROM unit_name WHERE unit_id = 9201")
+        .expect("unit_name 9201");
+    assert_eq!(un_9201.len(), 1);
+    assert_eq!(un_9201[0]["ja"].as_str(), Some("青龙"));
+    assert!(un_9201[0]["en"].is_null());
+    assert_eq!(un_9201[0]["zh"].as_str(), Some("青龙"));
 
     // Companion tables record every untranslated entity field cleanly.
     assert_eq!(
@@ -920,6 +979,359 @@ fn world_and_links_stages_populate_companion_untranslated_tables() {
         "links stage_report.note missing companion counts: {}",
         links_stage.note
     );
+}
+
+#[test]
+fn wide_multilingual_tables_match_long_per_language_expansion() {
+    // 1. `text`: synthetic localization files covering normal 3-lang entries, empty-string values,
+    //    missing languages, untranslated kana, pure GB2312 Hanzi, and non-GB2312 Japanese kanji.
+    let temp = tempfile::tempdir().expect("create temp export");
+    let export_dir = temp.path().join("export");
+    let loc_dir = export_dir.join("Localization");
+    fs::create_dir_all(&loc_dir).expect("create Localization dir");
+
+    let ja_doc = serde_json::json!({
+        "NS_Equiv": {
+            "Normal": "鉄の剣",
+            "EmptyTrans": "空欄テスト",
+            "JaOnly": "日本語のみ",
+            "UntransKana": "ポーション",
+            "SameGb2312": "白虎",
+            "NonGb2312": "剣技",
+        }
+    });
+    let en_doc = serde_json::json!({
+        "NS_Equiv": {
+            "Normal": "Iron Sword",
+            "EmptyTrans": "",
+            "NoJa": "English Only Key",
+            "UntransKana": "ポーション",
+            "SameGb2312": "白虎",
+            "NonGb2312": "剣技",
+        }
+    });
+    let zh_doc = serde_json::json!({
+        "NS_Equiv": {
+            "Normal": "铁剑",
+            "EmptyTrans": "",
+            "NoJa": "仅中英文键",
+            "UntransKana": "ポーション",
+            "SameGb2312": "白虎",
+            "NonGb2312": "剣技",
+        }
+    });
+
+    for (file, doc) in [
+        ("ja.json", &ja_doc),
+        ("en.json", &en_doc),
+        ("zh-Hans.json", &zh_doc),
+    ] {
+        fs::write(
+            loc_dir.join(file),
+            serde_json::to_string_pretty(doc).expect("serialize loc"),
+        )
+        .expect("write loc");
+    }
+
+    // Compute the expected v3-style "one row per language" expansion directly from JSON.
+    let mut expected_long_text: BTreeSet<(String, String, String, String)> = BTreeSet::new();
+    let mut expected_untranslated: BTreeSet<(String, String, String, String, String)> =
+        BTreeSet::new();
+    for (lang, doc) in [("ja", &ja_doc), ("en", &en_doc), ("zh-Hans", &zh_doc)] {
+        for (ns, entries) in doc.as_object().expect("root object") {
+            for (key, val) in entries.as_object().expect("ns object") {
+                let value = val.as_str().expect("string value");
+                if lang != "ja"
+                    && let Some(ja_val) = ja_doc
+                        .get(ns)
+                        .and_then(|m| m.get(key))
+                        .and_then(|v| v.as_str())
+                    && let Some(reason) = untranslated_reason_code(lang, value, Some(ja_val))
+                {
+                    expected_untranslated.insert((
+                        ns.clone(),
+                        key.clone(),
+                        lang.to_owned(),
+                        value.to_owned(),
+                        reason.to_owned(),
+                    ));
+                    continue;
+                }
+                expected_long_text.insert((
+                    ns.clone(),
+                    key.clone(),
+                    lang.to_owned(),
+                    value.to_owned(),
+                ));
+            }
+        }
+    }
+
+    let text_db = build_temp_db(
+        "wide-vs-long-text",
+        BuildInputs {
+            export: Some(export_dir),
+            ..BuildInputs::default()
+        },
+        Some(vec![Stage::Text]),
+    )
+    .expect("build wide-vs-long text db");
+    let tdb = text_db.db();
+
+    // Unpivot v4 wide `text(ns, key, ja, en, zh)` back to `(ns, key, lang, value)`.
+    let actual_long_text: BTreeSet<(String, String, String, String)> = tdb
+        .query_readonly_json(
+            "SELECT ns, key, 'ja' AS lang, ja AS value FROM text WHERE ja IS NOT NULL \
+             UNION ALL \
+             SELECT ns, key, 'en' AS lang, en AS value FROM text WHERE en IS NOT NULL \
+             UNION ALL \
+             SELECT ns, key, 'zh-Hans' AS lang, zh AS value FROM text WHERE zh IS NOT NULL",
+        )
+        .expect("unpivot wide text")
+        .into_iter()
+        .map(|row| {
+            (
+                row["ns"].as_str().expect("ns").to_owned(),
+                row["key"].as_str().expect("key").to_owned(),
+                row["lang"].as_str().expect("lang").to_owned(),
+                row["value"].as_str().expect("value").to_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(actual_long_text, expected_long_text);
+
+    // Empty strings stay "" (not NULL), and non-GB2312 Hanzi is recorded in `text_untranslated`.
+    assert_eq!(
+        tdb.text("NS_Equiv", "EmptyTrans", "en").expect("empty en"),
+        Some(String::new())
+    );
+    assert_eq!(
+        tdb.text("NS_Equiv", "EmptyTrans", "zh-Hans")
+            .expect("empty zh"),
+        Some(String::new())
+    );
+    assert_eq!(
+        tdb.text_untranslated("NS_Equiv", "NonGb2312", "zh-Hans")
+            .expect("non-gb2312 zh")
+            .map(|e| e.reason),
+        Some(UNTRANSLATED_REASON_NON_SIMPLIFIED_HANZI.to_owned())
+    );
+    let actual_untranslated: BTreeSet<(String, String, String, String, String)> = tdb
+        .query_readonly_json("SELECT ns, key, lang, value, reason FROM text_untranslated")
+        .expect("read text_untranslated")
+        .into_iter()
+        .map(|row| {
+            (
+                row["ns"].as_str().expect("ns").to_owned(),
+                row["key"].as_str().expect("key").to_owned(),
+                row["lang"].as_str().expect("lang").to_owned(),
+                row["value"].as_str().expect("value").to_owned(),
+                row["reason"].as_str().expect("reason").to_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(actual_untranslated, expected_untranslated);
+
+    // 2. `unit_name` and `skill_name`: wide unpivot equals long per-language expansion.
+    let battle_export = fixture_area_dir("battle").join("export");
+    let battle_db = build_fixture_db_stages("battle", Some(vec![Stage::Text, Stage::Battle]))
+        .expect("build battle fixture");
+    let bdb = battle_db.db();
+    let battle_store = DataStore::new(&battle_export);
+    let battle = battle_store.battle().expect("load battle fixture");
+    let battle_resolver = battle_store.text_resolver();
+
+    let mut expected_unit_names: BTreeSet<(i64, String, String)> = BTreeSet::new();
+    for unit in &battle.units {
+        for lang in ["en", "ja", "zh-Hans"] {
+            if let Some(name) = battle_resolver
+                .resolve_with(&unit.name, Some(lang), ResolveOptions::default())
+                .text
+                .filter(|s| !s.is_empty())
+            {
+                expected_unit_names.insert((unit.id, lang.to_owned(), name));
+            }
+        }
+    }
+    let actual_unit_names: BTreeSet<(i64, String, String)> = bdb
+        .query_readonly_json(
+            "SELECT unit_id, 'ja' AS lang, ja AS name FROM unit_name WHERE ja IS NOT NULL \
+             UNION ALL \
+             SELECT unit_id, 'en' AS lang, en AS name FROM unit_name WHERE en IS NOT NULL \
+             UNION ALL \
+             SELECT unit_id, 'zh-Hans' AS lang, zh AS name FROM unit_name WHERE zh IS NOT NULL",
+        )
+        .expect("unpivot unit_name")
+        .into_iter()
+        .map(|row| {
+            (
+                row["unit_id"].as_i64().expect("unit_id"),
+                row["lang"].as_str().expect("lang").to_owned(),
+                row["name"].as_str().expect("name").to_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(actual_unit_names, expected_unit_names);
+
+    let mut expected_skill_names: BTreeSet<(i64, String, String)> = BTreeSet::new();
+    for skill in &battle.skills {
+        for lang in ["en", "ja", "zh-Hans"] {
+            if let Some(name) = battle_resolver
+                .resolve_with(&skill.name, Some(lang), ResolveOptions::default())
+                .text
+                .filter(|s| !s.is_empty())
+            {
+                expected_skill_names.insert((skill.id, lang.to_owned(), name));
+            }
+        }
+    }
+    let actual_skill_names: BTreeSet<(i64, String, String)> = bdb
+        .query_readonly_json(
+            "SELECT skill_id, 'ja' AS lang, ja AS name FROM skill_name WHERE ja IS NOT NULL \
+             UNION ALL \
+             SELECT skill_id, 'en' AS lang, en AS name FROM skill_name WHERE en IS NOT NULL \
+             UNION ALL \
+             SELECT skill_id, 'zh-Hans' AS lang, zh AS name FROM skill_name WHERE zh IS NOT NULL",
+        )
+        .expect("unpivot skill_name")
+        .into_iter()
+        .map(|row| {
+            (
+                row["skill_id"].as_i64().expect("skill_id"),
+                row["lang"].as_str().expect("lang").to_owned(),
+                row["name"].as_str().expect("name").to_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(actual_skill_names, expected_skill_names);
+
+    // 3. `world_name`: wide unpivot + `en_lower` equal long per-language expansion.
+    let world_export = fixture_area_dir("world").join("export");
+    let world_db = build_fixture_db_stages("world", Some(vec![Stage::Text, Stage::World]))
+        .expect("build world fixture");
+    let wdb = world_db.db();
+    let world_store = DataStore::new(&world_export);
+    let world = WorldData::from_store(&world_store).expect("load world fixture");
+    let world_resolver = world_store.text_resolver();
+
+    let mut expected_world_names: BTreeSet<(String, i64, String, String)> = BTreeSet::new();
+    for map in world.maps() {
+        for lang in ["en", "ja", "zh-Hans"] {
+            if let Some(name) = world_resolver
+                .resolve_with(&map.name, Some(lang), ResolveOptions::default())
+                .text
+                .filter(|s| !s.trim().is_empty())
+            {
+                expected_world_names.insert(("map".to_owned(), map.id, lang.to_owned(), name));
+            }
+        }
+    }
+    for item in world.items() {
+        for lang in ["en", "ja", "zh-Hans"] {
+            if let Some(name) = world_resolver
+                .resolve_with(&item.name, Some(lang), ResolveOptions::default())
+                .text
+                .filter(|s| !s.trim().is_empty())
+            {
+                expected_world_names.insert(("item".to_owned(), item.id, lang.to_owned(), name));
+            }
+        }
+    }
+    let actual_world_names: BTreeSet<(String, i64, String, String)> = wdb
+        .query_readonly_json(
+            "SELECT entity_kind, entity_id, 'ja' AS lang, ja AS name FROM world_name WHERE ja IS NOT NULL \
+             UNION ALL \
+             SELECT entity_kind, entity_id, 'en' AS lang, en AS name FROM world_name WHERE en IS NOT NULL \
+             UNION ALL \
+             SELECT entity_kind, entity_id, 'zh-Hans' AS lang, zh AS name FROM world_name WHERE zh IS NOT NULL",
+        )
+        .expect("unpivot world_name")
+        .into_iter()
+        .map(|row| {
+            (
+                row["entity_kind"].as_str().expect("entity_kind").to_owned(),
+                row["entity_id"].as_i64().expect("entity_id"),
+                row["lang"].as_str().expect("lang").to_owned(),
+                row["name"].as_str().expect("name").to_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(actual_world_names, expected_world_names);
+
+    let world_en_lower_mismatches = wdb
+        .query_readonly_json(
+            "SELECT entity_kind, entity_id, en, en_lower FROM world_name \
+             WHERE (en IS NULL AND en_lower IS NOT NULL) \
+                OR (en IS NOT NULL AND en_lower != lower(en))",
+        )
+        .expect("check world_name.en_lower");
+    assert!(
+        world_en_lower_mismatches.is_empty(),
+        "world_name.en_lower mismatches: {world_en_lower_mismatches:?}"
+    );
+
+    // 4. Verify all 4 FTS5 tables have columns [ja, en, zh] and all 17 object tables have
+    //    consecutive (_ja, _en, _zh) sibling columns in that exact order.
+    let full_db = build_fixture_db("links").expect("build full links fixture");
+    let fdb = full_db.db();
+    for fts in [
+        "text_fts",
+        "unit_name_fts",
+        "skill_name_fts",
+        "world_name_fts",
+    ] {
+        let cols: Vec<String> = fdb
+            .query_readonly_json(&format!(
+                "SELECT name FROM pragma_table_info('{fts}') ORDER BY cid"
+            ))
+            .expect("pragma_table_info fts")
+            .into_iter()
+            .map(|r| r["name"].as_str().expect("col").to_owned())
+            .collect();
+        assert_eq!(cols, vec!["ja", "en", "zh"], "FTS5 columns for {fts}");
+    }
+
+    let sibling_checks = [
+        ("unit", "name"),
+        ("skill", "name"),
+        ("command_skill", "name"),
+        ("map", "name"),
+        ("island", "name"),
+        ("save_point_command", "label"),
+        ("item", "name"),
+        ("shop", "name"),
+        ("quest", "name"),
+        ("quest_prize", "text"),
+        ("quest_board", "name"),
+        ("chapter", "name"),
+        ("main_scenario", "text"),
+        ("main_quest", "name"),
+        ("playable_unit", "name"),
+        ("item_drop", "unit_name"),
+        ("map_unit", "name"),
+    ];
+    for (table, prefix) in sibling_checks {
+        let cols: Vec<String> = fdb
+            .query_readonly_json(&format!(
+                "SELECT name FROM pragma_table_info('{table}') ORDER BY cid"
+            ))
+            .expect("pragma_table_info object table")
+            .into_iter()
+            .map(|r| r["name"].as_str().expect("col").to_owned())
+            .collect();
+        let ja_col = format!("{prefix}_ja");
+        let en_col = format!("{prefix}_en");
+        let zh_col = format!("{prefix}_zh");
+        let pos = cols
+            .iter()
+            .position(|c| c == &ja_col)
+            .unwrap_or_else(|| panic!("{table} missing {ja_col}: {cols:?}"));
+        assert_eq!(
+            &cols[pos..pos + 3],
+            &[ja_col, en_col, zh_col],
+            "{table} sibling columns must be ordered (_ja, _en, _zh): {cols:?}"
+        );
+    }
 }
 
 fn copy_dir_recursive(src: &Path, dst: &Path) {

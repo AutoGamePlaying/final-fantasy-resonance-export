@@ -460,13 +460,13 @@ fn all_links_queries_use_indexes_without_full_table_scans() {
     assert_db_uses_index(
         db,
         sql::TALK_LINES_BY_TABLE,
-        params!["/Game/Datatable/Event/Text/DT_MockStory_01", "zh-Hans"],
+        ["/Game/Datatable/Event/Text/DT_MockStory_01"],
         LINK_AND_RELATED_TABLES,
     );
     assert_db_uses_index(
         db,
         sql::TALK_LINES_BY_TABLE_AND_TALK_ID,
-        params!["/Game/Datatable/Event/Text/DT_MockNpc", 1_i64, "zh-Hans"],
+        params!["/Game/Datatable/Event/Text/DT_MockNpc", 1_i64],
         LINK_AND_RELATED_TABLES,
     );
     assert_db_uses_index(
@@ -488,6 +488,18 @@ fn all_links_queries_use_indexes_without_full_table_scans() {
         LINK_AND_RELATED_TABLES,
     );
     assert_db_uses_index(db, sql::MAP_UNIT_BY_ID, [1060_i64], LINK_AND_RELATED_TABLES);
+    assert_db_uses_index(
+        db,
+        sql::MAP_UNITS_BY_NAME_JA,
+        ["テスト勇者"],
+        LINK_AND_RELATED_TABLES,
+    );
+    assert_db_uses_index(
+        db,
+        sql::MAP_UNITS_BY_NAME_EN,
+        ["Test Hero"],
+        LINK_AND_RELATED_TABLES,
+    );
     assert_db_uses_index(
         db,
         sql::MAP_UNITS_BY_NAME_ZH,

@@ -5,6 +5,8 @@ CREATE TABLE unit (
     row_key TEXT NOT NULL,
     name_ns TEXT,
     name_key TEXT,
+    name_ja TEXT,
+    name_en TEXT,
     name_zh TEXT,
     category TEXT NOT NULL,
     race TEXT NOT NULL,
@@ -16,16 +18,18 @@ CREATE TABLE unit (
 );
 
 CREATE TABLE unit_name (
-    unit_id INTEGER NOT NULL,
-    lang TEXT NOT NULL,
-    name TEXT NOT NULL,
-    PRIMARY KEY (unit_id, lang)
+    unit_id INTEGER PRIMARY KEY,
+    ja TEXT,
+    en TEXT,
+    zh TEXT
 );
 
 CREATE VIRTUAL TABLE unit_name_fts USING fts5(
-    unit_id UNINDEXED,
-    lang UNINDEXED,
-    name,
+    ja,
+    en,
+    zh,
+    content='unit_name',
+    content_rowid='unit_id',
     tokenize='trigram'
 );
 
@@ -41,6 +45,8 @@ CREATE TABLE skill (
     row_key TEXT NOT NULL,
     name_ns TEXT,
     name_key TEXT,
+    name_ja TEXT,
+    name_en TEXT,
     name_zh TEXT,
     attr_type TEXT NOT NULL,
     damage_type TEXT NOT NULL,
@@ -54,16 +60,18 @@ CREATE TABLE skill (
 );
 
 CREATE TABLE skill_name (
-    skill_id INTEGER NOT NULL,
-    lang TEXT NOT NULL,
-    name TEXT NOT NULL,
-    PRIMARY KEY (skill_id, lang)
+    skill_id INTEGER PRIMARY KEY,
+    ja TEXT,
+    en TEXT,
+    zh TEXT
 );
 
 CREATE VIRTUAL TABLE skill_name_fts USING fts5(
-    skill_id UNINDEXED,
-    lang UNINDEXED,
-    name,
+    ja,
+    en,
+    zh,
+    content='skill_name',
+    content_rowid='skill_id',
     tokenize='trigram'
 );
 
@@ -81,6 +89,8 @@ CREATE TABLE command_skill (
     unit_id INTEGER,
     name_ns TEXT,
     name_key TEXT,
+    name_ja TEXT,
+    name_en TEXT,
     name_zh TEXT,
     is_removable INTEGER NOT NULL CHECK (is_removable IN (0, 1)),
     equip_cost INTEGER NOT NULL,

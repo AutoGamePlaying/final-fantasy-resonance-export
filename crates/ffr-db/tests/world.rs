@@ -754,25 +754,52 @@ fn every_world_query_uses_indexes_with_no_full_table_scans() {
         &world_tables,
     );
 
-    // maps_by_name (3+ char FTS5 and 1-2 char covering index)
+    // maps_by_name (3+ char FTS5 column filter, 1-2 char covering indexes, and exact en_lower)
     assert_db_uses_index(
         db,
         "SELECT m.id, m.doc FROM world_name_fts \
-         JOIN map m ON m.id = world_name_fts.entity_id \
+         JOIN world_name w ON w.id = world_name_fts.rowid \
+         JOIN map m ON m.id = w.entity_id \
          WHERE world_name_fts MATCH ?1 \
-           AND world_name_fts.entity_kind = 'map' \
-           AND world_name_fts.lang = ?2 \
+           AND w.entity_kind = 'map' \
          ORDER BY m.id",
-        params!["\"微光洞\"", "zh-Hans"],
+        ["zh : \"微光洞\""],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT m.id, m.doc FROM world_name w INDEXED BY idx_world_name_en_lower \
+         JOIN map m ON m.id = w.entity_id \
+         WHERE w.entity_kind = 'map' AND w.en_lower IS NOT NULL AND instr(w.en_lower, ?1) > 0 \
+         ORDER BY m.id",
+        ["ha"],
         &world_tables,
     );
     assert_db_uses_index(
         db,
         "SELECT m.id, m.doc FROM world_name w \
          JOIN map m ON m.id = w.entity_id \
-         WHERE w.entity_kind = 'map' AND w.lang = ?1 AND instr(w.name_lower, ?2) > 0 \
+         WHERE w.entity_kind = 'map' AND w.en_lower = ?1 \
          ORDER BY m.id",
-        params!["zh-Hans", "港镇"],
+        ["harbor town"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT m.id, m.doc FROM world_name w INDEXED BY idx_world_name_ja \
+         JOIN map m ON m.id = w.entity_id \
+         WHERE w.entity_kind = 'map' AND w.ja IS NOT NULL AND w.ja LIKE ?1 ESCAPE '\\' \
+         ORDER BY m.id",
+        ["%港%"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT m.id, m.doc FROM world_name w INDEXED BY idx_world_name_zh \
+         JOIN map m ON m.id = w.entity_id \
+         WHERE w.entity_kind = 'map' AND w.zh IS NOT NULL AND w.zh LIKE ?1 ESCAPE '\\' \
+         ORDER BY m.id",
+        ["%港镇%"],
         &world_tables,
     );
 
@@ -854,21 +881,39 @@ fn every_world_query_uses_indexes_with_no_full_table_scans() {
     assert_db_uses_index(
         db,
         "SELECT i.id, i.doc FROM world_name_fts \
-         JOIN item i ON i.id = world_name_fts.entity_id \
+         JOIN world_name w ON w.id = world_name_fts.rowid \
+         JOIN item i ON i.id = w.entity_id \
          WHERE world_name_fts MATCH ?1 \
-           AND world_name_fts.entity_kind = 'item' \
-           AND world_name_fts.lang = ?2 \
+           AND w.entity_kind = 'item' \
          ORDER BY i.id",
-        params!["\"玄铁大\"", "zh-Hans"],
+        ["zh : \"玄铁大\""],
         &world_tables,
     );
     assert_db_uses_index(
         db,
-        "SELECT i.id, i.doc FROM world_name w \
+        "SELECT i.id, i.doc FROM world_name w INDEXED BY idx_world_name_en_lower \
          JOIN item i ON i.id = w.entity_id \
-         WHERE w.entity_kind = 'item' AND w.lang = ?1 AND instr(w.name_lower, ?2) > 0 \
+         WHERE w.entity_kind = 'item' AND w.en_lower IS NOT NULL AND instr(w.en_lower, ?1) > 0 \
          ORDER BY i.id",
-        params!["zh-Hans", "大剑"],
+        ["sw"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT i.id, i.doc FROM world_name w INDEXED BY idx_world_name_ja \
+         JOIN item i ON i.id = w.entity_id \
+         WHERE w.entity_kind = 'item' AND w.ja IS NOT NULL AND w.ja LIKE ?1 ESCAPE '\\' \
+         ORDER BY i.id",
+        ["%剣%"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT i.id, i.doc FROM world_name w INDEXED BY idx_world_name_zh \
+         JOIN item i ON i.id = w.entity_id \
+         WHERE w.entity_kind = 'item' AND w.zh IS NOT NULL AND w.zh LIKE ?1 ESCAPE '\\' \
+         ORDER BY i.id",
+        ["%大剑%"],
         &world_tables,
     );
 

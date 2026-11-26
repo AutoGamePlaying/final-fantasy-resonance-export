@@ -197,12 +197,15 @@ fn synthetic_battle_queries_alignment_issues_and_indexes() {
         vec![9201]
     );
 
-    // UntranslatedMob (9204): name_zh is NULL and Japanese text must NOT match zh-Hans query.
-    let untrans_zh_row = db
-        .query_readonly_json("SELECT name_zh FROM unit WHERE id = 9204")
-        .expect("query unit 9204 name_zh");
-    assert_eq!(untrans_zh_row.len(), 1);
-    assert!(untrans_zh_row[0]["name_zh"].is_null());
+    // UntranslatedMob (9204): name_ja & name_en exist, name_zh is NULL and Japanese text must
+    // NOT match zh-Hans query.
+    let untrans_row = db
+        .query_readonly_json("SELECT name_ja, name_en, name_zh FROM unit WHERE id = 9204")
+        .expect("query unit 9204 multilingual names");
+    assert_eq!(untrans_row.len(), 1);
+    assert_eq!(untrans_row[0]["name_ja"].as_str(), Some("テスト未訳敵"));
+    assert_eq!(untrans_row[0]["name_en"].as_str(), Some("Untranslated Foe"));
+    assert!(untrans_row[0]["name_zh"].is_null());
     assert!(
         db.units_by_name("テスト未訳敵", "zh-Hans")
             .expect("no ja fallback in zh-Hans")
@@ -428,14 +431,44 @@ fn synthetic_battle_queries_alignment_issues_and_indexes() {
     assert_db_uses_index(db, "SELECT doc FROM unit WHERE id = ?1", [9101_i64], tables);
     assert_db_uses_index(
         db,
+        "SELECT id, doc FROM unit WHERE name_ja = ?1 ORDER BY id",
+        ["テスト未訳敵"],
+        tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT id, doc FROM unit WHERE name_en = ?1 ORDER BY id",
+        ["Frostwing Prototype"],
+        tables,
+    );
+    assert_db_uses_index(
+        db,
         "SELECT id, doc FROM unit WHERE name_zh = ?1 ORDER BY id",
         ["霜翼试作兽"],
         tables,
     );
     assert_db_uses_index(
         db,
-        "SELECT u.id, f.name, u.doc FROM unit_name_fts f JOIN unit u ON u.id = f.unit_id WHERE f.name LIKE ?1 AND f.lang = ?2 AND f.name != ?3 ORDER BY u.id",
-        ["%霜翼%", "zh-Hans", "霜翼"],
+        "SELECT u.id, u.doc FROM unit_name_fts JOIN unit u ON u.id = unit_name_fts.rowid WHERE unit_name_fts MATCH ?1 AND u.name_zh != ?2 ORDER BY u.id",
+        ["zh : \"霜翼试\"", "霜翼试"],
+        tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT u.id, u.doc FROM unit_name n INDEXED BY idx_unit_name_col_zh JOIN unit u ON u.id = n.unit_id WHERE n.zh IS NOT NULL AND n.zh LIKE ?1 ESCAPE '\\' AND n.zh != ?2 ORDER BY u.id",
+        ["%霜翼%", "霜翼"],
+        tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT s.id, s.doc FROM skill_name_fts JOIN skill s ON s.id = skill_name_fts.rowid WHERE skill_name_fts MATCH ?1 AND s.name_zh != ?2 ORDER BY s.id",
+        ["zh : \"试作冰\"", "试作冰"],
+        tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT s.id, s.doc FROM skill_name n INDEXED BY idx_skill_name_col_en JOIN skill s ON s.id = n.skill_id WHERE n.en IS NOT NULL AND n.en LIKE ?1 ESCAPE '\\' AND n.en != ?2 ORDER BY s.id",
+        ["%ic%", "ic"],
         tables,
     );
     assert_db_uses_index(

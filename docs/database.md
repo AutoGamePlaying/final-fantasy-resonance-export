@@ -16,7 +16,7 @@
 
 每类对象一张表：
 
-- **索引列**：编号、名字的文本键、解析好的中文名、分类等常用于查找和筛选的字段，各自建索引；
+- **索引列**：编号、名字的文本键、解析好的三语名（`_ja`、`_en`、`_zh`）、分类等常用于查找和筛选的字段，各自建索引；
 - **`doc` 列**：整个 Rust 对象的 JSON（serde 序列化）。读出来直接反序列化成对象，不用把每个嵌套列表都拆成表；
 - **关系表**：对象之间的引用（单位 → 招式、商店 → 道具、地图 → 宝箱、关卡 → Actor……）单独成表，两端都建索引，正查、反查都快。
 
@@ -26,11 +26,11 @@
 
 | 区域 | 来源 | 主要的表 |
 | --- | --- | --- |
-| 构建信息 | 构建器 | `meta`（版本、游戏构建号、构建时间）、`source`（每个来源的路径和 manifest 哈希）、`stage_report`（每段的行数、耗时、状态）、`build_issue`（悬空引用等问题，照实记录，不静默丢弃） |
-| 文本 | `Localization/<lang>.json`、字符串表 | `text`（仅保留真正翻译过的条目和全部 `ja` 原文）、`text_untranslated`（判定为游戏官方未翻译的条目，含原样 `value` 和判定依据 `reason`）、`text_fts`（FTS5 全文索引，仅索引 `text`，trigram 分词，中日文可以按子串搜）、`string_table_entry` |
+| 构建信息 | 构建器 | `meta`（`schema_version = 4`、游戏构建号）、`source`（每个来源的路径和 manifest 哈希）、`stage_report`（每段的行数、状态）、`build_issue`（悬空引用等问题，照实记录，不静默丢弃） |
+| 文本 | `Localization/<lang>.json`、字符串表 | `text(id, ns, key, ja, en, zh)`（按 `(ns, key)` 合并为一行，仅保留真正翻译过的条目和全部 `ja` 原文，缺失或未翻译的列为 `NULL`）、`text_language(lang, column_name)`（语言标签到列名的映射）、`text_untranslated`（稀疏例外，保持每种语言一行，含原样 `value` 和判定依据 `reason`）、`text_fts`（三列 `ja, en, zh` 的 FTS5 trigram 索引，仅索引 `text`）、`string_table`、`string_table_entry` |
 | 原始数据表 | `FFRS/Content/Datatable/` | `dt_table`、`dt_row` |
-| 战斗 | 数据表 | `unit`、`unit_resistance`、`skill`、`unit_skill`、`command_skill`、`battle_group`、`battle_group_member`、`encounter`、`unit_ai`、`enemy_chapter`；未翻译伴随表 `unit_untranslated`、`skill_untranslated`、`command_skill_untranslated` |
-| 世界 | 数据表 | `map`、`island`、`region`、`map_release_condition`、`save_point`、`save_point_command`、`teleport_point`、`map_link`、`treasure_box`、`item`、`shop`、`shop_item`、`inn`、`quest`、`quest_prize`、`quest_board`、`chapter`、`main_scenario`、`main_quest`、`flag_condition`、`playable_unit`、`item_drop`；未翻译伴随表 `map_untranslated`、`island_untranslated`、`save_point_command_untranslated`、`item_untranslated`、`shop_untranslated`、`quest_untranslated`、`quest_prize_untranslated`、`quest_board_untranslated`、`chapter_untranslated`、`main_scenario_untranslated`、`main_quest_untranslated`、`playable_unit_untranslated`、`item_drop_untranslated` |
+| 战斗 | 数据表 | `unit`、`unit_name`、`unit_name_fts`、`unit_resistance`、`skill`、`skill_name`、`skill_name_fts`、`unit_skill`、`command_skill`、`battle_group`、`battle_group_member`、`encounter`、`unit_ai`、`enemy_chapter`；未翻译伴随表 `unit_untranslated`、`skill_untranslated`、`command_skill_untranslated` |
+| 世界 | 数据表 | `map`、`island`、`region`、`map_release_condition`、`save_point`、`save_point_command`、`teleport_point`、`map_link`、`treasure_box`、`item`、`shop`、`shop_item`、`inn`、`quest`、`quest_prize`、`quest_board`、`chapter`、`main_scenario`、`main_quest`、`flag_condition`、`playable_unit`、`item_drop`、`world_name`、`world_name_fts`；未翻译伴随表 `map_untranslated`、`island_untranslated`、`save_point_command_untranslated`、`item_untranslated`、`shop_untranslated`、`quest_untranslated`、`quest_prize_untranslated`、`quest_board_untranslated`、`chapter_untranslated`、`main_scenario_untranslated`、`main_quest_untranslated`、`playable_unit_untranslated`、`item_drop_untranslated` |
 | 资源索引 | `AssetRegistry.bin`（`inventory/registry.jsonl`）、全量导出、`Config/*.ini` | `asset`、`asset_tag`、`asset_ref`（资源之间的引用，从导出 JSON 里收集）、`config_entry` |
 | 反射 | `.jmap` | `ue_class`（类、结构体、枚举）、`ue_property`、`ue_function`、`ue_enum_value` |
 | 输入、蓝图、界面 | 全量导出 | `input_action`、`input_context`、`input_mapping`、`input_set`；`blueprint`（类默认值里改过的属性）、`blueprint_component`；`widget_node`（界面控件树） |
@@ -52,6 +52,55 @@
 - 资源注册表的 `ActorsMetaData` 标签：每个关卡对象的描述（对象路径、类、二进制描述），内容和关卡导出重复，正文约 120 MB。原始数据在 `inventory/registry.jsonl`；
 - 真机快照默认不导入，只有构建时给了 `--snapshots` 才导入。部署到游戏机的库不带快照。
 
+### 多语言宽表结构（Schema v4）
+
+游戏固定提供三种语言（`ja`、`en`、`zh-Hans`）。自 schema v4 起，多语言表从“每种语言一行”改为“一行一个对象、每种语言一列”，列名统一为 `ja`、`en`、`zh`（`zh` 对应 `zh-Hans`）：
+
+- **语言列映射表**：`text_language(lang TEXT PRIMARY KEY, column_name TEXT NOT NULL UNIQUE)`，固定记录 `('en', 'en')`、`('ja', 'ja')`、`('zh-Hans', 'zh')`，供程序和人工查询。
+- **四张多语言宽表与 FTS5 索引**：
+  - `text(id INTEGER PRIMARY KEY, ns, key, ja, en, zh, UNIQUE(ns, key))`；`text_fts(ja, en, zh, content='text', content_rowid='id', tokenize='trigram')`；
+  - `unit_name(unit_id INTEGER PRIMARY KEY, ja, en, zh)`；`unit_name_fts(ja, en, zh, content='unit_name', content_rowid='unit_id', tokenize='trigram')`；
+  - `skill_name(skill_id INTEGER PRIMARY KEY, ja, en, zh)`；`skill_name_fts(ja, en, zh, content='skill_name', content_rowid='skill_id', tokenize='trigram')`；
+  - `world_name(id INTEGER PRIMARY KEY, entity_kind, entity_id, ja, en, zh, en_lower, UNIQUE(entity_kind, entity_id))`；`world_name_fts(ja, en, zh, content='world_name', content_rowid='id', tokenize='trigram')`。其中 `en_lower` 保存 `en` 的小写形式并建部分索引 `idx_world_name_en_lower(entity_kind, en_lower, entity_id) WHERE en_lower IS NOT NULL`，保留英文不区分大小写的精确查找和短词查找语义。
+- **对象表三语同源列**（列顺序统一为 `_ja`、`_en`、`_zh`，缺失或未翻译时为 `NULL`）：
+  - `name_ja, name_en, name_zh`：`unit`、`skill`、`command_skill`、`map`、`island`、`item`、`shop`、`quest`、`quest_board`、`chapter`、`main_quest`、`playable_unit`、`map_unit`；
+  - `label_ja, label_en, label_zh`：`save_point_command`；
+  - `text_ja, text_en, text_zh`：`quest_prize`、`main_scenario`；
+  - `unit_name_ja, unit_name_en, unit_name_zh`：`item_drop`。
+
+示例 SQL：
+
+```sql
+-- 1. 按 (ns, key) 一次取三种语言
+SELECT ja, en, zh FROM text WHERE ns = 'ST_UnitName' AND key = 'UnitName1';
+
+-- 2. FTS5 按语言列过滤搜索（>= 3 字符）
+SELECT t.ns, t.key, t.zh
+FROM text_fts
+JOIN text AS t ON t.id = text_fts.rowid
+WHERE text_fts MATCH 'zh : "钢铁蝙"'
+LIMIT 20;
+
+-- 3. FTS5 不限语言搜全部三列
+SELECT t.ns, t.key, t.ja, t.en, t.zh
+FROM text_fts
+JOIN text AS t ON t.id = text_fts.rowid
+WHERE text_fts MATCH '"Potion"'
+LIMIT 20;
+
+-- 4. world_name 英文不区分大小写精确查找（走 idx_world_name_en_lower）
+SELECT m.id, m.name_en, m.name_zh
+FROM world_name AS w
+JOIN map AS m ON m.id = w.entity_id
+WHERE w.entity_kind = 'map' AND w.en_lower = lower('Grandshelt');
+
+-- 5. 未翻译记录查询（保持每种语言一行）
+SELECT unit_id, field, lang, text_ns, text_key, value
+FROM unit_untranslated
+WHERE lang = 'zh-Hans'
+ORDER BY unit_id, field;
+```
+
 ### 文本与“游戏未翻译”分表
 
 游戏官方的 `Localization/<lang>.json` 里有部分尚未翻译的条目，原文直接留着日文。为了遵守**不拿日文冒充别的语言**的原则，构建时会把真正翻译过的文本与游戏未翻译的文本分表存放：
@@ -59,23 +108,25 @@
 - **判定规则**（对 `lang != 'ja'` 的条目，与其同 `(ns, key)` 的 `ja` 值比较）：
   - 与 `ja` 值**完全相同**且含有日文假名（平假名或片假名，不含中点 `・` 等标点）的，判定为未翻译，依据记为 `same_as_ja_with_kana`；
   - 英文条目（`en` / `en-*`）放宽为：与 `ja` 完全相同且含有任何日文假名或 CJK 汉字的，判定为未翻译，仅含汉字时依据记为 `same_as_ja_with_cjk`；
-  - 中文条目只看假名，避免纯汉字的人名、地名与日文碰巧一致时被误判。
+  - 简体中文条目（`zh-Hans` / `zh-Hans-*` / `zh-CN` / `zh-SG`）与 `ja` 完全相同、不含假名、且至少含有一个不在 GB2312（6,763 个汉字）集合里的汉字（通常是日文字形，如“剣技”“盗賊技”“説明文”）时，判定为未翻译，依据记为 `same_as_ja_with_non_simplified_hanzi`；
+  - 取舍：简体中文里与 `ja` 完全相同但**全部由 GB2312 常用简体字组成**的条目（如“恋人”“青年”“兵法”及纯汉字人名、地名），在中文里本身成立，仍当作有效译文保留在 `text.zh` 中。
 - **文本分表**：
-  - `text` 只保留真正翻译过的非日文条目以及全部 `ja` 原文；`text_fts` 仅索引 `text`，不把冒充译文的日文混进普通文本搜索；
-  - `text_untranslated(ns, key, lang, value, reason)` 原样保存被判为未翻译的条目，主键 `(ns, key, lang)`，建有 `(lang, ns, key)` 索引；可通过 `GameDb::text_untranslated()` 和 `GameDb::untranslated_texts(lang)` 查询。
+  - `text` 按 `(ns, key)` 合并为一行，三列 `ja`、`en`、`zh` 只保留真正翻译过的非日文条目以及全部 `ja` 原文；某语言包里没有该键或判定为未翻译时，对应列为 `NULL`（原始空字符串 `""` 仍保留为 `""`）。`text_fts` 仅索引 `text` 的三列，不把冒充译文的日文混进普通文本搜索；
+  - `text_untranslated(ns, key, lang, value, reason)` 属于稀疏的例外记录，**保持“每种语言一行”不变**，原样保存被判为未翻译的条目，主键 `(ns, key, lang)`，建有 `(lang, ns, key)` 索引；可通过 `GameDb::text_untranslated()` 和 `GameDb::untranslated_texts(lang)` 查询。
 - **实体未翻译伴随表**：
-  - 所有含按语言解析文本字段（名称、说明、目标、台词等）的 18 张实体表，各配一张 `<表名>_untranslated(<主表主键列>, field, lang, text_ns, text_key, value)`，在 `(<主表主键列>, field, lang)` 上建主键，在 `(lang, <主表主键列>, field)` 上建索引；
-  - 主表的 `name_zh` / `label_zh` / `text_zh` / `unit_name_zh` 在对应中文未翻译时保持 `NULL`；`stage_report.note` 记录 `text_untranslated` 及每张伴随表各语言的行数；
+  - 所有含按语言解析文本字段（名称、说明、目标、台词等）的 18 张实体表，各配一张 `<表名>_untranslated(<主表主键列>, field, lang, text_ns, text_key, value)`，同样**保持“每种语言一行”不变**，在 `(<主表主键列>, field, lang)` 上建主键，在 `(lang, <主表主键列>, field)` 上建索引；
+  - 主表的 `*_ja` / `*_en` / `*_zh`（`name_*`、`label_*`、`text_*`、`unit_name_*`）在对应语言缺失或未翻译时保持 `NULL`；`stage_report.note` 记录 `text_untranslated` 及每张伴随表各语言的行数；
   - 每张伴随表都提供按语言和按主表主键读取的 `GameDb` 方法（例如 `untranslated_items(lang)` / `item_untranslated_fields(item_id)`、`untranslated_skills(lang)` / `skill_untranslated_fields(skill_id)`、`untranslated_talk_lines(lang)` / `talk_line_untranslated_fields(table_path, row)` 等）。
 - **读取与解析**：
-  - `GameDb::text()`、`GameDb::text_all_langs()`、`GameDb::search_text()`、`GameDb::talk_lines()` 只查 `text`，因此不会把未翻译的日文当成其他语言返回；
+  - `GameDb::text()`、`GameDb::text_all_langs()`、`GameDb::search_text()`、`GameDb::talk_lines()` 只查 `text`（按语言映射到 `ja` / `en` / `zh` 列），因此不会把未翻译的日文当成其他语言返回；
   - `GameDb::resolve_ftext()` 先查 `text`，查不到再查 `text_untranslated`：命中时默认按**缺失**处理，原因为“游戏官方未翻译（该语言文件里是日文原文）”；仅在显式开启 `fallback_to_native` 回落时，返回日文原文并标明 `lang = "ja"`；
   - 读 JSON 的 `ffr_data::TextResolver` 使用完全一致的判定和回落规则，与数据库路径保持对齐。
 
 ## 4. 索引
 
-- 每张表的主键；关系表两端各建索引；名字列、分类列建索引；
-- `text_fts`：FTS5 trigram，用来按子串搜中、英、日文本；
+- 每张表的主键；关系表两端各建索引；对象表三语名字列（`*_ja`、`*_en`、`*_zh`）与分类列建索引；
+- `text_fts`、`unit_name_fts`、`skill_name_fts`、`world_name_fts`：三列（`ja, en, zh`）FTS5 trigram 外部内容索引，>= 3 字符的子串搜索按语言用 FTS5 列过滤（不限语言搜全部三列）；
+- 1–2 字符短词子串搜索走各语言部分覆盖索引（`WHERE <col> IS NOT NULL`），`world_name` 英文精确与短词查找走 `idx_world_name_en_lower`；
 - `actor_rtree`：R*Tree，用来查“某关卡里某个坐标附近有什么”；
 - 原始数据表在 `(table_id, row_name)` 上有主键索引；以后某个 JSON 字段查得多，再加表达式索引；
 - **每个读取函数都有测试，用 `EXPLAIN QUERY PLAN` 确认走了索引**，不允许在大表上全表扫描。
@@ -91,16 +142,17 @@ ffr-db build [--export DIR] [--full DIR] [--inventory DIR] [--maps DIR]
 - 阶段顺序：`text`、`datatable`、`battle`、`world`、`assets`、`reflection`、`input_ui`、`levels`、`sequences`、`snapshots`、`links`；每段一个事务；
 - 某段的输入不存在时，这一段跳过，并在 `stage_report` 里写明原因；
 - 先写临时文件，全部成功后再替换目标文件；数据装完再建索引，最后 `ANALYZE`、`VACUUM`；
-- 悬空引用（比如单位引用了不存在的招式）写进 `build_issue`，构建结束时汇总打印。
+- 悬空引用（比如单位引用了不存在的招式）写进 `build_issue`，构建结束时汇总打印；
+- **来源清单的规范化哈希**：`source.manifest_sha256` 在计算导出目录 `manifest.json` 的 SHA-256 前，会先递归剔除与数据语义无关的易变键（`startedAt`、`finishedAt`、`elapsedSeconds`、`elapsedMs`、`generatedAt`、`jobs`、`usmapSha256`）并按字典序重排 JSON 对象键，原始文件哈希仅记录在旁路 `<db>.manifest.json` 中。剔除 `usmapSha256` 是因为同一份类型表在不同机器或不同转储中生成的文件字节可能不同，`.usmap` 的身份已由建库报告（`*.build.json`）与 `known-builds.json` 另行记录；若 `.usmap` 语义内容真的不同，导出数据表本身会跟着变化并反映在内容哈希中。
 
 ## 6. 读取
 
 ```rust
-let db = GameDb::open(path)?;          // 只读打开，检查表结构版本
+let db = GameDb::open(path)?;          // 只读打开，检查表结构版本（当前 v4）
 let bat = db.unit(2)?;                 // Option<Unit>
-let skills = db.skills_of_unit(2)?;    // Vec<Skill>
+let skills = db.skills_of_unit(2)?;    // Vec<UnitSkillEntry>
 let src = db.item_sources(item_id)?;   // 宝箱、商店、任务奖励……
-let hits = db.search_text("钢蝠", "zh-Hans", 20)?;
+let hits = db.search_text("钢蝠", Some("zh-Hans"), 20)?;
 let near = db.actors_near(level, pos, 1500.0)?;
 ```
 

@@ -73,21 +73,13 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
     let mut cmd_untrans: BTreeMap<String, u64> = BTreeMap::new();
 
     // 1. Units, multilingual names (+ FTS5), untranslated fields, and elemental resistances.
-    total_rows += import_units(
-        ctx,
-        &battle,
-        resolver,
-        &languages,
-        &non_native_langs,
-        &mut unit_untrans,
-    )?;
+    total_rows += import_units(ctx, &battle, resolver, &non_native_langs, &mut unit_untrans)?;
 
     // 2. Skills, multilingual names (+ FTS5), and untranslated fields.
     total_rows += import_skills(
         ctx,
         &battle,
         resolver,
-        &languages,
         &non_native_langs,
         &mut skill_untrans,
     )?;
@@ -170,7 +162,6 @@ fn import_units(
     ctx: &ImportCtx<'_>,
     battle: &BattleData,
     resolver: &TextResolver,
-    languages: &[String],
     non_native_langs: &[String],
     untrans_counts: &mut BTreeMap<String, u64>,
 ) -> Result<u64> {
@@ -178,16 +169,16 @@ fn import_units(
     let mut unit_stmt = tx
         .prepare_cached(
             "INSERT INTO unit (\
-                id, row_key, name_ns, name_key, name_zh, category, race, level, \
+                id, row_key, name_ns, name_key, name_ja, name_en, name_zh, category, race, level, \
                 is_boss, max_hp, max_break_point, doc\
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         )
         .map_err(|err| DbError::sqlite("准备写入 unit 表", err))?;
     let mut name_stmt = tx
-        .prepare_cached("INSERT INTO unit_name (unit_id, lang, name) VALUES (?1, ?2, ?3)")
+        .prepare_cached("INSERT INTO unit_name (unit_id, ja, en, zh) VALUES (?1, ?2, ?3, ?4)")
         .map_err(|err| DbError::sqlite("准备写入 unit_name 表", err))?;
     let mut fts_stmt = tx
-        .prepare_cached("INSERT INTO unit_name_fts (unit_id, lang, name) VALUES (?1, ?2, ?3)")
+        .prepare_cached("INSERT INTO unit_name_fts (rowid, ja, en, zh) VALUES (?1, ?2, ?3, ?4)")
         .map_err(|err| DbError::sqlite("准备写入 unit_name_fts 表", err))?;
     let mut res_stmt = tx
         .prepare_cached(
@@ -207,7 +198,7 @@ fn import_units(
     let mut rows: u64 = 0;
     for unit in sorted_units {
         let (name_ns, name_key) = extract_ftext_key(&unit.name, resolver);
-        let name_zh = resolve_strict_non_empty(resolver, &unit.name, MODEL_LANGUAGE);
+        let (name_ja, name_en, name_zh) = resolve_three_langs(resolver, &unit.name);
         let doc = record::encode_doc("unit", unit.id, unit)?;
         unit_stmt
             .execute(params![
@@ -215,6 +206,8 @@ fn import_units(
                 unit.row_key,
                 name_ns,
                 name_key,
+                name_ja,
+                name_en,
                 name_zh,
                 unit_category_to_db(unit.category),
                 unit_race_to_db(unit.race),
@@ -227,20 +220,14 @@ fn import_units(
             .map_err(|err| DbError::sqlite(format!("写入 unit 主键 {}", unit.id), err))?;
         rows += 1;
 
-        for lang in languages {
-            if let Some(text) = resolve_strict_non_empty(resolver, &unit.name, lang) {
-                name_stmt
-                    .execute(params![unit.id, lang, text])
-                    .map_err(|err| {
-                        DbError::sqlite(format!("写入 unit_name ({}, {lang})", unit.id), err)
-                    })?;
-                fts_stmt
-                    .execute(params![unit.id, lang, text])
-                    .map_err(|err| {
-                        DbError::sqlite(format!("写入 unit_name_fts ({}, {lang})", unit.id), err)
-                    })?;
-                rows += 1;
-            }
+        if name_ja.is_some() || name_en.is_some() || name_zh.is_some() {
+            name_stmt
+                .execute(params![unit.id, name_ja, name_en, name_zh])
+                .map_err(|err| DbError::sqlite(format!("写入 unit_name ({})", unit.id), err))?;
+            fts_stmt
+                .execute(params![unit.id, name_ja, name_en, name_zh])
+                .map_err(|err| DbError::sqlite(format!("写入 unit_name_fts ({})", unit.id), err))?;
+            rows += 1;
         }
 
         let mut fields: Vec<(String, &FTextValue)> = vec![
@@ -282,7 +269,6 @@ fn import_skills(
     ctx: &ImportCtx<'_>,
     battle: &BattleData,
     resolver: &TextResolver,
-    languages: &[String],
     non_native_langs: &[String],
     untrans_counts: &mut BTreeMap<String, u64>,
 ) -> Result<u64> {
@@ -290,16 +276,16 @@ fn import_skills(
     let mut skill_stmt = tx
         .prepare_cached(
             "INSERT INTO skill (\
-                id, row_key, name_ns, name_key, name_zh, attr_type, damage_type, \
-                element, target_type, cost, cost_type, power, break_damage, doc\
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                id, row_key, name_ns, name_key, name_ja, name_en, name_zh, attr_type, \
+                damage_type, element, target_type, cost, cost_type, power, break_damage, doc\
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
         )
         .map_err(|err| DbError::sqlite("准备写入 skill 表", err))?;
     let mut name_stmt = tx
-        .prepare_cached("INSERT INTO skill_name (skill_id, lang, name) VALUES (?1, ?2, ?3)")
+        .prepare_cached("INSERT INTO skill_name (skill_id, ja, en, zh) VALUES (?1, ?2, ?3, ?4)")
         .map_err(|err| DbError::sqlite("准备写入 skill_name 表", err))?;
     let mut fts_stmt = tx
-        .prepare_cached("INSERT INTO skill_name_fts (skill_id, lang, name) VALUES (?1, ?2, ?3)")
+        .prepare_cached("INSERT INTO skill_name_fts (rowid, ja, en, zh) VALUES (?1, ?2, ?3, ?4)")
         .map_err(|err| DbError::sqlite("准备写入 skill_name_fts 表", err))?;
     let mut untrans_stmt = tx
         .prepare_cached(
@@ -314,7 +300,7 @@ fn import_skills(
     let mut rows: u64 = 0;
     for skill in sorted_skills {
         let (name_ns, name_key) = extract_ftext_key(&skill.name, resolver);
-        let name_zh = resolve_strict_non_empty(resolver, &skill.name, MODEL_LANGUAGE);
+        let (name_ja, name_en, name_zh) = resolve_three_langs(resolver, &skill.name);
         let doc = record::encode_doc("skill", skill.id, skill)?;
         skill_stmt
             .execute(params![
@@ -322,6 +308,8 @@ fn import_skills(
                 skill.row_key,
                 name_ns,
                 name_key,
+                name_ja,
+                name_en,
                 name_zh,
                 skill_attr_to_db(skill.skill_attr_type),
                 skill_damage_to_db(skill.damage_type),
@@ -336,20 +324,16 @@ fn import_skills(
             .map_err(|err| DbError::sqlite(format!("写入 skill 主键 {}", skill.id), err))?;
         rows += 1;
 
-        for lang in languages {
-            if let Some(text) = resolve_strict_non_empty(resolver, &skill.name, lang) {
-                name_stmt
-                    .execute(params![skill.id, lang, text])
-                    .map_err(|err| {
-                        DbError::sqlite(format!("写入 skill_name ({}, {lang})", skill.id), err)
-                    })?;
-                fts_stmt
-                    .execute(params![skill.id, lang, text])
-                    .map_err(|err| {
-                        DbError::sqlite(format!("写入 skill_name_fts ({}, {lang})", skill.id), err)
-                    })?;
-                rows += 1;
-            }
+        if name_ja.is_some() || name_en.is_some() || name_zh.is_some() {
+            name_stmt
+                .execute(params![skill.id, name_ja, name_en, name_zh])
+                .map_err(|err| DbError::sqlite(format!("写入 skill_name ({})", skill.id), err))?;
+            fts_stmt
+                .execute(params![skill.id, name_ja, name_en, name_zh])
+                .map_err(|err| {
+                    DbError::sqlite(format!("写入 skill_name_fts ({})", skill.id), err)
+                })?;
+            rows += 1;
         }
 
         let fields = [
@@ -394,9 +378,9 @@ fn import_command_skills(
         .tx()
         .prepare_cached(
             "INSERT INTO command_skill (\
-                id, row_key, sort_id, unit_id, name_ns, name_key, name_zh, \
+                id, row_key, sort_id, unit_id, name_ns, name_key, name_ja, name_en, name_zh, \
                 is_removable, equip_cost, doc\
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         )
         .map_err(|err| DbError::sqlite("准备写入 command_skill 表", err))?;
     let mut untrans_stmt = ctx
@@ -428,7 +412,7 @@ fn import_command_skills(
             )?;
         }
         let (name_ns, name_key) = extract_ftext_key(&cmd.name, resolver);
-        let name_zh = resolve_strict_non_empty(resolver, &cmd.name, MODEL_LANGUAGE);
+        let (name_ja, name_en, name_zh) = resolve_three_langs(resolver, &cmd.name);
         let doc = record::encode_doc("command_skill", cmd.id, cmd)?;
         stmt.execute(params![
             cmd.id,
@@ -437,6 +421,8 @@ fn import_command_skills(
             cmd.unit_id_to_use_skill,
             name_ns,
             name_key,
+            name_ja,
+            name_en,
             name_zh,
             i64::from(cmd.is_removable),
             cmd.equip_cost,
@@ -1186,6 +1172,17 @@ fn fallback_namespace_from_table_id(table_id: &str) -> String {
         .next()
         .unwrap_or(after_slash)
         .to_owned()
+}
+
+fn resolve_three_langs(
+    resolver: &TextResolver,
+    value: &FTextValue,
+) -> (Option<String>, Option<String>, Option<String>) {
+    (
+        resolve_strict_non_empty(resolver, value, NATIVE_LANGUAGE),
+        resolve_strict_non_empty(resolver, value, "en"),
+        resolve_strict_non_empty(resolver, value, MODEL_LANGUAGE),
+    )
 }
 
 fn resolve_strict_non_empty(

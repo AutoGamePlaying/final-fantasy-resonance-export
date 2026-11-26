@@ -23,8 +23,15 @@ use crate::build::{ImportCtx, StageStats, format_untranslated_table_counts};
 use crate::error::{DbError, Result};
 use crate::record::encode_doc;
 
-/// Pending row for `world_name` / `world_name_fts`, keyed by natural PK `(entity_kind, entity_id, lang)`.
-type WorldNameMap = BTreeMap<(&'static str, i64, String), (String, String)>;
+/// Pending row for `world_name` / `world_name_fts`, keyed by `(entity_kind, entity_id)`.
+#[derive(Default)]
+struct WorldNameRow {
+    ja: Option<String>,
+    en: Option<String>,
+    zh: Option<String>,
+}
+
+type WorldNameMap = BTreeMap<(&'static str, i64), WorldNameRow>;
 
 const WORLD_UNTRANSLATED_TABLES: [&str; 13] = [
     "map_untranslated",
@@ -200,7 +207,6 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
         ctx,
         &world,
         resolver,
-        &languages,
         &map_ids,
         &island_types,
         &region_ids,
@@ -222,7 +228,6 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
         ctx,
         &world,
         resolver,
-        &languages,
         &item_prices,
         &mut world_names,
         &mut untrans,
@@ -290,7 +295,6 @@ fn import_maps(
     ctx: &ImportCtx<'_>,
     world: &WorldData,
     resolver: &TextResolver,
-    languages: &[String],
     map_ids: &BTreeSet<i64>,
     island_types: &BTreeSet<&str>,
     region_ids: &BTreeSet<i64>,
@@ -303,9 +307,9 @@ fn import_maps(
         .prepare_cached(
             "INSERT INTO map (
                 id, row_key, group_id, island, region_id, same_map_id, level_name,
-                name_ns, name_key, name_zh, map_type, dungeon_type, danger_level,
-                encount_group_id, doc
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+                name_ns, name_key, name_ja, name_en, name_zh, map_type, dungeon_type,
+                danger_level, encount_group_id, doc
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
         )
         .map_err(|err| DbError::sqlite("准备写入 map 表", err))?;
     let mut untrans_stmt = ctx
@@ -347,7 +351,7 @@ fn import_maps(
         }
 
         let (name_ns, name_key) = extract_ftext_key(resolver, &map.name);
-        let name_zh = resolve_zh_strict(resolver, &map.name);
+        let (name_ja, name_en, name_zh) = resolve_three_langs(resolver, &map.name);
         let doc = encode_doc("map", map.id, map)?;
 
         stmt.execute(params![
@@ -360,6 +364,8 @@ fn import_maps(
             map.level_name,
             name_ns,
             name_key,
+            name_ja,
+            name_en,
             name_zh,
             map.map_type,
             map.dungeon_type,
@@ -370,7 +376,7 @@ fn import_maps(
         .map_err(|err| DbError::sqlite(format!("写入 map 主键 {}", map.id), err))?;
         rows += 1;
 
-        collect_entity_names("map", map.id, &map.name, resolver, languages, world_names);
+        collect_entity_names("map", map.id, &map.name, resolver, world_names);
         rows += untrans.insert_single(
             &mut untrans_stmt,
             "map_untranslated",
@@ -397,8 +403,9 @@ fn import_islands_and_regions(
             .tx()
             .prepare_cached(
                 "INSERT INTO island (
-                    island_type, row_key, name_ns, name_key, name_zh, display_condition, doc
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    island_type, row_key, name_ns, name_key, name_ja, name_en, name_zh,
+                    display_condition, doc
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             )
             .map_err(|err| DbError::sqlite("准备写入 island 表", err))?;
         let mut untrans_stmt = ctx
@@ -414,13 +421,15 @@ fn import_islands_and_regions(
         sorted_islands.sort_by(|a, b| a.island_type.cmp(&b.island_type));
         for island in sorted_islands {
             let (name_ns, name_key) = extract_ftext_key(resolver, &island.name);
-            let name_zh = resolve_zh_strict(resolver, &island.name);
+            let (name_ja, name_en, name_zh) = resolve_three_langs(resolver, &island.name);
             let doc = encode_doc("island", &island.island_type, island)?;
             stmt.execute(params![
                 island.island_type,
                 island.row_key,
                 name_ns,
                 name_key,
+                name_ja,
+                name_en,
                 name_zh,
                 island.display_condition,
                 doc,
@@ -546,8 +555,9 @@ fn import_save_points(
             .tx()
             .prepare_cached(
                 "INSERT INTO save_point_command (
-                    command_type, row_key, label_ns, label_key, label_zh, item_id, is_enable, doc
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                    command_type, row_key, label_ns, label_key, label_ja, label_en, label_zh,
+                    item_id, is_enable, doc
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             )
             .map_err(|err| DbError::sqlite("准备写入 save_point_command 表", err))?;
         let mut untrans_stmt = ctx
@@ -572,13 +582,15 @@ fn import_save_points(
                 )?;
             }
             let (label_ns, label_key) = extract_ftext_key(resolver, &cmd.label);
-            let label_zh = resolve_zh_strict(resolver, &cmd.label);
+            let (label_ja, label_en, label_zh) = resolve_three_langs(resolver, &cmd.label);
             let doc = encode_doc("save_point_command", &cmd.command_type, cmd)?;
             stmt.execute(params![
                 cmd.command_type,
                 cmd.row_key,
                 label_ns,
                 label_key,
+                label_ja,
+                label_en,
                 label_zh,
                 cmd.item_id,
                 i64::from(cmd.is_enable),
@@ -753,7 +765,6 @@ fn import_items(
     ctx: &ImportCtx<'_>,
     world: &WorldData,
     resolver: &TextResolver,
-    languages: &[String],
     item_prices: &BTreeMap<i64, i64>,
     world_names: &mut WorldNameMap,
     untrans: &mut WorldUntranslatedCtx<'_>,
@@ -764,9 +775,9 @@ fn import_items(
         .prepare_cached(
             "INSERT INTO item (
                 id, row_key, sort_id, category, raw_item_type,
-                name_ns, name_key, name_zh, buying_price, selling_price,
+                name_ns, name_key, name_ja, name_en, name_zh, buying_price, selling_price,
                 is_available_sale, doc
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         )
         .map_err(|err| DbError::sqlite("准备写入 item 表", err))?;
     let mut untrans_stmt = ctx
@@ -806,7 +817,7 @@ fn import_items(
         }
 
         let (name_ns, name_key) = extract_ftext_key(resolver, &item.name);
-        let name_zh = resolve_zh_strict(resolver, &item.name);
+        let (name_ja, name_en, name_zh) = resolve_three_langs(resolver, &item.name);
         let doc = encode_doc("item", item.id, item)?;
         stmt.execute(params![
             item.id,
@@ -816,6 +827,8 @@ fn import_items(
             item.raw_item_type,
             name_ns,
             name_key,
+            name_ja,
+            name_en,
             name_zh,
             item.buying_price,
             item.selling_price,
@@ -825,14 +838,7 @@ fn import_items(
         .map_err(|err| DbError::sqlite(format!("写入 item 主键 {}", item.id), err))?;
         rows += 1;
 
-        collect_entity_names(
-            "item",
-            item.id,
-            &item.name,
-            resolver,
-            languages,
-            world_names,
-        );
+        collect_entity_names("item", item.id, &item.name, resolver, world_names);
         rows += untrans.insert_single(
             &mut untrans_stmt,
             "item_untranslated",
@@ -924,8 +930,8 @@ fn import_shops_and_inns(
         let mut shop_stmt = ctx
             .tx()
             .prepare_cached(
-                "INSERT INTO shop (id, row_key, name_ns, name_key, name_zh, doc) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                "INSERT INTO shop (id, row_key, name_ns, name_key, name_ja, name_en, name_zh, doc) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             )
             .map_err(|err| DbError::sqlite("准备写入 shop 表", err))?;
         let mut shop_untrans_stmt = ctx
@@ -949,7 +955,7 @@ fn import_shops_and_inns(
         sorted_shops.sort_by_key(|s| s.id);
         for shop in sorted_shops {
             let (name_ns, name_key) = extract_ftext_key(resolver, &shop.name);
-            let name_zh = resolve_zh_strict(resolver, &shop.name);
+            let (name_ja, name_en, name_zh) = resolve_three_langs(resolver, &shop.name);
             let doc = encode_doc("shop", shop.id, shop)?;
             shop_stmt
                 .execute(params![
@@ -957,6 +963,8 @@ fn import_shops_and_inns(
                     shop.row_key,
                     name_ns,
                     name_key,
+                    name_ja,
+                    name_en,
                     name_zh,
                     doc,
                 ])
@@ -1110,9 +1118,9 @@ fn import_quests(
             .tx()
             .prepare_cached(
                 "INSERT INTO quest (
-                    id, row_key, title_ns, title_key, name_zh, category,
+                    id, row_key, title_ns, title_key, name_ja, name_en, name_zh, category,
                     chapter_no, min_main_progress, requester_map_id, report_map_id, doc
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             )
             .map_err(|err| DbError::sqlite("准备写入 quest 表", err))?;
         let mut quest_untrans_stmt = ctx
@@ -1127,8 +1135,9 @@ fn import_quests(
             .tx()
             .prepare_cached(
                 "INSERT INTO quest_prize (
-                    quest_id, prize_index, item_id, count, text_ns, text_key, text_zh
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    quest_id, prize_index, item_id, count, text_ns, text_key,
+                    text_ja, text_en, text_zh
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             )
             .map_err(|err| DbError::sqlite("准备写入 quest_prize 表", err))?;
         let mut prize_untrans_stmt = ctx
@@ -1189,7 +1198,7 @@ fn import_quests(
             }
 
             let (title_ns, title_key) = extract_ftext_key(resolver, &quest.title);
-            let name_zh = resolve_zh_strict(resolver, &quest.title);
+            let (name_ja, name_en, name_zh) = resolve_three_langs(resolver, &quest.title);
             let doc = encode_doc("quest", quest.id, quest)?;
             quest_stmt
                 .execute(params![
@@ -1197,6 +1206,8 @@ fn import_quests(
                     quest.row_key,
                     title_ns,
                     title_key,
+                    name_ja,
+                    name_en,
                     name_zh,
                     quest.category,
                     quest.chapter_no,
@@ -1236,7 +1247,7 @@ fn import_quests(
                     )?;
                 }
                 let (text_ns, text_key) = extract_ftext_key(resolver, &prize.text);
-                let text_zh = resolve_zh_strict(resolver, &prize.text);
+                let (text_ja, text_en, text_zh) = resolve_three_langs(resolver, &prize.text);
                 let p_idx = i64::try_from(prize_idx).unwrap_or(i64::MAX);
                 prize_stmt
                     .execute(params![
@@ -1246,6 +1257,8 @@ fn import_quests(
                         prize.count,
                         text_ns,
                         text_key,
+                        text_ja,
+                        text_en,
                         text_zh,
                     ])
                     .map_err(|err| {
@@ -1271,8 +1284,8 @@ fn import_quests(
             .prepare_cached(
                 "INSERT INTO quest_board (
                     row_key, quest_id, quest_board_id, quest_type, is_placeholder,
-                    title_ns, title_key, name_zh, doc
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    title_ns, title_key, name_ja, name_en, name_zh, doc
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             )
             .map_err(|err| DbError::sqlite("准备写入 quest_board 表", err))?;
         let mut qb_untrans_stmt = ctx
@@ -1297,7 +1310,7 @@ fn import_quests(
         sorted_qbs.sort_by(|a, b| a.row_key.cmp(&b.row_key));
         for entry in sorted_qbs {
             let (title_ns, title_key) = extract_ftext_key(resolver, &entry.title);
-            let name_zh = resolve_zh_strict(resolver, &entry.title);
+            let (name_ja, name_en, name_zh) = resolve_three_langs(resolver, &entry.title);
             let doc = encode_doc("quest_board", &entry.row_key, entry)?;
             qb_stmt
                 .execute(params![
@@ -1308,6 +1321,8 @@ fn import_quests(
                     i64::from(entry.is_placeholder()),
                     title_ns,
                     title_key,
+                    name_ja,
+                    name_en,
                     name_zh,
                     doc,
                 ])
@@ -1378,8 +1393,8 @@ fn import_scenario(
         let mut ch_stmt = ctx
             .tx()
             .prepare_cached(
-                "INSERT INTO chapter (chapter_no, row_key, name_ns, name_key, name_zh, doc) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                "INSERT INTO chapter (chapter_no, row_key, name_ns, name_key, name_ja, name_en, name_zh, doc) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             )
             .map_err(|err| DbError::sqlite("准备写入 chapter 表", err))?;
         let mut ch_untrans_stmt = ctx
@@ -1395,7 +1410,7 @@ fn import_scenario(
         sorted_chapters.sort_by_key(|c| c.chapter_no);
         for ch in sorted_chapters {
             let (name_ns, name_key) = extract_ftext_key(resolver, &ch.name);
-            let name_zh = resolve_zh_strict(resolver, &ch.name);
+            let (name_ja, name_en, name_zh) = resolve_three_langs(resolver, &ch.name);
             let doc = encode_doc("chapter", ch.chapter_no, ch)?;
             ch_stmt
                 .execute(params![
@@ -1403,6 +1418,8 @@ fn import_scenario(
                     ch.row_key,
                     name_ns,
                     name_key,
+                    name_ja,
+                    name_en,
                     name_zh,
                     doc,
                 ])
@@ -1439,8 +1456,8 @@ fn import_scenario(
             .prepare_cached(
                 "INSERT INTO main_scenario (
                     row_key, chapter_no, min_progress, progress_end, condition,
-                    text_ns, text_key, text_zh, doc
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    text_ns, text_key, text_ja, text_en, text_zh, doc
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             )
             .map_err(|err| DbError::sqlite("准备写入 main_scenario 表", err))?;
         let mut ms_untrans_stmt = ctx
@@ -1471,7 +1488,7 @@ fn import_scenario(
                 .min_progress
                 .and_then(|start| next_progress_map.get(&start).copied());
             let (text_ns, text_key) = extract_ftext_key(resolver, &entry.text);
-            let text_zh = resolve_zh_strict(resolver, &entry.text);
+            let (text_ja, text_en, text_zh) = resolve_three_langs(resolver, &entry.text);
             let doc = encode_doc("main_scenario", &entry.row_key, entry)?;
             ms_stmt
                 .execute(params![
@@ -1482,6 +1499,8 @@ fn import_scenario(
                     entry.condition,
                     text_ns,
                     text_key,
+                    text_ja,
+                    text_en,
                     text_zh,
                     doc,
                 ])
@@ -1508,8 +1527,9 @@ fn import_scenario(
             .tx()
             .prepare_cached(
                 "INSERT INTO main_quest (
-                    quest_id, chapter_no, chapter_row_key, name_ns, name_key, name_zh, doc
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    quest_id, chapter_no, chapter_row_key, name_ns, name_key,
+                    name_ja, name_en, name_zh, doc
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             )
             .map_err(|err| DbError::sqlite("准备写入 main_quest 表", err))?;
         let mut mq_untrans_stmt = ctx
@@ -1525,7 +1545,7 @@ fn import_scenario(
         main_quests.sort_by_key(|mq| mq.quest_id);
         for mq in main_quests {
             let (name_ns, name_key) = extract_ftext_key(resolver, &mq.chapter_name);
-            let name_zh = resolve_zh_strict(resolver, &mq.chapter_name);
+            let (name_ja, name_en, name_zh) = resolve_three_langs(resolver, &mq.chapter_name);
             let doc = encode_doc("main_quest", mq.quest_id, &mq)?;
             mq_stmt
                 .execute(params![
@@ -1534,6 +1554,8 @@ fn import_scenario(
                     mq.chapter_row_key,
                     name_ns,
                     name_key,
+                    name_ja,
+                    name_en,
                     name_zh,
                     doc,
                 ])
@@ -1639,9 +1661,9 @@ fn import_playable_units(
         .tx()
         .prepare_cached(
             "INSERT INTO playable_unit (
-                map_unit_id, unit_id, row_key, name_ns, name_key, name_zh,
+                map_unit_id, unit_id, row_key, name_ns, name_key, name_ja, name_en, name_zh,
                 is_idle_by_four_direction, doc
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         )
         .map_err(|err| DbError::sqlite("准备写入 playable_unit 表", err))?;
     let mut untrans_stmt = ctx
@@ -1657,7 +1679,7 @@ fn import_playable_units(
     sorted_mappings.sort_by_key(|u| u.map_unit_id);
     for unit in sorted_mappings {
         let (name_ns, name_key) = extract_ftext_key(resolver, &unit.name);
-        let name_zh = resolve_zh_strict(resolver, &unit.name);
+        let (name_ja, name_en, name_zh) = resolve_three_langs(resolver, &unit.name);
         let doc = encode_doc("playable_unit", unit.map_unit_id, &unit)?;
         let idle_int = unit.is_idle_by_four_direction.map(i64::from);
         stmt.execute(params![
@@ -1666,6 +1688,8 @@ fn import_playable_units(
             unit.row_key,
             name_ns,
             name_key,
+            name_ja,
+            name_en,
             name_zh,
             idle_int,
             doc,
@@ -1699,8 +1723,9 @@ fn import_item_drops(
         .tx()
         .prepare_cached(
             "INSERT INTO item_drop (
-                unit_id, drop_kind, item_id, rate, unit_name_ns, unit_name_key, unit_name_zh
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                unit_id, drop_kind, item_id, rate, unit_name_ns, unit_name_key,
+                unit_name_ja, unit_name_en, unit_name_zh
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         )
         .map_err(|err| DbError::sqlite("准备写入 item_drop 表", err))?;
     let mut untrans_stmt = ctx
@@ -1730,6 +1755,8 @@ fn import_item_drops(
         struct ResolvedUnitName {
             ns: Option<String>,
             key: Option<String>,
+            ja: Option<String>,
+            en: Option<String>,
             zh: Option<String>,
         }
         let mut resolved_name: Option<ResolvedUnitName> = None;
@@ -1751,8 +1778,14 @@ fn import_item_drops(
 
             let unit_name = resolved_name.get_or_insert_with(|| {
                 let (ns, key) = extract_ftext_key(resolver, &unit.name);
-                let zh = resolve_zh_strict(resolver, &unit.name);
-                ResolvedUnitName { ns, key, zh }
+                let (ja, en, zh) = resolve_three_langs(resolver, &unit.name);
+                ResolvedUnitName {
+                    ns,
+                    key,
+                    ja,
+                    en,
+                    zh,
+                }
             });
 
             stmt.execute(params![
@@ -1762,6 +1795,8 @@ fn import_item_drops(
                 rate,
                 unit_name.ns.as_deref(),
                 unit_name.key.as_deref(),
+                unit_name.ja.as_deref(),
+                unit_name.en.as_deref(),
                 unit_name.zh.as_deref(),
             ])
             .map_err(|err| {
@@ -1788,16 +1823,19 @@ fn collect_entity_names(
     entity_id: i64,
     ftext: &FTextValue,
     resolver: &TextResolver,
-    languages: &[String],
     world_names: &mut WorldNameMap,
 ) {
-    for lang in languages {
-        let resolved = resolver.resolve_with(ftext, Some(lang), ResolveOptions::strict());
-        let Some(text) = resolved.text.filter(|t| !t.trim().is_empty()) else {
-            continue;
-        };
-        let lower = text.to_lowercase();
-        world_names.insert((entity_kind, entity_id, lang.clone()), (text, lower));
+    let resolve_non_blank = |lang: &str| {
+        resolver
+            .resolve_with(ftext, Some(lang), ResolveOptions::strict())
+            .text
+            .filter(|t| !t.trim().is_empty())
+    };
+    let ja = resolve_non_blank(NATIVE_LANGUAGE);
+    let en = resolve_non_blank("en");
+    let zh = resolve_non_blank(MODEL_LANGUAGE);
+    if ja.is_some() || en.is_some() || zh.is_some() {
+        world_names.insert((entity_kind, entity_id), WorldNameRow { ja, en, zh });
     }
 }
 
@@ -1807,33 +1845,38 @@ fn flush_world_names(ctx: &ImportCtx<'_>, world_names: &WorldNameMap) -> Result<
     let mut name_stmt = ctx
         .tx()
         .prepare_cached(
-            "INSERT INTO world_name (entity_kind, entity_id, lang, name, name_lower) \
-             VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO world_name (id, entity_kind, entity_id, ja, en, zh, en_lower) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         )
         .map_err(|err| DbError::sqlite("准备写入 world_name 表", err))?;
 
     let mut fts_stmt = ctx
         .tx()
-        .prepare_cached(
-            "INSERT INTO world_name_fts (entity_kind, entity_id, lang, name) \
-             VALUES (?1, ?2, ?3, ?4)",
-        )
+        .prepare_cached("INSERT INTO world_name_fts (rowid, ja, en, zh) VALUES (?1, ?2, ?3, ?4)")
         .map_err(|err| DbError::sqlite("准备写入 world_name_fts 表", err))?;
 
-    for ((entity_kind, entity_id, lang), (text, lower)) in world_names {
+    let mut row_id = 0_i64;
+    for (&(entity_kind, entity_id), names) in world_names {
+        row_id = row_id.saturating_add(1);
+        let en_lower = names.en.as_deref().map(str::to_lowercase);
         name_stmt
-            .execute(params![entity_kind, entity_id, lang, text, lower])
+            .execute(params![
+                row_id,
+                entity_kind,
+                entity_id,
+                names.ja,
+                names.en,
+                names.zh,
+                en_lower,
+            ])
             .map_err(|err| {
-                DbError::sqlite(
-                    format!("写入 world_name ({entity_kind}, {entity_id}, {lang})"),
-                    err,
-                )
+                DbError::sqlite(format!("写入 world_name ({entity_kind}, {entity_id})"), err)
             })?;
         fts_stmt
-            .execute(params![entity_kind, entity_id, lang, text])
+            .execute(params![row_id, names.ja, names.en, names.zh])
             .map_err(|err| {
                 DbError::sqlite(
-                    format!("写入 world_name_fts ({entity_kind}, {entity_id}, {lang})"),
+                    format!("写入 world_name_fts ({entity_kind}, {entity_id})"),
                     err,
                 )
             })?;
@@ -1907,9 +1950,20 @@ fn discover_languages(export_root: &Path) -> Vec<String> {
     langs.into_iter().collect()
 }
 
-fn resolve_zh_strict(resolver: &TextResolver, value: &FTextValue) -> Option<String> {
+fn resolve_three_langs(
+    resolver: &TextResolver,
+    value: &FTextValue,
+) -> (Option<String>, Option<String>, Option<String>) {
+    (
+        resolve_lang_strict(resolver, value, NATIVE_LANGUAGE),
+        resolve_lang_strict(resolver, value, "en"),
+        resolve_lang_strict(resolver, value, MODEL_LANGUAGE),
+    )
+}
+
+fn resolve_lang_strict(resolver: &TextResolver, value: &FTextValue, lang: &str) -> Option<String> {
     resolver
-        .resolve_with(value, Some(MODEL_LANGUAGE), ResolveOptions::strict())
+        .resolve_with(value, Some(lang), ResolveOptions::strict())
         .text
         .filter(|text| !text.is_empty())
 }

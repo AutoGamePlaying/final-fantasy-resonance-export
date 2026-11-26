@@ -12,7 +12,7 @@ use crate::error::{DbError, Result};
 /// `PRAGMA user_version`.
 ///
 /// Increment whenever any table or index schema changes in an incompatible way.
-pub const SCHEMA_VERSION: u32 = 3;
+pub const SCHEMA_VERSION: u32 = 4;
 
 /// Fixed SQLite page size (bytes) applied before creating any tables for reproducible builds.
 pub const DB_PAGE_SIZE: u32 = 4096;
@@ -26,6 +26,57 @@ pub const META_KEY_SCHEMA_VERSION: &str = "schema_version";
 pub const META_KEY_BUILDER_VERSION: &str = "builder_version";
 /// `meta` key for the Steam/game build identifier recorded during build.
 pub const META_KEY_GAME_BUILD_ID: &str = "game_build_id";
+
+/// Fixed language columns in schema v4 wide multilingual tables (`ja`, `en`, `zh`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum LangCol {
+    Ja,
+    En,
+    Zh,
+}
+
+impl LangCol {
+    /// All supported game languages in alphabetical BCP-47 `lang` tag order (`en`, `ja`, `zh-Hans`).
+    pub(crate) const BY_LANG_ORDER: [Self; 3] = [Self::En, Self::Ja, Self::Zh];
+
+    /// Map a BCP-47 language tag (`"ja"`, `"en"`, `"zh-Hans"`) to its schema v4 column.
+    pub(crate) fn from_lang(lang: &str) -> Option<Self> {
+        match lang {
+            "ja" => Some(Self::Ja),
+            "en" => Some(Self::En),
+            "zh-Hans" => Some(Self::Zh),
+            _ => None,
+        }
+    }
+
+    /// Map a schema v4 column name (`"ja"`, `"en"`, `"zh"`) back to [`LangCol`].
+    pub(crate) fn from_column(column: &str) -> Option<Self> {
+        match column {
+            "ja" => Some(Self::Ja),
+            "en" => Some(Self::En),
+            "zh" => Some(Self::Zh),
+            _ => None,
+        }
+    }
+
+    /// Canonical BCP-47 language tag stored in `text_language.lang` and `*_untranslated.lang`.
+    pub(crate) const fn lang(self) -> &'static str {
+        match self {
+            Self::Ja => "ja",
+            Self::En => "en",
+            Self::Zh => "zh-Hans",
+        }
+    }
+
+    /// Column name stored in wide tables and `text_language.column_name`.
+    pub(crate) const fn column(self) -> &'static str {
+        match self {
+            Self::Ja => "ja",
+            Self::En => "en",
+            Self::Zh => "zh",
+        }
+    }
+}
 
 /// One numbered schema unit embedded at compile time via `include_str!`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

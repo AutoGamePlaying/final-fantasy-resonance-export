@@ -1,13 +1,15 @@
--- 01_text: Localization text (translated + native ja), untranslated entries,
--- FTS5 trigram index over `text`, and StringTable entries.
+-- 01_text: Localization text (one row per (ns, key) with ja/en/zh columns),
+-- sparse per-language untranslated entries, language-to-column mapping,
+-- 3-column FTS5 trigram index over `text`, and StringTable entries.
 
 CREATE TABLE text (
-    id INTEGER NOT NULL UNIQUE,
+    id INTEGER PRIMARY KEY,
     ns TEXT NOT NULL,
     key TEXT NOT NULL,
-    lang TEXT NOT NULL,
-    value TEXT NOT NULL,
-    PRIMARY KEY (ns, key, lang)
+    ja TEXT,
+    en TEXT,
+    zh TEXT,
+    UNIQUE (ns, key)
 );
 
 CREATE TABLE text_untranslated (
@@ -20,7 +22,8 @@ CREATE TABLE text_untranslated (
 );
 
 CREATE TABLE text_language (
-    lang TEXT PRIMARY KEY
+    lang TEXT PRIMARY KEY,
+    column_name TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE string_table (
@@ -37,7 +40,9 @@ CREATE TABLE string_table_entry (
 );
 
 CREATE VIRTUAL TABLE text_fts USING fts5(
-    value,
+    ja,
+    en,
+    zh,
     content='text',
     content_rowid='id',
     tokenize='trigram'

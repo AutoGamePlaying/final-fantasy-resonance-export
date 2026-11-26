@@ -18,6 +18,8 @@ CREATE INDEX idx_level_object_talk_object ON level_object_talk(level_object_id, 
 CREATE INDEX idx_level_object_talk_event ON level_object_talk(talk_event_id, level_object_id);
 
 CREATE INDEX idx_map_unit_row_key ON map_unit(row_key);
+CREATE INDEX idx_map_unit_name_ja ON map_unit(name_ja);
+CREATE INDEX idx_map_unit_name_en ON map_unit(name_en);
 CREATE INDEX idx_map_unit_name_zh ON map_unit(name_zh);
 
 CREATE INDEX idx_class_ref_normalized ON class_ref(normalized);

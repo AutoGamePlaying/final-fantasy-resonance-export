@@ -12,6 +12,8 @@ CREATE TABLE map (
     level_name TEXT NOT NULL,
     name_ns TEXT,
     name_key TEXT,
+    name_ja TEXT,
+    name_en TEXT,
     name_zh TEXT,
     map_type TEXT NOT NULL,
     dungeon_type TEXT NOT NULL,
@@ -25,6 +27,8 @@ CREATE TABLE island (
     row_key TEXT NOT NULL,
     name_ns TEXT,
     name_key TEXT,
+    name_ja TEXT,
+    name_en TEXT,
     name_zh TEXT,
     display_condition TEXT NOT NULL,
     doc TEXT NOT NULL
@@ -58,6 +62,8 @@ CREATE TABLE save_point_command (
     row_key TEXT NOT NULL,
     label_ns TEXT,
     label_key TEXT,
+    label_ja TEXT,
+    label_en TEXT,
     label_zh TEXT,
     item_id INTEGER,
     is_enable INTEGER NOT NULL,
@@ -111,6 +117,8 @@ CREATE TABLE item (
     raw_item_type TEXT NOT NULL,
     name_ns TEXT,
     name_key TEXT,
+    name_ja TEXT,
+    name_en TEXT,
     name_zh TEXT,
     buying_price INTEGER NOT NULL,
     selling_price INTEGER NOT NULL,
@@ -123,6 +131,8 @@ CREATE TABLE shop (
     row_key TEXT NOT NULL,
     name_ns TEXT,
     name_key TEXT,
+    name_ja TEXT,
+    name_en TEXT,
     name_zh TEXT,
     doc TEXT NOT NULL
 );
@@ -163,6 +173,8 @@ CREATE TABLE quest (
     row_key TEXT NOT NULL,
     title_ns TEXT,
     title_key TEXT,
+    name_ja TEXT,
+    name_en TEXT,
     name_zh TEXT,
     category TEXT NOT NULL,
     chapter_no INTEGER,
@@ -179,6 +191,8 @@ CREATE TABLE quest_prize (
     count INTEGER NOT NULL,
     text_ns TEXT,
     text_key TEXT,
+    text_ja TEXT,
+    text_en TEXT,
     text_zh TEXT,
     PRIMARY KEY (quest_id, prize_index)
 );
@@ -191,6 +205,8 @@ CREATE TABLE quest_board (
     is_placeholder INTEGER NOT NULL,
     title_ns TEXT,
     title_key TEXT,
+    name_ja TEXT,
+    name_en TEXT,
     name_zh TEXT,
     doc TEXT NOT NULL
 );
@@ -210,6 +226,8 @@ CREATE TABLE chapter (
     row_key TEXT NOT NULL,
     name_ns TEXT,
     name_key TEXT,
+    name_ja TEXT,
+    name_en TEXT,
     name_zh TEXT,
     doc TEXT NOT NULL
 );
@@ -222,6 +240,8 @@ CREATE TABLE main_scenario (
     condition TEXT NOT NULL,
     text_ns TEXT,
     text_key TEXT,
+    text_ja TEXT,
+    text_en TEXT,
     text_zh TEXT,
     doc TEXT NOT NULL
 );
@@ -232,6 +252,8 @@ CREATE TABLE main_quest (
     chapter_row_key TEXT NOT NULL,
     name_ns TEXT,
     name_key TEXT,
+    name_ja TEXT,
+    name_en TEXT,
     name_zh TEXT,
     doc TEXT NOT NULL
 );
@@ -256,6 +278,8 @@ CREATE TABLE playable_unit (
     row_key TEXT NOT NULL,
     name_ns TEXT,
     name_key TEXT,
+    name_ja TEXT,
+    name_en TEXT,
     name_zh TEXT,
     is_idle_by_four_direction INTEGER,
     doc TEXT NOT NULL
@@ -268,24 +292,29 @@ CREATE TABLE item_drop (
     rate INTEGER NOT NULL,
     unit_name_ns TEXT,
     unit_name_key TEXT,
+    unit_name_ja TEXT,
+    unit_name_en TEXT,
     unit_name_zh TEXT,
     PRIMARY KEY (unit_id, drop_kind)
 );
 
 CREATE TABLE world_name (
+    id INTEGER PRIMARY KEY,
     entity_kind TEXT NOT NULL,
     entity_id INTEGER NOT NULL,
-    lang TEXT NOT NULL,
-    name TEXT NOT NULL,
-    name_lower TEXT NOT NULL,
-    PRIMARY KEY (entity_kind, entity_id, lang)
+    ja TEXT,
+    en TEXT,
+    zh TEXT,
+    en_lower TEXT,
+    UNIQUE (entity_kind, entity_id)
 );
 
 CREATE VIRTUAL TABLE world_name_fts USING fts5(
-    entity_kind UNINDEXED,
-    entity_id UNINDEXED,
-    lang UNINDEXED,
-    name,
+    ja,
+    en,
+    zh,
+    content='world_name',
+    content_rowid='id',
     tokenize='trigram'
 );
 

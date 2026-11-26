@@ -50,6 +50,8 @@ CREATE TABLE map_unit (
     name TEXT NOT NULL,
     name_ns TEXT,
     name_key TEXT,
+    name_ja TEXT,
+    name_en TEXT,
     name_zh TEXT,
     primary_asset TEXT,
     doc TEXT NOT NULL

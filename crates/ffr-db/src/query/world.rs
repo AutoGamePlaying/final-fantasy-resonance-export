@@ -20,9 +20,11 @@ use serde::{Deserialize, Serialize};
 use crate::db::GameDb;
 use crate::error::{DbError, Result};
 use crate::query::text::{
-    UntranslatedField, query_untranslated_pair_key, query_untranslated_single_key,
+    UntranslatedField, fts_column_phrase, like_pattern, query_untranslated_pair_key,
+    query_untranslated_single_key,
 };
 use crate::record::{decode_doc, query_doc_opt, query_docs, query_keyed_doc_opt};
+use crate::schema::LangCol;
 
 /// Compact catalog entry for one map, pre-joined with teleportability and treasure count.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -175,43 +177,80 @@ impl GameDb {
 
     /// Search maps whose localized name in `lang` contains `query` (ordered by map ID).
     ///
-    /// Uses `world_name_fts` (trigram index) when `query` has at least 3 characters and the
-    /// covering index on `world_name` for 1-2 character queries. Never falls back to Japanese when
-    /// `lang != "ja"`.
+    /// Uses `world_name_fts` (3-column trigram index with column filter) when `query` has at least
+    /// 3 characters and the per-language partial covering index on `world_name` for 1-2 character
+    /// queries. Never falls back to Japanese when `lang != "ja"`.
     pub fn maps_by_name(&self, query: &str, lang: &str) -> Result<Vec<MapInfo>> {
         let needle = query.trim();
         if needle.is_empty() {
             return Ok(Vec::new());
         }
+        let Some(col) = LangCol::from_lang(lang) else {
+            return Ok(Vec::new());
+        };
         self.with_conn(|conn| {
             if needle.chars().count() >= 3 {
-                let fts_query = fts_literal_phrase(needle);
+                let fts_query = fts_column_phrase(col, needle);
                 query_docs(
                     conn,
                     "map",
                     "SELECT m.id, m.doc \
                      FROM world_name_fts \
-                     JOIN map m ON m.id = world_name_fts.entity_id \
+                     JOIN world_name w ON w.id = world_name_fts.rowid \
+                     JOIN map m ON m.id = w.entity_id \
                      WHERE world_name_fts MATCH ?1 \
-                       AND world_name_fts.entity_kind = 'map' \
-                       AND world_name_fts.lang = ?2 \
+                       AND w.entity_kind = 'map' \
                      ORDER BY m.id",
-                    params![fts_query, lang],
+                    [fts_query],
                 )
             } else {
-                let lower = needle.to_lowercase();
-                query_docs(
-                    conn,
-                    "map",
-                    "SELECT m.id, m.doc \
-                     FROM world_name w \
-                     JOIN map m ON m.id = w.entity_id \
-                     WHERE w.entity_kind = 'map' \
-                       AND w.lang = ?1 \
-                       AND instr(w.name_lower, ?2) > 0 \
-                     ORDER BY m.id",
-                    params![lang, lower],
-                )
+                match col {
+                    LangCol::En => {
+                        let lower = needle.to_lowercase();
+                        query_docs(
+                            conn,
+                            "map",
+                            "SELECT m.id, m.doc \
+                             FROM world_name w INDEXED BY idx_world_name_en_lower \
+                             JOIN map m ON m.id = w.entity_id \
+                             WHERE w.entity_kind = 'map' \
+                               AND w.en_lower IS NOT NULL \
+                               AND instr(w.en_lower, ?1) > 0 \
+                             ORDER BY m.id",
+                            [lower],
+                        )
+                    }
+                    LangCol::Ja => {
+                        let pattern = like_pattern(needle);
+                        query_docs(
+                            conn,
+                            "map",
+                            "SELECT m.id, m.doc \
+                             FROM world_name w INDEXED BY idx_world_name_ja \
+                             JOIN map m ON m.id = w.entity_id \
+                             WHERE w.entity_kind = 'map' \
+                               AND w.ja IS NOT NULL \
+                               AND w.ja LIKE ?1 ESCAPE '\\' \
+                             ORDER BY m.id",
+                            [pattern],
+                        )
+                    }
+                    LangCol::Zh => {
+                        let pattern = like_pattern(needle);
+                        query_docs(
+                            conn,
+                            "map",
+                            "SELECT m.id, m.doc \
+                             FROM world_name w INDEXED BY idx_world_name_zh \
+                             JOIN map m ON m.id = w.entity_id \
+                             WHERE w.entity_kind = 'map' \
+                               AND w.zh IS NOT NULL \
+                               AND w.zh LIKE ?1 ESCAPE '\\' \
+                             ORDER BY m.id",
+                            [pattern],
+                        )
+                    }
+                }
             }
         })
     }
@@ -456,43 +495,80 @@ impl GameDb {
 
     /// Search items whose localized name in `lang` contains `query` (ordered by item ID).
     ///
-    /// Uses `world_name_fts` (trigram index) when `query` has at least 3 characters and the
-    /// covering index on `world_name` for 1-2 character queries. Never falls back to Japanese when
-    /// `lang != "ja"`.
+    /// Uses `world_name_fts` (3-column trigram index with column filter) when `query` has at least
+    /// 3 characters and the per-language partial covering index on `world_name` for 1-2 character
+    /// queries. Never falls back to Japanese when `lang != "ja"`.
     pub fn items_by_name(&self, query: &str, lang: &str) -> Result<Vec<Item>> {
         let needle = query.trim();
         if needle.is_empty() {
             return Ok(Vec::new());
         }
+        let Some(col) = LangCol::from_lang(lang) else {
+            return Ok(Vec::new());
+        };
         self.with_conn(|conn| {
             if needle.chars().count() >= 3 {
-                let fts_query = fts_literal_phrase(needle);
+                let fts_query = fts_column_phrase(col, needle);
                 query_docs(
                     conn,
                     "item",
                     "SELECT i.id, i.doc \
                      FROM world_name_fts \
-                     JOIN item i ON i.id = world_name_fts.entity_id \
+                     JOIN world_name w ON w.id = world_name_fts.rowid \
+                     JOIN item i ON i.id = w.entity_id \
                      WHERE world_name_fts MATCH ?1 \
-                       AND world_name_fts.entity_kind = 'item' \
-                       AND world_name_fts.lang = ?2 \
+                       AND w.entity_kind = 'item' \
                      ORDER BY i.id",
-                    params![fts_query, lang],
+                    [fts_query],
                 )
             } else {
-                let lower = needle.to_lowercase();
-                query_docs(
-                    conn,
-                    "item",
-                    "SELECT i.id, i.doc \
-                     FROM world_name w \
-                     JOIN item i ON i.id = w.entity_id \
-                     WHERE w.entity_kind = 'item' \
-                       AND w.lang = ?1 \
-                       AND instr(w.name_lower, ?2) > 0 \
-                     ORDER BY i.id",
-                    params![lang, lower],
-                )
+                match col {
+                    LangCol::En => {
+                        let lower = needle.to_lowercase();
+                        query_docs(
+                            conn,
+                            "item",
+                            "SELECT i.id, i.doc \
+                             FROM world_name w INDEXED BY idx_world_name_en_lower \
+                             JOIN item i ON i.id = w.entity_id \
+                             WHERE w.entity_kind = 'item' \
+                               AND w.en_lower IS NOT NULL \
+                               AND instr(w.en_lower, ?1) > 0 \
+                             ORDER BY i.id",
+                            [lower],
+                        )
+                    }
+                    LangCol::Ja => {
+                        let pattern = like_pattern(needle);
+                        query_docs(
+                            conn,
+                            "item",
+                            "SELECT i.id, i.doc \
+                             FROM world_name w INDEXED BY idx_world_name_ja \
+                             JOIN item i ON i.id = w.entity_id \
+                             WHERE w.entity_kind = 'item' \
+                               AND w.ja IS NOT NULL \
+                               AND w.ja LIKE ?1 ESCAPE '\\' \
+                             ORDER BY i.id",
+                            [pattern],
+                        )
+                    }
+                    LangCol::Zh => {
+                        let pattern = like_pattern(needle);
+                        query_docs(
+                            conn,
+                            "item",
+                            "SELECT i.id, i.doc \
+                             FROM world_name w INDEXED BY idx_world_name_zh \
+                             JOIN item i ON i.id = w.entity_id \
+                             WHERE w.entity_kind = 'item' \
+                               AND w.zh IS NOT NULL \
+                               AND w.zh LIKE ?1 ESCAPE '\\' \
+                             ORDER BY i.id",
+                            [pattern],
+                        )
+                    }
+                }
             }
         })
     }
@@ -1674,11 +1750,6 @@ impl GameDb {
             )
         })
     }
-}
-
-fn fts_literal_phrase(query: &str) -> String {
-    let escaped = query.replace('"', "\"\"");
-    format!("\"{escaped}\"")
 }
 
 fn collect_map_links(rows: &mut rusqlite::Rows<'_>) -> Result<Vec<MapLink>> {

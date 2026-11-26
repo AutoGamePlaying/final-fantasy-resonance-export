@@ -25,6 +25,7 @@ use crate::query::text::{
 };
 use crate::query::world::ResolvedShop;
 use crate::record::{decode_doc, query_doc_opt, query_docs};
+use crate::schema::LangCol;
 
 /// Maximum inheritance depth walked by [`GameDb::class_info`].
 const MAX_CLASS_CHAIN_DEPTH: usize = 64;
@@ -65,6 +66,12 @@ pub struct MapUnit {
     /// Localization key from `playable_unit` when linked to a playable character.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name_key: Option<String>,
+    /// Strictly resolved `"ja"` name (`None` when unavailable).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name_ja: Option<String>,
+    /// Strictly resolved `"en"` name (`None` when unavailable; never falls back to Japanese).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name_en: Option<String>,
     /// Strictly resolved `"zh-Hans"` name (`None` when unavailable; never falls back to Japanese).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name_zh: Option<String>,
@@ -233,20 +240,20 @@ pub mod sql {
     pub const TALK_LINES_BY_TABLE: &str = "\
         SELECT \
             tl.table_path, tl.row, tl.ord, tl.talk_id, tl.speaker, tl.emotion, \
-            tl.text_ns, tl.text_key, tl.voice, tl.doc, t.value \
+            tl.text_ns, tl.text_key, tl.voice, tl.doc, t.ja, t.en, t.zh \
         FROM talk_line tl \
         LEFT JOIN text t \
-            ON t.ns = tl.text_ns AND t.key = tl.text_key AND t.lang = ?2 \
+            ON t.ns = tl.text_ns AND t.key = tl.text_key \
         WHERE tl.table_path = ?1 \
         ORDER BY tl.ord";
 
     pub const TALK_LINES_BY_TABLE_AND_TALK_ID: &str = "\
         SELECT \
             tl.table_path, tl.row, tl.ord, tl.talk_id, tl.speaker, tl.emotion, \
-            tl.text_ns, tl.text_key, tl.voice, tl.doc, t.value \
+            tl.text_ns, tl.text_key, tl.voice, tl.doc, t.ja, t.en, t.zh \
         FROM talk_line tl \
         LEFT JOIN text t \
-            ON t.ns = tl.text_ns AND t.key = tl.text_key AND t.lang = ?3 \
+            ON t.ns = tl.text_ns AND t.key = tl.text_key \
         WHERE tl.table_path = ?1 AND tl.talk_id = ?2 \
         ORDER BY tl.ord";
 
@@ -271,6 +278,18 @@ pub mod sql {
         ORDER BY encount_group_id, id";
 
     pub const MAP_UNIT_BY_ID: &str = "SELECT doc FROM map_unit WHERE id = ?1";
+
+    pub const MAP_UNITS_BY_NAME_JA: &str = "\
+        SELECT id, doc \
+        FROM map_unit INDEXED BY idx_map_unit_name_ja \
+        WHERE name_ja IS NOT NULL AND instr(name_ja, ?1) > 0 \
+        ORDER BY id";
+
+    pub const MAP_UNITS_BY_NAME_EN: &str = "\
+        SELECT id, doc \
+        FROM map_unit INDEXED BY idx_map_unit_name_en \
+        WHERE name_en IS NOT NULL AND instr(name_en, ?1) > 0 \
+        ORDER BY id";
 
     pub const MAP_UNITS_BY_NAME_ZH: &str = "\
         SELECT id, doc \
@@ -428,18 +447,16 @@ impl GameDb {
                 let mut stmt = conn
                     .prepare_cached(sql::TALK_LINES_BY_TABLE_AND_TALK_ID)
                     .map_err(|err| DbError::sqlite("准备按段落查询 talk_line", err))?;
-                let mut rows = stmt
-                    .query(params![table_path, talk_id, lang])
-                    .map_err(|err| {
-                        DbError::sqlite(format!("查询对话 {event_id} 段落 {talk_id} 台词"), err)
-                    })?;
+                let mut rows = stmt.query(params![table_path, talk_id]).map_err(|err| {
+                    DbError::sqlite(format!("查询对话 {event_id} 段落 {talk_id} 台词"), err)
+                })?;
                 collect_resolved_talk_lines(&mut rows, lang)
             } else {
                 let mut stmt = conn
                     .prepare_cached(sql::TALK_LINES_BY_TABLE)
                     .map_err(|err| DbError::sqlite("准备查询 talk_line", err))?;
                 let mut rows = stmt
-                    .query(params![table_path, lang])
+                    .query([table_path])
                     .map_err(|err| DbError::sqlite(format!("查询对话 {event_id} 台词"), err))?;
                 collect_resolved_talk_lines(&mut rows, lang)
             }
@@ -477,9 +494,11 @@ impl GameDb {
         self.with_conn(|conn| query_doc_opt(conn, "map_unit", id, sql::MAP_UNIT_BY_ID, [id]))
     }
 
-    /// Search [`MapUnit`] records whose `name_zh` or `row_key` contains `query`, ordered by `id`.
+    /// Search [`MapUnit`] records whose `name_ja`, `name_en`, `name_zh`, or `row_key` contains
+    /// `query`, ordered by `id`.
     ///
-    /// Uses `idx_map_unit_name_zh` and `idx_map_unit_row_key` indexes and deduplicates matches.
+    /// Uses `idx_map_unit_name_{ja,en,zh}` and `idx_map_unit_row_key` indexes and deduplicates
+    /// matches.
     pub fn search_map_units_by_name(&self, query: &str) -> Result<Vec<MapUnit>> {
         let needle = query.trim();
         if needle.is_empty() {
@@ -488,18 +507,16 @@ impl GameDb {
         self.with_conn(|conn| {
             let mut seen: HashSet<i64> = HashSet::new();
             let mut out: Vec<MapUnit> = Vec::new();
-            for unit in
-                query_docs::<MapUnit, _>(conn, "map_unit", sql::MAP_UNITS_BY_NAME_ZH, [needle])?
-            {
-                if seen.insert(unit.id) {
-                    out.push(unit);
-                }
-            }
-            for unit in
-                query_docs::<MapUnit, _>(conn, "map_unit", sql::MAP_UNITS_BY_ROW_KEY, [needle])?
-            {
-                if seen.insert(unit.id) {
-                    out.push(unit);
+            for query_sql in [
+                sql::MAP_UNITS_BY_NAME_JA,
+                sql::MAP_UNITS_BY_NAME_EN,
+                sql::MAP_UNITS_BY_NAME_ZH,
+                sql::MAP_UNITS_BY_ROW_KEY,
+            ] {
+                for unit in query_docs::<MapUnit, _>(conn, "map_unit", query_sql, [needle])? {
+                    if seen.insert(unit.id) {
+                        out.push(unit);
+                    }
                 }
             }
             out.sort_by_key(|u| u.id);
@@ -951,9 +968,18 @@ fn collect_resolved_talk_lines(
         let raw_doc: String = row
             .get(9)
             .map_err(|err| DbError::sqlite("读取 talk_line.doc", err))?;
-        let text: Option<String> = row
-            .get(10)
-            .map_err(|err| DbError::sqlite("读取 text.value", err))?;
+        let text: Option<String> = match LangCol::from_lang(lang) {
+            Some(LangCol::Ja) => row
+                .get(10)
+                .map_err(|err| DbError::sqlite("读取 text.ja", err))?,
+            Some(LangCol::En) => row
+                .get(11)
+                .map_err(|err| DbError::sqlite("读取 text.en", err))?,
+            Some(LangCol::Zh) => row
+                .get(12)
+                .map_err(|err| DbError::sqlite("读取 text.zh", err))?,
+            None => None,
+        };
 
         let line: TalkLine = decode_doc("talk_line", format!("{table_path}:{row_key}"), &raw_doc)?;
         out.push(ResolvedTalkLine {
