@@ -207,6 +207,7 @@ public sealed class SteamLocatorAndWizardTests
     [Fact]
     public async Task InteractiveWizard_FullFlowWithRedirectedStdin_SelectsGameStripsQuotesAndInvokesBuildDbEntry()
     {
+        using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-wizard-flow");
 
         // Synthetic Steam library + game + usmap + two jmaps in directories with spaces
@@ -354,6 +355,7 @@ public sealed class SteamLocatorAndWizardTests
     [Fact]
     public async Task InteractiveWizard_HandlesMissingFfrDbManualGameFallbackAndRealBuildDbEntry()
     {
+        using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-wizard-real-entry");
 
         // 1. Missing ffr-db reports clear Chinese message mentioning ffr-db.exe and waits for Enter

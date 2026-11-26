@@ -1,0 +1,2300 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Common_ErrorPrefix" xml:space="preserve">
+    <value>エラー: {0}</value>
+  </data>
+  <data name="Common_OptionRequiresValue" xml:space="preserve">
+    <value>オプション {0} には値が必要です。</value>
+  </data>
+  <data name="Common_UnsupportedLanguage" xml:space="preserve">
+    <value>未対応の言語「{0}」です。指定可能な値: en、zh-Hans、ja</value>
+  </data>
+  <data name="Common_None" xml:space="preserve">
+    <value>なし</value>
+  </data>
+  <data name="Common_Unknown" xml:space="preserve">
+    <value>不明</value>
+  </data>
+  <data name="Common_NotDetected" xml:space="preserve">
+    <value>未検出</value>
+  </data>
+  <data name="Common_Present" xml:space="preserve">
+    <value>あり</value>
+  </data>
+  <data name="Common_Missing" xml:space="preserve">
+    <value>なし</value>
+  </data>
+  <data name="Common_InvalidPath" xml:space="preserve">
+    <value>パスが無効です</value>
+  </data>
+  <data name="Common_NotSet" xml:space="preserve">
+    <value>(未設定)</value>
+  </data>
+  <data name="Common_NotWritable" xml:space="preserve">
+    <value>ディレクトリに書き込めません</value>
+  </data>
+  <data name="Common_ListSeparator" xml:space="preserve">
+    <value>、</value>
+  </data>
+  <data name="Common_SemicolonSeparator" xml:space="preserve">
+    <value>；</value>
+  </data>
+  <data name="Common_UnknownError" xml:space="preserve">
+    <value>不明なエラー</value>
+  </data>
+  <data name="Common_UnknownReason" xml:space="preserve">
+    <value>原因不明</value>
+  </data>
+  <data name="Cli_UnknownSubcommand" xml:space="preserve">
+    <value>不明なサブコマンドです: {0}。利用可能なコマンド: list, raw, export, locres, inventory, export-assets, export-maps, build-db, fetch-usmap, uninstall-ue4ss（--help で使い方を確認できます）。</value>
+  </data>
+  <data name="Cli_HelpText" xml:space="preserve">
+    <value>FINAL FANTASY RESONANCE アセットエクスポート &amp; データベース構築ツール (ffr-export)
+
+使い方:
+  ffr-export [--lang en|zh-Hans|ja]                       対話型データベース構築ウィザードを起動
+  ffr-export build-db --game &lt;dir&gt; --usmap &lt;file&gt; [options]
+                                                          ゲームデータをエクスポートし ffr-db で ffr.sqlite を構築
+  ffr-export fetch-usmap --game &lt;dir&gt; [--timeout &lt;sec&gt;] [--yes]
+                                                          現在のゲームバージョン用の .usmap を自動取得
+  ffr-export uninstall-ue4ss --game &lt;dir&gt; [--include-foreign] [--yes]
+                                                          本ツールが導入した UE4SS と一時ファイルをクリーンアップ
+  ffr-export list | raw | export | locres | inventory | export-assets | export-maps
+                                                          段階別エクスポートおよび診断用サブコマンド
+  ffr-export --help | -h | help                           このヘルプを表示
+
+グローバルオプション:
+  --lang en|zh-Hans|ja   表示言語を指定（既定: en。locres 使用時は locres の前に指定）
+  --progress-json        GUI 向けの機械可読 @@progress JSON 行を出力（build-db / fetch-usmap）
+
+環境変数:
+  AGP_HOME   データルートディレクトリを明示指定（自動選択を上書き。書き込み不可時はエラー）
+  AGP_LANG   表示言語を指定（en | zh-Hans | ja。--lang が優先）</value>
+  </data>
+  <data name="Cli_UnknownArg" xml:space="preserve">
+    <value>{0} に不明な引数が渡されました: {1}</value>
+  </data>
+  <data name="Cli_ListItemLine" xml:space="preserve">
+    <value>{0}	{1} バイト</value>
+  </data>
+  <data name="Cli_ListTotal" xml:space="preserve">
+    <value>合計: {0}</value>
+  </data>
+  <data name="Cli_RawUnknownOrDuplicateArg" xml:space="preserve">
+    <value>raw に不明または重複した引数が渡されました: {0}</value>
+  </data>
+  <data name="Cli_RawRequiresPackagePath" xml:space="preserve">
+    <value>raw にはパッケージパスが必要です。</value>
+  </data>
+  <data name="Cli_RawRequiresOut" xml:space="preserve">
+    <value>raw には --out &lt;ファイル&gt; が必要です。</value>
+  </data>
+  <data name="Cli_PackageNotFoundOrUnreadable" xml:space="preserve">
+    <value>パッケージが見つからないか読み取れません: {0}</value>
+  </data>
+  <data name="Cli_RawLength" xml:space="preserve">
+    <value>サイズ: {0} バイト</value>
+  </data>
+  <data name="Cli_RawSha256" xml:space="preserve">
+    <value>SHA-256: {0}</value>
+  </data>
+  <data name="Cli_CommandRequiresUsmap" xml:space="preserve">
+    <value>{0} には --usmap &lt;ファイル&gt; が必要です（実行中のゲームから UE4SS でダンプした .usmap。README.md を参照）。</value>
+  </data>
+  <data name="Cli_MappingFileNotFound" xml:space="preserve">
+    <value>マッピングファイルが見つかりません: {0}</value>
+  </data>
+  <data name="Cli_ExportFailedLine" xml:space="preserve">
+    <value>エクスポート失敗: {0}: {1}</value>
+  </data>
+  <data name="Cli_ExportSummary" xml:space="preserve">
+    <value>成功: {0}、失敗: {1}</value>
+  </data>
+  <data name="Cli_LocresNotFound" xml:space="preserve">
+    <value>言語「{0}」のローカライズファイルが見つかりません（{1}）。pak 内で利用可能な言語: {2}</value>
+  </data>
+  <data name="Cli_LocresLanguageLine" xml:space="preserve">
+    <value>{0}: {1} 名前空間、{2} 件、SHA-256: {3}</value>
+  </data>
+  <data name="Cli_LocresSummary" xml:space="preserve">
+    <value>{0} 言語を {1} にエクスポートしました</value>
+  </data>
+  <data name="Cli_LocresLangEmpty" xml:space="preserve">
+    <value>--lang に空の値や空白の言語コードは指定できません: {0}</value>
+  </data>
+  <data name="Cli_LocresLangInvalid" xml:space="preserve">
+    <value>--lang に無効な言語コードが含まれています: {0}</value>
+  </data>
+  <data name="Cli_LocresDuplicateKey" xml:space="preserve">
+    <value>言語 {0} の locres に重複キーがあります: {1}/{2}</value>
+  </data>
+  <data name="Cli_PaksDirNotFound" xml:space="preserve">
+    <value>リソースディレクトリが見つかりません: {0}</value>
+  </data>
+  <data name="Cli_DepsEnvLabel" xml:space="preserve">
+    <value>FFR_DEPS（{0}）</value>
+  </data>
+  <data name="Cli_OutMustBeUnderDeps" xml:space="preserve">
+    <value>{0} は {1} 配下のパスである必要があります: {2}</value>
+  </data>
+  <data name="Cli_OutCannotBeProtectedDescendant" xml:space="preserve">
+    <value>{0} に保護対象ディレクトリ {1} またはその配下は指定できません: {2}</value>
+  </data>
+  <data name="Cli_OutCannotBeProtectedSelf" xml:space="preserve">
+    <value>{0} に保護対象ディレクトリ {1} 自体は指定できません: {2}</value>
+  </data>
+  <data name="Cli_OutputDirNonEmpty" xml:space="preserve">
+    <value>出力ディレクトリが空ではありません。中身を削除して再エクスポートするには --force を指定してください。</value>
+  </data>
+  <data name="Cli_ClearingOutputDir" xml:space="preserve">
+    <value>出力ディレクトリをクリアします: {0}（ファイル数: {1}）</value>
+  </data>
+  <data name="Cli_NotFfrExportOutputDir" xml:space="preserve">
+    <value>{0} は ffr-export の出力ディレクトリではないためクリアしません。空のディレクトリを指定するか手動で削除してください。</value>
+  </data>
+  <data name="Cli_ManifestCommandMismatch" xml:space="preserve">
+    <value>{0} は ffr-export {1} の出力ディレクトリのため、{2} --force ではクリアできません。</value>
+  </data>
+  <data name="ExportAssets_JobsMustBePositive" xml:space="preserve">
+    <value>--jobs には正の整数を指定してください: {0}</value>
+  </data>
+  <data name="ExportAssets_ExportFailedLine" xml:space="preserve">
+    <value>エクスポート失敗: {0}（{1}）: {2}</value>
+  </data>
+  <data name="ExportAssets_RawCopyFailedLine" xml:space="preserve">
+    <value>元ファイルのコピー失敗: {0}: {1}</value>
+  </data>
+  <data name="ExportAssets_Summary" xml:space="preserve">
+    <value>エクスポート完了: パッケージ成功 {0}（新規 {1}、再開スキップ {2}）、元ファイルコピー {3}（新規 {4}、再開スキップ {5}）、スキップ {6}、未決定 {7}、失敗 {8}、出力 {9} バイト、所要時間 {10}s</value>
+  </data>
+  <data name="ExportAssets_KeepOtherCommandDir" xml:space="preserve">
+    <value>別サブコマンドの出力ディレクトリを保持します: {0}/</value>
+  </data>
+  <data name="ExportAssets_ClearedOutputDir" xml:space="preserve">
+    <value>出力ディレクトリをクリアしました: {0}（削除ファイル数: {1}）</value>
+  </data>
+  <data name="ExportAssets_ResumeMode" xml:space="preserve">
+    <value>再開モード: 既存の出力ディレクトリ {0} を再利用します（エクスポート済みファイルはスキップされます）。</value>
+  </data>
+  <data name="ExportAssets_ClassifyEmpty" xml:space="preserve">
+    <value>--classify を空にすることはできません: {0}</value>
+  </data>
+  <data name="Inventory_Summary" xml:space="preserve">
+    <value>{0} 個のパッケージ（主クラス {1} 種、AssetData {2} 件）を {3} にインデックス出力しました</value>
+  </data>
+  <data name="Inventory_NoteLine" xml:space="preserve">
+    <value>補足: {0}</value>
+  </data>
+  <data name="Inventory_AssetRegistryNotFound" xml:space="preserve">
+    <value>AssetRegistry ファイルが見つかりません（想定パス: {0}）。</value>
+  </data>
+  <data name="MapExport_LevelFailedLine" xml:space="preserve">
+    <value>レベルのエクスポート失敗: {0}: {1}</value>
+  </data>
+  <data name="MapExport_Summary" xml:space="preserve">
+    <value>マップエクスポート完了: 合計 {0}、新規出力 {1}、スキップ {2}、失敗 {3}、紐付けマップ {4} 件、所要時間 {5}s</value>
+  </data>
+  <data name="MapExport_FixtureDirNotFound" xml:space="preserve">
+    <value>フィクスチャディレクトリが見つかりません: {0}</value>
+  </data>
+  <data name="MapExport_FixtureMissingPath" xml:space="preserve">
+    <value>フィクスチャに path フィールドがありません。</value>
+  </data>
+  <data name="MapExport_FixtureSummary" xml:space="preserve">
+    <value>マップフィクスチャ集計完了: 合計 {0}、新規出力 {1}、スキップ {2}、失敗 {3}、紐付けマップ {4} 件</value>
+  </data>
+  <data name="MapExport_ParallelMustBePositive" xml:space="preserve">
+    <value>並列数には正の整数を指定してください: {0}</value>
+  </data>
+  <data name="MapExport_MapDataNotFound" xml:space="preserve">
+    <value>マップデータテーブルファイルが見つかりません: {0}</value>
+  </data>
+  <data name="MapExport_MapDataInvalidFormat" xml:space="preserve">
+    <value>マップデータテーブル JSON の形式が不正です: {0}</value>
+  </data>
+  <data name="BuildDb_ExplicitFfrDbNotFound" xml:space="preserve">
+    <value>指定された --ffr-db 実行ファイルが見つかりません: {0}</value>
+  </data>
+  <data name="BuildDb_FfrDbNotFound" xml:space="preserve">
+    <value>ffr-db 実行ファイルが見つかりません（確認順: --ffr-db 引数、アプリ同一ディレクトリ {0}、環境変数 PATH）。--ffr-db &lt;パス&gt; で指定するか、ffr-db を同じフォルダまたは PATH に配置してください。</value>
+  </data>
+  <data name="BuildDb_JmapNotFound" xml:space="preserve">
+    <value>リフレクションダンプファイル（--jmap）が見つかりません: {0}</value>
+  </data>
+  <data name="BuildDb_StepLine" xml:space="preserve">
+    <value>==&gt; ステップ {0}/{1}: {2}</value>
+  </data>
+  <data name="BuildDb_Step1Title" xml:space="preserve">
+    <value>ゲームバージョンと入力ハッシュの識別</value>
+  </data>
+  <data name="BuildDb_Step2Title" xml:space="preserve">
+    <value>ゲームデータを JSON にエクスポート</value>
+  </data>
+  <data name="BuildDb_Step3Title" xml:space="preserve">
+    <value>ffr-db build で SQLite データベースを構築</value>
+  </data>
+  <data name="BuildDb_Step4Title" xml:space="preserve">
+    <value>ffr-db hash でデータベースハッシュを計算</value>
+  </data>
+  <data name="BuildDb_Step5Title" xml:space="preserve">
+    <value>既知ビルド登録表と照合してビルドレポートを出力</value>
+  </data>
+  <data name="BuildDb_SteamAndExeLine" xml:space="preserve">
+    <value>Steam ビルド ID: {0}（取得元: {1}）。exe バージョン: FileVersion={2}、ProductVersion={3}</value>
+  </data>
+  <data name="BuildDb_PakFingerprintLine" xml:space="preserve">
+    <value>pak フィンガープリント: {0}（全 {1} ファイル、ハッシュ対象 {2} バイト、{3} ms）</value>
+  </data>
+  <data name="BuildDb_UsmapHashLine" xml:space="preserve">
+    <value>.usmap ハッシュ: file={0}、content={1}（{2} 型、{3} 列挙）</value>
+  </data>
+  <data name="BuildDb_FfrDbBuildFailed" xml:space="preserve">
+    <value>ffr-db build の実行に失敗しました（実行ファイル: {0}、終了コード: {1}）: {2}</value>
+  </data>
+  <data name="BuildDb_SqliteMissingAfterBuild" xml:space="preserve">
+    <value>ffr-db build は終了しましたが、データベースファイルが生成されませんでした: {0}</value>
+  </data>
+  <data name="BuildDb_DbHashLine" xml:space="preserve">
+    <value>データベースハッシュ: file_sha256={0}、content_sha256={1}（{2} テーブル）</value>
+  </data>
+  <data name="BuildDb_TempJsonCleaned" xml:space="preserve">
+    <value>一時エクスポートディレクトリを削除しました: {0}（{1} ms）</value>
+  </data>
+  <data name="BuildDb_Completed" xml:space="preserve">
+    <value>データベース構築完了: {0}（レポート: {1}、合計所要時間 {2}s）</value>
+  </data>
+  <data name="BuildDb_RequiresGame" xml:space="preserve">
+    <value>build-db には --game &lt;ゲームディレクトリ&gt; が必要です。</value>
+  </data>
+  <data name="BuildDb_RequiresUsmap" xml:space="preserve">
+    <value>build-db には --usmap &lt;ファイル&gt; が必要です。</value>
+  </data>
+  <data name="BuildDb_OutOverlapsGame" xml:space="preserve">
+    <value>--out にゲームディレクトリと重複するパスは指定できません: {0}</value>
+  </data>
+  <data name="BuildDb_ForeignOutputDir" xml:space="preserve">
+    <value>{0} は既に存在し、ffr-export build-db の出力ディレクトリではないため書き込みを拒否しました。空のディレクトリを選ぶか手動で整理してください。</value>
+  </data>
+  <data name="BuildDb_OutputDirNonEmpty" xml:space="preserve">
+    <value>出力ディレクトリが空ではありません（{0}）。クリアして再構築するには --force を指定してください。</value>
+  </data>
+  <data name="BuildDb_FfrDbNoHashSubcommandWarning" xml:space="preserve">
+    <value>警告: 現在の ffr-db（{0}）は hash サブコマンドに未対応のため、file_sha256 のみ計算し content_sha256 およびテーブルハッシュは null とします。</value>
+  </data>
+  <data name="BuildDb_FfrDbHashFailed" xml:space="preserve">
+    <value>ffr-db hash の実行に失敗しました（実行ファイル: {0}、データベース: {1}、終了コード: {2}）: {3}</value>
+  </data>
+  <data name="BuildDb_FfrDbHashInvalidJson" xml:space="preserve">
+    <value>ffr-db hash の JSON 出力の解析に失敗しました（データベース: {0}）: {1}</value>
+  </data>
+  <data name="BuildDb_FfrDbHashMissingFields" xml:space="preserve">
+    <value>ffr-db hash が返した JSON に必須フィールド（file_sha256/content_sha256/tables）がありません: {0}</value>
+  </data>
+  <data name="BuildDb_StartSubprocessFailed" xml:space="preserve">
+    <value>サブプロセスを起動できませんでした: {0}</value>
+  </data>
+  <data name="Version_GameDirEmpty" xml:space="preserve">
+    <value>ゲームディレクトリの検証に失敗しました: --game を空にすることはできません。</value>
+  </data>
+  <data name="Version_GameDirNotFound" xml:space="preserve">
+    <value>ゲームディレクトリの検証に失敗しました: ディレクトリが存在しません: {0}</value>
+  </data>
+  <data name="Version_MissingPaksDir" xml:space="preserve">
+    <value>ゲームディレクトリの検証に失敗しました: リソースディレクトリ {0} が見つかりません（確認先: {1}）。</value>
+  </data>
+  <data name="Version_MissingGameExe" xml:space="preserve">
+    <value>ゲームディレクトリの検証に失敗しました: ゲーム実行ファイル {0} が見つかりません（確認先: {1}）。</value>
+  </data>
+  <data name="Version_ReadSteamManifestFailed" xml:space="preserve">
+    <value>Steam マニフェストの読み取りに失敗しました: {0}: {1}</value>
+  </data>
+  <data name="Version_SteamBuildIdIgnoredManual" xml:space="preserve">
+    <value>補足: {0} から buildid={1} を読み取ったため、--steam-buildid {2} は無視されます。</value>
+  </data>
+  <data name="Version_SteamManifestMissingBuildId" xml:space="preserve">
+    <value>警告: {0} に buildid がなく --steam-buildid も未指定のため、Steam ビルド ID は null として記録されます。</value>
+  </data>
+  <data name="Version_SteamManifestNotFound" xml:space="preserve">
+    <value>警告: {0} が見つからず（上位 2 階層を確認）--steam-buildid も未指定のため、Steam ビルド ID は null として記録されます。</value>
+  </data>
+  <data name="Version_PakFpDirNotFound" xml:space="preserve">
+    <value>pak フィンガープリントの計算に失敗しました: リソースディレクトリが存在しません: {0}</value>
+  </data>
+  <data name="Version_PakFpNoFiles" xml:space="preserve">
+    <value>pak フィンガープリントの計算に失敗しました: {0} に .utoc/.ucas/.pak ファイルが見つかりません。</value>
+  </data>
+  <data name="Version_UsmapFileNotFound" xml:space="preserve">
+    <value>.usmap ハッシュの計算に失敗しました: ファイルが存在しません: {0}</value>
+  </data>
+  <data name="Version_UsmapEmptyMappings" xml:space="preserve">
+    <value>CUE4Parse が空の型マッピングテーブルを返しました。</value>
+  </data>
+  <data name="Version_UsmapParseFailed" xml:space="preserve">
+    <value>.usmap の解析に失敗しました: {0}: {1}</value>
+  </data>
+  <data name="Version_JmapFileNotFound" xml:space="preserve">
+    <value>.jmap ハッシュの計算に失敗しました: ファイルが存在しません: {0}</value>
+  </data>
+  <data name="Version_PeNotSeekable" xml:space="preserve">
+    <value>PE バージョンリソースの解析に失敗しました: {0}: シーク非対応の入力ストリームです。</value>
+  </data>
+  <data name="Version_PeTooSmall" xml:space="preserve">
+    <value>PE バージョンリソースの解析に失敗しました: {0}: ファイルサイズが小さすぎ、有効な PE ファイルではありません。</value>
+  </data>
+  <data name="Version_PeMissingMz" xml:space="preserve">
+    <value>PE バージョンリソースの解析に失敗しました: {0}: MZ ヘッダが見つかりません。</value>
+  </data>
+  <data name="Version_PeHeaderOutOfRange" xml:space="preserve">
+    <value>PE バージョンリソースの解析に失敗しました: {0}: PE ヘッダのオフセットが範囲外です。</value>
+  </data>
+  <data name="Version_PeMissingSignature" xml:space="preserve">
+    <value>PE バージョンリソースの解析に失敗しました: {0}: PE シグネチャが見つかりません。</value>
+  </data>
+  <data name="Version_PeBadOptionalHeader" xml:space="preserve">
+    <value>PE バージョンリソースの解析に失敗しました: {0}: Optional Header のサイズが不正です。</value>
+  </data>
+  <data name="Version_PeUnsupportedMagic" xml:space="preserve">
+    <value>PE バージョンリソースの解析に失敗しました: {0}: 未対応の PE Optional Header マジック値 0x{1} です。</value>
+  </data>
+  <data name="Version_PeSectionTableOutOfRange" xml:space="preserve">
+    <value>PE バージョンリソースの解析に失敗しました: {0}: セクションテーブルが範囲外です。</value>
+  </data>
+  <data name="Version_PeResourceRvaUnmapped" xml:space="preserve">
+    <value>PE バージョンリソースの解析に失敗しました: {0}: リソースディレクトリ RVA 0x{1} をファイルオフセットに変換できません。</value>
+  </data>
+  <data name="Version_PeBadDataSize" xml:space="preserve">
+    <value>PE バージョンリソースの解析に失敗しました: {0}: バージョンリソースのサイズが不正です（{1} バイト）。</value>
+  </data>
+  <data name="Version_PeDataRvaUnmapped" xml:space="preserve">
+    <value>PE バージョンリソースの解析に失敗しました: {0}: バージョンデータ RVA 0x{1} をファイルオフセットに変換できません。</value>
+  </data>
+  <data name="Version_PeReadOutOfRange" xml:space="preserve">
+    <value>PE バージョンリソースの解析に失敗しました: {0}: オフセット 0x{1}（長さ {2}）の読み取りが範囲外です。</value>
+  </data>
+  <data name="Version_PeUnexpectedEof" xml:space="preserve">
+    <value>PE バージョンリソースの解析に失敗しました: {0}: ファイルが途中で終了しました。</value>
+  </data>
+  <data name="KnownBuilds_Matched" xml:space="preserve">
+    <value>登録済みビルドと一致</value>
+  </data>
+  <data name="KnownBuilds_NewGameVersion" xml:space="preserve">
+    <value>新しいゲームバージョン（未登録）</value>
+  </data>
+  <data name="KnownBuilds_HashMismatch" xml:space="preserve">
+    <value>ゲームバージョンは登録済みですが、データベースハッシュが異なります</value>
+  </data>
+  <data name="KnownBuilds_MissingEmbedded" xml:space="preserve">
+    <value>埋め込みリソースが見つかりません: {0}</value>
+  </data>
+  <data name="KnownBuilds_EmptyOrNotArray" xml:space="preserve">
+    <value>既知ビルド登録表が空か JSON 配列ではありません: {0}</value>
+  </data>
+  <data name="KnownBuilds_ParseFailed" xml:space="preserve">
+    <value>既知ビルド登録表の解析に失敗しました: {0}: {1}</value>
+  </data>
+  <data name="KnownBuilds_ComparisonHeader" xml:space="preserve">
+    <value>既知ビルド照合（参照元: {0}）: {1}</value>
+  </data>
+  <data name="KnownBuilds_MatchedDate" xml:space="preserve">
+    <value>  一致した登録日: {0}</value>
+  </data>
+  <data name="KnownBuilds_ReferenceDate" xml:space="preserve">
+    <value>  比較対象の登録日: {0}</value>
+  </data>
+  <data name="KnownBuilds_FileShaOnlyMismatch" xml:space="preserve">
+    <value>  全テーブルの内容は一致（content_sha256 同一）しており、データベースファイルの file_sha256 のみ異なります。</value>
+  </data>
+  <data name="KnownBuilds_NoPerTableHashes" xml:space="preserve">
+    <value>  テーブル単位のハッシュがないため、テーブル差分を表示できません。</value>
+  </data>
+  <data name="KnownBuilds_DiffTableCount" xml:space="preserve">
+    <value>  差分のあるテーブル（{0} 件）:</value>
+  </data>
+  <data name="KnownBuilds_DiffAdded" xml:space="preserve">
+    <value>  + {0}（現在 {1} 行、登録レコードに存在しません）</value>
+  </data>
+  <data name="KnownBuilds_DiffRemoved" xml:space="preserve">
+    <value>  - {0}（登録 {1} 行、現在のビルドに存在しません）</value>
+  </data>
+  <data name="KnownBuilds_DiffSameRows" xml:space="preserve">
+    <value>  ~ {0}（行数は同じ {1} 行、テーブル内容の sha256 が異なります）</value>
+  </data>
+  <data name="KnownBuilds_DiffDifferentRows" xml:space="preserve">
+    <value>  ~ {0}（行数: 登録 {1} -&gt; 現在 {2}、テーブル内容の sha256 が異なります）</value>
+  </data>
+  <data name="KnownBuilds_UsmapExactMatch" xml:space="preserve">
+    <value>登録済みの .usmap と完全一致（ファイルハッシュと内容ハッシュが両方一致）</value>
+  </data>
+  <data name="KnownBuilds_UsmapContentMatch" xml:space="preserve">
+    <value>登録済みの .usmap と内容が一致（content_sha256 一致、バイト順のみ異なりエクスポート結果は等価）</value>
+  </data>
+  <data name="KnownBuilds_UsmapNotRegistered" xml:space="preserve">
+    <value>新しい .usmap 内容ハッシュです（known-builds.json 未登録）</value>
+  </data>
+  <data name="KnownBuilds_UsmapComparisonHeader" xml:space="preserve">
+    <value>既知 .usmap 照合（参照元: {0}）: {1} {2}</value>
+  </data>
+  <data name="KnownBuilds_UsmapMatchedDate" xml:space="preserve">
+    <value>  一致した登録日: {0}（登録ファイル名: {1}）</value>
+  </data>
+  <data name="Integrity_Untrusted" xml:space="preserve">
+    <value>信頼なし (Untrusted IL)</value>
+  </data>
+  <data name="Integrity_Low" xml:space="preserve">
+    <value>低整合性 (Low IL)</value>
+  </data>
+  <data name="Integrity_Medium" xml:space="preserve">
+    <value>中整合性 (Medium IL)</value>
+  </data>
+  <data name="Integrity_High" xml:space="preserve">
+    <value>高整合性 (High IL)</value>
+  </data>
+  <data name="Integrity_System" xml:space="preserve">
+    <value>システム整合性 (System IL)</value>
+  </data>
+  <data name="Integrity_Unknown" xml:space="preserve">
+    <value>不明</value>
+  </data>
+  <data name="Agp_EnvInvalidPath" xml:space="preserve">
+    <value>環境変数 {0} に指定されたパスが無効です（{1}）。{0} を修正または解除して再試行してください。</value>
+  </data>
+  <data name="Agp_EnvNotWritable" xml:space="preserve">
+    <value>環境変数 {0} で指定されたデータディレクトリに書き込めません（{1}）: {2}。{0} が明示的に設定されているため、他のディレクトリへ自動フォールバックしません。書き込み可能なディレクトリを指定するか {0} を解除して再試行してください。</value>
+  </data>
+  <data name="Agp_DefaultUserDataDir" xml:space="preserve">
+    <value>既定のユーザーデータディレクトリ</value>
+  </data>
+  <data name="Agp_PrimaryNotWritable" xml:space="preserve">
+    <value>{0} に書き込めません</value>
+  </data>
+  <data name="Agp_FallbackNoWritable" xml:space="preserve">
+    <value>書き込み可能なデータディレクトリが見つかりません。環境変数 AGP_HOME に書き込み可能なフォルダを設定してください。</value>
+  </data>
+  <data name="Agp_SelectedInvalidPath" xml:space="preserve">
+    <value>選択されたデータディレクトリのパスが無効です: {0}</value>
+  </data>
+  <data name="Agp_ManualSelectionLabel" xml:space="preserve">
+    <value>手動選択</value>
+  </data>
+  <data name="Agp_SelectedNotWritable" xml:space="preserve">
+    <value>選択されたデータディレクトリに書き込めません（{0}）: {1}。書き込み権限のある別のフォルダを選択してください。</value>
+  </data>
+  <data name="Agp_PathOccupiedByFile" xml:space="preserve">
+    <value>パスが同名のファイルで使用されています: {0}</value>
+  </data>
+  <data name="Agp_CliNoticeDataDir" xml:space="preserve">
+    <value>データディレクトリ: {0}（理由: {1}）</value>
+  </data>
+  <data name="Agp_CliNoticeLowIl" xml:space="preserve">
+    <value>ヒント: 現在、低整合性レベル（Low IL）で実行されています（ダウンロードした zip にブロック属性が付いている場合に発生します）。既定のディレクトリに戻すには、zip を右クリック → プロパティ → 許可する（ブロック解除）のあと、エクスプローラーで再展開してください。</value>
+  </data>
+  <data name="Agp_GuiBannerLowIlLocalLow" xml:space="preserve">
+    <value>ヒント: 低整合性レベル（{0}）で実行されています（展開ファイルにブロック属性が付いている場合に発生します）。今回は LocalLow 配下を使用します（データディレクトリ: {1}）。このまま問題なく利用できますが、推奨対処として zip を右クリック → プロパティ → 許可する（ブロック解除）のあと、エクスプローラーで再展開してください。</value>
+  </data>
+  <data name="Agp_GuiBannerLowIlFallback" xml:space="preserve">
+    <value>ヒント: 低整合性レベル（{0}）で実行されています（展開ファイルにブロック属性が付いている場合に発生します）。データディレクトリ: {1}（理由: {2}）。推奨対処: zip を右クリック → プロパティ → 許可する（ブロック解除）のあと、エクスプローラーで再展開してください。</value>
+  </data>
+  <data name="Agp_GuiBannerLowIl" xml:space="preserve">
+    <value>ヒント: 低整合性レベル（{0}）で実行されています（展開ファイルにブロック属性が付いている場合に発生します）。推奨対処: zip を右クリック → プロパティ → 許可する（ブロック解除）のあと、エクスプローラーで再展開してください。</value>
+  </data>
+  <data name="Agp_GuiAllFailedIntro" xml:space="preserve">
+    <value>既定のデータディレクトリに書き込めませんでした。ログ、設定、エクスポート結果を保存するため、書き込み可能なフォルダが必要です。</value>
+  </data>
+  <data name="Agp_GuiAllFailedLowIl1" xml:space="preserve">
+    <value>現在のプロセスが {0} で実行されていることを検出しました（ファイルにブロック属性が付いている場合に発生します）。</value>
+  </data>
+  <data name="Agp_GuiAllFailedLowIl2" xml:space="preserve">
+    <value>ダウンロードした zip を右クリック → プロパティ → 許可する（ブロック解除）のあと、エクスプローラーで再展開することをお勧めします。</value>
+  </data>
+  <data name="Agp_GuiAllFailedAv1" xml:space="preserve">
+    <value>考えられる原因: 本ツールは未署名のため、セキュリティソフトや Windows の「コントロールされたフォルダーアクセス」にブロックされている可能性があります。</value>
+  </data>
+  <data name="Agp_GuiAllFailedAv2" xml:space="preserve">
+    <value>本ツールのフォルダを許可リスト／除外対象に追加するか、下の「フォルダを選択…」から書き込み可能なディレクトリを指定してください。</value>
+  </data>
+  <data name="Agp_GuiAllFailedTriedHeader" xml:space="preserve">
+    <value>試行したディレクトリ:</value>
+  </data>
+  <data name="Agp_GuiAllFailedTriedItem" xml:space="preserve">
+    <value>  ・{0}（{1}）: {2}</value>
+  </data>
+  <data name="Agp_GuiAllFailedAction" xml:space="preserve">
+    <value>「はい」を押すと「フォルダを選択…」が開き、データディレクトリを手動指定できます（選択内容は記憶されます）。「いいえ」で終了します。</value>
+  </data>
+  <data name="Agp_GuiAllFailedLastResort" xml:space="preserve">
+    <value>（上記で解決しない場合の最終手段として、一時的に管理者として実行してみてください。）</value>
+  </data>
+  <data name="Agp_CliAllFailedPrefix" xml:space="preserve">
+    <value>書き込み可能なデータルートディレクトリが見つかりません（すべての候補パスで失敗しました）。</value>
+  </data>
+  <data name="Agp_CliAllFailedLowIl" xml:space="preserve">
+    <value>低整合性レベル（Low IL）で実行されています。zip を右クリック → プロパティ → 許可する（ブロック解除）のあと、エクスプローラーで再展開してください。</value>
+  </data>
+  <data name="Agp_CliAllFailedAv" xml:space="preserve">
+    <value>ディレクトリの権限が制限されているかセキュリティソフトにブロックされている可能性があります。本ツールを許可リストに追加してください。</value>
+  </data>
+  <data name="Agp_CliAllFailedEnvWindows" xml:space="preserve">
+    <value>環境変数 {0} に書き込み可能なディレクトリを設定して再試行してください（例: set {0}=&lt;書き込み可能パス&gt;）。</value>
+  </data>
+  <data name="Agp_CliAllFailedEnvUnix" xml:space="preserve">
+    <value>環境変数 {0} に書き込み可能なディレクトリを設定して再試行してください（例: export {0}=&lt;書き込み可能パス&gt;）。</value>
+  </data>
+  <data name="Agp_CliAllFailedDetailsPrefix" xml:space="preserve">
+    <value>試行の詳細: </value>
+  </data>
+  <data name="Agp_CliAllFailedDetailsSuffix" xml:space="preserve">
+    <value>。</value>
+  </data>
+  <data name="Agp_CliAllFailedLastResort" xml:space="preserve">
+    <value>（どのディレクトリにも書き込めない場合の最終手段として、管理者として実行してみてください。）</value>
+  </data>
+  <data name="Agp_ResolveFailedFallback" xml:space="preserve">
+    <value>書き込み可能なデータルートディレクトリを解決できませんでした。</value>
+  </data>
+  <data name="Agp_TempRootNotReady" xml:space="preserve">
+    <value>データルートディレクトリの準備ができていません。</value>
+  </data>
+  <data name="Agp_TempRootInvalid" xml:space="preserve">
+    <value>データルートディレクトリのパスが無効です。</value>
+  </data>
+  <data name="Agp_CannotReadLocalAppData" xml:space="preserve">
+    <value>%LOCALAPPDATA% ディレクトリを取得できません</value>
+  </data>
+  <data name="Agp_CannotReadXdgOrHome" xml:space="preserve">
+    <value>XDG_DATA_HOME または HOME ディレクトリを取得できません</value>
+  </data>
+  <data name="Agp_PortableLabelWindows" xml:space="preserve">
+    <value>アプリフォルダ\agp-data</value>
+  </data>
+  <data name="Agp_PortableLabelUnix" xml:space="preserve">
+    <value>アプリフォルダ/agp-data</value>
+  </data>
+  <data name="Wizard_Title" xml:space="preserve">
+    <value>FINAL FANTASY RESONANCE アセットエクスポート＆データベース構築ウィザード</value>
+  </data>
+  <data name="Wizard_ReadOnlyNotice" xml:space="preserve">
+    <value>説明: 本ツールはゲームファイルを読み取り専用で読み込み、ゲームインストール先を変更しません。</value>
+  </data>
+  <data name="Wizard_QuoteTip" xml:space="preserve">
+    <value>ヒント: パスを貼り付ける際、前後の引用符はそのまま残しても構いません。スペースを含むパスにも対応しています。</value>
+  </data>
+  <data name="Wizard_InputClosedCancelled" xml:space="preserve">
+    <value>入力ストリームが終了したため、ウィザードを中止しました。</value>
+  </data>
+  <data name="Wizard_Step1Header" xml:space="preserve">
+    <value>【ステップ 1/4】ゲームディレクトリの指定</value>
+  </data>
+  <data name="Wizard_Step2Header" xml:space="preserve">
+    <value>【ステップ 2/4】マッピングファイルの指定（.usmap / .jmap）</value>
+  </data>
+  <data name="Wizard_UsmapNote" xml:space="preserve">
+    <value>説明: .usmap は必須です。「ffr-export fetch-usmap --game &lt;dir&gt;」で自動取得するか、ゲーム実行中に UE4SS でダンプしてください。</value>
+  </data>
+  <data name="Wizard_JmapNote" xml:space="preserve">
+    <value>任意: .jmap リフレクションダンプファイル（複数追加可。不要な場合はそのまま Enter でスキップ）。</value>
+  </data>
+  <data name="Wizard_Step3Header" xml:space="preserve">
+    <value>【ステップ 3/4】出力ディレクトリの選択</value>
+  </data>
+  <data name="Wizard_Step4Header" xml:space="preserve">
+    <value>【ステップ 4/4】内容を確認してデータベース構築を開始</value>
+  </data>
+  <data name="Wizard_SummaryGameName" xml:space="preserve">
+    <value>  ゲーム名: {0}</value>
+  </data>
+  <data name="Wizard_SummaryGameDir" xml:space="preserve">
+    <value>  ゲームディレクトリ: {0}</value>
+  </data>
+  <data name="Wizard_SummarySteamBuild" xml:space="preserve">
+    <value>  Steam ビルド ID: {0}</value>
+  </data>
+  <data name="Wizard_SummaryUsmap" xml:space="preserve">
+    <value>  .usmap ファイル: {0}</value>
+  </data>
+  <data name="Wizard_SummaryJmapNone" xml:space="preserve">
+    <value>  .jmap ファイル: なし（スキップ）</value>
+  </data>
+  <data name="Wizard_SummaryJmapCount" xml:space="preserve">
+    <value>  .jmap ファイル: 計 {0} 件</value>
+  </data>
+  <data name="Wizard_SummaryOutputForce" xml:space="preserve">
+    <value>  出力ディレクトリ: {0}（クリアして再構築します）</value>
+  </data>
+  <data name="Wizard_SummaryOutput" xml:space="preserve">
+    <value>  出力ディレクトリ: {0}</value>
+  </data>
+  <data name="Wizard_CancelledNoChanges" xml:space="preserve">
+    <value>データベース構築を中止しました。ファイルは変更されていません。</value>
+  </data>
+  <data name="Wizard_StartingBuild" xml:space="preserve">
+    <value>データベース構築を開始します（コマンドラインの build-db と同じ処理です）。しばらくお待ちください…</value>
+  </data>
+  <data name="Wizard_BuildFailedExitCode" xml:space="preserve">
+    <value>エラー: データベース構築が正常に完了しませんでした（終了コード: {0}）。</value>
+  </data>
+  <data name="Wizard_BuildFailedException" xml:space="preserve">
+    <value>エラー: データベース構築に失敗しました: {0}</value>
+  </data>
+  <data name="Wizard_SteamScanError" xml:space="preserve">
+    <value>ヒント: Steam ライブラリの自動スキャンに失敗したため（{0}）、手動入力に切り替えます。</value>
+  </data>
+  <data name="Wizard_SteamGamesFound" xml:space="preserve">
+    <value>Steam ライブラリで以下のゲームが見つかりました:</value>
+  </data>
+  <data name="Wizard_SteamGameDirLine" xml:space="preserve">
+    <value>      ディレクトリ: {0}</value>
+  </data>
+  <data name="Wizard_SteamGameBuildLine" xml:space="preserve">
+    <value>      Steam ビルド ID: {0}</value>
+  </data>
+  <data name="Wizard_ManualGameOption" xml:space="preserve">
+    <value>  [0] 別のゲームディレクトリを手動で貼り付ける</value>
+  </data>
+  <data name="Wizard_SelectGamePrompt" xml:space="preserve">
+    <value>番号を入力してください（1-{0}、Enter のみで 1 を選択、0 で手動入力）: </value>
+  </data>
+  <data name="Wizard_InvalidNumberRange" xml:space="preserve">
+    <value>入力が無効です。0 から {0} までの整数を入力してください。</value>
+  </data>
+  <data name="Wizard_SteamGameNotFound" xml:space="preserve">
+    <value>Steam ライブラリから {0}（AppID: {1}）を自動検出できませんでした。</value>
+  </data>
+  <data name="Wizard_PasteGameDirPrompt" xml:space="preserve">
+    <value>ゲームのインストールルートディレクトリを貼り付けてください（{0} を含むこと）: </value>
+  </data>
+  <data name="Wizard_GameDirEmpty" xml:space="preserve">
+    <value>ゲームディレクトリは空にできません。もう一度入力してください。</value>
+  </data>
+  <data name="Wizard_InvalidPathRetry" xml:space="preserve">
+    <value>パスの形式が無効です: {0}。もう一度入力してください。</value>
+  </data>
+  <data name="Wizard_DirNotFoundRetry" xml:space="preserve">
+    <value>ディレクトリが見つかりません: {0}。パスを確認してもう一度入力してください。</value>
+  </data>
+  <data name="Wizard_GameDirMissingPaksRetry" xml:space="preserve">
+    <value>{1} の配下に {0} が見つかりません。ゲームのインストールルートディレクトリか確認して再入力してください。</value>
+  </data>
+  <data name="Wizard_UsmapLabel" xml:space="preserve">
+    <value>.usmap ファイルのパス</value>
+  </data>
+  <data name="Wizard_UsmapAutoFound" xml:space="preserve">
+    <value>.usmap を自動検出しました（{0}）: {1}</value>
+  </data>
+  <data name="Wizard_UsmapAutoPrompt" xml:space="preserve">
+    <value>.usmap ファイルのパス（Enter で自動検出ファイルを使用、または別の .usmap パスを貼り付け）: </value>
+  </data>
+  <data name="Wizard_PathIsDirNotFile" xml:space="preserve">
+    <value>入力されたパスはファイルではなくディレクトリです: {0}。具体的な {1} ファイルのパスを貼り付けてください。</value>
+  </data>
+  <data name="Wizard_FileNotFoundRetry" xml:space="preserve">
+    <value>ファイルが見つかりません: {0}。パスを確認してもう一度入力してください。</value>
+  </data>
+  <data name="Wizard_PasteRequiredFilePrompt" xml:space="preserve">
+    <value>{0} を貼り付けてください: </value>
+  </data>
+  <data name="Wizard_RequiredFieldEmpty" xml:space="preserve">
+    <value>{0} は必須です。空にせずもう一度入力してください。</value>
+  </data>
+  <data name="Wizard_JmapFirstPrompt" xml:space="preserve">
+    <value>1 つ目の .jmap ファイルパス（Enter でスキップ）: </value>
+  </data>
+  <data name="Wizard_JmapNextPrompt" xml:space="preserve">
+    <value>{0} つ目の .jmap ファイルパス（続けて貼り付けるか Enter で終了）: </value>
+  </data>
+  <data name="Wizard_JmapSkipped" xml:space="preserve">
+    <value>.jmap ファイルをスキップしました。</value>
+  </data>
+  <data name="Wizard_JmapAddedCount" xml:space="preserve">
+    <value>計 {0} 件の .jmap ファイルを追加しました。</value>
+  </data>
+  <data name="Wizard_InvalidPathOrSkip" xml:space="preserve">
+    <value>パスの形式が無効です: {0}。再入力するか Enter でスキップしてください。</value>
+  </data>
+  <data name="Wizard_JmapIsDirOrSkip" xml:space="preserve">
+    <value>入力されたパスはディレクトリです: {0}。.jmap ファイルのパスを貼り付けるか Enter でスキップしてください。</value>
+  </data>
+  <data name="Wizard_FileNotFoundOrSkip" xml:space="preserve">
+    <value>ファイルが見つかりません: {0}。パスを確認して再入力するか Enter でスキップしてください。</value>
+  </data>
+  <data name="Wizard_JmapDuplicate" xml:space="preserve">
+    <value>ヒント: この .jmap ファイルは追加済みのため重複をスキップしました: {0}</value>
+  </data>
+  <data name="Wizard_JmapAddedItem" xml:space="preserve">
+    <value>  追加しました: {0}</value>
+  </data>
+  <data name="Wizard_DefaultOutputDir" xml:space="preserve">
+    <value>既定の出力ディレクトリ: {0}</value>
+  </data>
+  <data name="Wizard_OutputDirPrompt" xml:space="preserve">
+    <value>出力ディレクトリ（Enter で既定を使用、または別のパスを貼り付け）: </value>
+  </data>
+  <data name="Wizard_OutputOverlapsGame" xml:space="preserve">
+    <value>出力ディレクトリにゲームディレクトリと重複するパスは使えません: {0}。別のディレクトリを指定してください。</value>
+  </data>
+  <data name="Wizard_OutputIsExistingFile" xml:space="preserve">
+    <value>指定されたパスはディレクトリではなく既存ファイルです: {0}。別のパスを指定してください。</value>
+  </data>
+  <data name="Wizard_OutputForeignNonEmpty" xml:space="preserve">
+    <value>指定されたディレクトリは空ではなく、ffr-export build-db の出力先でもありません: {0}。誤削除を防ぐため空のディレクトリを選択してください。</value>
+  </data>
+  <data name="Wizard_OutputPreviousBuildExists" xml:space="preserve">
+    <value>ヒント: 指定されたディレクトリには以前の構築結果が存在します: {0}</value>
+  </data>
+  <data name="Wizard_OutputOverwritePrompt" xml:space="preserve">
+    <value>このディレクトリをクリアして再構築しますか？（y で上書き再構築、Enter または n で別ディレクトリを選択）: </value>
+  </data>
+  <data name="Wizard_ConfirmStartPrompt" xml:space="preserve">
+    <value>データベース構築を開始しますか？（Enter で開始、n で中止）: </value>
+  </data>
+  <data name="Wizard_ConfirmStartInvalid" xml:space="preserve">
+    <value>入力が無効です。Enter で開始するか、n で中止してください。</value>
+  </data>
+  <data name="Wizard_CompletionTitle" xml:space="preserve">
+    <value>データベース構築結果サマリー</value>
+  </data>
+  <data name="Wizard_CompletionDbPath" xml:space="preserve">
+    <value>データベースパス: {0}</value>
+  </data>
+  <data name="Wizard_CompletionFileSha" xml:space="preserve">
+    <value>ファイルハッシュ（file_sha256）: {0}</value>
+  </data>
+  <data name="Wizard_CompletionContentSha" xml:space="preserve">
+    <value>内容ハッシュ（content_sha256）: {0}</value>
+  </data>
+  <data name="Wizard_CompletionKnownBuilds" xml:space="preserve">
+    <value>known-builds.json 照合結果: {0}</value>
+  </data>
+  <data name="Wizard_CompletionKnownBuildsWithSource" xml:space="preserve">
+    <value>known-builds.json 照合結果: {0}（参照元: {1}）</value>
+  </data>
+  <data name="Wizard_CompletionMatchedDate" xml:space="preserve">
+    <value>  一致した登録日: {0}</value>
+  </data>
+  <data name="Wizard_CompletionFileShaOnly" xml:space="preserve">
+    <value>  補足: 全テーブルの内容は一致（content_sha256 同一）しており、ファイルハッシュのみ異なります。</value>
+  </data>
+  <data name="Wizard_CompletionTableDiffCount" xml:space="preserve">
+    <value>  差分テーブル数: {0} 件（詳細は上の出力およびビルドレポートを参照）。</value>
+  </data>
+  <data name="Wizard_CompletionTimings" xml:space="preserve">
+    <value>所要時間: JSON 出力 {0}s | DB 構築 {1}s | ハッシュ計算 {2}s | 合計 {3}s</value>
+  </data>
+  <data name="Wizard_CompletionTotalTime" xml:space="preserve">
+    <value>合計所要時間: {0}s</value>
+  </data>
+  <data name="Wizard_CompletionReportPath" xml:space="preserve">
+    <value>ビルドレポート: {0}</value>
+  </data>
+  <data name="Wizard_CompletionReadReportFailed" xml:space="preserve">
+    <value>ヒント: ビルドレポート {0} の読み取りに失敗しました（{1}）。</value>
+  </data>
+  <data name="Wizard_CompletionPartialFailure" xml:space="preserve">
+    <value>ヒント: データベースは生成されましたが、一部のアセットパッケージのエクスポートに失敗しました。詳細はビルドレポートまたはログを確認してください。</value>
+  </data>
+  <data name="Wizard_MissingFfrDbHeadline" xml:space="preserve">
+    <value>エラー: {0} が見つからないため、データベースを構築できません。</value>
+  </data>
+  <data name="Wizard_ErrorDetails" xml:space="preserve">
+    <value>詳細: {0}</value>
+  </data>
+  <data name="Wizard_NextStepsHeader" xml:space="preserve">
+    <value>次の対処方法:</value>
+  </data>
+  <data name="Wizard_MissingFfrDbStep1" xml:space="preserve">
+    <value>  1. ダウンロードした圧縮ファイルをすべて同じフォルダに展開し、{0} と {1} が同じディレクトリにあることを確認してください（現在のディレクトリ: {2}）。</value>
+  </data>
+  <data name="Wizard_MissingFfrDbStep2" xml:space="preserve">
+    <value>  2. {0} だけをデスクトップや別フォルダに移動しないでください。</value>
+  </data>
+  <data name="Wizard_MissingFfrDbStep3" xml:space="preserve">
+    <value>  3. 自作ビルドの場合は {0} を同じディレクトリにコピーするか PATH に追加して再試行してください。</value>
+  </data>
+  <data name="Wizard_AdviceFfrDb1" xml:space="preserve">
+    <value>  1. {0} が本ツールと同じディレクトリ（{1}）にあり、セキュリティソフトにブロックされていないことを確認してください。</value>
+  </data>
+  <data name="Wizard_AdviceFfrDb2" xml:space="preserve">
+    <value>  2. 出力先ドライブに十分な空き容量があることを確認し、ウィザードを再実行してください。</value>
+  </data>
+  <data name="Wizard_AdviceUsmap1" xml:space="preserve">
+    <value>  1. 選択した .usmap が現在のゲームバージョンから UE4SS で完全にダンプされたファイルか確認してください。</value>
+  </data>
+  <data name="Wizard_AdviceUsmap2" xml:space="preserve">
+    <value>  2. ゲームが更新された場合は、最新の .usmap を再ダンプしてから実行してください。</value>
+  </data>
+  <data name="Wizard_AdviceGameDir1" xml:space="preserve">
+    <value>  1. 選択したディレクトリが FINAL FANTASY RESONANCE のインストールルートか確認してください。</value>
+  </data>
+  <data name="Wizard_AdviceGameDir2" xml:space="preserve">
+    <value>  2. ファイルが不足している場合は、Steam でゲームを右クリック → プロパティ → インストール済みファイル → ゲームファイルの整合性を確認してください。</value>
+  </data>
+  <data name="Wizard_AdviceGeneric1" xml:space="preserve">
+    <value>  1. 上記エラーを確認し、ゲームディレクトリ・.usmap/.jmap ファイル・出力先の権限を見直してください。</value>
+  </data>
+  <data name="Wizard_AdviceGeneric2" xml:space="preserve">
+    <value>  2. 出力先ドライブに数 GB 以上の空き容量があることを確認してください。</value>
+  </data>
+  <data name="Wizard_AdviceGeneric3" xml:space="preserve">
+    <value>  3. 確認後、本ツールをもう一度起動してください。</value>
+  </data>
+  <data name="Wizard_PressEnterToExit" xml:space="preserve">
+    <value>Enter キーを押して終了します...</value>
+  </data>
+  <data name="Ue4ss_CacheHit" xml:space="preserve">
+    <value>ローカルキャッシュを使用します（SHA-256 検証済み）: {0}</value>
+  </data>
+  <data name="Ue4ss_CacheCorruptRedownload" xml:space="preserve">
+    <value>警告: ローカルキャッシュが検証に失敗しました（{0}）。再ダウンロードします: {1}</value>
+  </data>
+  <data name="Ue4ss_CacheDeleteFailed" xml:space="preserve">
+    <value>破損したダウンロードキャッシュの削除に失敗しました（{0}）: {1}</value>
+  </data>
+  <data name="Ue4ss_RefuseNonHttps" xml:space="preserve">
+    <value>HTTPS 以外の URL からの UE4SS ダウンロードは拒否されます: {0}</value>
+  </data>
+  <data name="Ue4ss_Downloading" xml:space="preserve">
+    <value>公式 GitHub リリースから UE4SS {0}（約 8.4 MB）をダウンロード中: {1}</value>
+  </data>
+  <data name="Ue4ss_DownloadVerified" xml:space="preserve">
+    <value>ダウンロードと検証が完了しました（{0} バイト、SHA-256 一致）: {1}</value>
+  </data>
+  <data name="Ue4ss_VerifyFileNotFound" xml:space="preserve">
+    <value>ファイルが存在しません: {0}</value>
+  </data>
+  <data name="Ue4ss_VerifySizeMismatch" xml:space="preserve">
+    <value>ファイルサイズが一致しません（期待: {0} バイト、実際: {1} バイト）</value>
+  </data>
+  <data name="Ue4ss_VerifyShaMismatch" xml:space="preserve">
+    <value>SHA-256 チェックサムが一致しません（期待: {0}、実際: {1}）</value>
+  </data>
+  <data name="Ue4ss_VerifyArchiveFailed" xml:space="preserve">
+    <value>UE4SS アーカイブの検証に失敗しました（取得元: {0}、ファイル: {1}）: {2}。インストールを中止しました。</value>
+  </data>
+  <data name="Ue4ss_RedirectNonHttps" xml:space="preserve">
+    <value>ダウンロードが HTTPS 以外の URL にリダイレクトされたため拒否しました: {0}</value>
+  </data>
+  <data name="Ue4ss_DownloadTimeout" xml:space="preserve">
+    <value>UE4SS のダウンロードがタイムアウトしました（{0} 秒超過、URL: {1}）。ネットワークまたはプロキシ設定を確認して再試行してください。</value>
+  </data>
+  <data name="Ue4ss_DownloadHttpError" xml:space="preserve">
+    <value>UE4SS のダウンロードに失敗しました（URL: {0}）: {1}。ネットワークまたはファイアウォール設定を確認して再試行してください。</value>
+  </data>
+  <data name="Ue4ss_RedirectMissingLocation" xml:space="preserve">
+    <value>UE4SS のダウンロードに失敗しました: リダイレクト応答に Location ヘッダがありません（URL: {0}）。</value>
+  </data>
+  <data name="Ue4ss_TooManyRedirects" xml:space="preserve">
+    <value>UE4SS のダウンロードに失敗しました: リダイレクト回数が上限（{0} 回）を超えました（URL: {1}）。</value>
+  </data>
+  <data name="Ue4ss_NoResponse" xml:space="preserve">
+    <value>UE4SS のダウンロードに失敗しました: サーバーから応答がありませんでした（URL: {0}）。</value>
+  </data>
+  <data name="Ue4ss_HttpStatusError" xml:space="preserve">
+    <value>UE4SS のダウンロードに失敗しました: サーバーが HTTP {0} {1} を返しました（URL: {2}）。</value>
+  </data>
+  <data name="Ue4ss_ContentLengthMismatch" xml:space="preserve">
+    <value>UE4SS のダウンロードを拒否しました: Content-Length が {0} バイトで期待値 {1} バイトと一致しません（URL: {2}）。</value>
+  </data>
+  <data name="Ue4ss_TransferTimeout" xml:space="preserve">
+    <value>UE4SS のダウンロード転送がタイムアウトしました（受信済み {0} / {1} バイト、URL: {2}）。</value>
+  </data>
+  <data name="Ue4ss_TransferExceededSize" xml:space="preserve">
+    <value>UE4SS のダウンロードを拒否しました: 受信サイズが期待値 {0} バイトを超えました（URL: {1}）。</value>
+  </data>
+  <data name="Ue4ss_SteamLaunchFailed" xml:space="preserve">
+    <value>Steam 経由でのゲーム起動に失敗しました（URI: {0}）: {1}。Steam がインストールされログイン済みか確認してください。</value>
+  </data>
+  <data name="Ue4ss_MissingEmbeddedLua" xml:space="preserve">
+    <value>埋め込みダンプ MOD スクリプトリソースが見つかりません: {0}</value>
+  </data>
+  <data name="Ue4ss_CleanOldDoneMarkerFailed" xml:space="preserve">
+    <value>前回のダンプ完了マーカーの削除に失敗しました（{0}）: {1}</value>
+  </data>
+  <data name="Ue4ss_ModNameEmpty" xml:space="preserve">
+    <value>MOD 名を空にすることはできません。</value>
+  </data>
+  <data name="Ue4ss_InstallWin64Missing" xml:space="preserve">
+    <value>UE4SS のインストールに失敗しました: Win64 ディレクトリが存在しません: {0}</value>
+  </data>
+  <data name="Ue4ss_InstallRefuseOverwrite" xml:space="preserve">
+    <value>UE4SS のインストールに失敗しました: 既に同名ファイルが存在するため上書きを拒否しました（{0}）。別の MOD やプロキシ DLL が入っている場合は、先に手動でバックアップまたは整理してください。</value>
+  </data>
+  <data name="Ue4ss_UninstallGameRunning" xml:space="preserve">
+    <value>UE4SS のクリーンアップを拒否しました: ゲームプロセス（{0}）が実行中です。ゲームを終了してから再試行してください。</value>
+  </data>
+  <data name="Ue4ss_UninstallOwnDone" xml:space="preserve">
+    <value>インストール記録に基づき UE4SS をアンインストールしました（ファイル {0} 件削除、空ディレクトリ {1} 件整理）。</value>
+  </data>
+  <data name="Ue4ss_UninstallOwnRemaining" xml:space="preserve">
+    <value>補足: {1} 配下にある管理外のファイル {0} 件（UE4SS.log、ユーザー MOD、ダンプ等）は削除せず保持しました。</value>
+  </data>
+  <data name="Ue4ss_UninstallUsmapSafeNote" xml:space="preserve">
+    <value>説明: agp\ffr-export\usmap\ にコピー済みの .usmap ファイルは影響を受けず、そのまま利用できます。</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignCleanedRemnants" xml:space="preserve">
+    <value>ゲームディレクトリ内の UE4SS は本ツール以外で導入されたものです（{0} なし）。本ツールの一時ファイルのみ削除し（ファイル {1} 件、ディレクトリ {2} 件）、既存の UE4SS はそのまま保持しました。</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignNoRemnants" xml:space="preserve">
+    <value>ゲームディレクトリ内の UE4SS は本ツール以外で導入されたものです（{0} なし）。本ツールの残留ファイルはなく、既存の UE4SS はそのまま保持しました。</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignHint" xml:space="preserve">
+    <value>ヒント: 本ツール以外で導入された UE4SS もゲームディレクトリから移動したい場合（削除せずバックアップフォルダへ退避）は --include-foreign を指定してください。</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignWarning" xml:space="preserve">
+    <value>警告: このゲームディレクトリの UE4SS は本ツールが導入したものではなく、ユーザー自身の MOD が含まれている可能性があります。</value>
+  </data>
+  <data name="Ue4ss_UninstallCancelled" xml:space="preserve">
+    <value>クリーンアップを中止しました。ゲームディレクトリは変更されていません。</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignBackedUp" xml:space="preserve">
+    <value>本ツール管理外の UE4SS をゲームディレクトリから移動し、次へバックアップしました: {0}</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignAlsoCleaned" xml:space="preserve">
+    <value>あわせて本ツールの残留ファイルも削除しました: ファイル {0} 件、ディレクトリ {1} 件。</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignRestoreNote" xml:space="preserve">
+    <value>復元方法: 元の UE4SS と MOD を戻すには、{0} 内の dwmapi.dll と ue4ss フォルダを {1} にコピーし直してください。</value>
+  </data>
+  <data name="Ue4ss_UninstallRemnantsOnly" xml:space="preserve">
+    <value>完全な UE4SS 導入は見つかりませんでしたが、本ツールの残留ファイルを削除しました（ファイル {0} 件、ディレクトリ {1} 件）。</value>
+  </data>
+  <data name="Ue4ss_UninstallNotFound" xml:space="preserve">
+    <value>UE4SS は見つかりませんでした（ゲームディレクトリに UE4SS および本ツールの残留ファイルはありません）。</value>
+  </data>
+  <data name="Ue4ss_BackupCopyFailed" xml:space="preserve">
+    <value>管理外 UE4SS のバックアップに失敗しました（保存先: {0}）: {1}。ゲームディレクトリは変更されていません。</value>
+  </data>
+  <data name="Ue4ss_BackupRemoveOrigFailed" xml:space="preserve">
+    <value>UE4SS のバックアップは完了しましたが（{0}）、元ディレクトリのファイル削除に失敗しました: {1}。ゲームや関連ツールが終了しているか確認して再試行してください（バックアップはそのまま保持されています）。</value>
+  </data>
+  <data name="Ue4ss_CleanupConfirmPrompt" xml:space="preserve">
+    <value>上記の管理外 UE4SS をバックアップディレクトリへ移動しますか？（y で確定、Enter または n で中止）: </value>
+  </data>
+  <data name="Ue4ss_YesNoInvalid" xml:space="preserve">
+    <value>入力が無効です。y で確定するか n で中止してください。</value>
+  </data>
+  <data name="Ue4ss_MarkerReadFailed" xml:space="preserve">
+    <value>UE4SS インストールマーカーの読み取りに失敗しました（{0}）: {1}</value>
+  </data>
+  <data name="Ue4ss_MarkerCorrupt" xml:space="preserve">
+    <value>UE4SS インストールマーカーの形式が破損しています（{0}）: {1}</value>
+  </data>
+  <data name="Ue4ss_MarkerInvalid" xml:space="preserve">
+    <value>UE4SS インストールマーカーが無効または未対応のため（{0}）、アンインストールを拒否しました。</value>
+  </data>
+  <data name="Ue4ss_LabelFile" xml:space="preserve">
+    <value>ファイル</value>
+  </data>
+  <data name="Ue4ss_LabelDirectory" xml:space="preserve">
+    <value>ディレクトリ</value>
+  </data>
+  <data name="Ue4ss_LabelZipEntry" xml:space="preserve">
+    <value>アーカイブエントリ</value>
+  </data>
+  <data name="Ue4ss_LabelExtractPath" xml:space="preserve">
+    <value>展開先パス</value>
+  </data>
+  <data name="Ue4ss_ZipEmpty" xml:space="preserve">
+    <value>UE4SS アーカイブが空です: {0}</value>
+  </data>
+  <data name="Ue4ss_ZipDuplicateEntry" xml:space="preserve">
+    <value>UE4SS アーカイブに重複エントリがあります（{0}）: {1}</value>
+  </data>
+  <data name="Ue4ss_ZipUnexpectedLayout" xml:space="preserve">
+    <value>UE4SS アーカイブの構成が想定外です（dwmapi.dll または ue4ss/UE4SS.dll が不足）: {0}</value>
+  </data>
+  <data name="Ue4ss_PathEmpty" xml:space="preserve">
+    <value>{0} の解析に失敗しました（{1}）: パスが空です。</value>
+  </data>
+  <data name="Ue4ss_UnsafeAbsolutePath" xml:space="preserve">
+    <value>安全でない絶対パス（{0}: {1}、参照元: {2}）を検出したため操作を拒否しました。</value>
+  </data>
+  <data name="Ue4ss_UnsafeRelativePath" xml:space="preserve">
+    <value>安全でない相対パス（{0}: {1}、参照元: {2}）を検出したため操作を拒否しました。</value>
+  </data>
+  <data name="Ue4ss_PathEscapesWin64" xml:space="preserve">
+    <value>パスが Win64 ディレクトリの外に出るため拒否しました（{0}）。</value>
+  </data>
+  <data name="Ue4ss_PreviewWin64Dir" xml:space="preserve">
+    <value>ゲーム Win64 ディレクトリ: {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewOwnHeader" xml:space="preserve">
+    <value>【削除する本ツール導入の UE4SS ファイル】</value>
+  </data>
+  <data name="Ue4ss_PreviewOwnNoneLeft" xml:space="preserve">
+    <value>  （記録されたファイルは既に存在しません）</value>
+  </data>
+  <data name="Ue4ss_PreviewTagDelete" xml:space="preserve">
+    <value>  [削除] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewEmptyDirsHeader" xml:space="preserve">
+    <value>【空になった場合に削除するディレクトリ】</value>
+  </data>
+  <data name="Ue4ss_PreviewTagCleanDir" xml:space="preserve">
+    <value>  [空ディレクトリ削除] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewAlsoRemnantsHeader" xml:space="preserve">
+    <value>【あわせて削除する本ツールの残留ファイル】</value>
+  </data>
+  <data name="Ue4ss_PreviewTagDeleteRemnant" xml:space="preserve">
+    <value>  [残留削除] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewForeignRemnantsHeader" xml:space="preserve">
+    <value>【本ツールの残留ファイル（削除対象）】</value>
+  </data>
+  <data name="Ue4ss_PreviewNoRemnants" xml:space="preserve">
+    <value>  （本ツールの残留ファイルはありません）</value>
+  </data>
+  <data name="Ue4ss_PreviewForeignMoveHeader" xml:space="preserve">
+    <value>【本ツール管理外の UE4SS（削除せずバックアップ先へ移動: {0}）】</value>
+  </data>
+  <data name="Ue4ss_PreviewTagMoveToBackup" xml:space="preserve">
+    <value>  [バックアップへ移動] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewRestoreNote" xml:space="preserve">
+    <value>復元方法: バックアップ内の dwmapi.dll と ue4ss フォルダを上記の Win64 ディレクトリにコピーし直すだけで復元できます。</value>
+  </data>
+  <data name="Ue4ss_PreviewForeignKeepHeader" xml:space="preserve">
+    <value>【本ツール管理外の UE4SS（既定では変更しません）】</value>
+  </data>
+  <data name="Ue4ss_PreviewTagKeep" xml:space="preserve">
+    <value>  [保持] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewRemnantsOnlyHeader" xml:space="preserve">
+    <value>【削除する本ツールの残留ファイル】</value>
+  </data>
+  <data name="Ue4ss_PreviewNothingFound" xml:space="preserve">
+    <value>UE4SS および本ツールの残留ファイルは見つかりませんでした。</value>
+  </data>
+  <data name="Ue4ss_WarnRemoveDumpModDir" xml:space="preserve">
+    <value>警告: 一時ダンプ MOD ディレクトリの削除に失敗しました（{0}）: {1}</value>
+  </data>
+  <data name="Ue4ss_WarnScanTmpFiles" xml:space="preserve">
+    <value>警告: 一時 .tmp ファイルの走査に失敗しました（{0}）: {1}</value>
+  </data>
+  <data name="Ue4ss_WarnDeleteEnabledTxt" xml:space="preserve">
+    <value>警告: {0} の削除に失敗しました: {1}</value>
+  </data>
+  <data name="Ue4ss_WarnDisableDumpMod" xml:space="preserve">
+    <value>警告: 一時ダンプ MOD の無効化中にエラーが発生しました: {0}</value>
+  </data>
+  <data name="Ue4ss_ClosingGameProcesses" xml:space="preserve">
+    <value>ゲームプロセスの終了を要求しています（{0}、{1} 件）…</value>
+  </data>
+  <data name="Ue4ss_GameClosedGracefully" xml:space="preserve">
+    <value>ゲームウィンドウが正常に終了しました。</value>
+  </data>
+  <data name="Ue4ss_GameForceKill" xml:space="preserve">
+    <value>ゲームが {0} 秒以内に終了しなかったため、プロセスを強制終了します（PID {1}）…</value>
+  </data>
+  <data name="Ue4ss_WarnDeleteRemnantFile" xml:space="preserve">
+    <value>警告: 残留ファイルの削除に失敗しました（{0}）: {1}</value>
+  </data>
+  <data name="FetchUsmap_TimeoutInvalid" xml:space="preserve">
+    <value>--timeout には正の整数（秒）を指定してください: {0}</value>
+  </data>
+  <data name="FetchUsmap_RequiresGame" xml:space="preserve">
+    <value>fetch-usmap には --game &lt;ゲームディレクトリ&gt; が必要です。</value>
+  </data>
+  <data name="UninstallUe4ss_RequiresGame" xml:space="preserve">
+    <value>uninstall-ue4ss には --game &lt;ゲームディレクトリ&gt; が必要です。</value>
+  </data>
+  <data name="FetchUsmap_Step1Title" xml:space="preserve">
+    <value>実行環境・ゲームディレクトリ・起動中プロセスの確認</value>
+  </data>
+  <data name="FetchUsmap_Step2Title" xml:space="preserve">
+    <value>UE4SS 実行環境の準備</value>
+  </data>
+  <data name="FetchUsmap_Step3Title" xml:space="preserve">
+    <value>一時 .usmap ダンプ MOD の配置</value>
+  </data>
+  <data name="FetchUsmap_Step4Title" xml:space="preserve">
+    <value>Steam からゲームを起動して .usmap ダンプ完了を待機</value>
+  </data>
+  <data name="FetchUsmap_Step5Title" xml:space="preserve">
+    <value>.usmap のアーカイブ・ハッシュ計算・既知ビルド照合</value>
+  </data>
+  <data name="FetchUsmap_Step6Title" xml:space="preserve">
+    <value>ダンプ MOD の無効化とゲームの終了</value>
+  </data>
+  <data name="FetchUsmap_WindowsOnly" xml:space="preserve">
+    <value>fetch-usmap は Windows 専用です（Steam 経由で Windows 版ゲームを起動し、UE4SS でメモリから .usmap をダンプする必要があります）。</value>
+  </data>
+  <data name="FetchUsmap_GameAlreadyRunning" xml:space="preserve">
+    <value>ゲームが実行中です（{0}）。ゲームを終了してから fetch-usmap を実行してください。</value>
+  </data>
+  <data name="FetchUsmap_PartialUnknownUe4ss" xml:space="preserve">
+    <value>UE4SS 状態の確認に失敗しました: {0} に一部ファイルのみ存在し（dwmapi.dll={1}、ue4ss/UE4SS.dll={2}）、本ツールのインストールマーカーがありません。既存のプロキシ DLL や MOD の上書きを防ぐため中止しました。</value>
+  </data>
+  <data name="FetchUsmap_InputClosedCancelled" xml:space="preserve">
+    <value>入力ストリームが終了したため、.usmap の取得を中止しました。</value>
+  </data>
+  <data name="FetchUsmap_CancelledNoChanges" xml:space="preserve">
+    <value>.usmap の取得を中止しました。ゲームディレクトリは変更されていません。</value>
+  </data>
+  <data name="FetchUsmap_ReuseUserUe4ss" xml:space="preserve">
+    <value>ユーザー導入済みの UE4SS（{0}）を検出しました。既存設定には触れず、一時ダンプ MOD のみ配置します。</value>
+  </data>
+  <data name="FetchUsmap_ReuseOwnUe4ss" xml:space="preserve">
+    <value>本ツールが以前導入した UE4SS（バージョン: {0}）を検出しました。再利用します。</value>
+  </data>
+  <data name="FetchUsmap_CorruptOwnUe4ss" xml:space="preserve">
+    <value>本ツールのインストールマーカー（{0}）はありますが、コアファイルが不足しています（dwmapi.dll または UE4SS.dll）。先に "ffr-export uninstall-ue4ss" でクリーンアップしてから再試行してください。</value>
+  </data>
+  <data name="FetchUsmap_InstalledUe4ss" xml:space="preserve">
+    <value>UE4SS {0} を {1} にインストールしました（{2} ファイル書き込み、コンソール・デバッグ画面無効化、LICENSE 保持）。</value>
+  </data>
+  <data name="FetchUsmap_DeployedMod" xml:space="preserve">
+    <value>一時ダンプ MOD を配置しました: {0}（enabled.txt で有効化、mods.txt は未変更）。</value>
+  </data>
+  <data name="FetchUsmap_LaunchingSteam" xml:space="preserve">
+    <value>Steam 経由でゲームを起動しています: {0}（タイムアウト: {1} 秒）</value>
+  </data>
+  <data name="FetchUsmap_SavedUsmapLine" xml:space="preserve">
+    <value>.usmap を保存しました: {0}</value>
+  </data>
+  <data name="FetchUsmap_SourceDumpPath" xml:space="preserve">
+    <value>元のダンプ出力先: {0}</value>
+  </data>
+  <data name="FetchUsmap_FileShaLine" xml:space="preserve">
+    <value>ファイルハッシュ（file_sha256）: {0}（サイズ: {1} バイト）</value>
+  </data>
+  <data name="FetchUsmap_ContentShaLine" xml:space="preserve">
+    <value>内容ハッシュ（content_sha256）: {0}（{1} 型、{2} 列挙）</value>
+  </data>
+  <data name="FetchUsmap_RemovedTempMod" xml:space="preserve">
+    <value>一時ダンプ MOD（ue4ss/Mods/FfrUsmapDump）を削除しました。</value>
+  </data>
+  <data name="FetchUsmap_RetainUserUe4ss" xml:space="preserve">
+    <value>既存の UE4SS 環境はそのまま保持しました。</value>
+  </data>
+  <data name="FetchUsmap_RetainOwnUe4ss" xml:space="preserve">
+    <value>UE4SS は次回再利用のためゲームディレクトリに残しています（いつでも "ffr-export uninstall-ue4ss" または GUI の「UE4SS をクリーンアップ…」から削除できます）。</value>
+  </data>
+  <data name="FetchUsmap_ModFailed" xml:space="preserve">
+    <value>UE4SS ダンプ MOD の実行に失敗しました: {0}。ログを確認してください: {1}</value>
+  </data>
+  <data name="FetchUsmap_DoneMarkerFound" xml:space="preserve">
+    <value>ダンプ完了マーカーを検出し、新しい .usmap を確認しました: {0}</value>
+  </data>
+  <data name="FetchUsmap_TimeoutGameRunning" xml:space="preserve">
+    <value>ゲームは起動しましたが {0} 秒以内に新しい .usmap が生成されませんでした。UE4SS が読み込まれなかったか初期化に時間がかかっている可能性があります。ログ（{1}）を確認するか、--timeout を増やして再試行してください。</value>
+  </data>
+  <data name="FetchUsmap_TimeoutGameNotSeen" xml:space="preserve">
+    <value>{0} 秒待機しましたがゲームプロセス（{1}）を検出できませんでした。Steam からの起動に失敗した可能性があります。Steam にログイン済みで更新ダイアログ等にブロックされていないか確認して再試行してください。</value>
+  </data>
+  <data name="FetchUsmap_TimeoutError" xml:space="preserve">
+    <value>.usmap ダンプの待機がタイムアウトしました: {0}</value>
+  </data>
+  <data name="FetchUsmap_StateGameRunning" xml:space="preserve">
+    <value>ゲーム実行中、エンジン初期化とダンプを待機中</value>
+  </data>
+  <data name="FetchUsmap_StateWaitingSteam" xml:space="preserve">
+    <value>Steam によるゲーム起動を待機中</value>
+  </data>
+  <data name="FetchUsmap_WaitingProgress" xml:space="preserve">
+    <value>.usmap ダンプを待機中… {0}/{1} 秒経過（{2}）</value>
+  </data>
+  <data name="FetchUsmap_PlanHeader" xml:space="preserve">
+    <value>次の処理を実行します:</value>
+  </data>
+  <data name="FetchUsmap_PlanStep1" xml:space="preserve">
+    <value>  1. 対象ゲームディレクトリ: {0}</value>
+  </data>
+  <data name="FetchUsmap_PlanStep2Install" xml:space="preserve">
+    <value>  2. 公式 GitHub から UE4SS {0}（約 8.4 MB、{1} にキャッシュ、SHA-256 検証）をダウンロードし {2} に導入（コンソール・デバッグ画面無効化）。</value>
+  </data>
+  <data name="FetchUsmap_PlanStep2User" xml:space="preserve">
+    <value>  2. ユーザー導入済みの UE4SS を検出しました。既存設定はそのまま維持します。</value>
+  </data>
+  <data name="FetchUsmap_PlanStep2Reuse" xml:space="preserve">
+    <value>  2. 本ツールが以前導入した UE4SS を再利用します。</value>
+  </data>
+  <data name="FetchUsmap_PlanStep3" xml:space="preserve">
+    <value>  3. 一時読み取り専用 MOD ue4ss/Mods/{0} を配置（enabled.txt で有効化、mods.txt は未変更）。</value>
+  </data>
+  <data name="FetchUsmap_PlanStep4" xml:space="preserve">
+    <value>  4. Steam 経由でゲームを一度起動し（最大 {0} 秒待機）、タイトル画面で .usmap を自動ダンプ（セーブデータには触れません）。</value>
+  </data>
+  <data name="FetchUsmap_PlanStep5" xml:space="preserve">
+    <value>  5. .usmap を {0} にアーカイブし、known-builds.json と照合します。</value>
+  </data>
+  <data name="FetchUsmap_PlanStep6" xml:space="preserve">
+    <value>  6. 一時 MOD を削除してゲームを自動終了します（UE4SS は次回用に残ります。uninstall-ue4ss でいつでも削除可能）。</value>
+  </data>
+  <data name="FetchUsmap_ConfirmPrompt" xml:space="preserve">
+    <value>続行しますか？（y で確定、Enter または n で中止）: </value>
+  </data>
+  <data name="FetchUsmap_CtrlCInterrupt" xml:space="preserve">
+    <value>中断シグナルを受信しました。中止して一時 MOD とゲームプロセスをクリーンアップしています…</value>
+  </data>
+  <data name="FetchUsmap_CancelledAfterInterrupt" xml:space="preserve">
+    <value>.usmap の取得を中止し、一時 MOD を無効化しました。</value>
+  </data>
+  <data name="GuiCore_LaunchCliFailed" xml:space="preserve">
+    <value>CLI 実行ファイルを起動できませんでした: {0}</value>
+  </data>
+  <data name="GuiCore_DualComboHint" xml:space="preserve">
+    <value>known-builds.json には「.usmap のみ」と「.usmap + .jmap 2 件」の 2 通りが登録されているため、.jmap の有無にかかわらず照合できます。</value>
+  </data>
+  <data name="GuiCore_ReportNotFound" xml:space="preserve">
+    <value>ビルド結果の読み取りに失敗しました: 出力ディレクトリ {0} に *.build.json が見つかりません。</value>
+  </data>
+  <data name="GuiCore_ReportReadFailed" xml:space="preserve">
+    <value>ビルドレポートの読み取りに失敗しました（{0}）: {1}</value>
+  </data>
+  <data name="GuiCore_ReportInvalidJson" xml:space="preserve">
+    <value>ビルドレポート JSON の解析に失敗しました（{0}）: {1}</value>
+  </data>
+  <data name="GuiCore_ReportRootNotObject" xml:space="preserve">
+    <value>ビルドレポートの形式が無効です（ルートが JSON オブジェクトではありません）: {0}</value>
+  </data>
+  <data name="GuiCore_ReportMissingFileSha" xml:space="preserve">
+    <value>ビルドレポートに database.file_sha256 フィールドがありません: {0}</value>
+  </data>
+  <data name="GuiCore_InputDescUsmapOnly" xml:space="preserve">
+    <value>今回の入力: .usmap のみ（.jmap なし）</value>
+  </data>
+  <data name="GuiCore_InputDescWithJmaps" xml:space="preserve">
+    <value>今回の入力: .usmap + .jmap {0} 件</value>
+  </data>
+  <data name="GuiCore_PartialExportNotice" xml:space="preserve">
+    <value>（ヒント: エクスポート中に一部のアセットパッケージが失敗しました。詳細はログとビルドレポートをご確認ください。）</value>
+  </data>
+  <data name="GuiCore_MatchedRegDatePart" xml:space="preserve">
+    <value>、一致した登録日: {0}</value>
+  </data>
+  <data name="GuiCore_VerdictMatchedTitle" xml:space="preserve">
+    <value>登録済みビルドと一致</value>
+  </data>
+  <data name="GuiCore_VerdictMatchedExplanation" xml:space="preserve">
+    <value>{0}{1}。{2}{3}</value>
+  </data>
+  <data name="GuiCore_VerdictNewVersionTitle" xml:space="preserve">
+    <value>新バージョン（未登録）</value>
+  </data>
+  <data name="GuiCore_VerdictNewVersionExplanation" xml:space="preserve">
+    <value>{0}。現在のゲームバージョンは known-builds.json に未登録です。{1}{2}</value>
+  </data>
+  <data name="GuiCore_VerdictHashMismatchTitle" xml:space="preserve">
+    <value>ハッシュ不一致</value>
+  </data>
+  <data name="GuiCore_VerdictFileShaOnlyDetail" xml:space="preserve">
+    <value>全テーブルの内容は一致（content_sha256 同一）しており、データベースファイルのハッシュのみ異なります。</value>
+  </data>
+  <data name="GuiCore_VerdictTableDiffDetail" xml:space="preserve">
+    <value>ゲームバージョンは登録済みですが、{0} 件のテーブル内容が登録記録と異なります。</value>
+  </data>
+  <data name="GuiCore_VerdictGenericMismatchDetail" xml:space="preserve">
+    <value>ゲームバージョンは登録済みですが、データベースハッシュが登録記録と異なります。</value>
+  </data>
+  <data name="GuiCore_VerdictOddJmapCountNote" xml:space="preserve">
+    <value>注意: 現在 .jmap が {0} 件指定されていますが、登録済みの組み合わせは「0 件」または「2 件」です。</value>
+  </data>
+  <data name="GuiCore_VerdictHashMismatchExplanation" xml:space="preserve">
+    <value>{0}。{1}{2}{3}{4}</value>
+  </data>
+  <data name="GuiCore_VerdictUnknownTitle" xml:space="preserve">
+    <value>照合結果不明</value>
+  </data>
+  <data name="GuiCore_VerdictUnknownExplanation" xml:space="preserve">
+    <value>{0}。ビルドレポートに認識可能な照合結果が含まれていません。{1}{2}</value>
+  </data>
+  <data name="GuiCore_ClipboardDbPath" xml:space="preserve">
+    <value>データベースパス: {0}</value>
+  </data>
+  <data name="GuiCore_ClipboardFileSha" xml:space="preserve">
+    <value>ファイルハッシュ (file_sha256): {0}</value>
+  </data>
+  <data name="GuiCore_ClipboardContentSha" xml:space="preserve">
+    <value>内容ハッシュ (content_sha256): {0}</value>
+  </data>
+  <data name="GuiCore_ClipboardVerdict" xml:space="preserve">
+    <value>照合結果: {0} {1}</value>
+  </data>
+  <data name="GuiCore_SteamScanFailed" xml:space="preserve">
+    <value>Steam の自動スキャンに失敗しました: {0}。右側の「ゲームフォルダを手動選択…」をクリックしてください。</value>
+  </data>
+  <data name="GuiCore_SteamLibraryUnreadable" xml:space="preserve">
+    <value>Steam ライブラリを読み取れません（{0}）。フォルダ権限を確認するか、右側の「ゲームフォルダを手動選択…」をクリックしてください。</value>
+  </data>
+  <data name="GuiCore_SteamRegistryFailed" xml:space="preserve">
+    <value>Steam レジストリの読み取りに失敗し（{0}）、既定の Steam フォルダでもゲームが見つかりませんでした。右側の「ゲームフォルダを手動選択…」をクリックしてください。</value>
+  </data>
+  <data name="GuiCore_SelectGameRootPrompt" xml:space="preserve">
+    <value>ゲームのインストールルートディレクトリを選択してください。</value>
+  </data>
+  <data name="GuiCore_GameDirInvalidPath" xml:space="preserve">
+    <value>ゲームディレクトリのパスが無効です（{0}）: {1}</value>
+  </data>
+  <data name="GuiCore_GameDirNotFound" xml:space="preserve">
+    <value>選択されたゲームディレクトリが存在しません: {0}</value>
+  </data>
+  <data name="GuiCore_GameDirMissingPaks" xml:space="preserve">
+    <value>選択されたフォルダは対応ゲームディレクトリではありません: {0} が見つかりません（確認先: {1}）。FINAL FANTASY RESONANCE のインストールルートディレクトリを選択してください。</value>
+  </data>
+  <data name="GuiCore_GameDirMissingExe" xml:space="preserve">
+    <value>選択されたフォルダは対応ゲームディレクトリではありません: ゲーム実行ファイル {0} が見つかりません（確認先: {1}）。FINAL FANTASY RESONANCE のインストールルートディレクトリを選択してください。</value>
+  </data>
+  <data name="GuiCore_AccessDeniedPath" xml:space="preserve">
+    <value>{0} へのアクセス権限がありません: {1}</value>
+  </data>
+  <data name="GuiCore_AccessFailedPath" xml:space="preserve">
+    <value>{0} へのアクセスに失敗しました: {1}</value>
+  </data>
+  <data name="GuiCore_FontMissingOrUnsupported" xml:space="preserve">
+    <value>フォント {0} が未インストールか、指定スタイルに対応していません</value>
+  </data>
+  <data name="GuiCore_UiFontFallbackMsgBox" xml:space="preserve">
+    <value>UI フォント {0} が利用できないため（{1}）、システムの既定フォント（MessageBoxFont）にフォールバックしました。</value>
+  </data>
+  <data name="GuiCore_UiFontFallbackMsgBoxRegular" xml:space="preserve">
+    <value>UI フォント {0} が利用できないため（{1}）、システムの標準フォント（MessageBoxFont）にフォールバックしました。</value>
+  </data>
+  <data name="GuiCore_UiFontFallbackControlDefault" xml:space="preserve">
+    <value>UI フォント {0} と MessageBoxFont のいずれも利用できないため（{1}）、コントロールの既定フォントにフォールバックしました。</value>
+  </data>
+  <data name="GuiCore_MonoFontNotInstalled" xml:space="preserve">
+    <value>フォント {0} がインストールされていません</value>
+  </data>
+  <data name="GuiCore_MonoFontFallbackGeneric" xml:space="preserve">
+    <value>等幅フォント {0} が利用できないため（{1}）、システムの汎用等幅フォントにフォールバックしました。</value>
+  </data>
+  <data name="GuiCore_MonoFontFallbackMsgBox" xml:space="preserve">
+    <value>等幅フォント {0} が利用できないため（{1}）、システムの既定フォント（MessageBoxFont）にフォールバックしました。</value>
+  </data>
+  <data name="GuiCore_MonoFontFallbackControlDefault" xml:space="preserve">
+    <value>等幅フォント {0} が利用できないため（{1}）、コントロールの既定フォントにフォールバックしました。</value>
+  </data>
+  <data name="GuiCore_DefaultOutputAllUnwritable" xml:space="preserve">
+    <value>既定および代替のデータディレクトリに書き込めません。「参照…」をクリックして出力先を手動指定してください。</value>
+  </data>
+  <data name="GuiCore_PathEmpty" xml:space="preserve">
+    <value>パスが空です</value>
+  </data>
+  <data name="GuiCore_PathContainsNull" xml:space="preserve">
+    <value>パスに無効な NUL 文字が含まれています</value>
+  </data>
+  <data name="GuiCore_SavedOutputInvalidFallback" xml:space="preserve">
+    <value>前回保存された出力ディレクトリが無効なため（{0}: {1}）、既定ディレクトリを使用します: {2}。</value>
+  </data>
+  <data name="GuiCore_CliLookupInvalidBaseDir" xml:space="preserve">
+    <value>CLI 実行ファイル {0} の検索に失敗しました（アプリディレクトリパス無効: {1}）: {2}</value>
+  </data>
+  <data name="GuiCore_CliLookupCheckFailed" xml:space="preserve">
+    <value>CLI 実行ファイル {0} の確認に失敗しました（{1}）: {2}</value>
+  </data>
+  <data name="GuiCore_CliNotFound" xml:space="preserve">
+    <value>CLI 実行ファイル {0} が見つかりません（想定パス: {1}）。圧縮ファイルをすべて同じフォルダに展開し、ffr-export-gui.exe・{0}・{2}・known-builds.json を同じ場所に配置してください（GUI 実行ファイルだけを移動しないでください）。</value>
+  </data>
+  <data name="GuiCore_OutputEmpty" xml:space="preserve">
+    <value>出力ディレクトリは空にできません。出力フォルダを選択してください。</value>
+  </data>
+  <data name="GuiCore_OutputInvalidPath" xml:space="preserve">
+    <value>出力ディレクトリのパスが無効です（{0}）: {1}</value>
+  </data>
+  <data name="GuiCore_OutputOverlapsGame" xml:space="preserve">
+    <value>出力ディレクトリにゲームインストール先と重複するパスは指定できません: {0}。別のディレクトリを選択してください。</value>
+  </data>
+  <data name="GuiCore_OutputIsFile" xml:space="preserve">
+    <value>出力先パスがフォルダではなく既存ファイルを指しています: {0}。別のパスを指定してください。</value>
+  </data>
+  <data name="GuiCore_OutputReadFailed" xml:space="preserve">
+    <value>出力ディレクトリ {0} を読み取れません: {1}</value>
+  </data>
+  <data name="GuiCore_OutputProtectedRefused" xml:space="preserve">
+    <value>出力ディレクトリ {0} は空ではないシステムまたはユーザーのルートフォルダです。個人ファイルの誤削除を防ぐためクリアを拒否しました。専用のサブフォルダを作成または指定してください。</value>
+  </data>
+  <data name="GuiCore_RefuseClearProtected" xml:space="preserve">
+    <value>保護対象ディレクトリのクリアを拒否しました: {0}</value>
+  </data>
+  <data name="GuiCore_SettingsResolvePathFailed" xml:space="preserve">
+    <value>設定ファイルパスの解決に失敗しました: {0}。既定の設定を使用します。</value>
+  </data>
+  <data name="GuiCore_SettingsNullChar" xml:space="preserve">
+    <value>パスに無効な NUL 文字が含まれています。</value>
+  </data>
+  <data name="GuiCore_SettingsEmptyOrInvalid" xml:space="preserve">
+    <value>設定ファイルが空または無効です（{0}）。既定の設定を使用します。</value>
+  </data>
+  <data name="GuiCore_SettingsCorrupt" xml:space="preserve">
+    <value>設定ファイルが破損しています（{0}）: {1}。既定の設定を使用します。</value>
+  </data>
+  <data name="GuiCore_SettingsAccessDenied" xml:space="preserve">
+    <value>設定ファイルの読み取り権限がありません（{0}）: {1}。既定の設定を使用します。</value>
+  </data>
+  <data name="GuiCore_SettingsReadFailed" xml:space="preserve">
+    <value>設定ファイルの読み取りに失敗しました（{0}）: {1}。既定の設定を使用します。</value>
+  </data>
+  <data name="GuiCore_LegacySettingsInvalid" xml:space="preserve">
+    <value>旧バージョンの設定ファイルが無効なため（{0}）、自動移行をスキップしました。</value>
+  </data>
+  <data name="GuiCore_LegacySettingsMigrateFailed" xml:space="preserve">
+    <value>旧設定ファイルの移行に失敗しました（{0} -&gt; {1}）: {2}。旧ファイルを保持し、既定の設定を使用します。</value>
+  </data>
+  <data name="GuiCore_LogStageLine" xml:space="preserve">
+    <value>[{0}] [ERROR] フェーズ: {1}</value>
+  </data>
+  <data name="GuiCore_LogNonExceptionObject" xml:space="preserve">
+    <value>未処理の非 Exception オブジェクト: {0}</value>
+  </data>
+  <data name="GuiCore_LogNoWritableDir" xml:space="preserve">
+    <value>書き込み可能なログディレクトリが指定されていません</value>
+  </data>
+  <data name="GuiCore_LogNoWritableDataDir" xml:space="preserve">
+    <value>書き込み可能なデータディレクトリがありません</value>
+  </data>
+  <data name="GuiCore_LogNotWrittenNoDataDir" xml:space="preserve">
+    <value>書き込み可能なデータディレクトリがないため、ログファイルは作成されませんでした</value>
+  </data>
+  <data name="GuiCore_LogCreateFailed" xml:space="preserve">
+    <value>起動ログファイルを作成できませんでした</value>
+  </data>
+  <data name="GuiCore_CrashDefaultHeadline" xml:space="preserve">
+    <value>GUI の起動に失敗しました</value>
+  </data>
+  <data name="GuiCore_CrashExceptionLine" xml:space="preserve">
+    <value>例外情報: {0}: {1}</value>
+  </data>
+  <data name="GuiCore_CrashInnerExceptionLine" xml:space="preserve">
+    <value>内部例外: {0}: {1}</value>
+  </data>
+  <data name="GuiCore_CrashLogFileLine" xml:space="preserve">
+    <value>ログファイル: {0}</value>
+  </data>
+  <data name="GuiCore_CrashSendLogToDev" xml:space="preserve">
+    <value>問題調査のため、上記のログファイルを開発者へお送りください。</value>
+  </data>
+  <data name="GuiCore_CrashLogDirUnwritable" xml:space="preserve">
+    <value>ログディレクトリに書き込めません</value>
+  </data>
+  <data name="GuiCore_CrashLogNotWrittenLine" xml:space="preserve">
+    <value>ログファイル: ログを書き込めませんでした（{0}）</value>
+  </data>
+  <data name="GuiCore_CrashSendScreenshotToDev" xml:space="preserve">
+    <value>問題調査のため、このエラー画面のスクリーンショットを開発者へお送りください。</value>
+  </data>
+  <data name="GuiCore_SelfTestFailedLine" xml:space="preserve">
+    <value>GUI セルフテストに失敗しました: {0}: {1}</value>
+  </data>
+  <data name="GuiCore_SelfTestLogNotWritten" xml:space="preserve">
+    <value>ログファイル: 書き込み不可（{0}）</value>
+  </data>
+  <data name="GuiCore_LogIntegrityInfoLine" xml:space="preserve">
+    <value>[{0}] [INFO] プロセス整合性レベル: {1} ({2})。データディレクトリ元={3}、パス={4}</value>
+  </data>
+  <data name="GuiCore_LogSkippedCandidateLine" xml:space="preserve">
+    <value>[{0}] [WARN] 書き込み不可の候補ディレクトリをスキップ: {1} ({2}): {3}</value>
+  </data>
+  <data name="GuiCore_LogLocationSaveFailedLine" xml:space="preserve">
+    <value>[{0}] [WARN] {1} の保存に失敗しました（次回起動時にデータディレクトリを再選択する必要があります）: {2}</value>
+  </data>
+  <data name="GuiCore_ExeDirUnwritable" xml:space="preserve">
+    <value>アプリディレクトリに書き込めません</value>
+  </data>
+  <data name="GuiCore_LogExceptionType" xml:space="preserve">
+    <value>例外の種類: {0}</value>
+  </data>
+  <data name="GuiCore_LogExceptionMessage" xml:space="preserve">
+    <value>例外メッセージ: {0}</value>
+  </data>
+  <data name="GuiCore_LogHResult" xml:space="preserve">
+    <value>HResult: 0x{0}</value>
+  </data>
+  <data name="GuiCore_LogStackTraceHeader" xml:space="preserve">
+    <value>スタックトレース:</value>
+  </data>
+  <data name="GuiCore_LogNoStackTrace" xml:space="preserve">
+    <value>(スタックトレースなし)</value>
+  </data>
+  <data name="GuiCore_LogInnerTruncated" xml:space="preserve">
+    <value>...（InnerException のネストが深すぎるため省略しました）</value>
+  </data>
+  <data name="GuiCore_UsmapNotFoundGuidance" xml:space="preserve">
+    <value>.usmap ファイルが自動で見つかりませんでした。下の「.usmap を自動取得（ゲームを一度起動）」で自動ダンプするか、「.usmap を選択…」から手動指定してください。</value>
+  </data>
+  <data name="GuiCore_UsmapDiscoveryErrorGuidance" xml:space="preserve">
+    <value>.usmap の自動検索に失敗しました（{0}）。ディレクトリ権限を確認するか、「.usmap を自動取得」または「.usmap を選択…」をクリックしてください。</value>
+  </data>
+  <data name="GuiCore_UsmapDisplayMultiple" xml:space="preserve">
+    <value>{0}（更新日時: {1}、計 {2} 件検出・最新を選択）</value>
+  </data>
+  <data name="GuiCore_UsmapDisplaySingle" xml:space="preserve">
+    <value>{0}（更新日時: {1}）</value>
+  </data>
+  <data name="GuiCore_JmapDisplay" xml:space="preserve">
+    <value>{0}（更新日時: {1}、{2}） — {3}</value>
+  </data>
+  <data name="GuiCore_SourceManualSelect" xml:space="preserve">
+    <value>手動選択</value>
+  </data>
+  <data name="GuiCore_SourceManualAdd" xml:space="preserve">
+    <value>手動追加</value>
+  </data>
+  <data name="GuiCore_SourceFetched" xml:space="preserve">
+    <value>自動取得</value>
+  </data>
+  <data name="GuiCore_ScanDirCannotAccess" xml:space="preserve">
+    <value>ディレクトリ {0} にアクセスできません: {1}</value>
+  </data>
+  <data name="GuiCore_ScanDirAccessDenied" xml:space="preserve">
+    <value>ディレクトリ {0} の読み取り権限がありません: {1}</value>
+  </data>
+  <data name="GuiCore_ScanDirFailed" xml:space="preserve">
+    <value>ディレクトリ {0} のスキャンに失敗しました: {1}</value>
+  </data>
+  <data name="Gui_SelfTestFailedPrefix" xml:space="preserve">
+    <value>GUI セルフテストに失敗しました: {0}</value>
+  </data>
+  <data name="Gui_AgpEnvUnwritableFallback" xml:space="preserve">
+    <value>環境変数 AGP_HOME で指定されたディレクトリに書き込めません。</value>
+  </data>
+  <data name="Gui_DataDirUnwritableTitle" xml:space="preserve">
+    <value>データディレクトリに書き込めません</value>
+  </data>
+  <data name="Gui_LogProcessTempRedirected" xml:space="preserve">
+    <value>プロセス一時ディレクトリをデータルート配下へリダイレクトしました: {0}</value>
+  </data>
+  <data name="Gui_LogProcessTempFailed" xml:space="preserve">
+    <value>データルート配下の tmp サブディレクトリ設定に失敗しました: {0}</value>
+  </data>
+  <data name="Gui_LogDpiInitFailed" xml:space="preserve">
+    <value>高 DPI 初期化に失敗しました: {0}</value>
+  </data>
+  <data name="Gui_LogVisualStylesFailed" xml:space="preserve">
+    <value>ビジュアルスタイルの初期化に失敗しました（マニフェスト設定を使用します）: {0}: {1}</value>
+  </data>
+  <data name="Gui_ChooseWritableDataDirTitle" xml:space="preserve">
+    <value>書き込み可能なデータディレクトリを選択</value>
+  </data>
+  <data name="Gui_ChooseWritableDataDirDesc" xml:space="preserve">
+    <value>ログ・設定・エクスポートファイルの保存先となる書き込み可能なフォルダを選択してください</value>
+  </data>
+  <data name="Gui_FolderPickerFailedBody" xml:space="preserve">
+    <value>「フォルダを選択」ダイアログを開けませんでした（{0}: {1}）。
+
+環境変数 {2} に書き込み可能なフォルダを設定して再起動するか、zip を右クリック → プロパティ → 許可する（ブロック解除）のあと再展開してください。</value>
+  </data>
+  <data name="Gui_FolderPickerFailedTitle" xml:space="preserve">
+    <value>フォルダ選択を開けません</value>
+  </data>
+  <data name="Gui_SelectedDirUnwritableFallback" xml:space="preserve">
+    <value>選択したフォルダには書き込めません。別のディレクトリを選択してください。</value>
+  </data>
+  <data name="Gui_SelectedDirUnwritableTitle" xml:space="preserve">
+    <value>選択ディレクトリに書き込めません</value>
+  </data>
+  <data name="Gui_CrashRuntimeHeadline" xml:space="preserve">
+    <value>GUI 実行時エラー</value>
+  </data>
+  <data name="Gui_UnhandledNonException" xml:space="preserve">
+    <value>未処理の非 Exception オブジェクトが発生しました: {0}</value>
+  </data>
+  <data name="Gui_LogConstructingMainForm" xml:space="preserve">
+    <value>MainForm を構築しています…</value>
+  </data>
+  <data name="Gui_LogMainFormShown" xml:space="preserve">
+    <value>メインウィンドウが表示されました。</value>
+  </data>
+  <data name="Gui_LogStartingMessageLoop" xml:space="preserve">
+    <value>WinForms メッセージループを開始しています…</value>
+  </data>
+  <data name="Gui_LogGuiExited" xml:space="preserve">
+    <value>GUI が終了しました（終了コード={0}）。</value>
+  </data>
+  <data name="Gui_LogMainFormInitPhase" xml:space="preserve">
+    <value>MainForm の構築または起動</value>
+  </data>
+  <data name="Gui_SelfTestStart" xml:space="preserve">
+    <value>GUI セルフテスト（--self-test）を開始します…</value>
+  </data>
+  <data name="Gui_SelfTestVisualStylesFailed" xml:space="preserve">
+    <value>Application.EnableVisualStyles の初期化に失敗しました（書き込み不可のシステム TEMP に触れた可能性があります）: {0}</value>
+  </data>
+  <data name="Gui_SelfTestWinFormsMetadataFailed" xml:space="preserve">
+    <value>WinForms アセンブリのメタデータ読み込みに失敗しました。</value>
+  </data>
+  <data name="Gui_SelfTestSteamLocatorFailed" xml:space="preserve">
+    <value>共有 SteamLocator の設定検証に失敗しました。</value>
+  </data>
+  <data name="Gui_SelfTestProgressParseFailed" xml:space="preserve">
+    <value>進捗パーサーのセルフテストに失敗しました。</value>
+  </data>
+  <data name="Gui_SelfTestLocalizationFailed" xml:space="preserve">
+    <value>多言語リソース（en/zh-Hans/ja）の読み込みセルフテストに失敗しました。</value>
+  </data>
+  <data name="Gui_SelfTestAgpRootEmpty" xml:space="preserve">
+    <value>データルートディレクトリの解決結果が空です。</value>
+  </data>
+  <data name="Gui_SelfTestTempNotRedirected" xml:space="preserve">
+    <value>プロセスの TEMP/TMP がデータルート配下の tmp にリダイレクトされていません: expected={0}, TEMP={1}, TMP={2}</value>
+  </data>
+  <data name="Gui_SelfTestProbeFailed" xml:space="preserve">
+    <value>データルートの書き込みテストに失敗しました: {0}</value>
+  </data>
+  <data name="Gui_SelfTestOutputCalcFailed" xml:space="preserve">
+    <value>既定出力パスの計算セルフテストに失敗しました。</value>
+  </data>
+  <data name="Gui_SelfTestSettingsJsonFailed" xml:space="preserve">
+    <value>設定 JSON のシリアライズセルフテストに失敗しました。</value>
+  </data>
+  <data name="Gui_SelfTestCreatingMainForm" xml:space="preserve">
+    <value>セルフテスト: MainForm を構築し CreateControl() を呼び出しています（非表示）…</value>
+  </data>
+  <data name="Gui_SelfTestMainFormHandleFailed" xml:space="preserve">
+    <value>メインウィンドウのハンドル作成に失敗しました。</value>
+  </data>
+  <data name="Gui_SelfTestMainFormShouldBeHidden" xml:space="preserve">
+    <value>セルフテスト中にメインウィンドウが表示されてはいけません。</value>
+  </data>
+  <data name="Gui_SelfTestMainFormCreated" xml:space="preserve">
+    <value>セルフテスト: MainForm を作成しました（handle=0x{0}, topControls={1}）。SettingsDialog を検証します。</value>
+  </data>
+  <data name="Gui_SelfTestSettingsHandleFailed" xml:space="preserve">
+    <value>設定ダイアログのハンドル作成に失敗しました。</value>
+  </data>
+  <data name="Gui_SelfTestPassed" xml:space="preserve">
+    <value>セルフテスト合格: assembly={0}, dpi={1}, integrity={2}, data_root={3}, appid={4}</value>
+  </data>
+  <data name="Gui_SelfTestChildHandleFailed" xml:space="preserve">
+    <value>子コントロール {0} のハンドル作成に失敗しました。</value>
+  </data>
+  <data name="Gui_LogMessageBoxFailed" xml:space="preserve">
+    <value>MessageBox.Show に失敗しました</value>
+  </data>
+  <data name="Gui_WindowTitle" xml:space="preserve">
+    <value>FINAL FANTASY RESONANCE データエクスポートツール</value>
+  </data>
+  <data name="Gui_LanguageLabel" xml:space="preserve">
+    <value>言語:</value>
+  </data>
+  <data name="Gui_DefaultOutputHint" xml:space="preserve">
+    <value>既定の出力先: {0}\ffr-&lt;Steam ビルド ID&gt;\（ゲームファイルは読み取り専用で、ゲームフォルダは変更しません）</value>
+  </data>
+  <data name="Gui_SettingsMigratedNote" xml:space="preserve">
+    <value>旧バージョンの設定を {0} から {1} へ自動移行しました（旧ファイルは .migrated にリネーム済み）。</value>
+  </data>
+  <data name="Gui_SavedOutputInvalidHint" xml:space="preserve">
+    <value>前回保存された出力ディレクトリが無効なため（{0}: {1}）、既定ディレクトリ {2} を使用します（「参照…」から変更可能）。</value>
+  </data>
+  <data name="Gui_GroupGame" xml:space="preserve">
+    <value>1. ゲーム（FINAL FANTASY RESONANCE）</value>
+  </data>
+  <data name="Gui_ColGameName" xml:space="preserve">
+    <value>ゲーム名</value>
+  </data>
+  <data name="Gui_ColSteamBuildId" xml:space="preserve">
+    <value>Steam ビルド ID</value>
+  </data>
+  <data name="Gui_ColInstallDir" xml:space="preserve">
+    <value>インストール先</value>
+  </data>
+  <data name="Gui_BtnManualGame" xml:space="preserve">
+    <value>ゲームフォルダを選択…</value>
+  </data>
+  <data name="Gui_BtnRescanSteam" xml:space="preserve">
+    <value>Steam を再スキャン</value>
+  </data>
+  <data name="Gui_BtnSettings" xml:space="preserve">
+    <value>設定…</value>
+  </data>
+  <data name="Gui_GroupMappings" xml:space="preserve">
+    <value>2. マッピング・リフレクションファイル（.usmap / .jmap）</value>
+  </data>
+  <data name="Gui_LabelUsmapRequired" xml:space="preserve">
+    <value>.usmap（必須）:</value>
+  </data>
+  <data name="Gui_BtnBrowseUsmap" xml:space="preserve">
+    <value>.usmap を選択…</value>
+  </data>
+  <data name="Gui_BtnCleanupUe4ss" xml:space="preserve">
+    <value>UE4SS をクリーンアップ…</value>
+  </data>
+  <data name="Gui_BtnFetchUsmap" xml:space="preserve">
+    <value>.usmap を自動取得（ゲームを一度起動）</value>
+  </data>
+  <data name="Gui_LabelFilePath" xml:space="preserve">
+    <value>ファイルパス:</value>
+  </data>
+  <data name="Gui_CheckIncludeJmap" xml:space="preserve">
+    <value>リフレクションデータを含める（.jmap、任意）</value>
+  </data>
+  <data name="Gui_BtnAddJmap" xml:space="preserve">
+    <value>.jmap を追加…</value>
+  </data>
+  <data name="Gui_BtnRemoveJmap" xml:space="preserve">
+    <value>選択を削除</value>
+  </data>
+  <data name="Gui_GroupOutput" xml:space="preserve">
+    <value>3. 出力先</value>
+  </data>
+  <data name="Gui_LabelOutputDir" xml:space="preserve">
+    <value>出力ディレクトリ:</value>
+  </data>
+  <data name="Gui_BtnBrowseOutput" xml:space="preserve">
+    <value>参照…</value>
+  </data>
+  <data name="Gui_BtnStartExport" xml:space="preserve">
+    <value>エクスポート開始</value>
+  </data>
+  <data name="Gui_BtnCancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="Gui_StatusReady" xml:space="preserve">
+    <value>状態: 準備完了</value>
+  </data>
+  <data name="Gui_GroupResult" xml:space="preserve">
+    <value>4. 実行結果</value>
+  </data>
+  <data name="Gui_ResultNotRun" xml:space="preserve">
+    <value>未実行</value>
+  </data>
+  <data name="Gui_ResultNotRunDetail" xml:space="preserve">
+    <value>「エクスポート開始」をクリックすると、データベースパス・ハッシュ・known-builds.json との照合結果がここに表示されます。</value>
+  </data>
+  <data name="Gui_LabelDbPath" xml:space="preserve">
+    <value>データベースパス:</value>
+  </data>
+  <data name="Gui_BtnOpenOutput" xml:space="preserve">
+    <value>出力フォルダを開く</value>
+  </data>
+  <data name="Gui_LabelFileSha" xml:space="preserve">
+    <value>ファイルハッシュ:</value>
+  </data>
+  <data name="Gui_BtnCopyHash" xml:space="preserve">
+    <value>ハッシュをコピー</value>
+  </data>
+  <data name="Gui_LabelContentSha" xml:space="preserve">
+    <value>内容ハッシュ:</value>
+  </data>
+  <data name="Gui_StatusStripIntegrity" xml:space="preserve">
+    <value>整合性レベル: {0}</value>
+  </data>
+  <data name="Gui_StatusStripDataRoot" xml:space="preserve">
+    <value>データディレクトリ: {0}</value>
+  </data>
+  <data name="Gui_LogPrefixInfo" xml:space="preserve">
+    <value>[情報] {0}</value>
+  </data>
+  <data name="Gui_LogPrefixWarn" xml:space="preserve">
+    <value>[警告] {0}</value>
+  </data>
+  <data name="Gui_LogPrefixError" xml:space="preserve">
+    <value>[エラー] {0}</value>
+  </data>
+  <data name="Gui_LogPrefixDone" xml:space="preserve">
+    <value>[完了] {0}</value>
+  </data>
+  <data name="Gui_LogPrefixCancelled" xml:space="preserve">
+    <value>[キャンセル] {0}</value>
+  </data>
+  <data name="Gui_OpNameFetchUsmap" xml:space="preserve">
+    <value>.usmap 取得</value>
+  </data>
+  <data name="Gui_OpNameCleanUe4ss" xml:space="preserve">
+    <value>UE4SS クリーンアップ</value>
+  </data>
+  <data name="Gui_OpNameExport" xml:space="preserve">
+    <value>エクスポート</value>
+  </data>
+  <data name="Gui_ConfirmCloseBody" xml:space="preserve">
+    <value>{0}が実行中です。ウィンドウを閉じると処理を中止しバックグラウンドプロセスを終了します。終了しますか？</value>
+  </data>
+  <data name="Gui_ConfirmCloseTitle" xml:space="preserve">
+    <value>終了の確認</value>
+  </data>
+  <data name="Gui_CliMissingFallback" xml:space="preserve">
+    <value>CLI 実行ファイル ffr-export.exe が見つかりません。</value>
+  </data>
+  <data name="Gui_CliMissingTitle" xml:space="preserve">
+    <value>CLI プログラム不足</value>
+  </data>
+  <data name="Gui_ShownCheckFailed" xml:space="preserve">
+    <value>初期表示チェックに失敗しました: {0}</value>
+  </data>
+  <data name="Gui_GamesFoundStatus" xml:space="preserve">
+    <value>Steam ライブラリでエクスポート可能なゲームを {0} 件見つけました。</value>
+  </data>
+  <data name="Gui_GamesNotFoundStatus" xml:space="preserve">
+    <value>Steam ライブラリから FINAL FANTASY RESONANCE が自動で見つかりませんでした。右側の「ゲームフォルダを選択…」をクリックしてください。</value>
+  </data>
+  <data name="Gui_SelectGameDialogDesc" xml:space="preserve">
+    <value>FINAL FANTASY RESONANCE のインストールルートディレクトリ（FFRS フォルダを含む）を選択してください</value>
+  </data>
+  <data name="Gui_GameInvalidFallback" xml:space="preserve">
+    <value>選択されたフォルダは対応ゲームディレクトリではありません。</value>
+  </data>
+  <data name="Gui_GameCheckFailedTitle" xml:space="preserve">
+    <value>ゲームディレクトリの検証失敗</value>
+  </data>
+  <data name="Gui_GameAddedManually" xml:space="preserve">
+    <value>ゲームディレクトリを手動追加しました: {0}</value>
+  </data>
+  <data name="Gui_UsmapDirAccessWarn" xml:space="preserve">
+    <value>.usmap の自動検索中にディレクトリアクセスエラーが発生しました: {0}</value>
+  </data>
+  <data name="Gui_UsmapAutoFoundStatus" xml:space="preserve">
+    <value>自動検出: {0}</value>
+  </data>
+  <data name="Gui_UsmapAutoFindError" xml:space="preserve">
+    <value>.usmap の自動検索に失敗しました: {0}。「.usmap を自動取得」または「.usmap を選択…」をクリックしてください。</value>
+  </data>
+  <data name="Gui_JmapUncheckedStatus" xml:space="preserve">
+    <value>未チェック（.usmap のみでエクスポート）。</value>
+  </data>
+  <data name="Gui_OpenUsmapDialogTitle" xml:space="preserve">
+    <value>.usmap マッピングファイルを選択</value>
+  </data>
+  <data name="Gui_OpenUsmapDialogFilter" xml:space="preserve">
+    <value>UE マッピングファイル (*.usmap)|*.usmap|すべてのファイル (*.*)|*.*</value>
+  </data>
+  <data name="Gui_UsmapManualStatus" xml:space="preserve">
+    <value>手動選択: {0}</value>
+  </data>
+  <data name="Gui_CleanupUnexpectedLog" xml:space="preserve">
+    <value>UE4SS クリーンアップ中に予期しない例外が発生しました: {0}</value>
+  </data>
+  <data name="Gui_CleanupFailedBody" xml:space="preserve">
+    <value>UE4SS のクリーンアップに失敗しました: {0}</value>
+  </data>
+  <data name="Gui_CleanupFailedTitle" xml:space="preserve">
+    <value>UE4SS クリーンアップ失敗</value>
+  </data>
+  <data name="Gui_NoGameSelectedBody" xml:space="preserve">
+    <value>先にゲームを選択するか、「ゲームフォルダを選択…」から FINAL FANTASY RESONANCE のインストール先を指定してください。</value>
+  </data>
+  <data name="Gui_NoGameSelectedTitle" xml:space="preserve">
+    <value>ゲーム未選択</value>
+  </data>
+  <data name="Gui_GameDirInvalidBody" xml:space="preserve">
+    <value>選択されたゲームディレクトリが無効です。選び直してください。</value>
+  </data>
+  <data name="Gui_GameDirInvalidTitle" xml:space="preserve">
+    <value>無効なゲームディレクトリ</value>
+  </data>
+  <data name="Gui_GameRunningCleanupBody" xml:space="preserve">
+    <value>ゲーム（{0}）が実行中です。ゲームを終了してから UE4SS をクリーンアップしてください。</value>
+  </data>
+  <data name="Gui_GameRunningTitle" xml:space="preserve">
+    <value>ゲーム実行中</value>
+  </data>
+  <data name="Gui_Ue4ssNotFoundTitle" xml:space="preserve">
+    <value>UE4SS 未検出</value>
+  </data>
+  <data name="Gui_LaunchCommandLog" xml:space="preserve">
+    <value>実行コマンド: {0} {1}</value>
+  </data>
+  <data name="Gui_LogStartCleanup" xml:space="preserve">
+    <value>UE4SS クリーンアップを開始します: game={0}, includeForeign={1}</value>
+  </data>
+  <data name="Gui_StatusCleaningUe4ss" xml:space="preserve">
+    <value>状態: UE4SS をクリーンアップ中…</value>
+  </data>
+  <data name="Gui_StatusCleanupComplete" xml:space="preserve">
+    <value>状態: UE4SS クリーンアップ完了</value>
+  </data>
+  <data name="Gui_CleanupCompleteDefaultBody" xml:space="preserve">
+    <value>UE4SS のクリーンアップが完了しました。</value>
+  </data>
+  <data name="Gui_LogCleanupComplete" xml:space="preserve">
+    <value>UE4SS クリーンアップ完了: {0}</value>
+  </data>
+  <data name="Gui_CleanupCompleteTitle" xml:space="preserve">
+    <value>UE4SS クリーンアップ完了</value>
+  </data>
+  <data name="Gui_StatusCleanupFailedExit" xml:space="preserve">
+    <value>状態: UE4SS クリーンアップ失敗（終了コード: {0}）</value>
+  </data>
+  <data name="Gui_CleanupFailedExitBody" xml:space="preserve">
+    <value>UE4SS のクリーンアップに失敗しました（終了コード: {0}）。</value>
+  </data>
+  <data name="Gui_LogCleanupFailedExit" xml:space="preserve">
+    <value>UE4SS クリーンアップ失敗（exit={0}）: {1}</value>
+  </data>
+  <data name="Gui_StatusCleanupCancelled" xml:space="preserve">
+    <value>状態: UE4SS クリーンアップをキャンセルしました</value>
+  </data>
+  <data name="Gui_CleanupCancelledLog" xml:space="preserve">
+    <value>UE4SS のクリーンアップをキャンセルしました。</value>
+  </data>
+  <data name="Gui_FetchUsmapUnexpectedLog" xml:space="preserve">
+    <value>.usmap の自動取得中に予期しない例外が発生しました: {0}</value>
+  </data>
+  <data name="Gui_FetchUsmapErrorBody" xml:space="preserve">
+    <value>.usmap の取得中にエラーが発生しました: {0}</value>
+  </data>
+  <data name="Gui_FetchUsmapFailedTitle" xml:space="preserve">
+    <value>.usmap 取得失敗</value>
+  </data>
+  <data name="Gui_GameRunningFetchBody" xml:space="preserve">
+    <value>ゲーム（{0}）が実行中です。ゲームを終了してから .usmap を取得してください。</value>
+  </data>
+  <data name="Gui_FetchUsmapConfirmBody" xml:space="preserve">
+    <value>.usmap マッピングファイルを自動取得します。実行前に以下をご確認ください。
+
+1. ゲームフォルダに UE4SS が未導入の場合、公式 GitHub（RE-UE4SS v4.0.0、約 8.4 MB）からダウンロードして SHA-256 検証後に導入します。既にユーザー導入済みの UE4SS がある場合は設定を変更しません。
+2. 一時ダンプ MOD を配置し Steam 経由でゲームを一度起動してタイトル画面で .usmap をダンプした後、一時 MOD を削除してゲームを自動終了します。
+3. 完了後も次回再利用のため UE4SS は残ります。本ツールが導入したファイルは「UE4SS をクリーンアップ…」ボタンからいつでも削除できます。
+4. 型マッピングの読み取りのみを行いタイトル画面で終了するため、セーブデータには一切触れません。
+
+.usmap の取得を開始しますか？</value>
+  </data>
+  <data name="Gui_FetchUsmapConfirmTitle" xml:space="preserve">
+    <value>.usmap 自動取得の確認</value>
+  </data>
+  <data name="Gui_StatusPreparingFetchUsmap" xml:space="preserve">
+    <value>状態: .usmap の取得を準備中…</value>
+  </data>
+  <data name="Gui_StatusFetchUsmapComplete" xml:space="preserve">
+    <value>状態: .usmap の取得が完了しました</value>
+  </data>
+  <data name="Gui_UsmapFetchedStatus" xml:space="preserve">
+    <value>自動取得済み: {0}</value>
+  </data>
+  <data name="Gui_FetchUsmapDoneLog" xml:space="preserve">
+    <value>.usmap を取得し自動選択しました。「エクスポート開始」をクリックできます。</value>
+  </data>
+  <data name="Gui_StatusFetchUsmapFailedExit" xml:space="preserve">
+    <value>状態: .usmap 取得失敗（終了コード: {0}）</value>
+  </data>
+  <data name="Gui_FetchUsmapFailedExitLog" xml:space="preserve">
+    <value>fetch-usmap が異常終了しました（終了コード: {0}）。</value>
+  </data>
+  <data name="Gui_FetchUsmapFailedExitBody" xml:space="preserve">
+    <value>.usmap の取得に失敗しました（終了コード: {0}）。ウィンドウ内のログで原因と対処方法を確認してください。</value>
+  </data>
+  <data name="Gui_StatusCancellingFetchUsmap" xml:space="preserve">
+    <value>状態: キャンセル中 — 一時 MOD を無効化してゲームを終了しています…</value>
+  </data>
+  <data name="Gui_FetchUsmapCancellingLog" xml:space="preserve">
+    <value>.usmap の取得がキャンセルされました。一時 MOD を無効化してゲームを終了しています…</value>
+  </data>
+  <data name="Gui_StatusFetchUsmapCancelled" xml:space="preserve">
+    <value>状態: .usmap の取得をキャンセルしました</value>
+  </data>
+  <data name="Gui_FetchUsmapCancelledDoneLog" xml:space="preserve">
+    <value>一時ダンプ MOD を無効化し、ゲームプロセスを終了しました。</value>
+  </data>
+  <data name="Gui_StatusFetchUsmapFailed" xml:space="preserve">
+    <value>状態: .usmap 取得失敗</value>
+  </data>
+  <data name="Gui_JmapAutoFindError" xml:space="preserve">
+    <value>.jmap の自動検索に失敗しました: {0}。「.jmap を追加…」で手動選択するか、チェックを外して続行してください。</value>
+  </data>
+  <data name="Gui_JmapDirAccessWarn" xml:space="preserve">
+    <value>.jmap の自動検索中にディレクトリアクセスエラーが発生しました: {0}</value>
+  </data>
+  <data name="Gui_JmapAutoFoundStatus" xml:space="preserve">
+    <value>.jmap ファイルを {0} 件自動検出しました（追加・削除できます）。</value>
+  </data>
+  <data name="Gui_JmapPartialFoundStatus" xml:space="preserve">
+    <value>.jmap を {0} 件検出しましたが、一部ディレクトリを読み取れませんでした（{1}）。「.jmap を追加…」から補完できます。</value>
+  </data>
+  <data name="Gui_JmapScanErrorStatus" xml:space="preserve">
+    <value>.jmap の自動検索に失敗しました（{0}）。権限を確認するか、「.jmap を追加…」から手動選択してください。</value>
+  </data>
+  <data name="Gui_JmapNotFoundStatus" xml:space="preserve">
+    <value>ゲームフォルダの ue4ss / Win64 に .jmap ファイルが見つかりませんでした。「.jmap を追加…」から手動選択するか、チェックを外して続行してください。</value>
+  </data>
+  <data name="Gui_OpenJmapDialogTitle" xml:space="preserve">
+    <value>.jmap リフレクションダンプファイルを選択（複数選択可）</value>
+  </data>
+  <data name="Gui_OpenJmapDialogFilter" xml:space="preserve">
+    <value>UE リフレクションダンプ (*.jmap)|*.jmap|すべてのファイル (*.*)|*.*</value>
+  </data>
+  <data name="Gui_JmapSelectedCountStatus" xml:space="preserve">
+    <value>現在 {0} 件の .jmap ファイルが選択されています。</value>
+  </data>
+  <data name="Gui_JmapEmptyListStatus" xml:space="preserve">
+    <value>.jmap リストは空です。「.jmap を追加…」から選択するか、チェックを外して続行してください。</value>
+  </data>
+  <data name="Gui_BrowseOutputDialogDesc" xml:space="preserve">
+    <value>エクスポート出力先ディレクトリを選択</value>
+  </data>
+  <data name="Gui_ExportUnexpectedLog" xml:space="preserve">
+    <value>エクスポート開始時に予期しない例外が発生しました: {0}</value>
+  </data>
+  <data name="Gui_ExportErrorBody" xml:space="preserve">
+    <value>エクスポート処理中にエラーが発生しました: {0}</value>
+  </data>
+  <data name="Gui_ExportFailedTitle" xml:space="preserve">
+    <value>エクスポート失敗</value>
+  </data>
+  <data name="Gui_MissingUsmapBody" xml:space="preserve">
+    <value>先に有効な .usmap マッピングファイルを指定してください。
+
+{0}</value>
+  </data>
+  <data name="Gui_MissingUsmapTitle" xml:space="preserve">
+    <value>.usmap ファイル未指定</value>
+  </data>
+  <data name="Gui_MissingJmapFileBody" xml:space="preserve">
+    <value>リフレクションデータファイルが存在しません: {0}
+項目を削除するか別のファイルを選択してください。</value>
+  </data>
+  <data name="Gui_MissingJmapFileTitle" xml:space="preserve">
+    <value>.jmap ファイルが見つかりません</value>
+  </data>
+  <data name="Gui_NoJmapConfirmBody" xml:space="preserve">
+    <value>「リフレクションデータを含める（.jmap、任意）」がオンですが、リストに .jmap ファイルがありません。
+
+「.usmap のみ」でエクスポートを続行しますか？</value>
+  </data>
+  <data name="Gui_NoJmapConfirmTitle" xml:space="preserve">
+    <value>.jmap 未選択</value>
+  </data>
+  <data name="Gui_OutputDirInvalidFallback" xml:space="preserve">
+    <value>出力ディレクトリが無効です。選び直してください。</value>
+  </data>
+  <data name="Gui_OutputDirInvalidTitle" xml:space="preserve">
+    <value>無効な出力ディレクトリ</value>
+  </data>
+  <data name="Gui_OverwritePrevBuildBody" xml:space="preserve">
+    <value>指定された出力ディレクトリには以前のエクスポート結果が存在します:
+{0}
+
+このディレクトリをクリアして再エクスポートしますか？</value>
+  </data>
+  <data name="Gui_OverwritePrevBuildTitle" xml:space="preserve">
+    <value>既存エクスポートの上書き確認</value>
+  </data>
+  <data name="Gui_ProtectedDirFallback" xml:space="preserve">
+    <value>保護対象ディレクトリの上書きは拒否されます。別のサブフォルダを選択してください。</value>
+  </data>
+  <data name="Gui_CannotUseOutputDirTitle" xml:space="preserve">
+    <value>この出力ディレクトリは使用できません</value>
+  </data>
+  <data name="Gui_OverwriteForeignDirBody" xml:space="preserve">
+    <value>出力ディレクトリは既に存在し、本ツールが作成したものではありません（現在 {0} 個の項目あり）:
+{1}
+
+関係のないファイルが混在しないよう、続行前に既存の全ファイルを削除する必要があります。
+中身を削除して続行しますか？（削除したくない場合は「いいえ」を押して別フォルダを選んでください）</value>
+  </data>
+  <data name="Gui_OverwriteForeignDirTitle" xml:space="preserve">
+    <value>既存フォルダのクリア確認</value>
+  </data>
+  <data name="Gui_ClearDirFailedBody" xml:space="preserve">
+    <value>出力ディレクトリのクリアに失敗しました（{0}）: {1}</value>
+  </data>
+  <data name="Gui_ClearDirFailedTitle" xml:space="preserve">
+    <value>ディレクトリクリア失敗</value>
+  </data>
+  <data name="Gui_ResultExporting" xml:space="preserve">
+    <value>エクスポート中…</value>
+  </data>
+  <data name="Gui_ResultExportingDetail" xml:space="preserve">
+    <value>完了後、ビルドレポート（*.build.json）を自動で読み込み、ハッシュと照合結果を表示します。</value>
+  </data>
+  <data name="Gui_StatusStartingExport" xml:space="preserve">
+    <value>状態: エクスポート処理を開始しています…</value>
+  </data>
+  <data name="Gui_StatusExportComplete" xml:space="preserve">
+    <value>状態: エクスポート完了</value>
+  </data>
+  <data name="Gui_StatusExportCompletePartial" xml:space="preserve">
+    <value>状態: エクスポート完了（一部アセットパッケージで失敗あり）</value>
+  </data>
+  <data name="Gui_ResultReadReportFailed" xml:space="preserve">
+    <value>✗ ビルドレポートを読み取れません</value>
+  </data>
+  <data name="Gui_StatusExportFailedExit" xml:space="preserve">
+    <value>状態: エクスポート失敗（終了コード: {0}）</value>
+  </data>
+  <data name="Gui_ResultExportFailed" xml:space="preserve">
+    <value>✗ エクスポート失敗</value>
+  </data>
+  <data name="Gui_ResultExportFailedDetail" xml:space="preserve">
+    <value>CLI が終了コード {0} で終了しました。上のログで原因を確認してください。</value>
+  </data>
+  <data name="Gui_ExportFailedExitLog" xml:space="preserve">
+    <value>CLI が異常終了しました（終了コード: {0}）。</value>
+  </data>
+  <data name="Gui_ExportFailedExitBody" xml:space="preserve">
+    <value>エクスポートに失敗しました（終了コード: {0}）。ウィンドウ内のログを確認してください。</value>
+  </data>
+  <data name="Gui_StatusCancelled" xml:space="preserve">
+    <value>状態: キャンセル済み</value>
+  </data>
+  <data name="Gui_ResultCancelled" xml:space="preserve">
+    <value>エクスポートをキャンセルしました</value>
+  </data>
+  <data name="Gui_ResultCancelledDetail" xml:space="preserve">
+    <value>バックグラウンドのエクスポートプロセスを終了しました。</value>
+  </data>
+  <data name="Gui_ExportCancelledLog" xml:space="preserve">
+    <value>ユーザーによりエクスポートがキャンセルされ、子プロセスツリーを終了しました。</value>
+  </data>
+  <data name="Gui_StatusExportFailed" xml:space="preserve">
+    <value>状態: エクスポート失敗</value>
+  </data>
+  <data name="Gui_ExportExecFailedLog" xml:space="preserve">
+    <value>実行失敗: {0}</value>
+  </data>
+  <data name="Gui_ExportExecFailedBody" xml:space="preserve">
+    <value>エクスポートツールの起動または実行に失敗しました: {0}</value>
+  </data>
+  <data name="Gui_StatusCancellingExport" xml:space="preserve">
+    <value>状態: キャンセル中・バックグラウンドプロセスを終了しています…</value>
+  </data>
+  <data name="Gui_ExportCancellingLog" xml:space="preserve">
+    <value>エクスポートをキャンセルし子プロセスツリーを終了しています…</value>
+  </data>
+  <data name="Gui_StatusStep" xml:space="preserve">
+    <value>状態: ステップ {0}/{1}</value>
+  </data>
+  <data name="Gui_StatusStepWithTitle" xml:space="preserve">
+    <value>状態: ステップ {0}/{1} — {2}</value>
+  </data>
+  <data name="Gui_ResultElapsedSuffix" xml:space="preserve">
+    <value>（合計所要時間: {0}s）</value>
+  </data>
+  <data name="Gui_OpenOutputMissingBody" xml:space="preserve">
+    <value>出力フォルダが存在しないか、移動されました。</value>
+  </data>
+  <data name="Gui_OpenOutputFailedTitle" xml:space="preserve">
+    <value>フォルダを開けません</value>
+  </data>
+  <data name="Gui_OpenOutputFailedBody" xml:space="preserve">
+    <value>出力フォルダを開けませんでした（{0}）: {1}</value>
+  </data>
+  <data name="Gui_CopiedFeedback" xml:space="preserve">
+    <value>クリップボードにコピーしました</value>
+  </data>
+  <data name="Gui_CopyFailedBody" xml:space="preserve">
+    <value>クリップボードへのコピーに失敗しました: {0}</value>
+  </data>
+  <data name="Gui_CopyFailedTitle" xml:space="preserve">
+    <value>コピー失敗</value>
+  </data>
+  <data name="Gui_CalcDefaultOutputFailed" xml:space="preserve">
+    <value>既定の出力ディレクトリの計算に失敗しました: {0}。「参照…」から手動選択してください。</value>
+  </data>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="Settings_GroupDataDir" xml:space="preserve">
+    <value>データディレクトリ</value>
+  </data>
+  <data name="Settings_BtnOpenDataDir" xml:space="preserve">
+    <value>データフォルダを開く</value>
+  </data>
+  <data name="Settings_DataDirContentsNote" xml:space="preserve">
+    <value>output\（既定出力）、usmap\（マッピング）、downloads\（キャッシュ）、logs\、tmp\、ue4ss-backup\、settings.json が含まれます。</value>
+  </data>
+  <data name="Settings_Ue4ssTip" xml:space="preserve">
+    <value>ヒント: UE4SS のクリーンアップは、メインウィンドウの「2. マッピング・リフレクションファイル」にある「UE4SS をクリーンアップ…」ボタンから実行できます。</value>
+  </data>
+  <data name="Settings_BtnClose" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="Settings_IntegrityLine" xml:space="preserve">
+    <value>プロセス整合性レベル: {0}</value>
+  </data>
+  <data name="Settings_OpenDataDirFailedBody" xml:space="preserve">
+    <value>データディレクトリを開けませんでした（{0}）: {1}</value>
+  </data>
+  <data name="Settings_OpenDataDirFailedTitle" xml:space="preserve">
+    <value>ディレクトリを開けません</value>
+  </data>
+  <data name="Cleanup_Title" xml:space="preserve">
+    <value>UE4SS のクリーンアップ</value>
+  </data>
+  <data name="Cleanup_GameDirLabel" xml:space="preserve">
+    <value>ゲームディレクトリ: {0}</value>
+  </data>
+  <data name="Cleanup_CheckIncludeForeign" xml:space="preserve">
+    <value>ユーザー導入の UE4SS もあわせて退避する（削除せず、復元可能なバックアップフォルダへ移動）</value>
+  </data>
+  <data name="Cleanup_BtnConfirm" xml:space="preserve">
+    <value>クリーンアップを実行</value>
+  </data>
+  <data name="Cleanup_HeaderOwn" xml:space="preserve">
+    <value>本ツールが導入した UE4SS（{0}）を検出しました。確認後、インストール記録に従い以下の項目を削除します:</value>
+  </data>
+  <data name="Cleanup_HeaderForeign" xml:space="preserve">
+    <value>本ツール以外で導入された UE4SS を検出しました（インストールマーカーなし）。既定では本ツールの残留ファイルのみ削除し、既存の UE4SS は保持します。</value>
+  </data>
+  <data name="Cleanup_HeaderRemnantsOnly" xml:space="preserve">
+    <value>完全な UE4SS 導入は見つかりませんでしたが、本ツールの一時残留ファイルを検出しました:</value>
+  </data>
+  <data name="Cleanup_HintForeignNoRemnants" xml:space="preserve">
+    <value>削除対象となる本ツールの残留ファイルはありません。管理外の UE4SS をバックアップフォルダへ退避する場合は、上のチェックボックスを有効にしてください。</value>
+  </data>
+  <data name="Cleanup_HintIncludeForeign" xml:space="preserve">
+    <value>説明: 実行前に再確認ダイアログが表示されます。agp\ffr-export\usmap\ にコピー済みの .usmap ファイルは影響を受けません。</value>
+  </data>
+  <data name="Cleanup_HintDefault" xml:space="preserve">
+    <value>説明: agp\ffr-export\usmap\ にコピー済みの .usmap ファイルは影響を受けず、クリーンアップ後も利用できます。</value>
+  </data>
+  <data name="Cleanup_SecondConfirmBody" xml:space="preserve">
+    <value>最終確認: このゲームディレクトリの UE4SS は本ツールが導入したものではなく、ユーザー自身の MOD やカスタム設定が含まれている可能性があります。
+
+ファイルは完全削除されず、dwmapi.dll と ue4ss\ フォルダ全体が次のバックアップディレクトリへ移動されます:
+{0}
+
+元に戻す場合は、バックアップ内の dwmapi.dll と ue4ss フォルダを次へコピーし直してください:
+{1}
+
+本ツール管理外の UE4SS もゲームディレクトリから移動しますか？</value>
+  </data>
+  <data name="Cleanup_SecondConfirmTitle" xml:space="preserve">
+    <value>再確認: 管理外 UE4SS の移動</value>
+  </data>
+</root>

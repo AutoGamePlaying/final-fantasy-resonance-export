@@ -171,6 +171,9 @@ internal static class TestHarness
             startInfo.Environment["PATH"] = pathEnvOverride;
         }
 
+        // Isolate AGP_LANG so host environment never leaks into child CLI tests.
+        startInfo.Environment.Remove(Localization.LangEnvVar);
+
         if (extraEnv is not null)
         {
             foreach (var (key, value) in extraEnv)

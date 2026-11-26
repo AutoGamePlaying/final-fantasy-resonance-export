@@ -1,0 +1,2300 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Common_ErrorPrefix" xml:space="preserve">
+    <value>Error: {0}</value>
+  </data>
+  <data name="Common_OptionRequiresValue" xml:space="preserve">
+    <value>Option {0} requires a value.</value>
+  </data>
+  <data name="Common_UnsupportedLanguage" xml:space="preserve">
+    <value>Unsupported language "{0}". Supported values: en, zh-Hans, ja.</value>
+  </data>
+  <data name="Common_None" xml:space="preserve">
+    <value>none</value>
+  </data>
+  <data name="Common_Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Common_NotDetected" xml:space="preserve">
+    <value>Not detected</value>
+  </data>
+  <data name="Common_Present" xml:space="preserve">
+    <value>present</value>
+  </data>
+  <data name="Common_Missing" xml:space="preserve">
+    <value>missing</value>
+  </data>
+  <data name="Common_InvalidPath" xml:space="preserve">
+    <value>Invalid path</value>
+  </data>
+  <data name="Common_NotSet" xml:space="preserve">
+    <value>(not set)</value>
+  </data>
+  <data name="Common_NotWritable" xml:space="preserve">
+    <value>Directory is not writable</value>
+  </data>
+  <data name="Common_ListSeparator" xml:space="preserve">
+    <value>, </value>
+  </data>
+  <data name="Common_SemicolonSeparator" xml:space="preserve">
+    <value>; </value>
+  </data>
+  <data name="Common_UnknownError" xml:space="preserve">
+    <value>Unknown error</value>
+  </data>
+  <data name="Common_UnknownReason" xml:space="preserve">
+    <value>Unknown reason</value>
+  </data>
+  <data name="Cli_UnknownSubcommand" xml:space="preserve">
+    <value>Unknown subcommand: {0}. Available commands: list, raw, export, locres, inventory, export-assets, export-maps, build-db, fetch-usmap, uninstall-ue4ss (run --help for usage).</value>
+  </data>
+  <data name="Cli_HelpText" xml:space="preserve">
+    <value>FINAL FANTASY RESONANCE Asset Exporter &amp; Database Builder (ffr-export)
+
+Usage:
+  ffr-export [--lang en|zh-Hans|ja]                       Start the interactive database build wizard
+  ffr-export build-db --game &lt;dir&gt; --usmap &lt;file&gt; [options]
+                                                          Export game data and build ffr.sqlite via ffr-db
+  ffr-export fetch-usmap --game &lt;dir&gt; [--timeout &lt;sec&gt;] [--yes]
+                                                          Automatically dump .usmap for the installed game
+  ffr-export uninstall-ue4ss --game &lt;dir&gt; [--include-foreign] [--yes]
+                                                          Clean up UE4SS and temporary remnants installed by this tool
+  ffr-export list | raw | export | locres | inventory | export-assets | export-maps
+                                                          Staged export and diagnostic subcommands
+  ffr-export --help | -h | help                           Show this help message
+
+Global options:
+  --lang en|zh-Hans|ja   Select interface language (default: en; for 'locres', pass --lang before 'locres')
+  --progress-json        Emit machine-readable @@progress JSON lines (used by the GUI; build-db / fetch-usmap)
+
+Environment variables:
+  AGP_HOME   Explicitly set the data root directory (overrides automatic selection; fails if unwritable)
+  AGP_LANG   Set interface language (en | zh-Hans | ja; overridden by --lang)</value>
+  </data>
+  <data name="Cli_UnknownArg" xml:space="preserve">
+    <value>{0} received an unknown argument: {1}</value>
+  </data>
+  <data name="Cli_ListItemLine" xml:space="preserve">
+    <value>{0}	{1} bytes</value>
+  </data>
+  <data name="Cli_ListTotal" xml:space="preserve">
+    <value>Total: {0}</value>
+  </data>
+  <data name="Cli_RawUnknownOrDuplicateArg" xml:space="preserve">
+    <value>raw received an unknown or duplicate argument: {0}</value>
+  </data>
+  <data name="Cli_RawRequiresPackagePath" xml:space="preserve">
+    <value>raw requires a package path.</value>
+  </data>
+  <data name="Cli_RawRequiresOut" xml:space="preserve">
+    <value>raw requires --out &lt;file&gt;.</value>
+  </data>
+  <data name="Cli_PackageNotFoundOrUnreadable" xml:space="preserve">
+    <value>Package not found or unreadable: {0}</value>
+  </data>
+  <data name="Cli_RawLength" xml:space="preserve">
+    <value>Length: {0} bytes</value>
+  </data>
+  <data name="Cli_RawSha256" xml:space="preserve">
+    <value>SHA-256: {0}</value>
+  </data>
+  <data name="Cli_CommandRequiresUsmap" xml:space="preserve">
+    <value>{0} requires --usmap &lt;file&gt; (dumped from the running game with UE4SS; see README.md).</value>
+  </data>
+  <data name="Cli_MappingFileNotFound" xml:space="preserve">
+    <value>Mapping file not found: {0}</value>
+  </data>
+  <data name="Cli_ExportFailedLine" xml:space="preserve">
+    <value>Export failed: {0}: {1}</value>
+  </data>
+  <data name="Cli_ExportSummary" xml:space="preserve">
+    <value>Succeeded: {0}, failed: {1}</value>
+  </data>
+  <data name="Cli_LocresNotFound" xml:space="preserve">
+    <value>Localization file for language "{0}" not found ({1}); available languages in paks: {2}</value>
+  </data>
+  <data name="Cli_LocresLanguageLine" xml:space="preserve">
+    <value>{0}: {1} namespaces, {2} entries, SHA-256: {3}</value>
+  </data>
+  <data name="Cli_LocresSummary" xml:space="preserve">
+    <value>Exported {0} language(s) to {1}</value>
+  </data>
+  <data name="Cli_LocresLangEmpty" xml:space="preserve">
+    <value>--lang cannot be empty or contain blank language codes: {0}</value>
+  </data>
+  <data name="Cli_LocresLangInvalid" xml:space="preserve">
+    <value>--lang contains an invalid language code: {0}</value>
+  </data>
+  <data name="Cli_LocresDuplicateKey" xml:space="preserve">
+    <value>Duplicate key in locres for language {0}: {1}/{2}</value>
+  </data>
+  <data name="Cli_PaksDirNotFound" xml:space="preserve">
+    <value>Resource directory not found: {0}</value>
+  </data>
+  <data name="Cli_DepsEnvLabel" xml:space="preserve">
+    <value>FFR_DEPS ({0})</value>
+  </data>
+  <data name="Cli_OutMustBeUnderDeps" xml:space="preserve">
+    <value>{0} must be a path under {1}: {2}</value>
+  </data>
+  <data name="Cli_OutCannotBeProtectedDescendant" xml:space="preserve">
+    <value>{0} cannot point to protected directory {1} or inside it: {2}</value>
+  </data>
+  <data name="Cli_OutCannotBeProtectedSelf" xml:space="preserve">
+    <value>{0} cannot point to protected directory {1} itself: {2}</value>
+  </data>
+  <data name="Cli_OutputDirNonEmpty" xml:space="preserve">
+    <value>Output directory is not empty; pass --force to clear it and re-export.</value>
+  </data>
+  <data name="Cli_ClearingOutputDir" xml:space="preserve">
+    <value>Clearing output directory: {0} ({1} files)</value>
+  </data>
+  <data name="Cli_NotFfrExportOutputDir" xml:space="preserve">
+    <value>{0} is not an ffr-export output directory and will not be cleared; choose an empty directory or delete it manually.</value>
+  </data>
+  <data name="Cli_ManifestCommandMismatch" xml:space="preserve">
+    <value>{0} is an output directory of "ffr-export {1}" and cannot be cleared by "{2} --force".</value>
+  </data>
+  <data name="ExportAssets_JobsMustBePositive" xml:space="preserve">
+    <value>--jobs must be a positive integer: {0}</value>
+  </data>
+  <data name="ExportAssets_ExportFailedLine" xml:space="preserve">
+    <value>Export failed: {0} ({1}): {2}</value>
+  </data>
+  <data name="ExportAssets_RawCopyFailedLine" xml:space="preserve">
+    <value>Raw file copy failed: {0}: {1}</value>
+  </data>
+  <data name="ExportAssets_Summary" xml:space="preserve">
+    <value>Export complete: {0} packages exported ({1} new, {2} resumed), {3} raw files copied ({4} new, {5} resumed), {6} skipped, {7} undecided, {8} failed, {9} bytes written, elapsed {10}s</value>
+  </data>
+  <data name="ExportAssets_KeepOtherCommandDir" xml:space="preserve">
+    <value>Preserving output directory of another subcommand: {0}/</value>
+  </data>
+  <data name="ExportAssets_ClearedOutputDir" xml:space="preserve">
+    <value>Cleared output directory: {0} ({1} files removed)</value>
+  </data>
+  <data name="ExportAssets_ResumeMode" xml:space="preserve">
+    <value>Resume mode: reusing existing output directory {0} (already exported files will be skipped).</value>
+  </data>
+  <data name="ExportAssets_ClassifyEmpty" xml:space="preserve">
+    <value>--classify cannot be empty: {0}</value>
+  </data>
+  <data name="Inventory_Summary" xml:space="preserve">
+    <value>Indexed {0} packages ({1} primary classes, {2} AssetData entries) to {3}</value>
+  </data>
+  <data name="Inventory_NoteLine" xml:space="preserve">
+    <value>Note: {0}</value>
+  </data>
+  <data name="Inventory_AssetRegistryNotFound" xml:space="preserve">
+    <value>AssetRegistry file not found (expected {0}).</value>
+  </data>
+  <data name="MapExport_LevelFailedLine" xml:space="preserve">
+    <value>Level export failed: {0}: {1}</value>
+  </data>
+  <data name="MapExport_Summary" xml:space="preserve">
+    <value>Map export complete: {0} total, {1} newly exported, {2} skipped, {3} failed, {4} mapped maps, elapsed {5}s</value>
+  </data>
+  <data name="MapExport_FixtureDirNotFound" xml:space="preserve">
+    <value>Fixture directory not found: {0}</value>
+  </data>
+  <data name="MapExport_FixtureMissingPath" xml:space="preserve">
+    <value>Fixture is missing the "path" field.</value>
+  </data>
+  <data name="MapExport_FixtureSummary" xml:space="preserve">
+    <value>Map fixture summary complete: {0} total, {1} newly exported, {2} skipped, {3} failed, {4} mapped maps</value>
+  </data>
+  <data name="MapExport_ParallelMustBePositive" xml:space="preserve">
+    <value>Parallelism must be a positive integer: {0}</value>
+  </data>
+  <data name="MapExport_MapDataNotFound" xml:space="preserve">
+    <value>Map data table file not found: {0}</value>
+  </data>
+  <data name="MapExport_MapDataInvalidFormat" xml:space="preserve">
+    <value>Invalid map data table JSON format: {0}</value>
+  </data>
+  <data name="BuildDb_ExplicitFfrDbNotFound" xml:space="preserve">
+    <value>Specified --ffr-db executable not found: {0}</value>
+  </data>
+  <data name="BuildDb_FfrDbNotFound" xml:space="preserve">
+    <value>ffr-db executable not found (checked: --ffr-db option, application directory {0}, PATH). Specify --ffr-db &lt;path&gt;, or place ffr-db next to the tool or on PATH.</value>
+  </data>
+  <data name="BuildDb_JmapNotFound" xml:space="preserve">
+    <value>Reflection dump file (--jmap) not found: {0}</value>
+  </data>
+  <data name="BuildDb_StepLine" xml:space="preserve">
+    <value>==&gt; Step {0}/{1}: {2}</value>
+  </data>
+  <data name="BuildDb_Step1Title" xml:space="preserve">
+    <value>Identifying game version and input hashes</value>
+  </data>
+  <data name="BuildDb_Step2Title" xml:space="preserve">
+    <value>Exporting game data to JSON</value>
+  </data>
+  <data name="BuildDb_Step3Title" xml:space="preserve">
+    <value>Building SQLite database with ffr-db build</value>
+  </data>
+  <data name="BuildDb_Step4Title" xml:space="preserve">
+    <value>Computing database hashes with ffr-db hash</value>
+  </data>
+  <data name="BuildDb_Step5Title" xml:space="preserve">
+    <value>Comparing against known-builds.json and writing build report</value>
+  </data>
+  <data name="BuildDb_SteamAndExeLine" xml:space="preserve">
+    <value>Steam build ID: {0} (source: {1}); exe version: FileVersion={2}, ProductVersion={3}</value>
+  </data>
+  <data name="BuildDb_PakFingerprintLine" xml:space="preserve">
+    <value>Pak fingerprint: {0} ({1} files, {2} bytes hashed, {3} ms)</value>
+  </data>
+  <data name="BuildDb_UsmapHashLine" xml:space="preserve">
+    <value>.usmap hash: file={0}, content={1} ({2} types, {3} enums)</value>
+  </data>
+  <data name="BuildDb_FfrDbBuildFailed" xml:space="preserve">
+    <value>ffr-db build failed (executable: {0}, exit code: {1}): {2}</value>
+  </data>
+  <data name="BuildDb_SqliteMissingAfterBuild" xml:space="preserve">
+    <value>ffr-db build completed without creating database file: {0}</value>
+  </data>
+  <data name="BuildDb_DbHashLine" xml:space="preserve">
+    <value>Database hash: file_sha256={0}, content_sha256={1} ({2} tables)</value>
+  </data>
+  <data name="BuildDb_TempJsonCleaned" xml:space="preserve">
+    <value>Removed temporary export directory: {0} ({1} ms)</value>
+  </data>
+  <data name="BuildDb_Completed" xml:space="preserve">
+    <value>Database build complete: {0} (report: {1}, total elapsed {2}s)</value>
+  </data>
+  <data name="BuildDb_RequiresGame" xml:space="preserve">
+    <value>build-db requires --game &lt;game-dir&gt;.</value>
+  </data>
+  <data name="BuildDb_RequiresUsmap" xml:space="preserve">
+    <value>build-db requires --usmap &lt;file&gt;.</value>
+  </data>
+  <data name="BuildDb_OutOverlapsGame" xml:space="preserve">
+    <value>--out cannot overlap the game directory: {0}</value>
+  </data>
+  <data name="BuildDb_ForeignOutputDir" xml:space="preserve">
+    <value>{0} already exists and is not an ffr-export build-db output directory; refusing to write. Choose an empty directory or clear it manually.</value>
+  </data>
+  <data name="BuildDb_OutputDirNonEmpty" xml:space="preserve">
+    <value>Output directory is not empty ({0}); pass --force to clear and rebuild.</value>
+  </data>
+  <data name="BuildDb_FfrDbNoHashSubcommandWarning" xml:space="preserve">
+    <value>Warning: current ffr-db ({0}) does not support the hash subcommand; computing file_sha256 only and leaving content_sha256 and table hashes as null.</value>
+  </data>
+  <data name="BuildDb_FfrDbHashFailed" xml:space="preserve">
+    <value>ffr-db hash failed (executable: {0}, database: {1}, exit code: {2}): {3}</value>
+  </data>
+  <data name="BuildDb_FfrDbHashInvalidJson" xml:space="preserve">
+    <value>Failed to parse JSON output from ffr-db hash (database: {0}): {1}</value>
+  </data>
+  <data name="BuildDb_FfrDbHashMissingFields" xml:space="preserve">
+    <value>JSON returned by ffr-db hash is missing required fields (file_sha256/content_sha256/tables): {0}</value>
+  </data>
+  <data name="BuildDb_StartSubprocessFailed" xml:space="preserve">
+    <value>Failed to start subprocess: {0}</value>
+  </data>
+  <data name="Version_GameDirEmpty" xml:space="preserve">
+    <value>Game directory check failed: --game cannot be empty.</value>
+  </data>
+  <data name="Version_GameDirNotFound" xml:space="preserve">
+    <value>Game directory check failed: directory does not exist: {0}</value>
+  </data>
+  <data name="Version_MissingPaksDir" xml:space="preserve">
+    <value>Game directory check failed: missing resource directory {0} (checked: {1}).</value>
+  </data>
+  <data name="Version_MissingGameExe" xml:space="preserve">
+    <value>Game directory check failed: missing game executable {0} (checked: {1}).</value>
+  </data>
+  <data name="Version_ReadSteamManifestFailed" xml:space="preserve">
+    <value>Failed to read Steam manifest: {0}: {1}</value>
+  </data>
+  <data name="Version_SteamBuildIdIgnoredManual" xml:space="preserve">
+    <value>Note: read buildid={1} from {0}; ignoring --steam-buildid {2}.</value>
+  </data>
+  <data name="Version_SteamManifestMissingBuildId" xml:space="preserve">
+    <value>Warning: {0} has no buildid and --steam-buildid was not provided; Steam build ID will be recorded as null.</value>
+  </data>
+  <data name="Version_SteamManifestNotFound" xml:space="preserve">
+    <value>Warning: {0} not found (checked two parent levels) and --steam-buildid was not provided; Steam build ID will be recorded as null.</value>
+  </data>
+  <data name="Version_PakFpDirNotFound" xml:space="preserve">
+    <value>Failed to compute pak fingerprint: resource directory does not exist: {0}</value>
+  </data>
+  <data name="Version_PakFpNoFiles" xml:space="preserve">
+    <value>Failed to compute pak fingerprint: no .utoc/.ucas/.pak files found in {0}.</value>
+  </data>
+  <data name="Version_UsmapFileNotFound" xml:space="preserve">
+    <value>Failed to compute .usmap hash: file does not exist: {0}</value>
+  </data>
+  <data name="Version_UsmapEmptyMappings" xml:space="preserve">
+    <value>CUE4Parse returned an empty type mappings table.</value>
+  </data>
+  <data name="Version_UsmapParseFailed" xml:space="preserve">
+    <value>Failed to parse .usmap: {0}: {1}</value>
+  </data>
+  <data name="Version_JmapFileNotFound" xml:space="preserve">
+    <value>Failed to compute .jmap hash: file does not exist: {0}</value>
+  </data>
+  <data name="Version_PeNotSeekable" xml:space="preserve">
+    <value>Failed to parse PE version resource: {0}: input stream is not seekable.</value>
+  </data>
+  <data name="Version_PeTooSmall" xml:space="preserve">
+    <value>Failed to parse PE version resource: {0}: file is too small to be a valid PE binary.</value>
+  </data>
+  <data name="Version_PeMissingMz" xml:space="preserve">
+    <value>Failed to parse PE version resource: {0}: missing MZ header.</value>
+  </data>
+  <data name="Version_PeHeaderOutOfRange" xml:space="preserve">
+    <value>Failed to parse PE version resource: {0}: PE header offset out of range.</value>
+  </data>
+  <data name="Version_PeMissingSignature" xml:space="preserve">
+    <value>Failed to parse PE version resource: {0}: missing PE signature.</value>
+  </data>
+  <data name="Version_PeBadOptionalHeader" xml:space="preserve">
+    <value>Failed to parse PE version resource: {0}: invalid Optional Header size.</value>
+  </data>
+  <data name="Version_PeUnsupportedMagic" xml:space="preserve">
+    <value>Failed to parse PE version resource: {0}: unsupported PE Optional Header magic 0x{1}.</value>
+  </data>
+  <data name="Version_PeSectionTableOutOfRange" xml:space="preserve">
+    <value>Failed to parse PE version resource: {0}: section table out of range.</value>
+  </data>
+  <data name="Version_PeResourceRvaUnmapped" xml:space="preserve">
+    <value>Failed to parse PE version resource: {0}: cannot map resource directory RVA 0x{1} to file offset.</value>
+  </data>
+  <data name="Version_PeBadDataSize" xml:space="preserve">
+    <value>Failed to parse PE version resource: {0}: invalid version resource length ({1} bytes).</value>
+  </data>
+  <data name="Version_PeDataRvaUnmapped" xml:space="preserve">
+    <value>Failed to parse PE version resource: {0}: cannot map version data RVA 0x{1} to file offset.</value>
+  </data>
+  <data name="Version_PeReadOutOfRange" xml:space="preserve">
+    <value>Failed to parse PE version resource: {0}: read at offset 0x{1} (length {2}) out of range.</value>
+  </data>
+  <data name="Version_PeUnexpectedEof" xml:space="preserve">
+    <value>Failed to parse PE version resource: {0}: unexpected end of file.</value>
+  </data>
+  <data name="KnownBuilds_Matched" xml:space="preserve">
+    <value>Matches registered build</value>
+  </data>
+  <data name="KnownBuilds_NewGameVersion" xml:space="preserve">
+    <value>New game version, not yet registered</value>
+  </data>
+  <data name="KnownBuilds_HashMismatch" xml:space="preserve">
+    <value>Game version is registered, but database hash differs</value>
+  </data>
+  <data name="KnownBuilds_MissingEmbedded" xml:space="preserve">
+    <value>Missing embedded resource: {0}</value>
+  </data>
+  <data name="KnownBuilds_EmptyOrNotArray" xml:space="preserve">
+    <value>Known builds registry is empty or not a JSON array: {0}</value>
+  </data>
+  <data name="KnownBuilds_ParseFailed" xml:space="preserve">
+    <value>Failed to parse known builds registry: {0}: {1}</value>
+  </data>
+  <data name="KnownBuilds_ComparisonHeader" xml:space="preserve">
+    <value>Known builds comparison (source: {0}): {1}</value>
+  </data>
+  <data name="KnownBuilds_MatchedDate" xml:space="preserve">
+    <value>  Matched registration date: {0}</value>
+  </data>
+  <data name="KnownBuilds_ReferenceDate" xml:space="preserve">
+    <value>  Reference registration date: {0}</value>
+  </data>
+  <data name="KnownBuilds_FileShaOnlyMismatch" xml:space="preserve">
+    <value>  All table contents match (identical content_sha256); only the database file_sha256 differs.</value>
+  </data>
+  <data name="KnownBuilds_NoPerTableHashes" xml:space="preserve">
+    <value>  Per-table hashes unavailable; cannot list table-level differences.</value>
+  </data>
+  <data name="KnownBuilds_DiffTableCount" xml:space="preserve">
+    <value>  Differing tables ({0}):</value>
+  </data>
+  <data name="KnownBuilds_DiffAdded" xml:space="preserve">
+    <value>  + {0} (actual {1} rows; not in registered build)</value>
+  </data>
+  <data name="KnownBuilds_DiffRemoved" xml:space="preserve">
+    <value>  - {0} (registered {1} rows; missing from actual build)</value>
+  </data>
+  <data name="KnownBuilds_DiffSameRows" xml:space="preserve">
+    <value>  ~ {0} (same row count: {1}, table content sha256 differs)</value>
+  </data>
+  <data name="KnownBuilds_DiffDifferentRows" xml:space="preserve">
+    <value>  ~ {0} (rows: registered {1} -&gt; actual {2}, table content sha256 differs)</value>
+  </data>
+  <data name="KnownBuilds_UsmapExactMatch" xml:space="preserve">
+    <value>Matches registered .usmap exactly (both file hash and content hash match)</value>
+  </data>
+  <data name="KnownBuilds_UsmapContentMatch" xml:space="preserve">
+    <value>Matches registered .usmap content (content_sha256 matches; only byte order differs, export output is equivalent)</value>
+  </data>
+  <data name="KnownBuilds_UsmapNotRegistered" xml:space="preserve">
+    <value>New .usmap content hash, not registered in known-builds.json</value>
+  </data>
+  <data name="KnownBuilds_UsmapComparisonHeader" xml:space="preserve">
+    <value>Known .usmap comparison (source: {0}): {1} {2}</value>
+  </data>
+  <data name="KnownBuilds_UsmapMatchedDate" xml:space="preserve">
+    <value>  Matched registration date: {0} (registered file: {1})</value>
+  </data>
+  <data name="Integrity_Untrusted" xml:space="preserve">
+    <value>Untrusted (Untrusted IL)</value>
+  </data>
+  <data name="Integrity_Low" xml:space="preserve">
+    <value>Low (Low IL)</value>
+  </data>
+  <data name="Integrity_Medium" xml:space="preserve">
+    <value>Medium (Medium IL)</value>
+  </data>
+  <data name="Integrity_High" xml:space="preserve">
+    <value>High (High IL)</value>
+  </data>
+  <data name="Integrity_System" xml:space="preserve">
+    <value>System (System IL)</value>
+  </data>
+  <data name="Integrity_Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Agp_EnvInvalidPath" xml:space="preserve">
+    <value>Environment variable {0} specifies an invalid path ({1}). Fix or unset {0} and try again.</value>
+  </data>
+  <data name="Agp_EnvNotWritable" xml:space="preserve">
+    <value>The data directory specified by environment variable {0} is not writable ({1}): {2}. Because {0} was explicitly set, this tool will not fall back to another directory; choose a writable directory or unset {0} and try again.</value>
+  </data>
+  <data name="Agp_DefaultUserDataDir" xml:space="preserve">
+    <value>Default user data directory</value>
+  </data>
+  <data name="Agp_PrimaryNotWritable" xml:space="preserve">
+    <value>{0} is not writable</value>
+  </data>
+  <data name="Agp_FallbackNoWritable" xml:space="preserve">
+    <value>No writable data directory found. Set the AGP_HOME environment variable to a writable folder.</value>
+  </data>
+  <data name="Agp_SelectedInvalidPath" xml:space="preserve">
+    <value>Selected data directory path is invalid: {0}</value>
+  </data>
+  <data name="Agp_ManualSelectionLabel" xml:space="preserve">
+    <value>Manual selection</value>
+  </data>
+  <data name="Agp_SelectedNotWritable" xml:space="preserve">
+    <value>Selected data directory is not writable ({0}): {1}. Please choose another folder with write permission.</value>
+  </data>
+  <data name="Agp_PathOccupiedByFile" xml:space="preserve">
+    <value>Path is occupied by an existing file: {0}</value>
+  </data>
+  <data name="Agp_CliNoticeDataDir" xml:space="preserve">
+    <value>Data directory: {0} (reason: {1})</value>
+  </data>
+  <data name="Agp_CliNoticeLowIl" xml:space="preserve">
+    <value>Note: running at Low Integrity Level (Low IL), typically because the downloaded zip carries a Low IL mark. To restore the default directory, right-click the zip -&gt; Properties -&gt; Unblock, then re-extract with File Explorer.</value>
+  </data>
+  <data name="Agp_GuiBannerLowIlLocalLow" xml:space="preserve">
+    <value>Note: running at Low Integrity Level ({0}), typically because the extracted files carry a Low IL mark. Using LocalLow for this session (data directory: {1}); everything works normally and no immediate action is required. Recommended: right-click the zip -&gt; Properties -&gt; Unblock, then re-extract with File Explorer.</value>
+  </data>
+  <data name="Agp_GuiBannerLowIlFallback" xml:space="preserve">
+    <value>Note: running at Low Integrity Level ({0}), typically because the extracted files carry a Low IL mark. Data directory: {1} (reason: {2}). Recommended: right-click the zip -&gt; Properties -&gt; Unblock, then re-extract with File Explorer.</value>
+  </data>
+  <data name="Agp_GuiBannerLowIl" xml:space="preserve">
+    <value>Note: running at Low Integrity Level ({0}), typically because the extracted files carry a Low IL mark. Recommended: right-click the zip -&gt; Properties -&gt; Unblock, then re-extract with File Explorer.</value>
+  </data>
+  <data name="Agp_GuiAllFailedIntro" xml:space="preserve">
+    <value>Unable to write to any default data directory. The tool needs a writable folder to save logs, settings, and exported files.</value>
+  </data>
+  <data name="Agp_GuiAllFailedLowIl1" xml:space="preserve">
+    <value>Detected current process running at {0}, typically because the files carry a Low IL mark.</value>
+  </data>
+  <data name="Agp_GuiAllFailedLowIl2" xml:space="preserve">
+    <value>Recommended: right-click the downloaded zip -&gt; Properties -&gt; Unblock, then re-extract with File Explorer.</value>
+  </data>
+  <data name="Agp_GuiAllFailedAv1" xml:space="preserve">
+    <value>Possible cause: this tool is unsigned and may be blocked by security software or Windows Controlled Folder Access.</value>
+  </data>
+  <data name="Agp_GuiAllFailedAv2" xml:space="preserve">
+    <value>Add this tool folder to your allowlist/exclusions, or click "Choose folder..." below to select a writable directory.</value>
+  </data>
+  <data name="Agp_GuiAllFailedTriedHeader" xml:space="preserve">
+    <value>Directories attempted:</value>
+  </data>
+  <data name="Agp_GuiAllFailedTriedItem" xml:space="preserve">
+    <value>  - {0} ({1}): {2}</value>
+  </data>
+  <data name="Agp_GuiAllFailedAction" xml:space="preserve">
+    <value>Click "Yes" to open "Choose folder..." and select a data directory (your choice will be remembered); click "No" to exit.</value>
+  </data>
+  <data name="Agp_GuiAllFailedLastResort" xml:space="preserve">
+    <value>(As a last resort if none of the above works, try running temporarily as Administrator.)</value>
+  </data>
+  <data name="Agp_CliAllFailedPrefix" xml:space="preserve">
+    <value>Unable to find a writable data root directory (all candidate paths failed). </value>
+  </data>
+  <data name="Agp_CliAllFailedLowIl" xml:space="preserve">
+    <value>Detected Low Integrity Level (Low IL); right-click the zip -&gt; Properties -&gt; Unblock and re-extract with File Explorer. </value>
+  </data>
+  <data name="Agp_CliAllFailedAv" xml:space="preserve">
+    <value>Directory permissions may be restricted or blocked by security software; consider adding this tool to your allowlist. </value>
+  </data>
+  <data name="Agp_CliAllFailedEnvWindows" xml:space="preserve">
+    <value>Set environment variable {0} to a writable directory and try again (e.g. set {0}=&lt;writable-dir&gt;). </value>
+  </data>
+  <data name="Agp_CliAllFailedEnvUnix" xml:space="preserve">
+    <value>Set environment variable {0} to a writable directory and try again (e.g. export {0}=&lt;writable-dir&gt;). </value>
+  </data>
+  <data name="Agp_CliAllFailedDetailsPrefix" xml:space="preserve">
+    <value>Attempted paths: </value>
+  </data>
+  <data name="Agp_CliAllFailedDetailsSuffix" xml:space="preserve">
+    <value>. </value>
+  </data>
+  <data name="Agp_CliAllFailedLastResort" xml:space="preserve">
+    <value>(As a last resort if no directory is writable, try running as Administrator.)</value>
+  </data>
+  <data name="Agp_ResolveFailedFallback" xml:space="preserve">
+    <value>Unable to resolve a writable data root directory.</value>
+  </data>
+  <data name="Agp_TempRootNotReady" xml:space="preserve">
+    <value>Data root directory is not ready.</value>
+  </data>
+  <data name="Agp_TempRootInvalid" xml:space="preserve">
+    <value>Data root directory path is invalid.</value>
+  </data>
+  <data name="Agp_CannotReadLocalAppData" xml:space="preserve">
+    <value>Unable to resolve %LOCALAPPDATA% directory</value>
+  </data>
+  <data name="Agp_CannotReadXdgOrHome" xml:space="preserve">
+    <value>Unable to resolve XDG_DATA_HOME or HOME directory</value>
+  </data>
+  <data name="Agp_PortableLabelWindows" xml:space="preserve">
+    <value>App folder\agp-data</value>
+  </data>
+  <data name="Agp_PortableLabelUnix" xml:space="preserve">
+    <value>App folder/agp-data</value>
+  </data>
+  <data name="Wizard_Title" xml:space="preserve">
+    <value>FINAL FANTASY RESONANCE Asset Export &amp; Database Build Wizard</value>
+  </data>
+  <data name="Wizard_ReadOnlyNotice" xml:space="preserve">
+    <value>Note: this tool only reads game files and never modifies your game installation directory.</value>
+  </data>
+  <data name="Wizard_QuoteTip" xml:space="preserve">
+    <value>Tip: pasted paths may keep surrounding quotes and may contain spaces.</value>
+  </data>
+  <data name="Wizard_InputClosedCancelled" xml:space="preserve">
+    <value>Input stream closed; wizard cancelled.</value>
+  </data>
+  <data name="Wizard_Step1Header" xml:space="preserve">
+    <value>[Step 1/4] Locate game directory</value>
+  </data>
+  <data name="Wizard_Step2Header" xml:space="preserve">
+    <value>[Step 2/4] Select mapping files (.usmap / .jmap)</value>
+  </data>
+  <data name="Wizard_UsmapNote" xml:space="preserve">
+    <value>Note: .usmap is required. Run "ffr-export fetch-usmap --game &lt;dir&gt;" to fetch it automatically, or dump it with UE4SS while the game is running.</value>
+  </data>
+  <data name="Wizard_JmapNote" xml:space="preserve">
+    <value>Optional: .jmap reflection dump files (you may add multiple; press Enter to skip).</value>
+  </data>
+  <data name="Wizard_Step3Header" xml:space="preserve">
+    <value>[Step 3/4] Choose output directory</value>
+  </data>
+  <data name="Wizard_Step4Header" xml:space="preserve">
+    <value>[Step 4/4] Review summary and start build</value>
+  </data>
+  <data name="Wizard_SummaryGameName" xml:space="preserve">
+    <value>  Game name: {0}</value>
+  </data>
+  <data name="Wizard_SummaryGameDir" xml:space="preserve">
+    <value>  Game directory: {0}</value>
+  </data>
+  <data name="Wizard_SummarySteamBuild" xml:space="preserve">
+    <value>  Steam build ID: {0}</value>
+  </data>
+  <data name="Wizard_SummaryUsmap" xml:space="preserve">
+    <value>  .usmap file: {0}</value>
+  </data>
+  <data name="Wizard_SummaryJmapNone" xml:space="preserve">
+    <value>  .jmap files: none (skipped)</value>
+  </data>
+  <data name="Wizard_SummaryJmapCount" xml:space="preserve">
+    <value>  .jmap files: {0}</value>
+  </data>
+  <data name="Wizard_SummaryOutputForce" xml:space="preserve">
+    <value>  Output directory: {0} (will be cleared and rebuilt)</value>
+  </data>
+  <data name="Wizard_SummaryOutput" xml:space="preserve">
+    <value>  Output directory: {0}</value>
+  </data>
+  <data name="Wizard_CancelledNoChanges" xml:space="preserve">
+    <value>Build cancelled; no files were modified.</value>
+  </data>
+  <data name="Wizard_StartingBuild" xml:space="preserve">
+    <value>Starting database build (same workflow as CLI build-db); please wait...</value>
+  </data>
+  <data name="Wizard_BuildFailedExitCode" xml:space="preserve">
+    <value>Error: database build did not succeed (exit code: {0}).</value>
+  </data>
+  <data name="Wizard_BuildFailedException" xml:space="preserve">
+    <value>Error: database build failed: {0}</value>
+  </data>
+  <data name="Wizard_SteamScanError" xml:space="preserve">
+    <value>Note: automatic Steam library scan failed ({0}); falling back to manual path entry.</value>
+  </data>
+  <data name="Wizard_SteamGamesFound" xml:space="preserve">
+    <value>Found the following game(s) in your Steam libraries:</value>
+  </data>
+  <data name="Wizard_SteamGameDirLine" xml:space="preserve">
+    <value>      Directory: {0}</value>
+  </data>
+  <data name="Wizard_SteamGameBuildLine" xml:space="preserve">
+    <value>      Steam build ID: {0}</value>
+  </data>
+  <data name="Wizard_ManualGameOption" xml:space="preserve">
+    <value>  [0] Paste another game directory manually</value>
+  </data>
+  <data name="Wizard_SelectGamePrompt" xml:space="preserve">
+    <value>Enter a number (1-{0}, press Enter for 1, or enter 0 for manual input): </value>
+  </data>
+  <data name="Wizard_InvalidNumberRange" xml:space="preserve">
+    <value>Invalid input. Please enter an integer between 0 and {0}.</value>
+  </data>
+  <data name="Wizard_SteamGameNotFound" xml:space="preserve">
+    <value>{0} (AppID: {1}) was not found automatically in your Steam libraries.</value>
+  </data>
+  <data name="Wizard_PasteGameDirPrompt" xml:space="preserve">
+    <value>Paste the game installation root directory (must contain {0}): </value>
+  </data>
+  <data name="Wizard_GameDirEmpty" xml:space="preserve">
+    <value>Game directory cannot be empty; please try again.</value>
+  </data>
+  <data name="Wizard_InvalidPathRetry" xml:space="preserve">
+    <value>Invalid path format: {0}. Please try again.</value>
+  </data>
+  <data name="Wizard_DirNotFoundRetry" xml:space="preserve">
+    <value>Directory not found: {0}. Check the path and try again.</value>
+  </data>
+  <data name="Wizard_GameDirMissingPaksRetry" xml:space="preserve">
+    <value>{0} is missing under {1}. Confirm you pasted the game installation root directory and try again.</value>
+  </data>
+  <data name="Wizard_UsmapLabel" xml:space="preserve">
+    <value>.usmap file path</value>
+  </data>
+  <data name="Wizard_UsmapAutoFound" xml:space="preserve">
+    <value>Auto-discovered .usmap ({0}): {1}</value>
+  </data>
+  <data name="Wizard_UsmapAutoPrompt" xml:space="preserve">
+    <value>.usmap file path (press Enter to use the auto-discovered file, or paste another .usmap path): </value>
+  </data>
+  <data name="Wizard_PathIsDirNotFile" xml:space="preserve">
+    <value>Path is a directory, not a file: {0}. Please paste a specific {1} file path.</value>
+  </data>
+  <data name="Wizard_FileNotFoundRetry" xml:space="preserve">
+    <value>File not found: {0}. Check the path and try again.</value>
+  </data>
+  <data name="Wizard_PasteRequiredFilePrompt" xml:space="preserve">
+    <value>Paste {0}: </value>
+  </data>
+  <data name="Wizard_RequiredFieldEmpty" xml:space="preserve">
+    <value>{0} is required and cannot be empty; please try again.</value>
+  </data>
+  <data name="Wizard_JmapFirstPrompt" xml:space="preserve">
+    <value>.jmap file #1 path (press Enter to skip): </value>
+  </data>
+  <data name="Wizard_JmapNextPrompt" xml:space="preserve">
+    <value>.jmap file #{0} path (paste another or press Enter to finish): </value>
+  </data>
+  <data name="Wizard_JmapSkipped" xml:space="preserve">
+    <value>Skipped .jmap files.</value>
+  </data>
+  <data name="Wizard_JmapAddedCount" xml:space="preserve">
+    <value>Added {0} .jmap file(s).</value>
+  </data>
+  <data name="Wizard_InvalidPathOrSkip" xml:space="preserve">
+    <value>Invalid path format: {0}. Please try again or press Enter to skip.</value>
+  </data>
+  <data name="Wizard_JmapIsDirOrSkip" xml:space="preserve">
+    <value>Path is a directory, not a file: {0}. Paste a .jmap file path or press Enter to skip.</value>
+  </data>
+  <data name="Wizard_FileNotFoundOrSkip" xml:space="preserve">
+    <value>File not found: {0}. Check the path and try again or press Enter to skip.</value>
+  </data>
+  <data name="Wizard_JmapDuplicate" xml:space="preserve">
+    <value>Note: this .jmap file was already added; skipping duplicate: {0}</value>
+  </data>
+  <data name="Wizard_JmapAddedItem" xml:space="preserve">
+    <value>  Added: {0}</value>
+  </data>
+  <data name="Wizard_DefaultOutputDir" xml:space="preserve">
+    <value>Default output directory: {0}</value>
+  </data>
+  <data name="Wizard_OutputDirPrompt" xml:space="preserve">
+    <value>Output directory (press Enter to use the default, or paste another path): </value>
+  </data>
+  <data name="Wizard_OutputOverlapsGame" xml:space="preserve">
+    <value>Output directory cannot overlap the game directory: {0}. Choose another directory.</value>
+  </data>
+  <data name="Wizard_OutputIsExistingFile" xml:space="preserve">
+    <value>Target path is an existing file, not a directory: {0}. Choose another path.</value>
+  </data>
+  <data name="Wizard_OutputForeignNonEmpty" xml:space="preserve">
+    <value>Target directory is not empty and is not an ffr-export build-db output directory: {0}. To avoid deleting unrelated files, choose an empty directory.</value>
+  </data>
+  <data name="Wizard_OutputPreviousBuildExists" xml:space="preserve">
+    <value>Note: target directory already contains a previous build: {0}</value>
+  </data>
+  <data name="Wizard_OutputOverwritePrompt" xml:space="preserve">
+    <value>Clear this directory and rebuild? (enter y to overwrite, or press Enter / n to choose another directory): </value>
+  </data>
+  <data name="Wizard_ConfirmStartPrompt" xml:space="preserve">
+    <value>Start building the database now? (press Enter to start, enter n to cancel): </value>
+  </data>
+  <data name="Wizard_ConfirmStartInvalid" xml:space="preserve">
+    <value>Invalid input. Press Enter to start, or enter n to cancel.</value>
+  </data>
+  <data name="Wizard_CompletionTitle" xml:space="preserve">
+    <value>Build Summary</value>
+  </data>
+  <data name="Wizard_CompletionDbPath" xml:space="preserve">
+    <value>Database path: {0}</value>
+  </data>
+  <data name="Wizard_CompletionFileSha" xml:space="preserve">
+    <value>File hash (file_sha256): {0}</value>
+  </data>
+  <data name="Wizard_CompletionContentSha" xml:space="preserve">
+    <value>Content hash (content_sha256): {0}</value>
+  </data>
+  <data name="Wizard_CompletionKnownBuilds" xml:space="preserve">
+    <value>known-builds.json comparison: {0}</value>
+  </data>
+  <data name="Wizard_CompletionKnownBuildsWithSource" xml:space="preserve">
+    <value>known-builds.json comparison: {0} (source: {1})</value>
+  </data>
+  <data name="Wizard_CompletionMatchedDate" xml:space="preserve">
+    <value>  Matched registration date: {0}</value>
+  </data>
+  <data name="Wizard_CompletionFileShaOnly" xml:space="preserve">
+    <value>  Note: all table contents match (identical content_sha256); only the file hash differs.</value>
+  </data>
+  <data name="Wizard_CompletionTableDiffCount" xml:space="preserve">
+    <value>  Differing tables: {0} (see output above and the build report for details).</value>
+  </data>
+  <data name="Wizard_CompletionTimings" xml:space="preserve">
+    <value>Timings: JSON export {0}s | DB build {1}s | Hash {2}s | Total {3}s</value>
+  </data>
+  <data name="Wizard_CompletionTotalTime" xml:space="preserve">
+    <value>Total elapsed: {0}s</value>
+  </data>
+  <data name="Wizard_CompletionReportPath" xml:space="preserve">
+    <value>Build report: {0}</value>
+  </data>
+  <data name="Wizard_CompletionReadReportFailed" xml:space="preserve">
+    <value>Note: failed to read build report {0} ({1}).</value>
+  </data>
+  <data name="Wizard_CompletionPartialFailure" xml:space="preserve">
+    <value>Note: the database was created, but a small number of asset packages failed to export; check the build report or log output for details.</value>
+  </data>
+  <data name="Wizard_MissingFfrDbHeadline" xml:space="preserve">
+    <value>Error: {0} not found; cannot build the database.</value>
+  </data>
+  <data name="Wizard_ErrorDetails" xml:space="preserve">
+    <value>Details: {0}</value>
+  </data>
+  <data name="Wizard_NextStepsHeader" xml:space="preserve">
+    <value>Suggested next steps:</value>
+  </data>
+  <data name="Wizard_MissingFfrDbStep1" xml:space="preserve">
+    <value>  1. Extract the entire archive into the same folder so {0} and {1} sit side by side (current directory: {2});</value>
+  </data>
+  <data name="Wizard_MissingFfrDbStep2" xml:space="preserve">
+    <value>  2. Do not move {0} by itself to the Desktop or another folder;</value>
+  </data>
+  <data name="Wizard_MissingFfrDbStep3" xml:space="preserve">
+    <value>  3. If using a self-built copy, place {0} next to the executable or on PATH and try again.</value>
+  </data>
+  <data name="Wizard_AdviceFfrDb1" xml:space="preserve">
+    <value>  1. Verify {0} is in the same folder ({1}) and not blocked by security software;</value>
+  </data>
+  <data name="Wizard_AdviceFfrDb2" xml:space="preserve">
+    <value>  2. Confirm the output drive has enough free disk space, then re-run this wizard.</value>
+  </data>
+  <data name="Wizard_AdviceUsmap1" xml:space="preserve">
+    <value>  1. Confirm the selected .usmap file was dumped completely via UE4SS from the current game version;</value>
+  </data>
+  <data name="Wizard_AdviceUsmap2" xml:space="preserve">
+    <value>  2. If the game recently updated, dump a fresh .usmap and try again.</value>
+  </data>
+  <data name="Wizard_AdviceGameDir1" xml:space="preserve">
+    <value>  1. Confirm the selected path is the installation root directory of FINAL FANTASY RESONANCE;</value>
+  </data>
+  <data name="Wizard_AdviceGameDir2" xml:space="preserve">
+    <value>  2. If files are missing, verify integrity of game files in Steam (right-click game -&gt; Properties -&gt; Installed Files).</value>
+  </data>
+  <data name="Wizard_AdviceGeneric1" xml:space="preserve">
+    <value>  1. Review the error above and check the game directory, .usmap/.jmap files, and output directory permissions;</value>
+  </data>
+  <data name="Wizard_AdviceGeneric2" xml:space="preserve">
+    <value>  2. Make sure the output drive has several GB of free temporary disk space;</value>
+  </data>
+  <data name="Wizard_AdviceGeneric3" xml:space="preserve">
+    <value>  3. After troubleshooting, launch this tool again.</value>
+  </data>
+  <data name="Wizard_PressEnterToExit" xml:space="preserve">
+    <value>Press Enter to exit...</value>
+  </data>
+  <data name="Ue4ss_CacheHit" xml:space="preserve">
+    <value>Using cached download (SHA-256 verified): {0}</value>
+  </data>
+  <data name="Ue4ss_CacheCorruptRedownload" xml:space="preserve">
+    <value>Warning: cached archive failed verification ({0}); re-downloading: {1}</value>
+  </data>
+  <data name="Ue4ss_CacheDeleteFailed" xml:space="preserve">
+    <value>Failed to delete corrupt download cache ({0}): {1}</value>
+  </data>
+  <data name="Ue4ss_RefuseNonHttps" xml:space="preserve">
+    <value>Refusing to download UE4SS over non-HTTPS URL: {0}</value>
+  </data>
+  <data name="Ue4ss_Downloading" xml:space="preserve">
+    <value>Downloading official UE4SS {0} (~8.4 MB) from GitHub Releases: {1}</value>
+  </data>
+  <data name="Ue4ss_DownloadVerified" xml:space="preserve">
+    <value>Download verified ({0} bytes, SHA-256 matched): {1}</value>
+  </data>
+  <data name="Ue4ss_VerifyFileNotFound" xml:space="preserve">
+    <value>File not found: {0}</value>
+  </data>
+  <data name="Ue4ss_VerifySizeMismatch" xml:space="preserve">
+    <value>File size mismatch (expected {0} bytes, actual {1} bytes)</value>
+  </data>
+  <data name="Ue4ss_VerifyShaMismatch" xml:space="preserve">
+    <value>SHA-256 checksum mismatch (expected {0}, actual {1})</value>
+  </data>
+  <data name="Ue4ss_VerifyArchiveFailed" xml:space="preserve">
+    <value>UE4SS archive verification failed (source: {0}, file: {1}): {2}; installation refused.</value>
+  </data>
+  <data name="Ue4ss_RedirectNonHttps" xml:space="preserve">
+    <value>Download redirected to a non-HTTPS URL and was refused: {0}</value>
+  </data>
+  <data name="Ue4ss_DownloadTimeout" xml:space="preserve">
+    <value>Downloading UE4SS timed out after {0}s (URL: {1}); check your network or proxy settings and try again.</value>
+  </data>
+  <data name="Ue4ss_DownloadHttpError" xml:space="preserve">
+    <value>Failed to download UE4SS (URL: {0}): {1}; check your network or firewall settings and try again.</value>
+  </data>
+  <data name="Ue4ss_RedirectMissingLocation" xml:space="preserve">
+    <value>Failed to download UE4SS: server returned a redirect without a Location header (URL: {0}).</value>
+  </data>
+  <data name="Ue4ss_TooManyRedirects" xml:space="preserve">
+    <value>Failed to download UE4SS: exceeded {0} redirects (URL: {1}).</value>
+  </data>
+  <data name="Ue4ss_NoResponse" xml:space="preserve">
+    <value>Failed to download UE4SS: no response received from server (URL: {0}).</value>
+  </data>
+  <data name="Ue4ss_HttpStatusError" xml:space="preserve">
+    <value>Failed to download UE4SS: server returned HTTP {0} {1} (URL: {2}).</value>
+  </data>
+  <data name="Ue4ss_ContentLengthMismatch" xml:space="preserve">
+    <value>UE4SS download refused: Content-Length header is {0} bytes, expected {1} bytes (URL: {2}).</value>
+  </data>
+  <data name="Ue4ss_TransferTimeout" xml:space="preserve">
+    <value>UE4SS download transfer timed out ({0} / {1} bytes received, URL: {2}).</value>
+  </data>
+  <data name="Ue4ss_TransferExceededSize" xml:space="preserve">
+    <value>UE4SS download refused: received more bytes than expected {0} bytes (URL: {1}).</value>
+  </data>
+  <data name="Ue4ss_SteamLaunchFailed" xml:space="preserve">
+    <value>Failed to launch game via Steam (URI: {0}): {1}. Make sure Steam is installed and logged in.</value>
+  </data>
+  <data name="Ue4ss_MissingEmbeddedLua" xml:space="preserve">
+    <value>Missing embedded dump mod script resource: {0}</value>
+  </data>
+  <data name="Ue4ss_CleanOldDoneMarkerFailed" xml:space="preserve">
+    <value>Failed to remove previous dump completion marker ({0}): {1}</value>
+  </data>
+  <data name="Ue4ss_ModNameEmpty" xml:space="preserve">
+    <value>Mod name cannot be empty.</value>
+  </data>
+  <data name="Ue4ss_InstallWin64Missing" xml:space="preserve">
+    <value>Failed to install UE4SS: Win64 directory does not exist: {0}</value>
+  </data>
+  <data name="Ue4ss_InstallRefuseOverwrite" xml:space="preserve">
+    <value>Failed to install UE4SS: destination file already exists ({0}); refusing to overwrite. If you have other mods or a proxy DLL installed, back them up or remove them first.</value>
+  </data>
+  <data name="Ue4ss_UninstallGameRunning" xml:space="preserve">
+    <value>UE4SS cleanup refused: the game process ({0}) is currently running. Close the game and try again.</value>
+  </data>
+  <data name="Ue4ss_UninstallOwnDone" xml:space="preserve">
+    <value>Uninstalled UE4SS using the install manifest: removed {0} file(s) and cleaned {1} empty director(ies).</value>
+  </data>
+  <data name="Ue4ss_UninstallOwnRemaining" xml:space="preserve">
+    <value>Note: kept {0} non-manifest file(s) under {1} (such as UE4SS.log, user mods, or dumps).</value>
+  </data>
+  <data name="Ue4ss_UninstallUsmapSafeNote" xml:space="preserve">
+    <value>Note: .usmap files archived in agp\ffr-export\usmap\ are unaffected and remain ready to use.</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignCleanedRemnants" xml:space="preserve">
+    <value>Detected a UE4SS installation not managed by this tool ({0} not found). Cleaned only this tool's remnants ({1} file(s), {2} director(ies)) and left your existing UE4SS untouched.</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignNoRemnants" xml:space="preserve">
+    <value>Detected a UE4SS installation not managed by this tool ({0} not found). No remnants from this tool were found; your existing UE4SS was left untouched.</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignHint" xml:space="preserve">
+    <value>Tip: pass --include-foreign to move the user-installed UE4SS out of the game directory into a backup folder (files are moved, not deleted).</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignWarning" xml:space="preserve">
+    <value>Warning: the UE4SS installation in this game directory was NOT installed by this tool and may contain your own mods!</value>
+  </data>
+  <data name="Ue4ss_UninstallCancelled" xml:space="preserve">
+    <value>Cleanup cancelled; no changes were made to the game directory.</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignBackedUp" xml:space="preserve">
+    <value>Moved the non-managed UE4SS out of the game directory and backed it up to: {0}</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignAlsoCleaned" xml:space="preserve">
+    <value>Also cleaned this tool's remnants: {0} file(s), {1} director(ies).</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignRestoreNote" xml:space="preserve">
+    <value>How to restore: copy dwmapi.dll and the ue4ss folder from {0} back into {1}.</value>
+  </data>
+  <data name="Ue4ss_UninstallRemnantsOnly" xml:space="preserve">
+    <value>No full UE4SS installation found; cleaned this tool's remnants ({0} file(s), {1} director(ies)).</value>
+  </data>
+  <data name="Ue4ss_UninstallNotFound" xml:space="preserve">
+    <value>UE4SS not found (neither UE4SS nor any remnants from this tool exist in the game directory).</value>
+  </data>
+  <data name="Ue4ss_BackupCopyFailed" xml:space="preserve">
+    <value>Failed to back up non-managed UE4SS (target backup directory: {0}): {1}. The game directory was left unmodified.</value>
+  </data>
+  <data name="Ue4ss_BackupRemoveOrigFailed" xml:space="preserve">
+    <value>Backup succeeded ({0}), but removing original files from the game directory failed: {1}. Make sure the game and related tools are closed and retry; the backup folder has been kept intact.</value>
+  </data>
+  <data name="Ue4ss_CleanupConfirmPrompt" xml:space="preserve">
+    <value>Move the non-managed UE4SS above to the backup directory? (enter y to confirm, press Enter or n to cancel): </value>
+  </data>
+  <data name="Ue4ss_YesNoInvalid" xml:space="preserve">
+    <value>Invalid input. Enter y to confirm or n to cancel.</value>
+  </data>
+  <data name="Ue4ss_MarkerReadFailed" xml:space="preserve">
+    <value>Failed to read UE4SS install marker ({0}): {1}</value>
+  </data>
+  <data name="Ue4ss_MarkerCorrupt" xml:space="preserve">
+    <value>UE4SS install marker is corrupted ({0}): {1}</value>
+  </data>
+  <data name="Ue4ss_MarkerInvalid" xml:space="preserve">
+    <value>UE4SS install marker is invalid or unsupported ({0}); refusing to uninstall.</value>
+  </data>
+  <data name="Ue4ss_LabelFile" xml:space="preserve">
+    <value>file</value>
+  </data>
+  <data name="Ue4ss_LabelDirectory" xml:space="preserve">
+    <value>directory</value>
+  </data>
+  <data name="Ue4ss_LabelZipEntry" xml:space="preserve">
+    <value>archive entry</value>
+  </data>
+  <data name="Ue4ss_LabelExtractPath" xml:space="preserve">
+    <value>extract path</value>
+  </data>
+  <data name="Ue4ss_ZipEmpty" xml:space="preserve">
+    <value>UE4SS archive is empty: {0}</value>
+  </data>
+  <data name="Ue4ss_ZipDuplicateEntry" xml:space="preserve">
+    <value>UE4SS archive contains duplicate entry ({0}): {1}</value>
+  </data>
+  <data name="Ue4ss_ZipUnexpectedLayout" xml:space="preserve">
+    <value>UE4SS archive has unexpected layout (missing dwmapi.dll or ue4ss/UE4SS.dll): {0}</value>
+  </data>
+  <data name="Ue4ss_PathEmpty" xml:space="preserve">
+    <value>Failed to parse {0} ({1}): path is empty.</value>
+  </data>
+  <data name="Ue4ss_UnsafeAbsolutePath" xml:space="preserve">
+    <value>Unsafe absolute {0} path detected ({1}, source: {2}); operation refused.</value>
+  </data>
+  <data name="Ue4ss_UnsafeRelativePath" xml:space="preserve">
+    <value>Unsafe relative {0} path detected ({1}, source: {2}); operation refused.</value>
+  </data>
+  <data name="Ue4ss_PathEscapesWin64" xml:space="preserve">
+    <value>Path escapes Win64 directory ({0}); operation refused.</value>
+  </data>
+  <data name="Ue4ss_PreviewWin64Dir" xml:space="preserve">
+    <value>Game Win64 directory: {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewOwnHeader" xml:space="preserve">
+    <value>[UE4SS files installed by this tool to be deleted]</value>
+  </data>
+  <data name="Ue4ss_PreviewOwnNoneLeft" xml:space="preserve">
+    <value>  (files listed in manifest no longer exist)</value>
+  </data>
+  <data name="Ue4ss_PreviewTagDelete" xml:space="preserve">
+    <value>  [Delete] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewEmptyDirsHeader" xml:space="preserve">
+    <value>[Directories to remove if empty]</value>
+  </data>
+  <data name="Ue4ss_PreviewTagCleanDir" xml:space="preserve">
+    <value>  [Clean empty dir] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewAlsoRemnantsHeader" xml:space="preserve">
+    <value>[Remnants from this tool also to be cleaned]</value>
+  </data>
+  <data name="Ue4ss_PreviewTagDeleteRemnant" xml:space="preserve">
+    <value>  [Delete remnant] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewForeignRemnantsHeader" xml:space="preserve">
+    <value>[Remnants from this tool (will be deleted)]</value>
+  </data>
+  <data name="Ue4ss_PreviewNoRemnants" xml:space="preserve">
+    <value>  (no remnants from this tool found)</value>
+  </data>
+  <data name="Ue4ss_PreviewForeignMoveHeader" xml:space="preserve">
+    <value>[Non-managed UE4SS (not deleted; will be moved to backup: {0})]</value>
+  </data>
+  <data name="Ue4ss_PreviewTagMoveToBackup" xml:space="preserve">
+    <value>  [Move to backup] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewRestoreNote" xml:space="preserve">
+    <value>How to restore: copy dwmapi.dll and the ue4ss folder from the backup directory back into the Win64 directory above.</value>
+  </data>
+  <data name="Ue4ss_PreviewForeignKeepHeader" xml:space="preserve">
+    <value>[Non-managed UE4SS (left untouched by default)]</value>
+  </data>
+  <data name="Ue4ss_PreviewTagKeep" xml:space="preserve">
+    <value>  [Keep] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewRemnantsOnlyHeader" xml:space="preserve">
+    <value>[Remnants from this tool to be cleaned]</value>
+  </data>
+  <data name="Ue4ss_PreviewNothingFound" xml:space="preserve">
+    <value>No UE4SS installation or remnants from this tool were found.</value>
+  </data>
+  <data name="Ue4ss_WarnRemoveDumpModDir" xml:space="preserve">
+    <value>Warning: failed to remove temporary dump mod directory ({0}): {1}</value>
+  </data>
+  <data name="Ue4ss_WarnScanTmpFiles" xml:space="preserve">
+    <value>Warning: failed to scan temporary .tmp files ({0}): {1}</value>
+  </data>
+  <data name="Ue4ss_WarnDeleteEnabledTxt" xml:space="preserve">
+    <value>Warning: failed to delete {0}: {1}</value>
+  </data>
+  <data name="Ue4ss_WarnDisableDumpMod" xml:space="preserve">
+    <value>Warning: error while disabling temporary dump mod: {0}</value>
+  </data>
+  <data name="Ue4ss_ClosingGameProcesses" xml:space="preserve">
+    <value>Requesting graceful shutdown of game process ({0}, count: {1})...</value>
+  </data>
+  <data name="Ue4ss_GameClosedGracefully" xml:space="preserve">
+    <value>Game window exited cleanly.</value>
+  </data>
+  <data name="Ue4ss_GameForceKill" xml:space="preserve">
+    <value>Game did not exit within {0}s; terminating process (PID {1})...</value>
+  </data>
+  <data name="Ue4ss_WarnDeleteRemnantFile" xml:space="preserve">
+    <value>Warning: failed to delete remnant file ({0}): {1}</value>
+  </data>
+  <data name="FetchUsmap_TimeoutInvalid" xml:space="preserve">
+    <value>--timeout must be a positive integer (seconds): {0}</value>
+  </data>
+  <data name="FetchUsmap_RequiresGame" xml:space="preserve">
+    <value>fetch-usmap requires --game &lt;game-dir&gt;.</value>
+  </data>
+  <data name="UninstallUe4ss_RequiresGame" xml:space="preserve">
+    <value>uninstall-ue4ss requires --game &lt;game-dir&gt;.</value>
+  </data>
+  <data name="FetchUsmap_Step1Title" xml:space="preserve">
+    <value>Checking environment, game directory, and running game process</value>
+  </data>
+  <data name="FetchUsmap_Step2Title" xml:space="preserve">
+    <value>Preparing UE4SS runtime environment</value>
+  </data>
+  <data name="FetchUsmap_Step3Title" xml:space="preserve">
+    <value>Deploying temporary .usmap dump mod</value>
+  </data>
+  <data name="FetchUsmap_Step4Title" xml:space="preserve">
+    <value>Launching game via Steam and waiting for .usmap dump</value>
+  </data>
+  <data name="FetchUsmap_Step5Title" xml:space="preserve">
+    <value>Archiving .usmap, computing hashes, and checking known builds</value>
+  </data>
+  <data name="FetchUsmap_Step6Title" xml:space="preserve">
+    <value>Disabling dump mod and closing game</value>
+  </data>
+  <data name="FetchUsmap_WindowsOnly" xml:space="preserve">
+    <value>fetch-usmap is supported on Windows only (it launches the Windows game via Steam and dumps .usmap from memory via UE4SS).</value>
+  </data>
+  <data name="FetchUsmap_GameAlreadyRunning" xml:space="preserve">
+    <value>Game is currently running ({0}). Close the game before running fetch-usmap.</value>
+  </data>
+  <data name="FetchUsmap_PartialUnknownUe4ss" xml:space="preserve">
+    <value>UE4SS check failed: only partial files exist in {0} (dwmapi.dll={1}, ue4ss/UE4SS.dll={2}) without this tool's install marker. Aborting to avoid overwriting your existing proxy DLL or mods.</value>
+  </data>
+  <data name="FetchUsmap_InputClosedCancelled" xml:space="preserve">
+    <value>Input stream closed; .usmap fetch cancelled.</value>
+  </data>
+  <data name="FetchUsmap_CancelledNoChanges" xml:space="preserve">
+    <value>Cancelled .usmap fetch; no changes were made to the game directory.</value>
+  </data>
+  <data name="FetchUsmap_ReuseUserUe4ss" xml:space="preserve">
+    <value>Detected your own UE4SS installation ({0}); keeping all existing settings untouched and only deploying the temporary dump mod.</value>
+  </data>
+  <data name="FetchUsmap_ReuseOwnUe4ss" xml:space="preserve">
+    <value>Detected UE4SS previously installed by this tool (version: {0}); reusing it.</value>
+  </data>
+  <data name="FetchUsmap_CorruptOwnUe4ss" xml:space="preserve">
+    <value>Found this tool's install marker ({0}), but core files are incomplete (dwmapi.dll or UE4SS.dll missing). Run "ffr-export uninstall-ue4ss" to clean up and try again.</value>
+  </data>
+  <data name="FetchUsmap_InstalledUe4ss" xml:space="preserve">
+    <value>Installed UE4SS {0} to {1} ({2} files written, console and debug window disabled, LICENSE preserved).</value>
+  </data>
+  <data name="FetchUsmap_DeployedMod" xml:space="preserve">
+    <value>Deployed temporary dump mod: {0} (enabled via enabled.txt; mods.txt untouched).</value>
+  </data>
+  <data name="FetchUsmap_LaunchingSteam" xml:space="preserve">
+    <value>Launching game via Steam: {0} (timeout: {1}s)</value>
+  </data>
+  <data name="FetchUsmap_SavedUsmapLine" xml:space="preserve">
+    <value>Saved .usmap: {0}</value>
+  </data>
+  <data name="FetchUsmap_SourceDumpPath" xml:space="preserve">
+    <value>Original dump path: {0}</value>
+  </data>
+  <data name="FetchUsmap_FileShaLine" xml:space="preserve">
+    <value>File hash (file_sha256): {0} (size: {1} bytes)</value>
+  </data>
+  <data name="FetchUsmap_ContentShaLine" xml:space="preserve">
+    <value>Content hash (content_sha256): {0} ({1} types, {2} enums)</value>
+  </data>
+  <data name="FetchUsmap_RemovedTempMod" xml:space="preserve">
+    <value>Removed temporary dump mod (ue4ss/Mods/FfrUsmapDump).</value>
+  </data>
+  <data name="FetchUsmap_RetainUserUe4ss" xml:space="preserve">
+    <value>Left your existing UE4SS installation untouched.</value>
+  </data>
+  <data name="FetchUsmap_RetainOwnUe4ss" xml:space="preserve">
+    <value>UE4SS has been kept in the game directory for future reuse (run "ffr-export uninstall-ue4ss" or click "Clean up UE4SS..." in the GUI to remove it anytime).</value>
+  </data>
+  <data name="FetchUsmap_ModFailed" xml:space="preserve">
+    <value>UE4SS dump mod failed: {0}. Check the log: {1}</value>
+  </data>
+  <data name="FetchUsmap_DoneMarkerFound" xml:space="preserve">
+    <value>Detected dump completion marker; located new .usmap: {0}</value>
+  </data>
+  <data name="FetchUsmap_TimeoutGameRunning" xml:space="preserve">
+    <value>The game launched, but no new .usmap was generated within {0}s. UE4SS may not have loaded or initialization took longer than expected; check {1} (or retry with a larger --timeout).</value>
+  </data>
+  <data name="FetchUsmap_TimeoutGameNotSeen" xml:space="preserve">
+    <value>Game process ({1}) was not detected within {0}s. Steam may have failed to launch the game; verify Steam is logged in and no update dialog is blocking launch, then try again.</value>
+  </data>
+  <data name="FetchUsmap_TimeoutError" xml:space="preserve">
+    <value>Timed out waiting for .usmap dump: {0}</value>
+  </data>
+  <data name="FetchUsmap_StateGameRunning" xml:space="preserve">
+    <value>game running, waiting for engine init and dump</value>
+  </data>
+  <data name="FetchUsmap_StateWaitingSteam" xml:space="preserve">
+    <value>waiting for Steam to launch game</value>
+  </data>
+  <data name="FetchUsmap_WaitingProgress" xml:space="preserve">
+    <value>Waiting for .usmap dump... {0}/{1}s elapsed ({2})</value>
+  </data>
+  <data name="FetchUsmap_PlanHeader" xml:space="preserve">
+    <value>The following actions will be performed:</value>
+  </data>
+  <data name="FetchUsmap_PlanStep1" xml:space="preserve">
+    <value>  1. Target game directory: {0}</value>
+  </data>
+  <data name="FetchUsmap_PlanStep2Install" xml:space="preserve">
+    <value>  2. Download official UE4SS {0} (~8.4 MB, cached in {1}, SHA-256 verified) from GitHub and install to {2} (console and debug window disabled);</value>
+  </data>
+  <data name="FetchUsmap_PlanStep2User" xml:space="preserve">
+    <value>  2. Detected your existing UE4SS installation; all existing configuration will remain untouched;</value>
+  </data>
+  <data name="FetchUsmap_PlanStep2Reuse" xml:space="preserve">
+    <value>  2. Reuse the UE4SS installation previously deployed by this tool;</value>
+  </data>
+  <data name="FetchUsmap_PlanStep3" xml:space="preserve">
+    <value>  3. Deploy temporary read-only mod ue4ss/Mods/{0} (enabled via enabled.txt; mods.txt untouched);</value>
+  </data>
+  <data name="FetchUsmap_PlanStep4" xml:space="preserve">
+    <value>  4. Launch the game once via Steam (timeout: {0}s) to dump .usmap on the title screen without touching save files;</value>
+  </data>
+  <data name="FetchUsmap_PlanStep5" xml:space="preserve">
+    <value>  5. Archive the .usmap to {0} and compare it against known-builds.json;</value>
+  </data>
+  <data name="FetchUsmap_PlanStep6" xml:space="preserve">
+    <value>  6. Remove the temporary mod and close the game automatically; UE4SS stays installed for future reuse (uninstall anytime with uninstall-ue4ss).</value>
+  </data>
+  <data name="FetchUsmap_ConfirmPrompt" xml:space="preserve">
+    <value>Continue? (enter y to confirm, press Enter or n to cancel): </value>
+  </data>
+  <data name="FetchUsmap_CtrlCInterrupt" xml:space="preserve">
+    <value>Interrupt signal received; cancelling and cleaning up temporary mod and game process...</value>
+  </data>
+  <data name="FetchUsmap_CancelledAfterInterrupt" xml:space="preserve">
+    <value>Cancelled .usmap fetch; temporary mod has been disabled.</value>
+  </data>
+  <data name="GuiCore_LaunchCliFailed" xml:space="preserve">
+    <value>Failed to launch CLI executable: {0}</value>
+  </data>
+  <data name="GuiCore_DualComboHint" xml:space="preserve">
+    <value>known-builds.json registers two input combinations: ".usmap only" and ".usmap + two .jmap files", so either choice can match a registered build.</value>
+  </data>
+  <data name="GuiCore_ReportNotFound" xml:space="preserve">
+    <value>Failed to read build result: no *.build.json file found in output directory {0}.</value>
+  </data>
+  <data name="GuiCore_ReportReadFailed" xml:space="preserve">
+    <value>Failed to read build report ({0}): {1}</value>
+  </data>
+  <data name="GuiCore_ReportInvalidJson" xml:space="preserve">
+    <value>Failed to parse build report JSON ({0}): {1}</value>
+  </data>
+  <data name="GuiCore_ReportRootNotObject" xml:space="preserve">
+    <value>Invalid build report format (root is not a JSON object): {0}</value>
+  </data>
+  <data name="GuiCore_ReportMissingFileSha" xml:space="preserve">
+    <value>Build report is missing database.file_sha256: {0}</value>
+  </data>
+  <data name="GuiCore_InputDescUsmapOnly" xml:space="preserve">
+    <value>Inputs: .usmap only (no .jmap)</value>
+  </data>
+  <data name="GuiCore_InputDescWithJmaps" xml:space="preserve">
+    <value>Inputs: .usmap + {0} .jmap file(s)</value>
+  </data>
+  <data name="GuiCore_PartialExportNotice" xml:space="preserve">
+    <value> (Note: a small number of asset packages failed during export; see the log and build report for details.)</value>
+  </data>
+  <data name="GuiCore_MatchedRegDatePart" xml:space="preserve">
+    <value>, matched registration date: {0}</value>
+  </data>
+  <data name="GuiCore_VerdictMatchedTitle" xml:space="preserve">
+    <value>Matches registered build</value>
+  </data>
+  <data name="GuiCore_VerdictMatchedExplanation" xml:space="preserve">
+    <value>{0}{1}. {2}{3}</value>
+  </data>
+  <data name="GuiCore_VerdictNewVersionTitle" xml:space="preserve">
+    <value>New version, not registered</value>
+  </data>
+  <data name="GuiCore_VerdictNewVersionExplanation" xml:space="preserve">
+    <value>{0}. This game version is not yet registered in known-builds.json. {1}{2}</value>
+  </data>
+  <data name="GuiCore_VerdictHashMismatchTitle" xml:space="preserve">
+    <value>Hash mismatch</value>
+  </data>
+  <data name="GuiCore_VerdictFileShaOnlyDetail" xml:space="preserve">
+    <value>All table contents match (identical content_sha256); only the database file hash differs.</value>
+  </data>
+  <data name="GuiCore_VerdictTableDiffDetail" xml:space="preserve">
+    <value>Game version is registered, but {0} table(s) differ from the registered record.</value>
+  </data>
+  <data name="GuiCore_VerdictGenericMismatchDetail" xml:space="preserve">
+    <value>Game version is registered, but the database hash differs from the registered record.</value>
+  </data>
+  <data name="GuiCore_VerdictOddJmapCountNote" xml:space="preserve">
+    <value> Note: {0} .jmap file(s) provided, whereas registered combinations use "0" or "2".</value>
+  </data>
+  <data name="GuiCore_VerdictHashMismatchExplanation" xml:space="preserve">
+    <value>{0}. {1}{2} {3}{4}</value>
+  </data>
+  <data name="GuiCore_VerdictUnknownTitle" xml:space="preserve">
+    <value>Unknown comparison result</value>
+  </data>
+  <data name="GuiCore_VerdictUnknownExplanation" xml:space="preserve">
+    <value>{0}. No recognizable comparison verdict was found in the build report. {1}{2}</value>
+  </data>
+  <data name="GuiCore_ClipboardDbPath" xml:space="preserve">
+    <value>Database path: {0}</value>
+  </data>
+  <data name="GuiCore_ClipboardFileSha" xml:space="preserve">
+    <value>File hash (file_sha256): {0}</value>
+  </data>
+  <data name="GuiCore_ClipboardContentSha" xml:space="preserve">
+    <value>Content hash (content_sha256): {0}</value>
+  </data>
+  <data name="GuiCore_ClipboardVerdict" xml:space="preserve">
+    <value>Comparison verdict: {0} {1}</value>
+  </data>
+  <data name="GuiCore_SteamScanFailed" xml:space="preserve">
+    <value>Automatic Steam scan failed: {0}. Click "Select Game Folder..." on the right.</value>
+  </data>
+  <data name="GuiCore_SteamLibraryUnreadable" xml:space="preserve">
+    <value>Unable to read Steam library ({0}). Check folder permissions, or click "Select Game Folder..." on the right.</value>
+  </data>
+  <data name="GuiCore_SteamRegistryFailed" xml:space="preserve">
+    <value>Failed to read Steam registry ({0}), and no game was found in default Steam locations. Click "Select Game Folder..." on the right.</value>
+  </data>
+  <data name="GuiCore_SelectGameRootPrompt" xml:space="preserve">
+    <value>Please select the game installation root directory.</value>
+  </data>
+  <data name="GuiCore_GameDirInvalidPath" xml:space="preserve">
+    <value>Invalid game directory path ({0}): {1}</value>
+  </data>
+  <data name="GuiCore_GameDirNotFound" xml:space="preserve">
+    <value>Selected game directory does not exist: {0}</value>
+  </data>
+  <data name="GuiCore_GameDirMissingPaks" xml:space="preserve">
+    <value>Selected folder is not a supported game directory: missing {0} (checked: {1}). Please choose the installation root directory of FINAL FANTASY RESONANCE.</value>
+  </data>
+  <data name="GuiCore_GameDirMissingExe" xml:space="preserve">
+    <value>Selected folder is not a supported game directory: missing game executable {0} (checked: {1}). Please choose the installation root directory of FINAL FANTASY RESONANCE.</value>
+  </data>
+  <data name="GuiCore_AccessDeniedPath" xml:space="preserve">
+    <value>Access denied to {0}: {1}</value>
+  </data>
+  <data name="GuiCore_AccessFailedPath" xml:space="preserve">
+    <value>Failed to access {0}: {1}</value>
+  </data>
+  <data name="GuiCore_FontMissingOrUnsupported" xml:space="preserve">
+    <value>Font {0} is not installed or does not support the requested style</value>
+  </data>
+  <data name="GuiCore_UiFontFallbackMsgBox" xml:space="preserve">
+    <value>UI font {0} unavailable ({1}); fell back to system default font (MessageBoxFont).</value>
+  </data>
+  <data name="GuiCore_UiFontFallbackMsgBoxRegular" xml:space="preserve">
+    <value>UI font {0} unavailable ({1}); fell back to regular system default font (MessageBoxFont).</value>
+  </data>
+  <data name="GuiCore_UiFontFallbackControlDefault" xml:space="preserve">
+    <value>Neither UI font {0} nor MessageBoxFont is available ({1}); fell back to control default font.</value>
+  </data>
+  <data name="GuiCore_MonoFontNotInstalled" xml:space="preserve">
+    <value>Font {0} is not installed</value>
+  </data>
+  <data name="GuiCore_MonoFontFallbackGeneric" xml:space="preserve">
+    <value>Monospace font {0} unavailable ({1}); fell back to generic monospace font.</value>
+  </data>
+  <data name="GuiCore_MonoFontFallbackMsgBox" xml:space="preserve">
+    <value>Monospace font {0} unavailable ({1}); fell back to system default font (MessageBoxFont).</value>
+  </data>
+  <data name="GuiCore_MonoFontFallbackControlDefault" xml:space="preserve">
+    <value>Monospace font {0} unavailable ({1}); fell back to control default font.</value>
+  </data>
+  <data name="GuiCore_DefaultOutputAllUnwritable" xml:space="preserve">
+    <value>Default and fallback data directories are not writable. Click "Browse..." to choose an output directory manually.</value>
+  </data>
+  <data name="GuiCore_PathEmpty" xml:space="preserve">
+    <value>Path is empty</value>
+  </data>
+  <data name="GuiCore_PathContainsNull" xml:space="preserve">
+    <value>Path contains an invalid null character</value>
+  </data>
+  <data name="GuiCore_SavedOutputInvalidFallback" xml:space="preserve">
+    <value>Previously saved output directory is invalid ({0}: {1}); using default directory instead: {2}.</value>
+  </data>
+  <data name="GuiCore_CliLookupInvalidBaseDir" xml:space="preserve">
+    <value>Failed to locate CLI executable {0} (invalid application directory path: {1}): {2}</value>
+  </data>
+  <data name="GuiCore_CliLookupCheckFailed" xml:space="preserve">
+    <value>Failed to check CLI executable {0} ({1}): {2}</value>
+  </data>
+  <data name="GuiCore_CliNotFound" xml:space="preserve">
+    <value>CLI executable {0} not found (expected path: {1}). Extract the full archive into a single folder so ffr-export-gui.exe, {0}, {2}, and known-builds.json stay together; do not move the GUI executable by itself.</value>
+  </data>
+  <data name="GuiCore_OutputEmpty" xml:space="preserve">
+    <value>Output directory cannot be empty; please choose an output folder.</value>
+  </data>
+  <data name="GuiCore_OutputInvalidPath" xml:space="preserve">
+    <value>Invalid output directory path ({0}): {1}</value>
+  </data>
+  <data name="GuiCore_OutputOverlapsGame" xml:space="preserve">
+    <value>Output directory cannot overlap the game installation directory: {0}. Choose another directory.</value>
+  </data>
+  <data name="GuiCore_OutputIsFile" xml:space="preserve">
+    <value>Output path points to an existing file rather than a folder: {0}. Choose another path.</value>
+  </data>
+  <data name="GuiCore_OutputReadFailed" xml:space="preserve">
+    <value>Unable to read output directory {0}: {1}</value>
+  </data>
+  <data name="GuiCore_OutputProtectedRefused" xml:space="preserve">
+    <value>Output directory {0} is a non-empty system or user root folder. Refusing to clear it to protect personal files; create or select a dedicated subfolder instead.</value>
+  </data>
+  <data name="GuiCore_RefuseClearProtected" xml:space="preserve">
+    <value>Refusing to clear protected directory: {0}</value>
+  </data>
+  <data name="GuiCore_SettingsResolvePathFailed" xml:space="preserve">
+    <value>Failed to resolve settings file path: {0}; using default settings.</value>
+  </data>
+  <data name="GuiCore_SettingsNullChar" xml:space="preserve">
+    <value>Path contains an invalid null character.</value>
+  </data>
+  <data name="GuiCore_SettingsEmptyOrInvalid" xml:space="preserve">
+    <value>Settings file is empty or invalid ({0}); using default settings.</value>
+  </data>
+  <data name="GuiCore_SettingsCorrupt" xml:space="preserve">
+    <value>Settings file is corrupted ({0}): {1}; using default settings.</value>
+  </data>
+  <data name="GuiCore_SettingsAccessDenied" xml:space="preserve">
+    <value>No permission to read settings file ({0}): {1}; using default settings.</value>
+  </data>
+  <data name="GuiCore_SettingsReadFailed" xml:space="preserve">
+    <value>Failed to read settings file ({0}): {1}; using default settings.</value>
+  </data>
+  <data name="GuiCore_LegacySettingsInvalid" xml:space="preserve">
+    <value>Legacy settings file is invalid ({0}); skipping automatic migration.</value>
+  </data>
+  <data name="GuiCore_LegacySettingsMigrateFailed" xml:space="preserve">
+    <value>Failed to migrate legacy settings file ({0} -&gt; {1}): {2}; kept old file and using default settings.</value>
+  </data>
+  <data name="GuiCore_LogStageLine" xml:space="preserve">
+    <value>[{0}] [ERROR] Stage: {1}</value>
+  </data>
+  <data name="GuiCore_LogNonExceptionObject" xml:space="preserve">
+    <value>Unhandled non-Exception object: {0}</value>
+  </data>
+  <data name="GuiCore_LogNoWritableDir" xml:space="preserve">
+    <value>No writable log directory specified</value>
+  </data>
+  <data name="GuiCore_LogNoWritableDataDir" xml:space="preserve">
+    <value>No writable data directory available</value>
+  </data>
+  <data name="GuiCore_LogNotWrittenNoDataDir" xml:space="preserve">
+    <value>No writable data directory available; log file was not written</value>
+  </data>
+  <data name="GuiCore_LogCreateFailed" xml:space="preserve">
+    <value>Unable to create startup log file</value>
+  </data>
+  <data name="GuiCore_CrashDefaultHeadline" xml:space="preserve">
+    <value>GUI Startup Failed</value>
+  </data>
+  <data name="GuiCore_CrashExceptionLine" xml:space="preserve">
+    <value>Exception: {0}: {1}</value>
+  </data>
+  <data name="GuiCore_CrashInnerExceptionLine" xml:space="preserve">
+    <value>Inner exception: {0}: {1}</value>
+  </data>
+  <data name="GuiCore_CrashLogFileLine" xml:space="preserve">
+    <value>Log file: {0}</value>
+  </data>
+  <data name="GuiCore_CrashSendLogToDev" xml:space="preserve">
+    <value>Please send the log file above to the developer for troubleshooting.</value>
+  </data>
+  <data name="GuiCore_CrashLogDirUnwritable" xml:space="preserve">
+    <value>log directory is not writable</value>
+  </data>
+  <data name="GuiCore_CrashLogNotWrittenLine" xml:space="preserve">
+    <value>Log file: failed to write log file ({0})</value>
+  </data>
+  <data name="GuiCore_CrashSendScreenshotToDev" xml:space="preserve">
+    <value>Please send a screenshot of this error window to the developer for troubleshooting.</value>
+  </data>
+  <data name="GuiCore_SelfTestFailedLine" xml:space="preserve">
+    <value>GUI self-test failed: {0}: {1}</value>
+  </data>
+  <data name="GuiCore_SelfTestLogNotWritten" xml:space="preserve">
+    <value>Log file: not written ({0})</value>
+  </data>
+  <data name="GuiCore_LogIntegrityInfoLine" xml:space="preserve">
+    <value>[{0}] [INFO] Process integrity level: {1} ({2}); data root source={3}; path={4}</value>
+  </data>
+  <data name="GuiCore_LogSkippedCandidateLine" xml:space="preserve">
+    <value>[{0}] [WARN] Skipped unwritable candidate directory: {1} ({2}): {3}</value>
+  </data>
+  <data name="GuiCore_LogLocationSaveFailedLine" xml:space="preserve">
+    <value>[{0}] [WARN] Failed to save {1} (you will need to choose the data directory again next launch): {2}</value>
+  </data>
+  <data name="GuiCore_ExeDirUnwritable" xml:space="preserve">
+    <value>Application directory is not writable</value>
+  </data>
+  <data name="GuiCore_LogExceptionType" xml:space="preserve">
+    <value>Exception type: {0}</value>
+  </data>
+  <data name="GuiCore_LogExceptionMessage" xml:space="preserve">
+    <value>Exception message: {0}</value>
+  </data>
+  <data name="GuiCore_LogHResult" xml:space="preserve">
+    <value>HResult: 0x{0}</value>
+  </data>
+  <data name="GuiCore_LogStackTraceHeader" xml:space="preserve">
+    <value>Stack trace:</value>
+  </data>
+  <data name="GuiCore_LogNoStackTrace" xml:space="preserve">
+    <value>(no stack trace available)</value>
+  </data>
+  <data name="GuiCore_LogInnerTruncated" xml:space="preserve">
+    <value>... (InnerException nesting depth exceeded; truncated)</value>
+  </data>
+  <data name="GuiCore_UsmapNotFoundGuidance" xml:space="preserve">
+    <value>No .usmap file found automatically. Click "Fetch .usmap (launches game once)" below to dump it automatically, or click "Select .usmap..." to choose one manually.</value>
+  </data>
+  <data name="GuiCore_UsmapDiscoveryErrorGuidance" xml:space="preserve">
+    <value>Automatic .usmap search failed ({0}). Check directory permissions, or click "Fetch .usmap" / "Select .usmap...".</value>
+  </data>
+  <data name="GuiCore_UsmapDisplayMultiple" xml:space="preserve">
+    <value>{0} (modified: {1}, {2} found, newest selected)</value>
+  </data>
+  <data name="GuiCore_UsmapDisplaySingle" xml:space="preserve">
+    <value>{0} (modified: {1})</value>
+  </data>
+  <data name="GuiCore_JmapDisplay" xml:space="preserve">
+    <value>{0} (modified: {1}, {2}) — {3}</value>
+  </data>
+  <data name="GuiCore_SourceManualSelect" xml:space="preserve">
+    <value>Manual selection</value>
+  </data>
+  <data name="GuiCore_SourceManualAdd" xml:space="preserve">
+    <value>Manually added</value>
+  </data>
+  <data name="GuiCore_SourceFetched" xml:space="preserve">
+    <value>Auto-fetched</value>
+  </data>
+  <data name="GuiCore_ScanDirCannotAccess" xml:space="preserve">
+    <value>Unable to access directory {0}: {1}</value>
+  </data>
+  <data name="GuiCore_ScanDirAccessDenied" xml:space="preserve">
+    <value>No permission to read directory {0}: {1}</value>
+  </data>
+  <data name="GuiCore_ScanDirFailed" xml:space="preserve">
+    <value>Failed to scan directory {0}: {1}</value>
+  </data>
+  <data name="Gui_SelfTestFailedPrefix" xml:space="preserve">
+    <value>GUI self-test failed: {0}</value>
+  </data>
+  <data name="Gui_AgpEnvUnwritableFallback" xml:space="preserve">
+    <value>The directory specified by environment variable AGP_HOME is not writable.</value>
+  </data>
+  <data name="Gui_DataDirUnwritableTitle" xml:space="preserve">
+    <value>Data Directory Not Writable</value>
+  </data>
+  <data name="Gui_LogProcessTempRedirected" xml:space="preserve">
+    <value>Process temp directory redirected to data root subdirectory: {0}</value>
+  </data>
+  <data name="Gui_LogProcessTempFailed" xml:space="preserve">
+    <value>Failed to configure data root tmp subdirectory: {0}</value>
+  </data>
+  <data name="Gui_LogDpiInitFailed" xml:space="preserve">
+    <value>High-DPI initialization failed: {0}</value>
+  </data>
+  <data name="Gui_LogVisualStylesFailed" xml:space="preserve">
+    <value>Visual styles initialization failed (falling back to manifest styles): {0}: {1}</value>
+  </data>
+  <data name="Gui_ChooseWritableDataDirTitle" xml:space="preserve">
+    <value>Choose a Writable Data Directory</value>
+  </data>
+  <data name="Gui_ChooseWritableDataDirDesc" xml:space="preserve">
+    <value>Select a writable folder as the data root directory (for logs, settings, and exported files)</value>
+  </data>
+  <data name="Gui_FolderPickerFailedBody" xml:space="preserve">
+    <value>Unable to open the "Choose Folder" dialog ({0}: {1}).
+
+Set environment variable {2} to a writable folder and restart this tool, or right-click the zip -&gt; Properties -&gt; Unblock and re-extract.</value>
+  </data>
+  <data name="Gui_FolderPickerFailedTitle" xml:space="preserve">
+    <value>Cannot Open Folder Picker</value>
+  </data>
+  <data name="Gui_SelectedDirUnwritableFallback" xml:space="preserve">
+    <value>The selected folder is not writable. Please choose another directory.</value>
+  </data>
+  <data name="Gui_SelectedDirUnwritableTitle" xml:space="preserve">
+    <value>Selected Directory Not Writable</value>
+  </data>
+  <data name="Gui_CrashRuntimeHeadline" xml:space="preserve">
+    <value>GUI Runtime Error</value>
+  </data>
+  <data name="Gui_UnhandledNonException" xml:space="preserve">
+    <value>Unhandled non-Exception object: {0}</value>
+  </data>
+  <data name="Gui_LogConstructingMainForm" xml:space="preserve">
+    <value>Constructing MainForm...</value>
+  </data>
+  <data name="Gui_LogMainFormShown" xml:space="preserve">
+    <value>MainForm shown.</value>
+  </data>
+  <data name="Gui_LogStartingMessageLoop" xml:space="preserve">
+    <value>Starting WinForms message loop...</value>
+  </data>
+  <data name="Gui_LogGuiExited" xml:space="preserve">
+    <value>GUI exited with exit code {0}.</value>
+  </data>
+  <data name="Gui_LogMainFormInitPhase" xml:space="preserve">
+    <value>MainForm construction or startup</value>
+  </data>
+  <data name="Gui_SelfTestStart" xml:space="preserve">
+    <value>Starting GUI self-test (--self-test)...</value>
+  </data>
+  <data name="Gui_SelfTestVisualStylesFailed" xml:space="preserve">
+    <value>Application.EnableVisualStyles failed (may have touched an unwritable system TEMP): {0}</value>
+  </data>
+  <data name="Gui_SelfTestWinFormsMetadataFailed" xml:space="preserve">
+    <value>WinForms assembly metadata check failed.</value>
+  </data>
+  <data name="Gui_SelfTestSteamLocatorFailed" xml:space="preserve">
+    <value>Shared SteamLocator configuration check failed.</value>
+  </data>
+  <data name="Gui_SelfTestProgressParseFailed" xml:space="preserve">
+    <value>Machine-readable progress parser self-test failed.</value>
+  </data>
+  <data name="Gui_SelfTestLocalizationFailed" xml:space="preserve">
+    <value>Localization resource loading self-test failed for en/zh-Hans/ja.</value>
+  </data>
+  <data name="Gui_SelfTestAgpRootEmpty" xml:space="preserve">
+    <value>Resolved data root directory is empty.</value>
+  </data>
+  <data name="Gui_SelfTestTempNotRedirected" xml:space="preserve">
+    <value>Process TEMP/TMP was not redirected to data root tmp subdirectory: expected={0}, TEMP={1}, TMP={2}</value>
+  </data>
+  <data name="Gui_SelfTestProbeFailed" xml:space="preserve">
+    <value>Data root write probe failed: {0}</value>
+  </data>
+  <data name="Gui_SelfTestOutputCalcFailed" xml:space="preserve">
+    <value>Default output path calculation self-test failed.</value>
+  </data>
+  <data name="Gui_SelfTestSettingsJsonFailed" xml:space="preserve">
+    <value>Settings JSON serialization self-test failed.</value>
+  </data>
+  <data name="Gui_SelfTestCreatingMainForm" xml:space="preserve">
+    <value>Self-test: constructing MainForm and calling CreateControl() (hidden)...</value>
+  </data>
+  <data name="Gui_SelfTestMainFormHandleFailed" xml:space="preserve">
+    <value>Failed to create MainForm handle.</value>
+  </data>
+  <data name="Gui_SelfTestMainFormShouldBeHidden" xml:space="preserve">
+    <value>MainForm must not be visible during self-test.</value>
+  </data>
+  <data name="Gui_SelfTestMainFormCreated" xml:space="preserve">
+    <value>Self-test: MainForm created (handle=0x{0}, topControls={1}); verifying SettingsDialog.</value>
+  </data>
+  <data name="Gui_SelfTestSettingsHandleFailed" xml:space="preserve">
+    <value>Failed to create SettingsDialog handle.</value>
+  </data>
+  <data name="Gui_SelfTestPassed" xml:space="preserve">
+    <value>Self-test passed: assembly={0}, dpi={1}, integrity={2}, data_root={3}, appid={4}</value>
+  </data>
+  <data name="Gui_SelfTestChildHandleFailed" xml:space="preserve">
+    <value>Failed to create handle for child control {0}.</value>
+  </data>
+  <data name="Gui_LogMessageBoxFailed" xml:space="preserve">
+    <value>MessageBox.Show failed</value>
+  </data>
+  <data name="Gui_WindowTitle" xml:space="preserve">
+    <value>FINAL FANTASY RESONANCE Data Exporter</value>
+  </data>
+  <data name="Gui_LanguageLabel" xml:space="preserve">
+    <value>Language:</value>
+  </data>
+  <data name="Gui_DefaultOutputHint" xml:space="preserve">
+    <value>Default location: {0}\ffr-&lt;Steam build ID&gt;\ (read-only export; never modifies the game directory)</value>
+  </data>
+  <data name="Gui_SettingsMigratedNote" xml:space="preserve">
+    <value>Automatically migrated legacy settings from {0} to {1} (old file renamed to .migrated).</value>
+  </data>
+  <data name="Gui_SavedOutputInvalidHint" xml:space="preserve">
+    <value>Previously saved output directory is invalid ({0}: {1}); using default directory {2} (click "Browse..." to choose another).</value>
+  </data>
+  <data name="Gui_GroupGame" xml:space="preserve">
+    <value>1. Game (FINAL FANTASY RESONANCE)</value>
+  </data>
+  <data name="Gui_ColGameName" xml:space="preserve">
+    <value>Game Name</value>
+  </data>
+  <data name="Gui_ColSteamBuildId" xml:space="preserve">
+    <value>Steam Build ID</value>
+  </data>
+  <data name="Gui_ColInstallDir" xml:space="preserve">
+    <value>Install Directory</value>
+  </data>
+  <data name="Gui_BtnManualGame" xml:space="preserve">
+    <value>Select Game Folder...</value>
+  </data>
+  <data name="Gui_BtnRescanSteam" xml:space="preserve">
+    <value>Rescan Steam</value>
+  </data>
+  <data name="Gui_BtnSettings" xml:space="preserve">
+    <value>Settings...</value>
+  </data>
+  <data name="Gui_GroupMappings" xml:space="preserve">
+    <value>2. Mapping &amp; Reflection Files (.usmap / .jmap)</value>
+  </data>
+  <data name="Gui_LabelUsmapRequired" xml:space="preserve">
+    <value>.usmap (required):</value>
+  </data>
+  <data name="Gui_BtnBrowseUsmap" xml:space="preserve">
+    <value>Select .usmap...</value>
+  </data>
+  <data name="Gui_BtnCleanupUe4ss" xml:space="preserve">
+    <value>Clean up UE4SS...</value>
+  </data>
+  <data name="Gui_BtnFetchUsmap" xml:space="preserve">
+    <value>Fetch .usmap (launches game once)</value>
+  </data>
+  <data name="Gui_LabelFilePath" xml:space="preserve">
+    <value>File path:</value>
+  </data>
+  <data name="Gui_CheckIncludeJmap" xml:space="preserve">
+    <value>Include reflection data (.jmap, optional)</value>
+  </data>
+  <data name="Gui_BtnAddJmap" xml:space="preserve">
+    <value>Add .jmap...</value>
+  </data>
+  <data name="Gui_BtnRemoveJmap" xml:space="preserve">
+    <value>Remove Selected</value>
+  </data>
+  <data name="Gui_GroupOutput" xml:space="preserve">
+    <value>3. Output Location</value>
+  </data>
+  <data name="Gui_LabelOutputDir" xml:space="preserve">
+    <value>Output directory:</value>
+  </data>
+  <data name="Gui_BtnBrowseOutput" xml:space="preserve">
+    <value>Browse...</value>
+  </data>
+  <data name="Gui_BtnStartExport" xml:space="preserve">
+    <value>Start Export</value>
+  </data>
+  <data name="Gui_BtnCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Gui_StatusReady" xml:space="preserve">
+    <value>Status: Ready</value>
+  </data>
+  <data name="Gui_GroupResult" xml:space="preserve">
+    <value>4. Build Result</value>
+  </data>
+  <data name="Gui_ResultNotRun" xml:space="preserve">
+    <value>Not exported yet</value>
+  </data>
+  <data name="Gui_ResultNotRunDetail" xml:space="preserve">
+    <value>Click "Start Export" to generate ffr.sqlite and display the database path, hashes, and known-builds.json comparison.</value>
+  </data>
+  <data name="Gui_LabelDbPath" xml:space="preserve">
+    <value>Database path:</value>
+  </data>
+  <data name="Gui_BtnOpenOutput" xml:space="preserve">
+    <value>Open Output Folder</value>
+  </data>
+  <data name="Gui_LabelFileSha" xml:space="preserve">
+    <value>File hash:</value>
+  </data>
+  <data name="Gui_BtnCopyHash" xml:space="preserve">
+    <value>Copy Hashes</value>
+  </data>
+  <data name="Gui_LabelContentSha" xml:space="preserve">
+    <value>Content hash:</value>
+  </data>
+  <data name="Gui_StatusStripIntegrity" xml:space="preserve">
+    <value>Integrity level: {0}</value>
+  </data>
+  <data name="Gui_StatusStripDataRoot" xml:space="preserve">
+    <value>Data directory: {0}</value>
+  </data>
+  <data name="Gui_LogPrefixInfo" xml:space="preserve">
+    <value>[Info] {0}</value>
+  </data>
+  <data name="Gui_LogPrefixWarn" xml:space="preserve">
+    <value>[Warning] {0}</value>
+  </data>
+  <data name="Gui_LogPrefixError" xml:space="preserve">
+    <value>[Error] {0}</value>
+  </data>
+  <data name="Gui_LogPrefixDone" xml:space="preserve">
+    <value>[Done] {0}</value>
+  </data>
+  <data name="Gui_LogPrefixCancelled" xml:space="preserve">
+    <value>[Cancelled] {0}</value>
+  </data>
+  <data name="Gui_OpNameFetchUsmap" xml:space="preserve">
+    <value>.usmap fetch</value>
+  </data>
+  <data name="Gui_OpNameCleanUe4ss" xml:space="preserve">
+    <value>UE4SS cleanup</value>
+  </data>
+  <data name="Gui_OpNameExport" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="Gui_ConfirmCloseBody" xml:space="preserve">
+    <value>{0} is still in progress. Closing the window will cancel it and stop background processes. Exit anyway?</value>
+  </data>
+  <data name="Gui_ConfirmCloseTitle" xml:space="preserve">
+    <value>Confirm Exit</value>
+  </data>
+  <data name="Gui_CliMissingFallback" xml:space="preserve">
+    <value>CLI executable ffr-export.exe not found.</value>
+  </data>
+  <data name="Gui_CliMissingTitle" xml:space="preserve">
+    <value>Missing CLI Executable</value>
+  </data>
+  <data name="Gui_ShownCheckFailed" xml:space="preserve">
+    <value>Initial window check failed: {0}</value>
+  </data>
+  <data name="Gui_GamesFoundStatus" xml:space="preserve">
+    <value>Found {0} exportable game(s) in Steam libraries.</value>
+  </data>
+  <data name="Gui_GamesNotFoundStatus" xml:space="preserve">
+    <value>FINAL FANTASY RESONANCE was not found automatically in Steam libraries. Click "Select Game Folder..." on the right.</value>
+  </data>
+  <data name="Gui_SelectGameDialogDesc" xml:space="preserve">
+    <value>Select the installation root directory of FINAL FANTASY RESONANCE (containing the FFRS folder)</value>
+  </data>
+  <data name="Gui_GameInvalidFallback" xml:space="preserve">
+    <value>The selected folder is not a supported game directory.</value>
+  </data>
+  <data name="Gui_GameCheckFailedTitle" xml:space="preserve">
+    <value>Game Directory Check Failed</value>
+  </data>
+  <data name="Gui_GameAddedManually" xml:space="preserve">
+    <value>Manually added game directory: {0}</value>
+  </data>
+  <data name="Gui_UsmapDirAccessWarn" xml:space="preserve">
+    <value>Directory access error while auto-discovering .usmap: {0}</value>
+  </data>
+  <data name="Gui_UsmapAutoFoundStatus" xml:space="preserve">
+    <value>Auto-discovered: {0}</value>
+  </data>
+  <data name="Gui_UsmapAutoFindError" xml:space="preserve">
+    <value>Automatic .usmap search failed: {0}. Click "Fetch .usmap" or "Select .usmap...".</value>
+  </data>
+  <data name="Gui_JmapUncheckedStatus" xml:space="preserve">
+    <value>Unchecked (exporting with .usmap only).</value>
+  </data>
+  <data name="Gui_OpenUsmapDialogTitle" xml:space="preserve">
+    <value>Select .usmap Mapping File</value>
+  </data>
+  <data name="Gui_OpenUsmapDialogFilter" xml:space="preserve">
+    <value>UE Mapping Files (*.usmap)|*.usmap|All Files (*.*)|*.*</value>
+  </data>
+  <data name="Gui_UsmapManualStatus" xml:space="preserve">
+    <value>Manually selected: {0}</value>
+  </data>
+  <data name="Gui_CleanupUnexpectedLog" xml:space="preserve">
+    <value>Unexpected error during UE4SS cleanup: {0}</value>
+  </data>
+  <data name="Gui_CleanupFailedBody" xml:space="preserve">
+    <value>UE4SS cleanup failed: {0}</value>
+  </data>
+  <data name="Gui_CleanupFailedTitle" xml:space="preserve">
+    <value>UE4SS Cleanup Failed</value>
+  </data>
+  <data name="Gui_NoGameSelectedBody" xml:space="preserve">
+    <value>Please select a game first, or click "Select Game Folder..." to choose your FINAL FANTASY RESONANCE installation directory.</value>
+  </data>
+  <data name="Gui_NoGameSelectedTitle" xml:space="preserve">
+    <value>No Game Selected</value>
+  </data>
+  <data name="Gui_GameDirInvalidBody" xml:space="preserve">
+    <value>The selected game directory is invalid; please choose another.</value>
+  </data>
+  <data name="Gui_GameDirInvalidTitle" xml:space="preserve">
+    <value>Invalid Game Directory</value>
+  </data>
+  <data name="Gui_GameRunningCleanupBody" xml:space="preserve">
+    <value>The game ({0}) is currently running. Close the game before cleaning up UE4SS.</value>
+  </data>
+  <data name="Gui_GameRunningTitle" xml:space="preserve">
+    <value>Game Is Running</value>
+  </data>
+  <data name="Gui_Ue4ssNotFoundTitle" xml:space="preserve">
+    <value>UE4SS Not Found</value>
+  </data>
+  <data name="Gui_LaunchCommandLog" xml:space="preserve">
+    <value>Launching command: {0} {1}</value>
+  </data>
+  <data name="Gui_LogStartCleanup" xml:space="preserve">
+    <value>Starting UE4SS cleanup: game={0}, includeForeign={1}</value>
+  </data>
+  <data name="Gui_StatusCleaningUe4ss" xml:space="preserve">
+    <value>Status: Cleaning up UE4SS...</value>
+  </data>
+  <data name="Gui_StatusCleanupComplete" xml:space="preserve">
+    <value>Status: UE4SS cleanup complete</value>
+  </data>
+  <data name="Gui_CleanupCompleteDefaultBody" xml:space="preserve">
+    <value>UE4SS cleanup completed.</value>
+  </data>
+  <data name="Gui_LogCleanupComplete" xml:space="preserve">
+    <value>UE4SS cleanup complete: {0}</value>
+  </data>
+  <data name="Gui_CleanupCompleteTitle" xml:space="preserve">
+    <value>UE4SS Cleanup Complete</value>
+  </data>
+  <data name="Gui_StatusCleanupFailedExit" xml:space="preserve">
+    <value>Status: UE4SS cleanup failed (exit code: {0})</value>
+  </data>
+  <data name="Gui_CleanupFailedExitBody" xml:space="preserve">
+    <value>UE4SS cleanup failed (exit code: {0}).</value>
+  </data>
+  <data name="Gui_LogCleanupFailedExit" xml:space="preserve">
+    <value>UE4SS cleanup failed (exit={0}): {1}</value>
+  </data>
+  <data name="Gui_StatusCleanupCancelled" xml:space="preserve">
+    <value>Status: UE4SS cleanup cancelled</value>
+  </data>
+  <data name="Gui_CleanupCancelledLog" xml:space="preserve">
+    <value>UE4SS cleanup cancelled.</value>
+  </data>
+  <data name="Gui_FetchUsmapUnexpectedLog" xml:space="preserve">
+    <value>Unexpected error during .usmap fetch: {0}</value>
+  </data>
+  <data name="Gui_FetchUsmapErrorBody" xml:space="preserve">
+    <value>Failed to fetch .usmap: {0}</value>
+  </data>
+  <data name="Gui_FetchUsmapFailedTitle" xml:space="preserve">
+    <value>Failed to Fetch .usmap</value>
+  </data>
+  <data name="Gui_GameRunningFetchBody" xml:space="preserve">
+    <value>The game ({0}) is currently running. Close the game before fetching .usmap.</value>
+  </data>
+  <data name="Gui_FetchUsmapConfirmBody" xml:space="preserve">
+    <value>You are about to automatically fetch the .usmap mapping file. Please review before continuing:
+
+1. If UE4SS is not yet installed in the game directory, official RE-UE4SS v4.0.0 (~8.4 MB) will be downloaded from GitHub, verified by SHA-256, and installed. If you already installed UE4SS yourself, your existing configuration will not be touched.
+2. A temporary dump mod will be deployed and the game will launch once via Steam to dump .usmap on the title screen, then the temporary mod will be removed and the game closed automatically.
+3. UE4SS remains installed for future reuse; you can remove files installed by this tool anytime via the "Clean up UE4SS..." button.
+4. This process only reads type mappings on the title screen and never touches or modifies game save files.
+
+Start fetching .usmap now?</value>
+  </data>
+  <data name="Gui_FetchUsmapConfirmTitle" xml:space="preserve">
+    <value>Confirm .usmap Fetch</value>
+  </data>
+  <data name="Gui_StatusPreparingFetchUsmap" xml:space="preserve">
+    <value>Status: Preparing to fetch .usmap...</value>
+  </data>
+  <data name="Gui_StatusFetchUsmapComplete" xml:space="preserve">
+    <value>Status: .usmap fetch complete</value>
+  </data>
+  <data name="Gui_UsmapFetchedStatus" xml:space="preserve">
+    <value>Auto-fetched: {0}</value>
+  </data>
+  <data name="Gui_FetchUsmapDoneLog" xml:space="preserve">
+    <value>.usmap fetched and selected automatically. You can now click "Start Export".</value>
+  </data>
+  <data name="Gui_StatusFetchUsmapFailedExit" xml:space="preserve">
+    <value>Status: .usmap fetch failed (exit code: {0})</value>
+  </data>
+  <data name="Gui_FetchUsmapFailedExitLog" xml:space="preserve">
+    <value>fetch-usmap exited abnormally (exit code: {0}).</value>
+  </data>
+  <data name="Gui_FetchUsmapFailedExitBody" xml:space="preserve">
+    <value>Failed to fetch .usmap (exit code: {0}). Review the window log for details and troubleshooting steps.</value>
+  </data>
+  <data name="Gui_StatusCancellingFetchUsmap" xml:space="preserve">
+    <value>Status: Cancelling — disabling temporary mod and closing game...</value>
+  </data>
+  <data name="Gui_FetchUsmapCancellingLog" xml:space="preserve">
+    <value>User cancelled .usmap fetch; disabling temporary mod and closing game...</value>
+  </data>
+  <data name="Gui_StatusFetchUsmapCancelled" xml:space="preserve">
+    <value>Status: .usmap fetch cancelled</value>
+  </data>
+  <data name="Gui_FetchUsmapCancelledDoneLog" xml:space="preserve">
+    <value>Disabled temporary dump mod and terminated game process.</value>
+  </data>
+  <data name="Gui_StatusFetchUsmapFailed" xml:space="preserve">
+    <value>Status: .usmap fetch failed</value>
+  </data>
+  <data name="Gui_JmapAutoFindError" xml:space="preserve">
+    <value>Automatic .jmap search failed: {0}. Click "Add .jmap..." to choose manually, or uncheck to continue without .jmap.</value>
+  </data>
+  <data name="Gui_JmapDirAccessWarn" xml:space="preserve">
+    <value>Directory access error while auto-discovering .jmap: {0}</value>
+  </data>
+  <data name="Gui_JmapAutoFoundStatus" xml:space="preserve">
+    <value>Auto-discovered {0} .jmap file(s) (you may add or remove entries).</value>
+  </data>
+  <data name="Gui_JmapPartialFoundStatus" xml:space="preserve">
+    <value>Found {0} .jmap file(s), but some directories were unreadable ({1}); click "Add .jmap..." to add more.</value>
+  </data>
+  <data name="Gui_JmapScanErrorStatus" xml:space="preserve">
+    <value>Automatic .jmap search failed ({0}); check permissions or click "Add .jmap..." to select manually.</value>
+  </data>
+  <data name="Gui_JmapNotFoundStatus" xml:space="preserve">
+    <value>No .jmap files found in ue4ss / Win64. Click "Add .jmap..." to select manually, or uncheck to export without .jmap.</value>
+  </data>
+  <data name="Gui_OpenJmapDialogTitle" xml:space="preserve">
+    <value>Select .jmap Reflection Dump Files (multi-select supported)</value>
+  </data>
+  <data name="Gui_OpenJmapDialogFilter" xml:space="preserve">
+    <value>UE Reflection Dumps (*.jmap)|*.jmap|All Files (*.*)|*.*</value>
+  </data>
+  <data name="Gui_JmapSelectedCountStatus" xml:space="preserve">
+    <value>{0} .jmap file(s) currently selected.</value>
+  </data>
+  <data name="Gui_JmapEmptyListStatus" xml:space="preserve">
+    <value>The .jmap list is empty. Click "Add .jmap..." to add files, or uncheck to continue without .jmap.</value>
+  </data>
+  <data name="Gui_BrowseOutputDialogDesc" xml:space="preserve">
+    <value>Choose export output directory</value>
+  </data>
+  <data name="Gui_ExportUnexpectedLog" xml:space="preserve">
+    <value>Unexpected error starting export: {0}</value>
+  </data>
+  <data name="Gui_ExportErrorBody" xml:space="preserve">
+    <value>An error occurred during export: {0}</value>
+  </data>
+  <data name="Gui_ExportFailedTitle" xml:space="preserve">
+    <value>Export Failed</value>
+  </data>
+  <data name="Gui_MissingUsmapBody" xml:space="preserve">
+    <value>Please select a valid .usmap mapping file first.
+
+{0}</value>
+  </data>
+  <data name="Gui_MissingUsmapTitle" xml:space="preserve">
+    <value>Missing .usmap Mapping File</value>
+  </data>
+  <data name="Gui_MissingJmapFileBody" xml:space="preserve">
+    <value>Reflection dump file does not exist: {0}
+Please remove this entry or select another file.</value>
+  </data>
+  <data name="Gui_MissingJmapFileTitle" xml:space="preserve">
+    <value>.jmap File Not Found</value>
+  </data>
+  <data name="Gui_NoJmapConfirmBody" xml:space="preserve">
+    <value>"Include reflection data (.jmap, optional)" is checked, but no .jmap files are listed.
+
+Continue exporting with .usmap only?</value>
+  </data>
+  <data name="Gui_NoJmapConfirmTitle" xml:space="preserve">
+    <value>No .jmap Files Selected</value>
+  </data>
+  <data name="Gui_OutputDirInvalidFallback" xml:space="preserve">
+    <value>The output directory is invalid; please choose another.</value>
+  </data>
+  <data name="Gui_OutputDirInvalidTitle" xml:space="preserve">
+    <value>Invalid Output Directory</value>
+  </data>
+  <data name="Gui_OverwritePrevBuildBody" xml:space="preserve">
+    <value>The target output directory already contains a previous export:
+{0}
+
+Clear this directory and export again?</value>
+  </data>
+  <data name="Gui_OverwritePrevBuildTitle" xml:space="preserve">
+    <value>Confirm Overwrite</value>
+  </data>
+  <data name="Gui_ProtectedDirFallback" xml:space="preserve">
+    <value>Refusing to overwrite a protected directory; please select another subfolder.</value>
+  </data>
+  <data name="Gui_CannotUseOutputDirTitle" xml:space="preserve">
+    <value>Cannot Use Output Directory</value>
+  </data>
+  <data name="Gui_OverwriteForeignDirBody" xml:space="preserve">
+    <value>The output directory already exists and was not created by this tool (contains {0} item(s)):
+{1}
+
+To avoid mixing unrelated files, all existing contents must be deleted before exporting.
+Clear this directory and continue? (Click "No" to keep existing files and pick another folder.)</value>
+  </data>
+  <data name="Gui_OverwriteForeignDirTitle" xml:space="preserve">
+    <value>Confirm Clearing Existing Folder</value>
+  </data>
+  <data name="Gui_ClearDirFailedBody" xml:space="preserve">
+    <value>Failed to clear output directory ({0}): {1}</value>
+  </data>
+  <data name="Gui_ClearDirFailedTitle" xml:space="preserve">
+    <value>Failed to Clear Directory</value>
+  </data>
+  <data name="Gui_ResultExporting" xml:space="preserve">
+    <value>Exporting...</value>
+  </data>
+  <data name="Gui_ResultExportingDetail" xml:space="preserve">
+    <value>Once complete, the build report (*.build.json) will be loaded automatically to show hashes and comparison results.</value>
+  </data>
+  <data name="Gui_StatusStartingExport" xml:space="preserve">
+    <value>Status: Starting export...</value>
+  </data>
+  <data name="Gui_StatusExportComplete" xml:space="preserve">
+    <value>Status: Export complete</value>
+  </data>
+  <data name="Gui_StatusExportCompletePartial" xml:space="preserve">
+    <value>Status: Export complete (a few asset packages failed)</value>
+  </data>
+  <data name="Gui_ResultReadReportFailed" xml:space="preserve">
+    <value>✗ Unable to read build report</value>
+  </data>
+  <data name="Gui_StatusExportFailedExit" xml:space="preserve">
+    <value>Status: Export failed (exit code: {0})</value>
+  </data>
+  <data name="Gui_ResultExportFailed" xml:space="preserve">
+    <value>✗ Export failed</value>
+  </data>
+  <data name="Gui_ResultExportFailedDetail" xml:space="preserve">
+    <value>CLI exited with code {0}; check the log above for details.</value>
+  </data>
+  <data name="Gui_ExportFailedExitLog" xml:space="preserve">
+    <value>CLI exited abnormally (exit code: {0}).</value>
+  </data>
+  <data name="Gui_ExportFailedExitBody" xml:space="preserve">
+    <value>Export failed (exit code: {0}). Review the log in this window for details.</value>
+  </data>
+  <data name="Gui_StatusCancelled" xml:space="preserve">
+    <value>Status: Cancelled</value>
+  </data>
+  <data name="Gui_ResultCancelled" xml:space="preserve">
+    <value>Export cancelled</value>
+  </data>
+  <data name="Gui_ResultCancelledDetail" xml:space="preserve">
+    <value>Background export process was terminated.</value>
+  </data>
+  <data name="Gui_ExportCancelledLog" xml:space="preserve">
+    <value>User cancelled export; background process tree terminated.</value>
+  </data>
+  <data name="Gui_StatusExportFailed" xml:space="preserve">
+    <value>Status: Export failed</value>
+  </data>
+  <data name="Gui_ExportExecFailedLog" xml:space="preserve">
+    <value>Execution failed: {0}</value>
+  </data>
+  <data name="Gui_ExportExecFailedBody" xml:space="preserve">
+    <value>Failed to launch or run exporter: {0}</value>
+  </data>
+  <data name="Gui_StatusCancellingExport" xml:space="preserve">
+    <value>Status: Cancelling and terminating background processes...</value>
+  </data>
+  <data name="Gui_ExportCancellingLog" xml:space="preserve">
+    <value>Cancelling export and terminating child process tree...</value>
+  </data>
+  <data name="Gui_StatusStep" xml:space="preserve">
+    <value>Status: Step {0}/{1}</value>
+  </data>
+  <data name="Gui_StatusStepWithTitle" xml:space="preserve">
+    <value>Status: Step {0}/{1} — {2}</value>
+  </data>
+  <data name="Gui_ResultElapsedSuffix" xml:space="preserve">
+    <value> (total elapsed: {0}s)</value>
+  </data>
+  <data name="Gui_OpenOutputMissingBody" xml:space="preserve">
+    <value>Output folder does not exist or has been moved.</value>
+  </data>
+  <data name="Gui_OpenOutputFailedTitle" xml:space="preserve">
+    <value>Cannot Open Folder</value>
+  </data>
+  <data name="Gui_OpenOutputFailedBody" xml:space="preserve">
+    <value>Failed to open output folder ({0}): {1}</value>
+  </data>
+  <data name="Gui_CopiedFeedback" xml:space="preserve">
+    <value>Copied to clipboard</value>
+  </data>
+  <data name="Gui_CopyFailedBody" xml:space="preserve">
+    <value>Failed to copy to clipboard: {0}</value>
+  </data>
+  <data name="Gui_CopyFailedTitle" xml:space="preserve">
+    <value>Copy Failed</value>
+  </data>
+  <data name="Gui_CalcDefaultOutputFailed" xml:space="preserve">
+    <value>Failed to compute default output directory: {0}. Click "Browse..." to choose one manually.</value>
+  </data>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Settings_GroupDataDir" xml:space="preserve">
+    <value>Data Directory</value>
+  </data>
+  <data name="Settings_BtnOpenDataDir" xml:space="preserve">
+    <value>Open Data Folder</value>
+  </data>
+  <data name="Settings_DataDirContentsNote" xml:space="preserve">
+    <value>Contains output\ (default exports), usmap\ (mapping files), downloads\ (download cache), logs\, tmp\, ue4ss-backup\, and settings.json.</value>
+  </data>
+  <data name="Settings_Ue4ssTip" xml:space="preserve">
+    <value>Tip: UE4SS cleanup is located in section "2. Mapping &amp; Reflection Files" via the "Clean up UE4SS..." button on the main window.</value>
+  </data>
+  <data name="Settings_BtnClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Settings_IntegrityLine" xml:space="preserve">
+    <value>Process integrity level: {0}</value>
+  </data>
+  <data name="Settings_OpenDataDirFailedBody" xml:space="preserve">
+    <value>Failed to open data directory ({0}): {1}</value>
+  </data>
+  <data name="Settings_OpenDataDirFailedTitle" xml:space="preserve">
+    <value>Cannot Open Directory</value>
+  </data>
+  <data name="Cleanup_Title" xml:space="preserve">
+    <value>Clean up UE4SS</value>
+  </data>
+  <data name="Cleanup_GameDirLabel" xml:space="preserve">
+    <value>Game directory: {0}</value>
+  </data>
+  <data name="Cleanup_CheckIncludeForeign" xml:space="preserve">
+    <value>Also remove user-installed UE4SS (moved to backup folder for easy restore, never permanently deleted)</value>
+  </data>
+  <data name="Cleanup_BtnConfirm" xml:space="preserve">
+    <value>Confirm Cleanup</value>
+  </data>
+  <data name="Cleanup_HeaderOwn" xml:space="preserve">
+    <value>Detected UE4SS installed by this tool ({0}). Confirm to remove the items listed below according to the install manifest:</value>
+  </data>
+  <data name="Cleanup_HeaderForeign" xml:space="preserve">
+    <value>Detected UE4SS not installed by this tool (install marker missing): by default only this tool's remnants are cleaned and existing UE4SS is left untouched.</value>
+  </data>
+  <data name="Cleanup_HeaderRemnantsOnly" xml:space="preserve">
+    <value>No full UE4SS installation found; detected temporary remnants created by this tool:</value>
+  </data>
+  <data name="Cleanup_HintForeignNoRemnants" xml:space="preserve">
+    <value>There are currently no remnants from this tool to clean. To move the user-installed UE4SS out of the game directory into a backup folder, check the option above.</value>
+  </data>
+  <data name="Cleanup_HintIncludeForeign" xml:space="preserve">
+    <value>Note: a second confirmation prompt will appear before moving files; .usmap files archived in agp\ffr-export\usmap\ are unaffected.</value>
+  </data>
+  <data name="Cleanup_HintDefault" xml:space="preserve">
+    <value>Note: .usmap files archived in agp\ffr-export\usmap\ are unaffected and remain usable after cleanup.</value>
+  </data>
+  <data name="Cleanup_SecondConfirmBody" xml:space="preserve">
+    <value>Second confirmation: the UE4SS installation in this game directory was NOT installed by this tool and may contain your own mods or custom configuration!
+
+Files will NOT be permanently deleted; dwmapi.dll and the entire ue4ss\ folder will be moved to the backup directory:
+{0}
+
+To restore everything later, simply copy dwmapi.dll and the ue4ss folder from the backup directory back into:
+{1}
+
+Move the non-managed UE4SS out of the game directory?</value>
+  </data>
+  <data name="Cleanup_SecondConfirmTitle" xml:space="preserve">
+    <value>Confirm Moving Non-Managed UE4SS</value>
+  </data>
+</root>

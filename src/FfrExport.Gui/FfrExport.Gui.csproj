@@ -9,6 +9,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NeutralLanguage>en</NeutralLanguage>
+    <SatelliteResourceLanguages>en;zh-Hans;ja</SatelliteResourceLanguages>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -16,13 +18,18 @@
     <Version Condition="'$(Version)' == ''">0.1.0</Version>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Share core path, integrity, Steam, text output, and UE4SS runtime helpers directly from FfrExport without duplicating source files. -->
+    <!-- Share core path, integrity, Steam, text output, localization, progress protocol, and UE4SS runtime helpers directly from FfrExport without duplicating source files. -->
     <Compile Include="..\FfrExport\SteamLocator.cs" Link="Shared\SteamLocator.cs" />
     <Compile Include="..\FfrExport\PathSupport.cs" Link="Shared\PathSupport.cs" />
     <Compile Include="..\FfrExport\ProcessIntegritySupport.cs" Link="Shared\ProcessIntegritySupport.cs" />
     <Compile Include="..\FfrExport\AgpPaths.cs" Link="Shared\AgpPaths.cs" />
     <Compile Include="..\FfrExport\TextOutput.cs" Link="Shared\TextOutput.cs" />
+    <Compile Include="..\FfrExport\Localization.cs" Link="Shared\Localization.cs" />
+    <Compile Include="..\FfrExport\ProgressProtocol.cs" Link="Shared\ProgressProtocol.cs" />
     <Compile Include="..\FfrExport\Ue4ssRuntimeSupport.cs" Link="Shared\Ue4ssRuntimeSupport.cs" />
+    <EmbeddedResource Include="..\FfrExport\Resources\Strings.resx" Link="Resources\Strings.resx" LogicalName="FfrExport.Resources.Strings.resources" />
+    <EmbeddedResource Include="..\FfrExport\Resources\Strings.zh-Hans.resx" Link="Resources\Strings.zh-Hans.resx" LogicalName="FfrExport.Resources.Strings.zh-Hans.resources" />
+    <EmbeddedResource Include="..\FfrExport\Resources\Strings.ja.resx" Link="Resources\Strings.ja.resx" LogicalName="FfrExport.Resources.Strings.ja.resources" />
   </ItemGroup>
   <Target Name="EmbedGitCommitMetadata" BeforeTargets="GetAssemblyAttributes">
     <Exec Condition="'$(FfrGitCommit)' == ''"

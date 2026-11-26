@@ -1,0 +1,2299 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Common_ErrorPrefix" xml:space="preserve">
+    <value>错误：{0}</value>
+  </data>
+  <data name="Common_OptionRequiresValue" xml:space="preserve">
+    <value>选项 {0} 需要一个值</value>
+  </data>
+  <data name="Common_UnsupportedLanguage" xml:space="preserve">
+    <value>不支持的语言「{0}」，可选值：en、zh-Hans、ja</value>
+  </data>
+  <data name="Common_None" xml:space="preserve">
+    <value>无</value>
+  </data>
+  <data name="Common_Unknown" xml:space="preserve">
+    <value>未知</value>
+  </data>
+  <data name="Common_NotDetected" xml:space="preserve">
+    <value>未检测到</value>
+  </data>
+  <data name="Common_Present" xml:space="preserve">
+    <value>存在</value>
+  </data>
+  <data name="Common_Missing" xml:space="preserve">
+    <value>缺失</value>
+  </data>
+  <data name="Common_InvalidPath" xml:space="preserve">
+    <value>路径无效</value>
+  </data>
+  <data name="Common_NotSet" xml:space="preserve">
+    <value>(未设置)</value>
+  </data>
+  <data name="Common_NotWritable" xml:space="preserve">
+    <value>目录不可写</value>
+  </data>
+  <data name="Common_ListSeparator" xml:space="preserve">
+    <value>、</value>
+  </data>
+  <data name="Common_SemicolonSeparator" xml:space="preserve">
+    <value>；</value>
+  </data>
+  <data name="Common_UnknownError" xml:space="preserve">
+    <value>未知错误</value>
+  </data>
+  <data name="Common_UnknownReason" xml:space="preserve">
+    <value>未知原因</value>
+  </data>
+  <data name="Cli_UnknownSubcommand" xml:space="preserve">
+    <value>未知子命令：{0}；可用命令：list、raw、export、locres、inventory、export-assets、export-maps、build-db、fetch-usmap、uninstall-ue4ss（运行 --help 查看说明）</value>
+  </data>
+  <data name="Cli_HelpText" xml:space="preserve">
+    <value>《FINAL FANTASY RESONANCE》资源导出与建库工具（ffr-export）
+
+用法：
+  ffr-export [--lang en|zh-Hans|ja]                       启动交互式建库向导
+  ffr-export build-db --game &lt;目录&gt; --usmap &lt;文件&gt; [选项]  一键导出并调用 ffr-db 建库
+  ffr-export fetch-usmap --game &lt;目录&gt; [--timeout &lt;秒&gt;] [--yes]
+                                                          自动获取当前游戏版本的 .usmap
+  ffr-export uninstall-ue4ss --game &lt;目录&gt; [--include-foreign] [--yes]
+                                                          清理本工具安装的 UE4SS 与临时残留
+  ffr-export list | raw | export | locres | inventory | export-assets | export-maps
+                                                          分阶段导出与诊断子命令
+  ffr-export --help | -h | help                           显示本帮助信息
+
+全局选项：
+  --lang en|zh-Hans|ja   指定界面语言（默认 en；调用 locres 时请把界面 --lang 放在 locres 之前）
+  --progress-json        输出供窗口程序解析的 @@progress 进度行（仅 build-db / fetch-usmap）
+
+环境变量：
+  AGP_HOME   显式指定数据根目录（覆盖默认自动选择顺序；不可写时直接报错）
+  AGP_LANG   指定界面语言（en | zh-Hans | ja；优先级低于 --lang）</value>
+  </data>
+  <data name="Cli_UnknownArg" xml:space="preserve">
+    <value>{0} 收到未知参数：{1}</value>
+  </data>
+  <data name="Cli_ListItemLine" xml:space="preserve">
+    <value>{0}	{1} 字节</value>
+  </data>
+  <data name="Cli_ListTotal" xml:space="preserve">
+    <value>总数：{0}</value>
+  </data>
+  <data name="Cli_RawUnknownOrDuplicateArg" xml:space="preserve">
+    <value>raw 收到未知或重复参数：{0}</value>
+  </data>
+  <data name="Cli_RawRequiresPackagePath" xml:space="preserve">
+    <value>raw 需要一个包路径</value>
+  </data>
+  <data name="Cli_RawRequiresOut" xml:space="preserve">
+    <value>raw 需要 --out &lt;文件&gt;</value>
+  </data>
+  <data name="Cli_PackageNotFoundOrUnreadable" xml:space="preserve">
+    <value>找不到或无法读取包：{0}</value>
+  </data>
+  <data name="Cli_RawLength" xml:space="preserve">
+    <value>长度：{0} 字节</value>
+  </data>
+  <data name="Cli_RawSha256" xml:space="preserve">
+    <value>SHA-256：{0}</value>
+  </data>
+  <data name="Cli_CommandRequiresUsmap" xml:space="preserve">
+    <value>{0} 需要 --usmap &lt;文件&gt;（在游戏机上用 UE4SS 导出的 .usmap，见 README.md）</value>
+  </data>
+  <data name="Cli_MappingFileNotFound" xml:space="preserve">
+    <value>映射文件不存在：{0}</value>
+  </data>
+  <data name="Cli_ExportFailedLine" xml:space="preserve">
+    <value>导出失败：{0}：{1}</value>
+  </data>
+  <data name="Cli_ExportSummary" xml:space="preserve">
+    <value>成功：{0}，失败：{1}</value>
+  </data>
+  <data name="Cli_LocresNotFound" xml:space="preserve">
+    <value>找不到语言 {0} 的本地化文件（{1}）；包内可用语言：{2}</value>
+  </data>
+  <data name="Cli_LocresLanguageLine" xml:space="preserve">
+    <value>{0}：{1} 个命名空间，{2} 条，SHA-256：{3}</value>
+  </data>
+  <data name="Cli_LocresSummary" xml:space="preserve">
+    <value>已导出 {0} 种语言到 {1}</value>
+  </data>
+  <data name="Cli_LocresLangEmpty" xml:space="preserve">
+    <value>--lang 不能为空或包含空语言代码：{0}</value>
+  </data>
+  <data name="Cli_LocresLangInvalid" xml:space="preserve">
+    <value>--lang 包含不合法的语言代码：{0}</value>
+  </data>
+  <data name="Cli_LocresDuplicateKey" xml:space="preserve">
+    <value>语言 {0} 的 locres 存在重复键：{1}/{2}</value>
+  </data>
+  <data name="Cli_PaksDirNotFound" xml:space="preserve">
+    <value>资源目录不存在：{0}</value>
+  </data>
+  <data name="Cli_DepsEnvLabel" xml:space="preserve">
+    <value>FFR_DEPS（{0}）</value>
+  </data>
+  <data name="Cli_OutMustBeUnderDeps" xml:space="preserve">
+    <value>{0} 必须是 {1} 下的路径：{2}</value>
+  </data>
+  <data name="Cli_OutCannotBeProtectedDescendant" xml:space="preserve">
+    <value>{0} 不能指向受保护目录 {1} 或其内部：{2}</value>
+  </data>
+  <data name="Cli_OutCannotBeProtectedSelf" xml:space="preserve">
+    <value>{0} 不能指向受保护目录 {1} 本身：{2}</value>
+  </data>
+  <data name="Cli_OutputDirNonEmpty" xml:space="preserve">
+    <value>输出目录非空；如需清空并重新导出，请加 --force</value>
+  </data>
+  <data name="Cli_ClearingOutputDir" xml:space="preserve">
+    <value>即将清空输出目录：{0}；文件数：{1}</value>
+  </data>
+  <data name="Cli_NotFfrExportOutputDir" xml:space="preserve">
+    <value>{0} 不是 ffr-export 的输出目录，不清空；换一个空目录或删掉后重试</value>
+  </data>
+  <data name="Cli_ManifestCommandMismatch" xml:space="preserve">
+    <value>{0} 是 ffr-export {1} 的输出目录，不能由 {2} --force 清空</value>
+  </data>
+  <data name="ExportAssets_JobsMustBePositive" xml:space="preserve">
+    <value>--jobs 必须是正整数：{0}</value>
+  </data>
+  <data name="ExportAssets_ExportFailedLine" xml:space="preserve">
+    <value>导出失败：{0}（{1}）：{2}</value>
+  </data>
+  <data name="ExportAssets_RawCopyFailedLine" xml:space="preserve">
+    <value>原文件拷贝失败：{0}：{1}</value>
+  </data>
+  <data name="ExportAssets_Summary" xml:space="preserve">
+    <value>导出完成：包成功 {0}（新增 {1}，续跑跳过 {2}），原文件拷贝 {3}（新增 {4}，续跑跳过 {5}），跳过 {6}，待定 {7}，失败 {8}，输出 {9} 字节，耗时 {10}s</value>
+  </data>
+  <data name="ExportAssets_KeepOtherCommandDir" xml:space="preserve">
+    <value>保留其他子命令的输出目录：{0}/</value>
+  </data>
+  <data name="ExportAssets_ClearedOutputDir" xml:space="preserve">
+    <value>已清空输出目录：{0}；删除文件数：{1}</value>
+  </data>
+  <data name="ExportAssets_ResumeMode" xml:space="preserve">
+    <value>续跑模式：复用已有输出目录 {0}（已导出文件将跳过）</value>
+  </data>
+  <data name="ExportAssets_ClassifyEmpty" xml:space="preserve">
+    <value>--classify 不能为空：{0}</value>
+  </data>
+  <data name="Inventory_Summary" xml:space="preserve">
+    <value>已索引 {0} 个包（{1} 个主类，{2} 条 AssetData），写到 {3}</value>
+  </data>
+  <data name="Inventory_NoteLine" xml:space="preserve">
+    <value>说明：{0}</value>
+  </data>
+  <data name="Inventory_AssetRegistryNotFound" xml:space="preserve">
+    <value>找不到资源注册表文件（期望 {0}）</value>
+  </data>
+  <data name="MapExport_LevelFailedLine" xml:space="preserve">
+    <value>关卡导出失败：{0}：{1}</value>
+  </data>
+  <data name="MapExport_Summary" xml:space="preserve">
+    <value>关卡导出完成：总计 {0}，新导出 {1}，跳过 {2}，失败 {3}，映射地图 {4} 张，耗时 {5}s</value>
+  </data>
+  <data name="MapExport_FixtureDirNotFound" xml:space="preserve">
+    <value>夹具目录不存在：{0}</value>
+  </data>
+  <data name="MapExport_FixtureMissingPath" xml:space="preserve">
+    <value>夹具缺少 path 字段</value>
+  </data>
+  <data name="MapExport_FixtureSummary" xml:space="preserve">
+    <value>关卡夹具汇总完成：总计 {0}，新导出 {1}，跳过 {2}，失败 {3}，映射地图 {4} 张</value>
+  </data>
+  <data name="MapExport_ParallelMustBePositive" xml:space="preserve">
+    <value>并行度必须是正整数：{0}</value>
+  </data>
+  <data name="MapExport_MapDataNotFound" xml:space="preserve">
+    <value>地图数据表文件不存在：{0}</value>
+  </data>
+  <data name="MapExport_MapDataInvalidFormat" xml:space="preserve">
+    <value>地图数据表 JSON 格式不正确：{0}</value>
+  </data>
+  <data name="BuildDb_ExplicitFfrDbNotFound" xml:space="preserve">
+    <value>指定的 --ffr-db 可执行文件不存在：{0}</value>
+  </data>
+  <data name="BuildDb_FfrDbNotFound" xml:space="preserve">
+    <value>找不到 ffr-db 可执行文件（已依次检查：--ffr-db 参数、程序同目录 {0}、环境变量 PATH）。请通过 --ffr-db &lt;路径&gt; 指定，或将 ffr-db 放到程序同目录 / PATH 中。</value>
+  </data>
+  <data name="BuildDb_JmapNotFound" xml:space="preserve">
+    <value>反射转储文件（--jmap）不存在：{0}</value>
+  </data>
+  <data name="BuildDb_StepLine" xml:space="preserve">
+    <value>==&gt; 步骤 {0}/{1}：{2}</value>
+  </data>
+  <data name="BuildDb_Step1Title" xml:space="preserve">
+    <value>识别游戏版本与输入哈希</value>
+  </data>
+  <data name="BuildDb_Step2Title" xml:space="preserve">
+    <value>导出游戏数据为 JSON</value>
+  </data>
+  <data name="BuildDb_Step3Title" xml:space="preserve">
+    <value>调用 ffr-db build 构建 SQLite 数据库</value>
+  </data>
+  <data name="BuildDb_Step4Title" xml:space="preserve">
+    <value>调用 ffr-db hash 计算数据库哈希</value>
+  </data>
+  <data name="BuildDb_Step5Title" xml:space="preserve">
+    <value>比对已知版本登记表并写出构建报告</value>
+  </data>
+  <data name="BuildDb_SteamAndExeLine" xml:space="preserve">
+    <value>Steam 构建号：{0}（来源：{1}）；exe 版本：FileVersion={2}，ProductVersion={3}</value>
+  </data>
+  <data name="BuildDb_PakFingerprintLine" xml:space="preserve">
+    <value>游戏包指纹：{0}（共 {1} 个文件，哈希 {2} 字节，耗时 {3} ms）</value>
+  </data>
+  <data name="BuildDb_UsmapHashLine" xml:space="preserve">
+    <value>.usmap 哈希：file={0}，content={1}（{2} 类，{3} 枚举）</value>
+  </data>
+  <data name="BuildDb_FfrDbBuildFailed" xml:space="preserve">
+    <value>调用 ffr-db build 失败（可执行文件：{0}，退出码：{1}）：{2}</value>
+  </data>
+  <data name="BuildDb_SqliteMissingAfterBuild" xml:space="preserve">
+    <value>ffr-db build 执行完成但未生成数据库文件：{0}</value>
+  </data>
+  <data name="BuildDb_DbHashLine" xml:space="preserve">
+    <value>数据库哈希：file_sha256={0}，content_sha256={1}（{2} 张表）</value>
+  </data>
+  <data name="BuildDb_TempJsonCleaned" xml:space="preserve">
+    <value>已清理临时导出目录：{0}（耗时 {1} ms）</value>
+  </data>
+  <data name="BuildDb_Completed" xml:space="preserve">
+    <value>建库完成：{0}（报告：{1}，总耗时 {2}s）</value>
+  </data>
+  <data name="BuildDb_RequiresGame" xml:space="preserve">
+    <value>build-db 需要 --game &lt;游戏目录&gt;</value>
+  </data>
+  <data name="BuildDb_RequiresUsmap" xml:space="preserve">
+    <value>build-db 需要 --usmap &lt;文件&gt;</value>
+  </data>
+  <data name="BuildDb_OutOverlapsGame" xml:space="preserve">
+    <value>--out 不能与游戏目录重叠：{0}</value>
+  </data>
+  <data name="BuildDb_ForeignOutputDir" xml:space="preserve">
+    <value>{0} 已存在且不是 ffr-export build-db 的输出目录，拒绝写入；换一个空目录或手动清理后重试</value>
+  </data>
+  <data name="BuildDb_OutputDirNonEmpty" xml:space="preserve">
+    <value>输出目录非空（{0}）；如需清空并重新建库，请加 --force</value>
+  </data>
+  <data name="BuildDb_FfrDbNoHashSubcommandWarning" xml:space="preserve">
+    <value>警告：当前 ffr-db（{0}）不支持 hash 子命令，仅计算 file_sha256；content_sha256 与各表哈希记为 null</value>
+  </data>
+  <data name="BuildDb_FfrDbHashFailed" xml:space="preserve">
+    <value>调用 ffr-db hash 失败（可执行文件：{0}，数据库：{1}，退出码：{2}）：{3}</value>
+  </data>
+  <data name="BuildDb_FfrDbHashInvalidJson" xml:space="preserve">
+    <value>解析 ffr-db hash 输出的 JSON 失败（数据库：{0}）：{1}</value>
+  </data>
+  <data name="BuildDb_FfrDbHashMissingFields" xml:space="preserve">
+    <value>ffr-db hash 返回的 JSON 缺少必需字段（file_sha256/content_sha256/tables）：{0}</value>
+  </data>
+  <data name="BuildDb_StartSubprocessFailed" xml:space="preserve">
+    <value>无法启动子进程：{0}</value>
+  </data>
+  <data name="Version_GameDirEmpty" xml:space="preserve">
+    <value>检查游戏目录失败：--game 不能为空</value>
+  </data>
+  <data name="Version_GameDirNotFound" xml:space="preserve">
+    <value>检查游戏目录失败：游戏目录不存在：{0}</value>
+  </data>
+  <data name="Version_MissingPaksDir" xml:space="preserve">
+    <value>检查游戏目录失败：缺少资源目录 {0}（检查路径：{1}）</value>
+  </data>
+  <data name="Version_MissingGameExe" xml:space="preserve">
+    <value>检查游戏目录失败：缺少游戏可执行文件 {0}（检查路径：{1}）</value>
+  </data>
+  <data name="Version_ReadSteamManifestFailed" xml:space="preserve">
+    <value>读取 Steam 清单失败：{0}：{1}</value>
+  </data>
+  <data name="Version_SteamBuildIdIgnoredManual" xml:space="preserve">
+    <value>提示：已从 {0} 读取 buildid={1}，忽略 --steam-buildid {2}</value>
+  </data>
+  <data name="Version_SteamManifestMissingBuildId" xml:space="preserve">
+    <value>警告：{0} 中缺少 buildid 且未提供 --steam-buildid，Steam 构建号记为 null</value>
+  </data>
+  <data name="Version_SteamManifestNotFound" xml:space="preserve">
+    <value>警告：未找到 {0}（已检查上两级目录）且未提供 --steam-buildid，Steam 构建号记为 null</value>
+  </data>
+  <data name="Version_PakFpDirNotFound" xml:space="preserve">
+    <value>计算游戏包指纹失败：资源目录不存在：{0}</value>
+  </data>
+  <data name="Version_PakFpNoFiles" xml:space="preserve">
+    <value>计算游戏包指纹失败：目录 {0} 下未找到任何 .utoc/.ucas/.pak 文件</value>
+  </data>
+  <data name="Version_UsmapFileNotFound" xml:space="preserve">
+    <value>计算 .usmap 哈希失败：文件不存在：{0}</value>
+  </data>
+  <data name="Version_UsmapEmptyMappings" xml:space="preserve">
+    <value>CUE4Parse 返回空映射表</value>
+  </data>
+  <data name="Version_UsmapParseFailed" xml:space="preserve">
+    <value>解析 .usmap 失败：{0}：{1}</value>
+  </data>
+  <data name="Version_JmapFileNotFound" xml:space="preserve">
+    <value>计算 .jmap 哈希失败：文件不存在：{0}</value>
+  </data>
+  <data name="Version_PeNotSeekable" xml:space="preserve">
+    <value>解析 PE 版本资源失败：{0}：不支持定位的输入流</value>
+  </data>
+  <data name="Version_PeTooSmall" xml:space="preserve">
+    <value>解析 PE 版本资源失败：{0}：文件过小，不是有效的 PE 文件</value>
+  </data>
+  <data name="Version_PeMissingMz" xml:space="preserve">
+    <value>解析 PE 版本资源失败：{0}：缺少 MZ 头</value>
+  </data>
+  <data name="Version_PeHeaderOutOfRange" xml:space="preserve">
+    <value>解析 PE 版本资源失败：{0}：PE 头偏移越界</value>
+  </data>
+  <data name="Version_PeMissingSignature" xml:space="preserve">
+    <value>解析 PE 版本资源失败：{0}：缺少 PE 签名</value>
+  </data>
+  <data name="Version_PeBadOptionalHeader" xml:space="preserve">
+    <value>解析 PE 版本资源失败：{0}：Optional Header 大小异常</value>
+  </data>
+  <data name="Version_PeUnsupportedMagic" xml:space="preserve">
+    <value>解析 PE 版本资源失败：{0}：不支持的 PE Optional Header 魔数 0x{1}</value>
+  </data>
+  <data name="Version_PeSectionTableOutOfRange" xml:space="preserve">
+    <value>解析 PE 版本资源失败：{0}：节表越界</value>
+  </data>
+  <data name="Version_PeResourceRvaUnmapped" xml:space="preserve">
+    <value>解析 PE 版本资源失败：{0}：无法将资源目录 RVA 0x{1} 映射到文件偏移</value>
+  </data>
+  <data name="Version_PeBadDataSize" xml:space="preserve">
+    <value>解析 PE 版本资源失败：{0}：版本资源长度异常（{1} 字节）</value>
+  </data>
+  <data name="Version_PeDataRvaUnmapped" xml:space="preserve">
+    <value>解析 PE 版本资源失败：{0}：无法将版本数据 RVA 0x{1} 映射到文件偏移</value>
+  </data>
+  <data name="Version_PeReadOutOfRange" xml:space="preserve">
+    <value>解析 PE 版本资源失败：{0}：读取偏移 0x{1}（长度 {2}）越界</value>
+  </data>
+  <data name="Version_PeUnexpectedEof" xml:space="preserve">
+    <value>解析 PE 版本资源失败：{0}：文件意外截断</value>
+  </data>
+  <data name="KnownBuilds_Matched" xml:space="preserve">
+    <value>与登记的版本一致</value>
+  </data>
+  <data name="KnownBuilds_NewGameVersion" xml:space="preserve">
+    <value>新的游戏版本，未登记</value>
+  </data>
+  <data name="KnownBuilds_HashMismatch" xml:space="preserve">
+    <value>游戏版本已登记，但数据库哈希不同</value>
+  </data>
+  <data name="KnownBuilds_MissingEmbedded" xml:space="preserve">
+    <value>程序内缺少嵌入资源：{0}</value>
+  </data>
+  <data name="KnownBuilds_EmptyOrNotArray" xml:space="preserve">
+    <value>已知版本登记表为空或格式不是 JSON 数组：{0}</value>
+  </data>
+  <data name="KnownBuilds_ParseFailed" xml:space="preserve">
+    <value>解析已知版本登记表失败：{0}：{1}</value>
+  </data>
+  <data name="KnownBuilds_ComparisonHeader" xml:space="preserve">
+    <value>已知版本比对（来源：{0}）：{1}</value>
+  </data>
+  <data name="KnownBuilds_MatchedDate" xml:space="preserve">
+    <value>  匹配登记日期：{0}</value>
+  </data>
+  <data name="KnownBuilds_ReferenceDate" xml:space="preserve">
+    <value>  对照登记日期：{0}</value>
+  </data>
+  <data name="KnownBuilds_FileShaOnlyMismatch" xml:space="preserve">
+    <value>  所有表内容一致（content_sha256 相同），仅数据库文件 file_sha256 不同</value>
+  </data>
+  <data name="KnownBuilds_NoPerTableHashes" xml:space="preserve">
+    <value>  未提供逐表哈希，无法列出表级差异</value>
+  </data>
+  <data name="KnownBuilds_DiffTableCount" xml:space="preserve">
+    <value>  差异表共 {0} 张：</value>
+  </data>
+  <data name="KnownBuilds_DiffAdded" xml:space="preserve">
+    <value>  + {0}（当前 {1} 行，登记无此表）</value>
+  </data>
+  <data name="KnownBuilds_DiffRemoved" xml:space="preserve">
+    <value>  - {0}（登记 {1} 行，当前缺少此表）</value>
+  </data>
+  <data name="KnownBuilds_DiffSameRows" xml:space="preserve">
+    <value>  ~ {0}（行数同为 {1}，表内容 sha256 不同）</value>
+  </data>
+  <data name="KnownBuilds_DiffDifferentRows" xml:space="preserve">
+    <value>  ~ {0}（行数：登记 {1} -&gt; 当前 {2}，表内容 sha256 不同）</value>
+  </data>
+  <data name="KnownBuilds_UsmapExactMatch" xml:space="preserve">
+    <value>与登记的 .usmap 完全一致（文件哈希与内容哈希均匹配）</value>
+  </data>
+  <data name="KnownBuilds_UsmapContentMatch" xml:space="preserve">
+    <value>与登记的 .usmap 内容一致（content_sha256 匹配，仅文件字节顺序不同，导出结果等价）</value>
+  </data>
+  <data name="KnownBuilds_UsmapNotRegistered" xml:space="preserve">
+    <value>新的 .usmap 内容哈希，未在 known-builds.json 中登记</value>
+  </data>
+  <data name="KnownBuilds_UsmapComparisonHeader" xml:space="preserve">
+    <value>已知版本 .usmap 比对（来源：{0}）：{1} {2}</value>
+  </data>
+  <data name="KnownBuilds_UsmapMatchedDate" xml:space="preserve">
+    <value>  匹配登记日期：{0}（登记文件名：{1}）</value>
+  </data>
+  <data name="Integrity_Untrusted" xml:space="preserve">
+    <value>不可信（Untrusted IL）</value>
+  </data>
+  <data name="Integrity_Low" xml:space="preserve">
+    <value>低完整性（Low IL）</value>
+  </data>
+  <data name="Integrity_Medium" xml:space="preserve">
+    <value>中完整性（Medium IL）</value>
+  </data>
+  <data name="Integrity_High" xml:space="preserve">
+    <value>高完整性（High IL）</value>
+  </data>
+  <data name="Integrity_System" xml:space="preserve">
+    <value>系统完整性（System IL）</value>
+  </data>
+  <data name="Integrity_Unknown" xml:space="preserve">
+    <value>未知</value>
+  </data>
+  <data name="Agp_EnvInvalidPath" xml:space="preserve">
+    <value>环境变量 {0} 指定的路径无效（{1}）。请修正或取消设置 {0} 后重试。</value>
+  </data>
+  <data name="Agp_EnvNotWritable" xml:space="preserve">
+    <value>环境变量 {0} 指定的数据目录不可写（{1}）：{2}。由于 {0} 是显式指定的，本程序不会自动回退到其他目录；请改用可写目录或取消设置 {0} 后重试。</value>
+  </data>
+  <data name="Agp_DefaultUserDataDir" xml:space="preserve">
+    <value>默认用户数据目录</value>
+  </data>
+  <data name="Agp_PrimaryNotWritable" xml:space="preserve">
+    <value>{0} 不可写</value>
+  </data>
+  <data name="Agp_FallbackNoWritable" xml:space="preserve">
+    <value>无法找到可写的数据目录，请设置环境变量 AGP_HOME 指向可写文件夹。</value>
+  </data>
+  <data name="Agp_SelectedInvalidPath" xml:space="preserve">
+    <value>所选数据目录路径无效：{0}</value>
+  </data>
+  <data name="Agp_ManualSelectionLabel" xml:space="preserve">
+    <value>手动选择</value>
+  </data>
+  <data name="Agp_SelectedNotWritable" xml:space="preserve">
+    <value>所选数据目录不可写（{0}）：{1}。请换一个有写入权限的文件夹。</value>
+  </data>
+  <data name="Agp_PathOccupiedByFile" xml:space="preserve">
+    <value>路径被同名文件占用：{0}</value>
+  </data>
+  <data name="Agp_CliNoticeDataDir" xml:space="preserve">
+    <value>数据目录：{0}（原因：{1}）</value>
+  </data>
+  <data name="Agp_CliNoticeLowIl" xml:space="preserve">
+    <value>提示：当前程序以低完整性级别（Low IL）运行，常见原因是下载的 zip 带有低完整性标记；如需恢复默认目录，建议右键 zip → 属性 → 解除锁定，再用资源管理器重新解压。</value>
+  </data>
+  <data name="Agp_GuiBannerLowIlLocalLow" xml:space="preserve">
+    <value>提示：程序正以低完整性级别（{0}）运行，常见原因是文件带了低完整性标记。本次已改用 LocalLow 下的目录（数据目录：{1}），可正常使用，无需立即操作。建议的做法：右键 zip → 属性 → 解除锁定，然后用资源管理器重新解压。</value>
+  </data>
+  <data name="Agp_GuiBannerLowIlFallback" xml:space="preserve">
+    <value>提示：程序正以低完整性级别（{0}）运行，常见原因是文件带了低完整性标记。数据目录：{1}（原因：{2}）。建议的做法：右键 zip → 属性 → 解除锁定，然后用资源管理器重新解压。</value>
+  </data>
+  <data name="Agp_GuiBannerLowIl" xml:space="preserve">
+    <value>提示：程序正以低完整性级别（{0}）运行，常见原因是文件带了低完整性标记。建议的做法：右键 zip → 属性 → 解除锁定，然后用资源管理器重新解压。</value>
+  </data>
+  <data name="Agp_GuiAllFailedIntro" xml:space="preserve">
+    <value>无法写入任何默认数据目录，程序需要一个可写文件夹来保存日志、设置和导出结果。</value>
+  </data>
+  <data name="Agp_GuiAllFailedLowIl1" xml:space="preserve">
+    <value>检测到当前进程处于{0}，常见原因是文件带了低完整性标记。</value>
+  </data>
+  <data name="Agp_GuiAllFailedLowIl2" xml:space="preserve">
+    <value>建议先右键下载的 zip 压缩包 → 属性 → 解除锁定，再用资源管理器重新解压。</value>
+  </data>
+  <data name="Agp_GuiAllFailedAv1" xml:space="preserve">
+    <value>可能原因：本工具未签名，可能被安全软件（如 360、火绒、电脑管家或 Windows「受控文件夹访问」）拦截。</value>
+  </data>
+  <data name="Agp_GuiAllFailedAv2" xml:space="preserve">
+    <value>建议将本工具所在文件夹加入信任或白名单，或者点击下方「选择文件夹…」手动指定一个可写目录。</value>
+  </data>
+  <data name="Agp_GuiAllFailedTriedHeader" xml:space="preserve">
+    <value>已尝试的目录：</value>
+  </data>
+  <data name="Agp_GuiAllFailedTriedItem" xml:space="preserve">
+    <value>  · {0}（{1}）：{2}</value>
+  </data>
+  <data name="Agp_GuiAllFailedAction" xml:space="preserve">
+    <value>点击「是」将打开「选择文件夹…」以手动指定数据目录（选好后将记住位置）；点击「否」退出程序。</value>
+  </data>
+  <data name="Agp_GuiAllFailedLastResort" xml:space="preserve">
+    <value>（如果上述方法都无法解决，最后手段可尝试临时以管理员身份运行。）</value>
+  </data>
+  <data name="Agp_CliAllFailedPrefix" xml:space="preserve">
+    <value>无法找到可写的数据根目录（已依次尝试所有候选路径均不可写）。</value>
+  </data>
+  <data name="Agp_CliAllFailedLowIl" xml:space="preserve">
+    <value>检测到当前进程以低完整性级别（Low IL）运行，建议右键 zip → 属性 → 解除锁定后用资源管理器重新解压。</value>
+  </data>
+  <data name="Agp_CliAllFailedAv" xml:space="preserve">
+    <value>可能是目录权限受限或被安全软件拦截，建议将本工具加入信任/白名单。</value>
+  </data>
+  <data name="Agp_CliAllFailedEnvWindows" xml:space="preserve">
+    <value>请通过环境变量 {0} 指定一个可写目录后重试（例如：set {0}=&lt;可写目录路径&gt;）。</value>
+  </data>
+  <data name="Agp_CliAllFailedEnvUnix" xml:space="preserve">
+    <value>请通过环境变量 {0} 指定一个可写目录后重试（例如：export {0}=&lt;可写目录路径&gt;）。</value>
+  </data>
+  <data name="Agp_CliAllFailedDetailsPrefix" xml:space="preserve">
+    <value>尝试详情：</value>
+  </data>
+  <data name="Agp_CliAllFailedDetailsSuffix" xml:space="preserve">
+    <value>。</value>
+  </data>
+  <data name="Agp_CliAllFailedLastResort" xml:space="preserve">
+    <value>（若所有目录均无法写入，最后手段可尝试以管理员身份运行。）</value>
+  </data>
+  <data name="Agp_ResolveFailedFallback" xml:space="preserve">
+    <value>无法解析可写的数据根目录。</value>
+  </data>
+  <data name="Agp_TempRootNotReady" xml:space="preserve">
+    <value>数据根目录未就绪</value>
+  </data>
+  <data name="Agp_TempRootInvalid" xml:space="preserve">
+    <value>数据根目录路径无效</value>
+  </data>
+  <data name="Agp_CannotReadLocalAppData" xml:space="preserve">
+    <value>无法获取 %LOCALAPPDATA% 目录</value>
+  </data>
+  <data name="Agp_CannotReadXdgOrHome" xml:space="preserve">
+    <value>无法获取 XDG_DATA_HOME 或 HOME 目录</value>
+  </data>
+  <data name="Agp_PortableLabelWindows" xml:space="preserve">
+    <value>程序目录\agp-data</value>
+  </data>
+  <data name="Agp_PortableLabelUnix" xml:space="preserve">
+    <value>程序目录/agp-data</value>
+  </data>
+  <data name="Wizard_Title" xml:space="preserve">
+    <value>《FINAL FANTASY RESONANCE》资源导出与建库向导</value>
+  </data>
+  <data name="Wizard_ReadOnlyNotice" xml:space="preserve">
+    <value>说明：本工具仅以只读方式读取游戏文件，不会修改游戏安装目录。</value>
+  </data>
+  <data name="Wizard_QuoteTip" xml:space="preserve">
+    <value>提示：粘贴路径时可直接保留两端的引号，也支持包含空格的路径。</value>
+  </data>
+  <data name="Wizard_InputClosedCancelled" xml:space="preserve">
+    <value>输入流已结束，向导已取消。</value>
+  </data>
+  <data name="Wizard_Step1Header" xml:space="preserve">
+    <value>【步骤 1/4】定位游戏目录</value>
+  </data>
+  <data name="Wizard_Step2Header" xml:space="preserve">
+    <value>【步骤 2/4】指定映射文件（.usmap / .jmap）</value>
+  </data>
+  <data name="Wizard_UsmapNote" xml:space="preserve">
+    <value>说明：.usmap 为必填项；可用「ffr-export fetch-usmap --game &lt;目录&gt;」一键获取，或用 UE4SS 在游戏运行时转储。</value>
+  </data>
+  <data name="Wizard_JmapNote" xml:space="preserve">
+    <value>可选：.jmap 反射转储文件（可添加多个，不提供请直接回车跳过）。</value>
+  </data>
+  <data name="Wizard_Step3Header" xml:space="preserve">
+    <value>【步骤 3/4】选择输出目录</value>
+  </data>
+  <data name="Wizard_Step4Header" xml:space="preserve">
+    <value>【步骤 4/4】确认信息并开始建库</value>
+  </data>
+  <data name="Wizard_SummaryGameName" xml:space="preserve">
+    <value>  游戏名称：{0}</value>
+  </data>
+  <data name="Wizard_SummaryGameDir" xml:space="preserve">
+    <value>  游戏目录：{0}</value>
+  </data>
+  <data name="Wizard_SummarySteamBuild" xml:space="preserve">
+    <value>  Steam 构建号：{0}</value>
+  </data>
+  <data name="Wizard_SummaryUsmap" xml:space="preserve">
+    <value>  .usmap 文件：{0}</value>
+  </data>
+  <data name="Wizard_SummaryJmapNone" xml:space="preserve">
+    <value>  .jmap 文件：无（已跳过）</value>
+  </data>
+  <data name="Wizard_SummaryJmapCount" xml:space="preserve">
+    <value>  .jmap 文件：共 {0} 个</value>
+  </data>
+  <data name="Wizard_SummaryOutputForce" xml:space="preserve">
+    <value>  输出目录：{0}（将清空并重新建库）</value>
+  </data>
+  <data name="Wizard_SummaryOutput" xml:space="preserve">
+    <value>  输出目录：{0}</value>
+  </data>
+  <data name="Wizard_CancelledNoChanges" xml:space="preserve">
+    <value>已取消建库，未修改任何文件。</value>
+  </data>
+  <data name="Wizard_StartingBuild" xml:space="preserve">
+    <value>开始执行建库流程（与命令行 build-db 相同），请耐心等待……</value>
+  </data>
+  <data name="Wizard_BuildFailedExitCode" xml:space="preserve">
+    <value>错误：建库流程未成功完成（退出码：{0}）。</value>
+  </data>
+  <data name="Wizard_BuildFailedException" xml:space="preserve">
+    <value>错误：建库失败：{0}</value>
+  </data>
+  <data name="Wizard_SteamScanError" xml:space="preserve">
+    <value>提示：自动扫描 Steam 游戏库时出错（{0}），改为手动输入目录。</value>
+  </data>
+  <data name="Wizard_SteamGamesFound" xml:space="preserve">
+    <value>已在 Steam 游戏库中找到以下游戏：</value>
+  </data>
+  <data name="Wizard_SteamGameDirLine" xml:space="preserve">
+    <value>      目录：{0}</value>
+  </data>
+  <data name="Wizard_SteamGameBuildLine" xml:space="preserve">
+    <value>      Steam 构建号：{0}</value>
+  </data>
+  <data name="Wizard_ManualGameOption" xml:space="preserve">
+    <value>  [0] 手动粘贴其他游戏目录</value>
+  </data>
+  <data name="Wizard_SelectGamePrompt" xml:space="preserve">
+    <value>请输入编号（1-{0}，直接回车默认选 1，输入 0 手动输入）：</value>
+  </data>
+  <data name="Wizard_InvalidNumberRange" xml:space="preserve">
+    <value>输入无效，请输入 0 到 {0} 之间的整数。</value>
+  </data>
+  <data name="Wizard_SteamGameNotFound" xml:space="preserve">
+    <value>未在 Steam 游戏库中自动找到《{0}》（AppID: {1}）。</value>
+  </data>
+  <data name="Wizard_PasteGameDirPrompt" xml:space="preserve">
+    <value>请粘贴游戏安装根目录（须包含 {0}）：</value>
+  </data>
+  <data name="Wizard_GameDirEmpty" xml:space="preserve">
+    <value>游戏目录不能为空，请重新输入。</value>
+  </data>
+  <data name="Wizard_InvalidPathRetry" xml:space="preserve">
+    <value>路径格式无效：{0}，请重新输入。</value>
+  </data>
+  <data name="Wizard_DirNotFoundRetry" xml:space="preserve">
+    <value>找不到目录：{0}，请检查路径后重新输入。</value>
+  </data>
+  <data name="Wizard_GameDirMissingPaksRetry" xml:space="preserve">
+    <value>该目录下缺少 {0}：{1}。请确认粘贴的是游戏安装根目录后重新输入。</value>
+  </data>
+  <data name="Wizard_UsmapLabel" xml:space="preserve">
+    <value>.usmap 文件路径</value>
+  </data>
+  <data name="Wizard_UsmapAutoFound" xml:space="preserve">
+    <value>已自动找到 .usmap（{0}）：{1}</value>
+  </data>
+  <data name="Wizard_UsmapAutoPrompt" xml:space="preserve">
+    <value>.usmap 文件路径（直接回车使用自动找到的文件，或粘贴其他 .usmap 路径）：</value>
+  </data>
+  <data name="Wizard_PathIsDirNotFile" xml:space="preserve">
+    <value>输入的是目录而不是文件：{0}，请粘贴具体的 {1} 文件路径。</value>
+  </data>
+  <data name="Wizard_FileNotFoundRetry" xml:space="preserve">
+    <value>找不到文件：{0}，请检查路径后重新输入。</value>
+  </data>
+  <data name="Wizard_PasteRequiredFilePrompt" xml:space="preserve">
+    <value>请粘贴 {0}：</value>
+  </data>
+  <data name="Wizard_RequiredFieldEmpty" xml:space="preserve">
+    <value>{0} 为必填项，不能为空，请重新输入。</value>
+  </data>
+  <data name="Wizard_JmapFirstPrompt" xml:space="preserve">
+    <value>第 1 个 .jmap 文件路径（直接回车跳过）：</value>
+  </data>
+  <data name="Wizard_JmapNextPrompt" xml:space="preserve">
+    <value>第 {0} 个 .jmap 文件路径（继续粘贴或直接回车结束）：</value>
+  </data>
+  <data name="Wizard_JmapSkipped" xml:space="preserve">
+    <value>已跳过 .jmap 文件。</value>
+  </data>
+  <data name="Wizard_JmapAddedCount" xml:space="preserve">
+    <value>共添加 {0} 个 .jmap 文件。</value>
+  </data>
+  <data name="Wizard_InvalidPathOrSkip" xml:space="preserve">
+    <value>路径格式无效：{0}，请重新输入或直接回车跳过。</value>
+  </data>
+  <data name="Wizard_JmapIsDirOrSkip" xml:space="preserve">
+    <value>输入的是目录而不是文件：{0}，请粘贴具体的 .jmap 文件路径或直接回车跳过。</value>
+  </data>
+  <data name="Wizard_FileNotFoundOrSkip" xml:space="preserve">
+    <value>找不到文件：{0}，请检查路径后重新输入或直接回车跳过。</value>
+  </data>
+  <data name="Wizard_JmapDuplicate" xml:space="preserve">
+    <value>提示：该 .jmap 文件已添加，已跳过重复项：{0}</value>
+  </data>
+  <data name="Wizard_JmapAddedItem" xml:space="preserve">
+    <value>  已添加：{0}</value>
+  </data>
+  <data name="Wizard_DefaultOutputDir" xml:space="preserve">
+    <value>默认输出目录：{0}</value>
+  </data>
+  <data name="Wizard_OutputDirPrompt" xml:space="preserve">
+    <value>输出目录（直接回车使用默认目录，或粘贴其他目录路径）：</value>
+  </data>
+  <data name="Wizard_OutputOverlapsGame" xml:space="preserve">
+    <value>输出目录不能与游戏目录重叠：{0}，请换一个目录。</value>
+  </data>
+  <data name="Wizard_OutputIsExistingFile" xml:space="preserve">
+    <value>目标路径是一个已存在的文件而非目录：{0}，请换一个路径。</value>
+  </data>
+  <data name="Wizard_OutputForeignNonEmpty" xml:space="preserve">
+    <value>目标目录非空且不是 ffr-export build-db 的输出目录：{0}。为避免误删文件，请换一个空目录。</value>
+  </data>
+  <data name="Wizard_OutputPreviousBuildExists" xml:space="preserve">
+    <value>提示：目标目录已存在之前的建库结果：{0}</value>
+  </data>
+  <data name="Wizard_OutputOverwritePrompt" xml:space="preserve">
+    <value>是否清空该目录并重新建库？（输入 y 覆盖重建，直接回车或输入 n 重新选择目录）：</value>
+  </data>
+  <data name="Wizard_ConfirmStartPrompt" xml:space="preserve">
+    <value>确认开始建库吗？（直接回车开始，输入 n 取消）：</value>
+  </data>
+  <data name="Wizard_ConfirmStartInvalid" xml:space="preserve">
+    <value>输入无效，请直接回车开始，或输入 n 取消。</value>
+  </data>
+  <data name="Wizard_CompletionTitle" xml:space="preserve">
+    <value>建库结果汇总</value>
+  </data>
+  <data name="Wizard_CompletionDbPath" xml:space="preserve">
+    <value>数据库路径：{0}</value>
+  </data>
+  <data name="Wizard_CompletionFileSha" xml:space="preserve">
+    <value>文件哈希（file_sha256）：{0}</value>
+  </data>
+  <data name="Wizard_CompletionContentSha" xml:space="preserve">
+    <value>内容哈希（content_sha256）：{0}</value>
+  </data>
+  <data name="Wizard_CompletionKnownBuilds" xml:space="preserve">
+    <value>known-builds.json 比对结论：{0}</value>
+  </data>
+  <data name="Wizard_CompletionKnownBuildsWithSource" xml:space="preserve">
+    <value>known-builds.json 比对结论：{0}（来源：{1}）</value>
+  </data>
+  <data name="Wizard_CompletionMatchedDate" xml:space="preserve">
+    <value>  匹配登记日期：{0}</value>
+  </data>
+  <data name="Wizard_CompletionFileShaOnly" xml:space="preserve">
+    <value>  说明：所有表内容一致（content_sha256 相同），仅文件哈希不同。</value>
+  </data>
+  <data name="Wizard_CompletionTableDiffCount" xml:space="preserve">
+    <value>  差异表数：{0} 张（详情见上方输出与构建报告）。</value>
+  </data>
+  <data name="Wizard_CompletionTimings" xml:space="preserve">
+    <value>耗时统计：导出 JSON {0}s | 建库 {1}s | 计算哈希 {2}s | 总计 {3}s</value>
+  </data>
+  <data name="Wizard_CompletionTotalTime" xml:space="preserve">
+    <value>总耗时：{0}s</value>
+  </data>
+  <data name="Wizard_CompletionReportPath" xml:space="preserve">
+    <value>构建报告：{0}</value>
+  </data>
+  <data name="Wizard_CompletionReadReportFailed" xml:space="preserve">
+    <value>提示：读取构建报告 {0} 失败（{1}）。</value>
+  </data>
+  <data name="Wizard_CompletionPartialFailure" xml:space="preserve">
+    <value>提示：数据库已生成，但有少量资源包导出失败，详情请查看构建报告或日志输出。</value>
+  </data>
+  <data name="Wizard_MissingFfrDbHeadline" xml:space="preserve">
+    <value>错误：找不到 {0}，无法执行建库。</value>
+  </data>
+  <data name="Wizard_ErrorDetails" xml:space="preserve">
+    <value>详情：{0}</value>
+  </data>
+  <data name="Wizard_NextStepsHeader" xml:space="preserve">
+    <value>下一步建议：</value>
+  </data>
+  <data name="Wizard_MissingFfrDbStep1" xml:space="preserve">
+    <value>  1. 请将下载的压缩包完整解压到同一目录，确保 {0} 与 {1} 位于同一文件夹（当前目录：{2}）；</value>
+  </data>
+  <data name="Wizard_MissingFfrDbStep2" xml:space="preserve">
+    <value>  2. 不要单独移动 {0} 到桌面或其他目录运行；</value>
+  </data>
+  <data name="Wizard_MissingFfrDbStep3" xml:space="preserve">
+    <value>  3. 如使用自编译版本，可将 {0} 复制到程序同目录或加入环境变量 PATH 后重试。</value>
+  </data>
+  <data name="Wizard_AdviceFfrDb1" xml:space="preserve">
+    <value>  1. 确认 {0} 与本程序在同一目录（{1}）且未被安全软件拦截；</value>
+  </data>
+  <data name="Wizard_AdviceFfrDb2" xml:space="preserve">
+    <value>  2. 确认输出磁盘有足够可用空间，然后重新运行本向导。</value>
+  </data>
+  <data name="Wizard_AdviceUsmap1" xml:space="preserve">
+    <value>  1. 确认所选 .usmap 文件是从当前版本运行中的游戏通过 UE4SS 转储得到的完整文件；</value>
+  </data>
+  <data name="Wizard_AdviceUsmap2" xml:space="preserve">
+    <value>  2. 如果游戏刚更新过版本，请重新转储一份最新的 .usmap 后再运行。</value>
+  </data>
+  <data name="Wizard_AdviceGameDir1" xml:space="preserve">
+    <value>  1. 确认所选目录是《FINAL FANTASY RESONANCE》的游戏安装根目录；</value>
+  </data>
+  <data name="Wizard_AdviceGameDir2" xml:space="preserve">
+    <value>  2. 如文件缺失，请在 Steam 中右键游戏 -&gt; 属性 -&gt; 已安装文件 -&gt; 验证游戏文件的完整性。</value>
+  </data>
+  <data name="Wizard_AdviceGeneric1" xml:space="preserve">
+    <value>  1. 根据上方错误信息检查游戏目录、.usmap/.jmap 文件以及输出目录权限；</value>
+  </data>
+  <data name="Wizard_AdviceGeneric2" xml:space="preserve">
+    <value>  2. 确认输出磁盘留有充足可用空间（建库过程需要数 GB 临时空间）；</value>
+  </data>
+  <data name="Wizard_AdviceGeneric3" xml:space="preserve">
+    <value>  3. 排查完成后重新双击运行本程序。</value>
+  </data>
+  <data name="Wizard_PressEnterToExit" xml:space="preserve">
+    <value>按回车退出...</value>
+  </data>
+  <data name="Ue4ss_CacheHit" xml:space="preserve">
+    <value>已命中本地下载缓存并通过 SHA-256 校验：{0}</value>
+  </data>
+  <data name="Ue4ss_CacheCorruptRedownload" xml:space="preserve">
+    <value>警告：本地缓存文件未通过校验（{0}），将重新下载：{1}</value>
+  </data>
+  <data name="Ue4ss_CacheDeleteFailed" xml:space="preserve">
+    <value>删除损坏的下载缓存失败（{0}）：{1}</value>
+  </data>
+  <data name="Ue4ss_RefuseNonHttps" xml:space="preserve">
+    <value>拒绝使用非 HTTPS 地址下载 UE4SS：{0}</value>
+  </data>
+  <data name="Ue4ss_Downloading" xml:space="preserve">
+    <value>正在从官方 GitHub 发布页下载 UE4SS {0}（约 8.4 MB）：{1}</value>
+  </data>
+  <data name="Ue4ss_DownloadVerified" xml:space="preserve">
+    <value>下载并校验通过（大小 {0} 字节，SHA-256 匹配）：{1}</value>
+  </data>
+  <data name="Ue4ss_VerifyFileNotFound" xml:space="preserve">
+    <value>文件不存在：{0}</value>
+  </data>
+  <data name="Ue4ss_VerifySizeMismatch" xml:space="preserve">
+    <value>文件大小不匹配（期望 {0} 字节，实际 {1} 字节）</value>
+  </data>
+  <data name="Ue4ss_VerifyShaMismatch" xml:space="preserve">
+    <value>SHA-256 校验不一致（期望 {0}，实际 {1}）</value>
+  </data>
+  <data name="Ue4ss_VerifyArchiveFailed" xml:space="preserve">
+    <value>校验 UE4SS 安装包失败（来源：{0}，文件：{1}）：{2}；已拒绝安装。</value>
+  </data>
+  <data name="Ue4ss_RedirectNonHttps" xml:space="preserve">
+    <value>下载重定向到非 HTTPS 地址，已拒绝：{0}</value>
+  </data>
+  <data name="Ue4ss_DownloadTimeout" xml:space="preserve">
+    <value>下载 UE4SS 超时（超过 {0} 秒，地址：{1}）；请检查网络或代理设置后重试。</value>
+  </data>
+  <data name="Ue4ss_DownloadHttpError" xml:space="preserve">
+    <value>下载 UE4SS 失败（地址：{0}）：{1}；请检查网络连接或防火墙设置后重试。</value>
+  </data>
+  <data name="Ue4ss_RedirectMissingLocation" xml:space="preserve">
+    <value>下载 UE4SS 失败：服务器返回重定向但缺少 Location 头（地址：{0}）。</value>
+  </data>
+  <data name="Ue4ss_TooManyRedirects" xml:space="preserve">
+    <value>下载 UE4SS 失败：重定向次数超过 {0} 次（地址：{1}）。</value>
+  </data>
+  <data name="Ue4ss_NoResponse" xml:space="preserve">
+    <value>下载 UE4SS 失败：未收到服务器响应（地址：{0}）。</value>
+  </data>
+  <data name="Ue4ss_HttpStatusError" xml:space="preserve">
+    <value>下载 UE4SS 失败：服务器返回 HTTP {0} {1}（地址：{2}）。</value>
+  </data>
+  <data name="Ue4ss_ContentLengthMismatch" xml:space="preserve">
+    <value>下载 UE4SS 被拒绝：响应头 Content-Length 为 {0} 字节，与预期 {1} 字节不一致（地址：{2}）。</value>
+  </data>
+  <data name="Ue4ss_TransferTimeout" xml:space="preserve">
+    <value>下载 UE4SS 传输超时（已接收 {0} / {1} 字节，地址：{2}）。</value>
+  </data>
+  <data name="Ue4ss_TransferExceededSize" xml:space="preserve">
+    <value>下载 UE4SS 被拒绝：实际接收字节数超过预期 {0} 字节（地址：{1}）。</value>
+  </data>
+  <data name="Ue4ss_SteamLaunchFailed" xml:space="preserve">
+    <value>通过 Steam 启动游戏失败（URI：{0}）：{1}；请确认本机已安装并登录 Steam。</value>
+  </data>
+  <data name="Ue4ss_MissingEmbeddedLua" xml:space="preserve">
+    <value>程序内缺少嵌入的转储模组脚本资源：{0}</value>
+  </data>
+  <data name="Ue4ss_CleanOldDoneMarkerFailed" xml:space="preserve">
+    <value>清理旧的转储完成标记失败（{0}）：{1}</value>
+  </data>
+  <data name="Ue4ss_ModNameEmpty" xml:space="preserve">
+    <value>模组名不能为空</value>
+  </data>
+  <data name="Ue4ss_InstallWin64Missing" xml:space="preserve">
+    <value>安装 UE4SS 失败：Win64 目录不存在：{0}</value>
+  </data>
+  <data name="Ue4ss_InstallRefuseOverwrite" xml:space="preserve">
+    <value>安装 UE4SS 失败：目标位置已存在同名文件（{0}），拒绝覆盖；如已自行安装其他模组或代理 DLL，请先手动备份或清理后重试。</value>
+  </data>
+  <data name="Ue4ss_UninstallGameRunning" xml:space="preserve">
+    <value>清理 UE4SS 被拒绝：游戏进程（{0}）正在运行，请先关闭游戏后重试。</value>
+  </data>
+  <data name="Ue4ss_UninstallOwnDone" xml:space="preserve">
+    <value>已按安装标记卸载 UE4SS：删除 {0} 个文件，清理 {1} 个空目录。</value>
+  </data>
+  <data name="Ue4ss_UninstallOwnRemaining" xml:space="preserve">
+    <value>提示：{1} 下仍保留 {0} 个非安装清单文件（如 UE4SS.log、用户模组或转储文件），未予删除。</value>
+  </data>
+  <data name="Ue4ss_UninstallUsmapSafeNote" xml:space="preserve">
+    <value>说明：已复制到 agp\ffr-export\usmap\ 的 .usmap 文件不受影响，仍可继续使用。</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignCleanedRemnants" xml:space="preserve">
+    <value>检测到游戏目录中的 UE4SS 不是本工具安装的（未找到 {0}），已仅清理本工具残留（删除 {1} 个文件，{2} 个目录），原有 UE4SS 保持不动。</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignNoRemnants" xml:space="preserve">
+    <value>检测到游戏目录中的 UE4SS 不是本工具安装的（未找到 {0}），未发现本工具残留文件，原有 UE4SS 保持不动。</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignHint" xml:space="preserve">
+    <value>提示：如需连同非本工具安装的 UE4SS 一起移出游戏目录（移动至备份目录，不直接删除），请加上 --include-foreign。</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignWarning" xml:space="preserve">
+    <value>警告：当前游戏目录中的 UE4SS 不是本工具安装的，里面可能包含您自行安装的其他模组！</value>
+  </data>
+  <data name="Ue4ss_UninstallCancelled" xml:space="preserve">
+    <value>已取消清理，未对游戏目录做任何修改。</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignBackedUp" xml:space="preserve">
+    <value>已将非本工具安装的 UE4SS 移出游戏目录并完整备份到：{0}</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignAlsoCleaned" xml:space="preserve">
+    <value>同时已清理本工具残留：{0} 个文件，{1} 个目录。</value>
+  </data>
+  <data name="Ue4ss_UninstallForeignRestoreNote" xml:space="preserve">
+    <value>恢复方法：如需恢复原有的 UE4SS 与模组，将 {0} 内的 dwmapi.dll 和 ue4ss 文件夹复制回 {1} 即可。</value>
+  </data>
+  <data name="Ue4ss_UninstallRemnantsOnly" xml:space="preserve">
+    <value>未发现完整 UE4SS 安装，已清理本工具残留（删除 {0} 个文件，{1} 个目录）。</value>
+  </data>
+  <data name="Ue4ss_UninstallNotFound" xml:space="preserve">
+    <value>未发现 UE4SS（当前游戏目录未安装 UE4SS，也未发现本工具残留文件）。</value>
+  </data>
+  <data name="Ue4ss_BackupCopyFailed" xml:space="preserve">
+    <value>备份非本工具安装的 UE4SS 失败（目标备份目录：{0}）：{1}；游戏目录保持未修改。</value>
+  </data>
+  <data name="Ue4ss_BackupRemoveOrigFailed" xml:space="preserve">
+    <value>已完成 UE4SS 备份（{0}），但移出原目录文件失败：{1}；请确认游戏及相关工具已关闭后重试，备份目录已完整保留。</value>
+  </data>
+  <data name="Ue4ss_CleanupConfirmPrompt" xml:space="preserve">
+    <value>确认将上述非本工具安装的 UE4SS 移动到备份目录吗？（输入 y 确认，直接回车或输入 n 取消）：</value>
+  </data>
+  <data name="Ue4ss_YesNoInvalid" xml:space="preserve">
+    <value>输入无效，请输入 y 确认或 n 取消。</value>
+  </data>
+  <data name="Ue4ss_MarkerReadFailed" xml:space="preserve">
+    <value>读取 UE4SS 安装标记文件失败（{0}）：{1}</value>
+  </data>
+  <data name="Ue4ss_MarkerCorrupt" xml:space="preserve">
+    <value>UE4SS 安装标记文件格式损坏（{0}）：{1}</value>
+  </data>
+  <data name="Ue4ss_MarkerInvalid" xml:space="preserve">
+    <value>UE4SS 安装标记文件无效或不受支持（{0}），拒绝卸载。</value>
+  </data>
+  <data name="Ue4ss_LabelFile" xml:space="preserve">
+    <value>文件</value>
+  </data>
+  <data name="Ue4ss_LabelDirectory" xml:space="preserve">
+    <value>目录</value>
+  </data>
+  <data name="Ue4ss_LabelZipEntry" xml:space="preserve">
+    <value>压缩包条目</value>
+  </data>
+  <data name="Ue4ss_LabelExtractPath" xml:space="preserve">
+    <value>解压路径</value>
+  </data>
+  <data name="Ue4ss_ZipEmpty" xml:space="preserve">
+    <value>UE4SS 压缩包为空：{0}</value>
+  </data>
+  <data name="Ue4ss_ZipDuplicateEntry" xml:space="preserve">
+    <value>UE4SS 压缩包包含重复条目（{0}）：{1}</value>
+  </data>
+  <data name="Ue4ss_ZipUnexpectedLayout" xml:space="preserve">
+    <value>UE4SS 压缩包结构不符合预期（缺少 dwmapi.dll 或 ue4ss/UE4SS.dll）：{0}</value>
+  </data>
+  <data name="Ue4ss_PathEmpty" xml:space="preserve">
+    <value>解析 {0} 失败（{1}）：路径为空</value>
+  </data>
+  <data name="Ue4ss_UnsafeAbsolutePath" xml:space="preserve">
+    <value>检测到不安全的绝对路径 {0}（{1}，来源：{2}），已拒绝操作。</value>
+  </data>
+  <data name="Ue4ss_UnsafeRelativePath" xml:space="preserve">
+    <value>检测到不安全的相对路径 {0}（{1}，来源：{2}），已拒绝操作。</value>
+  </data>
+  <data name="Ue4ss_PathEscapesWin64" xml:space="preserve">
+    <value>路径越界（{0}），目标不在 Win64 目录内。</value>
+  </data>
+  <data name="Ue4ss_PreviewWin64Dir" xml:space="preserve">
+    <value>游戏 Win64 目录：{0}</value>
+  </data>
+  <data name="Ue4ss_PreviewOwnHeader" xml:space="preserve">
+    <value>【将删除本工具安装的 UE4SS 文件】</value>
+  </data>
+  <data name="Ue4ss_PreviewOwnNoneLeft" xml:space="preserve">
+    <value>  （清单中记录的文件已不存在）</value>
+  </data>
+  <data name="Ue4ss_PreviewTagDelete" xml:space="preserve">
+    <value>  [删除] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewEmptyDirsHeader" xml:space="preserve">
+    <value>【若变空将清理的目录】</value>
+  </data>
+  <data name="Ue4ss_PreviewTagCleanDir" xml:space="preserve">
+    <value>  [空目录清理] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewAlsoRemnantsHeader" xml:space="preserve">
+    <value>【将同时清理本工具残留】</value>
+  </data>
+  <data name="Ue4ss_PreviewTagDeleteRemnant" xml:space="preserve">
+    <value>  [删除残留] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewForeignRemnantsHeader" xml:space="preserve">
+    <value>【本工具残留文件（将删除）】</value>
+  </data>
+  <data name="Ue4ss_PreviewNoRemnants" xml:space="preserve">
+    <value>  （未发现本工具残留文件）</value>
+  </data>
+  <data name="Ue4ss_PreviewForeignMoveHeader" xml:space="preserve">
+    <value>【非本工具安装的 UE4SS（不删除，将移动到备份目录：{0}）】</value>
+  </data>
+  <data name="Ue4ss_PreviewTagMoveToBackup" xml:space="preserve">
+    <value>  [移动到备份] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewRestoreNote" xml:space="preserve">
+    <value>恢复方法：只需将备份目录内的 dwmapi.dll 和 ue4ss 文件夹复制回上述 Win64 目录即可恢复。</value>
+  </data>
+  <data name="Ue4ss_PreviewForeignKeepHeader" xml:space="preserve">
+    <value>【非本工具安装的 UE4SS（默认保持不动）】</value>
+  </data>
+  <data name="Ue4ss_PreviewTagKeep" xml:space="preserve">
+    <value>  [保留] {0}</value>
+  </data>
+  <data name="Ue4ss_PreviewRemnantsOnlyHeader" xml:space="preserve">
+    <value>【将清理本工具残留文件】</value>
+  </data>
+  <data name="Ue4ss_PreviewNothingFound" xml:space="preserve">
+    <value>未发现 UE4SS 或本工具残留文件。</value>
+  </data>
+  <data name="Ue4ss_WarnRemoveDumpModDir" xml:space="preserve">
+    <value>警告：清理临时转储模组目录失败（{0}）：{1}</value>
+  </data>
+  <data name="Ue4ss_WarnScanTmpFiles" xml:space="preserve">
+    <value>警告：扫描临时 .tmp 文件失败（{0}）：{1}</value>
+  </data>
+  <data name="Ue4ss_WarnDeleteEnabledTxt" xml:space="preserve">
+    <value>警告：删除 {0} 失败：{1}</value>
+  </data>
+  <data name="Ue4ss_WarnDisableDumpMod" xml:space="preserve">
+    <value>警告：停用临时转储模组时出错：{0}</value>
+  </data>
+  <data name="Ue4ss_ClosingGameProcesses" xml:space="preserve">
+    <value>正在请求关闭游戏进程（{0}，共 {1} 个）……</value>
+  </data>
+  <data name="Ue4ss_GameClosedGracefully" xml:space="preserve">
+    <value>游戏窗口已正常退出。</value>
+  </data>
+  <data name="Ue4ss_GameForceKill" xml:space="preserve">
+    <value>游戏在 {0} 秒内未退出，正在强制结束进程（PID {1}）……</value>
+  </data>
+  <data name="Ue4ss_WarnDeleteRemnantFile" xml:space="preserve">
+    <value>警告：删除残留文件失败（{0}）：{1}</value>
+  </data>
+  <data name="FetchUsmap_TimeoutInvalid" xml:space="preserve">
+    <value>--timeout 必须是正整数（单位：秒）：{0}</value>
+  </data>
+  <data name="FetchUsmap_RequiresGame" xml:space="preserve">
+    <value>fetch-usmap 需要 --game &lt;游戏目录&gt;</value>
+  </data>
+  <data name="UninstallUe4ss_RequiresGame" xml:space="preserve">
+    <value>uninstall-ue4ss 需要 --game &lt;游戏目录&gt;</value>
+  </data>
+  <data name="FetchUsmap_Step1Title" xml:space="preserve">
+    <value>检查运行环境、游戏目录与游戏进程</value>
+  </data>
+  <data name="FetchUsmap_Step2Title" xml:space="preserve">
+    <value>准备 UE4SS 运行环境</value>
+  </data>
+  <data name="FetchUsmap_Step3Title" xml:space="preserve">
+    <value>部署临时 .usmap 转储模组</value>
+  </data>
+  <data name="FetchUsmap_Step4Title" xml:space="preserve">
+    <value>通过 Steam 启动游戏并等待 .usmap 转储完成</value>
+  </data>
+  <data name="FetchUsmap_Step5Title" xml:space="preserve">
+    <value>归档 .usmap、计算哈希并比对已知版本</value>
+  </data>
+  <data name="FetchUsmap_Step6Title" xml:space="preserve">
+    <value>停用转储模组并关闭游戏</value>
+  </data>
+  <data name="FetchUsmap_WindowsOnly" xml:space="preserve">
+    <value>fetch-usmap 仅支持 Windows 系统（需要通过 Steam 启动 Windows 版游戏，并由 UE4SS 从运行中的内存转储 .usmap）。</value>
+  </data>
+  <data name="FetchUsmap_GameAlreadyRunning" xml:space="preserve">
+    <value>检测到游戏正在运行（{0}），请先关闭游戏后再执行 fetch-usmap。</value>
+  </data>
+  <data name="FetchUsmap_PartialUnknownUe4ss" xml:space="preserve">
+    <value>检查 UE4SS 状态失败：游戏目录 {0} 下仅存在部分文件（dwmapi.dll={1}，ue4ss/UE4SS.dll={2}），且没有本工具的安装标记文件。为避免覆盖您已有的代理 DLL 或模组文件，已中止操作。</value>
+  </data>
+  <data name="FetchUsmap_InputClosedCancelled" xml:space="preserve">
+    <value>输入流已结束，已取消获取 .usmap。</value>
+  </data>
+  <data name="FetchUsmap_CancelledNoChanges" xml:space="preserve">
+    <value>已取消获取 .usmap，未对游戏目录做任何修改。</value>
+  </data>
+  <data name="FetchUsmap_ReuseUserUe4ss" xml:space="preserve">
+    <value>检测到游戏目录已存在您自行安装的 UE4SS（{0}）；将完全保留原有设置，仅临时加入转储模组。</value>
+  </data>
+  <data name="FetchUsmap_ReuseOwnUe4ss" xml:space="preserve">
+    <value>检测到本工具先前安装的 UE4SS（版本：{0}），直接复用。</value>
+  </data>
+  <data name="FetchUsmap_CorruptOwnUe4ss" xml:space="preserve">
+    <value>检测到本工具的安装标记文件（{0}），但核心文件不完整（dwmapi.dll 或 UE4SS.dll 缺失）。请先运行 ffr-export uninstall-ue4ss 清理后再重试。</value>
+  </data>
+  <data name="FetchUsmap_InstalledUe4ss" xml:space="preserve">
+    <value>已安装 UE4SS {0} 到 {1}（共写入 {2} 个文件，已关闭控制台与调试窗口，已保留 LICENSE）。</value>
+  </data>
+  <data name="FetchUsmap_DeployedMod" xml:space="preserve">
+    <value>已部署临时转储模组：{0}（通过 enabled.txt 启用，未修改 mods.txt）。</value>
+  </data>
+  <data name="FetchUsmap_LaunchingSteam" xml:space="preserve">
+    <value>正在通过 Steam 启动游戏：{0}（超时时间：{1} 秒）</value>
+  </data>
+  <data name="FetchUsmap_SavedUsmapLine" xml:space="preserve">
+    <value>已保存 .usmap：{0}</value>
+  </data>
+  <data name="FetchUsmap_SourceDumpPath" xml:space="preserve">
+    <value>原始转储位置：{0}</value>
+  </data>
+  <data name="FetchUsmap_FileShaLine" xml:space="preserve">
+    <value>文件哈希（file_sha256）：{0}（大小：{1} 字节）</value>
+  </data>
+  <data name="FetchUsmap_ContentShaLine" xml:space="preserve">
+    <value>内容哈希（content_sha256）：{0}（{1} 类，{2} 枚举）</value>
+  </data>
+  <data name="FetchUsmap_RemovedTempMod" xml:space="preserve">
+    <value>已移除临时转储模组（ue4ss/Mods/FfrUsmapDump）。</value>
+  </data>
+  <data name="FetchUsmap_RetainUserUe4ss" xml:space="preserve">
+    <value>已保留您原有的 UE4SS 环境不动。</value>
+  </data>
+  <data name="FetchUsmap_RetainOwnUe4ss" xml:space="preserve">
+    <value>UE4SS 已保留在游戏目录中供下次复用（随时可运行 ffr-export uninstall-ue4ss 或在主窗口点击「清理 UE4SS…」清理）。</value>
+  </data>
+  <data name="FetchUsmap_ModFailed" xml:space="preserve">
+    <value>UE4SS 转储模组执行失败：{0}。请检查日志：{1}</value>
+  </data>
+  <data name="FetchUsmap_DoneMarkerFound" xml:space="preserve">
+    <value>检测到转储完成标记，已找到最新 .usmap：{0}</value>
+  </data>
+  <data name="FetchUsmap_TimeoutGameRunning" xml:space="preserve">
+    <value>游戏已启动，但等待 {0} 秒仍未生成新的 .usmap；可能是 UE4SS 未正常加载或游戏初始化耗时较长，请查看日志：{1}（也可尝试增大 --timeout 后重试）。</value>
+  </data>
+  <data name="FetchUsmap_TimeoutGameNotSeen" xml:space="preserve">
+    <value>等待 {0} 秒仍未检测到游戏进程（{1}）；游戏可能未能通过 Steam 启动，请确认 Steam 已登录、游戏可正常启动且没有被更新弹窗阻塞后重试。</value>
+  </data>
+  <data name="FetchUsmap_TimeoutError" xml:space="preserve">
+    <value>等待 .usmap 转储超时：{0}</value>
+  </data>
+  <data name="FetchUsmap_StateGameRunning" xml:space="preserve">
+    <value>游戏运行中，等待引擎初始化与转储</value>
+  </data>
+  <data name="FetchUsmap_StateWaitingSteam" xml:space="preserve">
+    <value>等待 Steam 启动游戏</value>
+  </data>
+  <data name="FetchUsmap_WaitingProgress" xml:space="preserve">
+    <value>等待 .usmap 转储……已等待 {0}/{1} 秒（{2}）</value>
+  </data>
+  <data name="FetchUsmap_PlanHeader" xml:space="preserve">
+    <value>即将执行以下操作：</value>
+  </data>
+  <data name="FetchUsmap_PlanStep1" xml:space="preserve">
+    <value>  1. 目标游戏目录：{0}</value>
+  </data>
+  <data name="FetchUsmap_PlanStep2Install" xml:space="preserve">
+    <value>  2. 从官方 GitHub 下载 UE4SS {0}（约 8.4 MB，缓存于 {1}，校验 SHA-256），并安装到 {2}（关闭控制台与调试窗口）；</value>
+  </data>
+  <data name="FetchUsmap_PlanStep2User" xml:space="preserve">
+    <value>  2. 检测到您已自行安装 UE4SS，保持原有配置不变；</value>
+  </data>
+  <data name="FetchUsmap_PlanStep2Reuse" xml:space="preserve">
+    <value>  2. 复用本工具先前安装的 UE4SS；</value>
+  </data>
+  <data name="FetchUsmap_PlanStep3" xml:space="preserve">
+    <value>  3. 部署临时只读模组 ue4ss/Mods/{0}（通过 enabled.txt 启用，不修改 mods.txt）；</value>
+  </data>
+  <data name="FetchUsmap_PlanStep4" xml:space="preserve">
+    <value>  4. 通过 Steam 启动游戏一次（最长等待 {0} 秒），在标题画面自动转储 .usmap，不触碰游戏存档；</value>
+  </data>
+  <data name="FetchUsmap_PlanStep5" xml:space="preserve">
+    <value>  5. 将 .usmap 复制归档到 {0} 并与 known-builds.json 核对；</value>
+  </data>
+  <data name="FetchUsmap_PlanStep6" xml:space="preserve">
+    <value>  6. 移除临时模组并自动关闭游戏；UE4SS 将保留供下次使用（随时可用 uninstall-ue4ss 卸载）。</value>
+  </data>
+  <data name="FetchUsmap_ConfirmPrompt" xml:space="preserve">
+    <value>确认继续吗？（输入 y 确认，直接回车或输入 n 取消）：</value>
+  </data>
+  <data name="FetchUsmap_CtrlCInterrupt" xml:space="preserve">
+    <value>收到中断信号，正在取消并清理临时模组与游戏进程……</value>
+  </data>
+  <data name="FetchUsmap_CancelledAfterInterrupt" xml:space="preserve">
+    <value>已取消获取 .usmap，临时模组已停用。</value>
+  </data>
+  <data name="GuiCore_LaunchCliFailed" xml:space="preserve">
+    <value>无法启动命令行程序：{0}</value>
+  </data>
+  <data name="GuiCore_DualComboHint" xml:space="preserve">
+    <value>已知版本表里登记了两种输入组合：一种是“只有 .usmap”，一种是“.usmap 加两份 .jmap”，所以无论是否勾选 .jmap，都可能对得上。</value>
+  </data>
+  <data name="GuiCore_ReportNotFound" xml:space="preserve">
+    <value>读取构建结果失败：在输出目录 {0} 中找不到 *.build.json 文件。</value>
+  </data>
+  <data name="GuiCore_ReportReadFailed" xml:space="preserve">
+    <value>读取构建报告失败（{0}）：{1}</value>
+  </data>
+  <data name="GuiCore_ReportInvalidJson" xml:space="preserve">
+    <value>解析构建报告 JSON 失败（{0}）：{1}</value>
+  </data>
+  <data name="GuiCore_ReportRootNotObject" xml:space="preserve">
+    <value>构建报告格式无效（根节点不是对象）：{0}</value>
+  </data>
+  <data name="GuiCore_ReportMissingFileSha" xml:space="preserve">
+    <value>构建报告缺少 database.file_sha256 字段：{0}</value>
+  </data>
+  <data name="GuiCore_InputDescUsmapOnly" xml:space="preserve">
+    <value>本次输入：仅 .usmap（未包含 .jmap）</value>
+  </data>
+  <data name="GuiCore_InputDescWithJmaps" xml:space="preserve">
+    <value>本次输入：.usmap + {0} 份 .jmap</value>
+  </data>
+  <data name="GuiCore_PartialExportNotice" xml:space="preserve">
+    <value>（提示：导出过程中有少量资源包失败，详见日志与构建报告。）</value>
+  </data>
+  <data name="GuiCore_MatchedRegDatePart" xml:space="preserve">
+    <value>，匹配登记日期：{0}</value>
+  </data>
+  <data name="GuiCore_VerdictMatchedTitle" xml:space="preserve">
+    <value>与登记的版本一致</value>
+  </data>
+  <data name="GuiCore_VerdictMatchedExplanation" xml:space="preserve">
+    <value>{0}{1}。{2}{3}</value>
+  </data>
+  <data name="GuiCore_VerdictNewVersionTitle" xml:space="preserve">
+    <value>新版本，未登记</value>
+  </data>
+  <data name="GuiCore_VerdictNewVersionExplanation" xml:space="preserve">
+    <value>{0}。当前游戏版本尚未登记在 known-builds.json 中。{1}{2}</value>
+  </data>
+  <data name="GuiCore_VerdictHashMismatchTitle" xml:space="preserve">
+    <value>哈希不同</value>
+  </data>
+  <data name="GuiCore_VerdictFileShaOnlyDetail" xml:space="preserve">
+    <value>所有表内容一致（content_sha256 相同），仅数据库文件哈希不同。</value>
+  </data>
+  <data name="GuiCore_VerdictTableDiffDetail" xml:space="preserve">
+    <value>游戏版本已登记，但有 {0} 张表内容与登记记录不同。</value>
+  </data>
+  <data name="GuiCore_VerdictGenericMismatchDetail" xml:space="preserve">
+    <value>游戏版本已登记，但数据库哈希与登记记录不同。</value>
+  </data>
+  <data name="GuiCore_VerdictOddJmapCountNote" xml:space="preserve">
+    <value>注意：当前提供了 {0} 份 .jmap，而登记组合为“0 份”或“2 份”。</value>
+  </data>
+  <data name="GuiCore_VerdictHashMismatchExplanation" xml:space="preserve">
+    <value>{0}。{1}{2}{3}{4}</value>
+  </data>
+  <data name="GuiCore_VerdictUnknownTitle" xml:space="preserve">
+    <value>比对结论未知</value>
+  </data>
+  <data name="GuiCore_VerdictUnknownExplanation" xml:space="preserve">
+    <value>{0}。构建报告中未包含可识别的版本比对结论。{1}{2}</value>
+  </data>
+  <data name="GuiCore_ClipboardDbPath" xml:space="preserve">
+    <value>数据库路径：{0}</value>
+  </data>
+  <data name="GuiCore_ClipboardFileSha" xml:space="preserve">
+    <value>文件哈希 (file_sha256)：{0}</value>
+  </data>
+  <data name="GuiCore_ClipboardContentSha" xml:space="preserve">
+    <value>内容哈希 (content_sha256)：{0}</value>
+  </data>
+  <data name="GuiCore_ClipboardVerdict" xml:space="preserve">
+    <value>比对结论：{0} {1}</value>
+  </data>
+  <data name="GuiCore_SteamScanFailed" xml:space="preserve">
+    <value>自动扫描 Steam 失败：{0}；请点击右侧「手动选择游戏目录…」。</value>
+  </data>
+  <data name="GuiCore_SteamLibraryUnreadable" xml:space="preserve">
+    <value>无法读取 Steam 游戏库（{0}）；请检查目录权限，或点击右侧「手动选择游戏目录…」。</value>
+  </data>
+  <data name="GuiCore_SteamRegistryFailed" xml:space="preserve">
+    <value>读取 Steam 注册表失败（{0}），且未在默认 Steam 目录找到游戏；请点击右侧「手动选择游戏目录…」。</value>
+  </data>
+  <data name="GuiCore_SelectGameRootPrompt" xml:space="preserve">
+    <value>请选择游戏安装根目录。</value>
+  </data>
+  <data name="GuiCore_GameDirInvalidPath" xml:space="preserve">
+    <value>游戏目录路径无效（{0}）：{1}</value>
+  </data>
+  <data name="GuiCore_GameDirNotFound" xml:space="preserve">
+    <value>所选游戏目录不存在：{0}</value>
+  </data>
+  <data name="GuiCore_GameDirMissingPaks" xml:space="preserve">
+    <value>所选目录不是支持的游戏目录：缺少 {0}（检查路径：{1}）。请选择《FINAL FANTASY RESONANCE》的游戏安装根目录。</value>
+  </data>
+  <data name="GuiCore_GameDirMissingExe" xml:space="preserve">
+    <value>所选目录不是支持的游戏目录：缺少游戏可执行文件 {0}（检查路径：{1}）。请选择《FINAL FANTASY RESONANCE》的游戏安装根目录。</value>
+  </data>
+  <data name="GuiCore_AccessDeniedPath" xml:space="preserve">
+    <value>无权访问 {0}：{1}</value>
+  </data>
+  <data name="GuiCore_AccessFailedPath" xml:space="preserve">
+    <value>访问 {0} 失败：{1}</value>
+  </data>
+  <data name="GuiCore_FontMissingOrUnsupported" xml:space="preserve">
+    <value>系统未安装字体 {0} 或不支持当前样式</value>
+  </data>
+  <data name="GuiCore_UiFontFallbackMsgBox" xml:space="preserve">
+    <value>界面字体 {0} 不可用（{1}），已退回系统默认字体（MessageBoxFont）。</value>
+  </data>
+  <data name="GuiCore_UiFontFallbackMsgBoxRegular" xml:space="preserve">
+    <value>界面字体 {0} 不可用（{1}），已退回系统默认常规字体（MessageBoxFont）。</value>
+  </data>
+  <data name="GuiCore_UiFontFallbackControlDefault" xml:space="preserve">
+    <value>界面字体 {0} 与 MessageBoxFont 均不可用（{1}），已退回控件默认字体。</value>
+  </data>
+  <data name="GuiCore_MonoFontNotInstalled" xml:space="preserve">
+    <value>系统未安装字体 {0}</value>
+  </data>
+  <data name="GuiCore_MonoFontFallbackGeneric" xml:space="preserve">
+    <value>等宽字体 {0} 不可用（{1}），已退回系统等宽字体。</value>
+  </data>
+  <data name="GuiCore_MonoFontFallbackMsgBox" xml:space="preserve">
+    <value>等宽字体 {0} 不可用（{1}），已退回系统默认字体（MessageBoxFont）。</value>
+  </data>
+  <data name="GuiCore_MonoFontFallbackControlDefault" xml:space="preserve">
+    <value>等宽字体 {0} 不可用（{1}），已退回控件默认字体。</value>
+  </data>
+  <data name="GuiCore_DefaultOutputAllUnwritable" xml:space="preserve">
+    <value>默认数据目录与备选目录均不可写，请点击「浏览…」手动选择输出目录。</value>
+  </data>
+  <data name="GuiCore_PathEmpty" xml:space="preserve">
+    <value>路径为空</value>
+  </data>
+  <data name="GuiCore_PathContainsNull" xml:space="preserve">
+    <value>路径包含非法空字符</value>
+  </data>
+  <data name="GuiCore_SavedOutputInvalidFallback" xml:space="preserve">
+    <value>上次保存的输出目录无效（{0}：{1}），已改用默认目录：{2}。</value>
+  </data>
+  <data name="GuiCore_CliLookupInvalidBaseDir" xml:space="preserve">
+    <value>定位命令行程序 {0} 失败（程序目录路径无效：{1}）：{2}</value>
+  </data>
+  <data name="GuiCore_CliLookupCheckFailed" xml:space="preserve">
+    <value>检查命令行程序 {0} 失败（{1}）：{2}</value>
+  </data>
+  <data name="GuiCore_CliNotFound" xml:space="preserve">
+    <value>找不到命令行程序 {0}（期望路径：{1}）。请将压缩包完整解压到同一个文件夹，确保 ffr-export-gui.exe、{0}、{2} 与 known-builds.json 位于同一目录，不要单独移动窗口程序。</value>
+  </data>
+  <data name="GuiCore_OutputEmpty" xml:space="preserve">
+    <value>输出目录不能为空，请选择一个输出文件夹。</value>
+  </data>
+  <data name="GuiCore_OutputInvalidPath" xml:space="preserve">
+    <value>输出目录路径无效（{0}）：{1}</value>
+  </data>
+  <data name="GuiCore_OutputOverlapsGame" xml:space="preserve">
+    <value>输出目录不能与游戏安装目录重叠：{0}，请更换其他目录。</value>
+  </data>
+  <data name="GuiCore_OutputIsFile" xml:space="preserve">
+    <value>输出路径指向一个已存在的文件而非文件夹：{0}，请更换路径。</value>
+  </data>
+  <data name="GuiCore_OutputReadFailed" xml:space="preserve">
+    <value>无法读取输出目录 {0}：{1}</value>
+  </data>
+  <data name="GuiCore_OutputProtectedRefused" xml:space="preserve">
+    <value>输出目录 {0} 是系统或用户根级目录且非空，为防止误删个人文件，拒绝清空该目录；请在其下新建或指定专用子文件夹。</value>
+  </data>
+  <data name="GuiCore_RefuseClearProtected" xml:space="preserve">
+    <value>拒绝清空受保护目录：{0}</value>
+  </data>
+  <data name="GuiCore_SettingsResolvePathFailed" xml:space="preserve">
+    <value>解析配置文件路径失败：{0}；已改用默认设置。</value>
+  </data>
+  <data name="GuiCore_SettingsNullChar" xml:space="preserve">
+    <value>路径包含非法空字符。</value>
+  </data>
+  <data name="GuiCore_SettingsEmptyOrInvalid" xml:space="preserve">
+    <value>配置文件内容为空或格式无效（{0}），已改用默认设置。</value>
+  </data>
+  <data name="GuiCore_SettingsCorrupt" xml:space="preserve">
+    <value>配置文件已损坏（{0}）：{1}；已改用默认设置。</value>
+  </data>
+  <data name="GuiCore_SettingsAccessDenied" xml:space="preserve">
+    <value>无权读取配置文件（{0}）：{1}；已改用默认设置。</value>
+  </data>
+  <data name="GuiCore_SettingsReadFailed" xml:space="preserve">
+    <value>读取配置文件失败（{0}）：{1}；已改用默认设置。</value>
+  </data>
+  <data name="GuiCore_LegacySettingsInvalid" xml:space="preserve">
+    <value>旧版配置文件内容无效（{0}），跳过自动迁移。</value>
+  </data>
+  <data name="GuiCore_LegacySettingsMigrateFailed" xml:space="preserve">
+    <value>迁移旧版配置文件失败（{0} -&gt; {1}）：{2}；已保留旧文件并继续使用默认设置。</value>
+  </data>
+  <data name="GuiCore_LogStageLine" xml:space="preserve">
+    <value>[{0}] [ERROR] 阶段：{1}</value>
+  </data>
+  <data name="GuiCore_LogNonExceptionObject" xml:space="preserve">
+    <value>非 Exception 未处理异常对象：{0}</value>
+  </data>
+  <data name="GuiCore_LogNoWritableDir" xml:space="preserve">
+    <value>未指定可写的日志目录</value>
+  </data>
+  <data name="GuiCore_LogNoWritableDataDir" xml:space="preserve">
+    <value>没有可写的数据目录</value>
+  </data>
+  <data name="GuiCore_LogNotWrittenNoDataDir" xml:space="preserve">
+    <value>没有可写的数据目录，未写入日志文件</value>
+  </data>
+  <data name="GuiCore_LogCreateFailed" xml:space="preserve">
+    <value>无法创建启动日志文件</value>
+  </data>
+  <data name="GuiCore_CrashDefaultHeadline" xml:space="preserve">
+    <value>窗口程序启动失败</value>
+  </data>
+  <data name="GuiCore_CrashExceptionLine" xml:space="preserve">
+    <value>异常信息：{0}: {1}</value>
+  </data>
+  <data name="GuiCore_CrashInnerExceptionLine" xml:space="preserve">
+    <value>内部异常：{0}: {1}</value>
+  </data>
+  <data name="GuiCore_CrashLogFileLine" xml:space="preserve">
+    <value>日志文件：{0}</value>
+  </data>
+  <data name="GuiCore_CrashSendLogToDev" xml:space="preserve">
+    <value>请将上述日志文件发送给开发者，以便定位问题。</value>
+  </data>
+  <data name="GuiCore_CrashLogDirUnwritable" xml:space="preserve">
+    <value>日志目录不可写</value>
+  </data>
+  <data name="GuiCore_CrashLogNotWrittenLine" xml:space="preserve">
+    <value>日志文件：未能写入日志文件（{0}）</value>
+  </data>
+  <data name="GuiCore_CrashSendScreenshotToDev" xml:space="preserve">
+    <value>请将本错误窗口截图发送给开发者，以便定位问题。</value>
+  </data>
+  <data name="GuiCore_SelfTestFailedLine" xml:space="preserve">
+    <value>窗口程序自检失败：{0}: {1}</value>
+  </data>
+  <data name="GuiCore_SelfTestLogNotWritten" xml:space="preserve">
+    <value>日志文件：未能写入（{0}）</value>
+  </data>
+  <data name="GuiCore_LogIntegrityInfoLine" xml:space="preserve">
+    <value>[{0}] [INFO] 进程完整性级别：{1} ({2})；数据目录来源={3}；路径={4}</value>
+  </data>
+  <data name="GuiCore_LogSkippedCandidateLine" xml:space="preserve">
+    <value>[{0}] [WARN] 跳过不可写候选目录：{1} ({2})：{3}</value>
+  </data>
+  <data name="GuiCore_LogLocationSaveFailedLine" xml:space="preserve">
+    <value>[{0}] [WARN] 未能保存 {1}（下次启动时需重新选择数据目录）：{2}</value>
+  </data>
+  <data name="GuiCore_ExeDirUnwritable" xml:space="preserve">
+    <value>程序目录不可写</value>
+  </data>
+  <data name="GuiCore_LogExceptionType" xml:space="preserve">
+    <value>异常类型：{0}</value>
+  </data>
+  <data name="GuiCore_LogExceptionMessage" xml:space="preserve">
+    <value>异常消息：{0}</value>
+  </data>
+  <data name="GuiCore_LogHResult" xml:space="preserve">
+    <value>HResult：0x{0}</value>
+  </data>
+  <data name="GuiCore_LogStackTraceHeader" xml:space="preserve">
+    <value>堆栈跟踪：</value>
+  </data>
+  <data name="GuiCore_LogNoStackTrace" xml:space="preserve">
+    <value>(无堆栈信息)</value>
+  </data>
+  <data name="GuiCore_LogInnerTruncated" xml:space="preserve">
+    <value>...（InnerException 嵌套层数过多，已截断）</value>
+  </data>
+  <data name="GuiCore_UsmapNotFoundGuidance" xml:space="preserve">
+    <value>未自动找到 .usmap 文件。可点击下方「一键获取 .usmap（会启动一次游戏）」自动转储，或点击「选择 .usmap…」手动指定。</value>
+  </data>
+  <data name="GuiCore_UsmapDiscoveryErrorGuidance" xml:space="preserve">
+    <value>自动查找 .usmap 失败（{0}）。请检查目录权限，或点击「一键获取 .usmap」/「选择 .usmap…」。</value>
+  </data>
+  <data name="GuiCore_UsmapDisplayMultiple" xml:space="preserve">
+    <value>{0}（修改日期：{1}，共找到 {2} 份，已选最新）</value>
+  </data>
+  <data name="GuiCore_UsmapDisplaySingle" xml:space="preserve">
+    <value>{0}（修改日期：{1}）</value>
+  </data>
+  <data name="GuiCore_JmapDisplay" xml:space="preserve">
+    <value>{0}（修改日期：{1}，{2}） — {3}</value>
+  </data>
+  <data name="GuiCore_SourceManualSelect" xml:space="preserve">
+    <value>手动选择</value>
+  </data>
+  <data name="GuiCore_SourceManualAdd" xml:space="preserve">
+    <value>手动添加</value>
+  </data>
+  <data name="GuiCore_SourceFetched" xml:space="preserve">
+    <value>一键获取</value>
+  </data>
+  <data name="GuiCore_ScanDirCannotAccess" xml:space="preserve">
+    <value>无法访问目录 {0}：{1}</value>
+  </data>
+  <data name="GuiCore_ScanDirAccessDenied" xml:space="preserve">
+    <value>无权读取目录 {0}：{1}</value>
+  </data>
+  <data name="GuiCore_ScanDirFailed" xml:space="preserve">
+    <value>扫描目录 {0} 失败：{1}</value>
+  </data>
+  <data name="Gui_SelfTestFailedPrefix" xml:space="preserve">
+    <value>窗口程序自检失败：{0}</value>
+  </data>
+  <data name="Gui_AgpEnvUnwritableFallback" xml:space="preserve">
+    <value>环境变量 AGP_HOME 指定的目录不可写。</value>
+  </data>
+  <data name="Gui_DataDirUnwritableTitle" xml:space="preserve">
+    <value>数据目录不可写</value>
+  </data>
+  <data name="Gui_LogProcessTempRedirected" xml:space="preserve">
+    <value>进程临时目录已指向数据根目录子目录：{0}</value>
+  </data>
+  <data name="Gui_LogProcessTempFailed" xml:space="preserve">
+    <value>配置数据根目录 tmp 子目录失败：{0}</value>
+  </data>
+  <data name="Gui_LogDpiInitFailed" xml:space="preserve">
+    <value>高 DPI 初始化失败：{0}</value>
+  </data>
+  <data name="Gui_LogVisualStylesFailed" xml:space="preserve">
+    <value>视觉样式初始化失败（将沿用应用清单中的视觉样式）：{0}: {1}</value>
+  </data>
+  <data name="Gui_ChooseWritableDataDirTitle" xml:space="preserve">
+    <value>请选择可写的数据目录</value>
+  </data>
+  <data name="Gui_ChooseWritableDataDirDesc" xml:space="preserve">
+    <value>选择一个可写文件夹作为本工具的数据根目录（用于保存日志、设置和导出文件）</value>
+  </data>
+  <data name="Gui_FolderPickerFailedBody" xml:space="preserve">
+    <value>无法打开「选择文件夹」对话框（{0}: {1}）。
+
+请设置环境变量 {2} 指向一个可写文件夹后重新启动本工具，或右键压缩包 -&gt; 属性 -&gt; 解除锁定后重新解压。</value>
+  </data>
+  <data name="Gui_FolderPickerFailedTitle" xml:space="preserve">
+    <value>无法打开文件夹选择器</value>
+  </data>
+  <data name="Gui_SelectedDirUnwritableFallback" xml:space="preserve">
+    <value>所选文件夹不可写，请重新选择其他目录。</value>
+  </data>
+  <data name="Gui_SelectedDirUnwritableTitle" xml:space="preserve">
+    <value>所选目录不可写</value>
+  </data>
+  <data name="Gui_CrashRuntimeHeadline" xml:space="preserve">
+    <value>窗口程序运行异常</value>
+  </data>
+  <data name="Gui_UnhandledNonException" xml:space="preserve">
+    <value>发生未处理的非异常对象：{0}</value>
+  </data>
+  <data name="Gui_LogConstructingMainForm" xml:space="preserve">
+    <value>正在构造主窗口 MainForm...</value>
+  </data>
+  <data name="Gui_LogMainFormShown" xml:space="preserve">
+    <value>主窗口已显示。</value>
+  </data>
+  <data name="Gui_LogStartingMessageLoop" xml:space="preserve">
+    <value>正在启动 WinForms 消息循环...</value>
+  </data>
+  <data name="Gui_LogGuiExited" xml:space="preserve">
+    <value>窗口程序退出，退出码={0}。</value>
+  </data>
+  <data name="Gui_LogMainFormInitPhase" xml:space="preserve">
+    <value>MainForm 构造或启动</value>
+  </data>
+  <data name="Gui_SelfTestStart" xml:space="preserve">
+    <value>开始执行窗口程序自检（--self-test）...</value>
+  </data>
+  <data name="Gui_SelfTestVisualStylesFailed" xml:space="preserve">
+    <value>Application.EnableVisualStyles 初始化失败（可能误触不可写的系统 TEMP）：{0}</value>
+  </data>
+  <data name="Gui_SelfTestWinFormsMetadataFailed" xml:space="preserve">
+    <value>WinForms 程序集元数据加载异常。</value>
+  </data>
+  <data name="Gui_SelfTestSteamLocatorFailed" xml:space="preserve">
+    <value>共享 SteamLocator 配置异常。</value>
+  </data>
+  <data name="Gui_SelfTestProgressParseFailed" xml:space="preserve">
+    <value>进度解析自检失败。</value>
+  </data>
+  <data name="Gui_SelfTestLocalizationFailed" xml:space="preserve">
+    <value>多语言资源加载自检失败（en/zh-Hans/ja）。</value>
+  </data>
+  <data name="Gui_SelfTestAgpRootEmpty" xml:space="preserve">
+    <value>数据根目录解析结果为空。</value>
+  </data>
+  <data name="Gui_SelfTestTempNotRedirected" xml:space="preserve">
+    <value>进程 TEMP/TMP 未重定向到数据根目录 tmp 子目录：expected={0}, TEMP={1}, TMP={2}</value>
+  </data>
+  <data name="Gui_SelfTestProbeFailed" xml:space="preserve">
+    <value>数据根目录试写自检失败：{0}</value>
+  </data>
+  <data name="Gui_SelfTestOutputCalcFailed" xml:space="preserve">
+    <value>默认输出路径计算自检失败。</value>
+  </data>
+  <data name="Gui_SelfTestSettingsJsonFailed" xml:space="preserve">
+    <value>配置 JSON 序列化自检失败。</value>
+  </data>
+  <data name="Gui_SelfTestCreatingMainForm" xml:space="preserve">
+    <value>自检：正在构造 MainForm 并调用 CreateControl()（不显示窗口）...</value>
+  </data>
+  <data name="Gui_SelfTestMainFormHandleFailed" xml:space="preserve">
+    <value>主窗口句柄创建失败。</value>
+  </data>
+  <data name="Gui_SelfTestMainFormShouldBeHidden" xml:space="preserve">
+    <value>自检期间主窗口不应可见。</value>
+  </data>
+  <data name="Gui_SelfTestMainFormCreated" xml:space="preserve">
+    <value>自检：MainForm 创建成功（handle=0x{0}, topControls={1}），正在校验 SettingsDialog。</value>
+  </data>
+  <data name="Gui_SelfTestSettingsHandleFailed" xml:space="preserve">
+    <value>设置对话框句柄创建失败。</value>
+  </data>
+  <data name="Gui_SelfTestPassed" xml:space="preserve">
+    <value>自检通过：assembly={0}, dpi={1}, integrity={2}, data_root={3}, appid={4}</value>
+  </data>
+  <data name="Gui_SelfTestChildHandleFailed" xml:space="preserve">
+    <value>子控件 {0} 句柄创建失败。</value>
+  </data>
+  <data name="Gui_LogMessageBoxFailed" xml:space="preserve">
+    <value>MessageBox.Show 失败</value>
+  </data>
+  <data name="Gui_WindowTitle" xml:space="preserve">
+    <value>《FINAL FANTASY RESONANCE》数据导出工具</value>
+  </data>
+  <data name="Gui_LanguageLabel" xml:space="preserve">
+    <value>语言：</value>
+  </data>
+  <data name="Gui_DefaultOutputHint" xml:space="preserve">
+    <value>默认位置：{0}\ffr-&lt;Steam 构建号&gt;\（导出只读游戏文件，不会修改游戏目录）</value>
+  </data>
+  <data name="Gui_SettingsMigratedNote" xml:space="preserve">
+    <value>已自动将旧版设置从 {0} 迁移至 {1}（旧文件已重命名为 .migrated）。</value>
+  </data>
+  <data name="Gui_SavedOutputInvalidHint" xml:space="preserve">
+    <value>上次保存的输出目录无效（{0}：{1}），已改用默认目录：{2}（可点击「浏览…」重新选择）。</value>
+  </data>
+  <data name="Gui_GroupGame" xml:space="preserve">
+    <value>1. 游戏（FINAL FANTASY RESONANCE）</value>
+  </data>
+  <data name="Gui_ColGameName" xml:space="preserve">
+    <value>游戏名称</value>
+  </data>
+  <data name="Gui_ColSteamBuildId" xml:space="preserve">
+    <value>Steam 构建号</value>
+  </data>
+  <data name="Gui_ColInstallDir" xml:space="preserve">
+    <value>安装目录</value>
+  </data>
+  <data name="Gui_BtnManualGame" xml:space="preserve">
+    <value>手动选择游戏目录…</value>
+  </data>
+  <data name="Gui_BtnRescanSteam" xml:space="preserve">
+    <value>重新扫描 Steam</value>
+  </data>
+  <data name="Gui_BtnSettings" xml:space="preserve">
+    <value>设置…</value>
+  </data>
+  <data name="Gui_GroupMappings" xml:space="preserve">
+    <value>2. 映射与反射文件（.usmap / .jmap）</value>
+  </data>
+  <data name="Gui_LabelUsmapRequired" xml:space="preserve">
+    <value>.usmap（必填）：</value>
+  </data>
+  <data name="Gui_BtnBrowseUsmap" xml:space="preserve">
+    <value>选择 .usmap…</value>
+  </data>
+  <data name="Gui_BtnCleanupUe4ss" xml:space="preserve">
+    <value>清理 UE4SS…</value>
+  </data>
+  <data name="Gui_BtnFetchUsmap" xml:space="preserve">
+    <value>一键获取 .usmap（会启动一次游戏）</value>
+  </data>
+  <data name="Gui_LabelFilePath" xml:space="preserve">
+    <value>文件路径：</value>
+  </data>
+  <data name="Gui_CheckIncludeJmap" xml:space="preserve">
+    <value>包含反射数据（.jmap，可选）</value>
+  </data>
+  <data name="Gui_BtnAddJmap" xml:space="preserve">
+    <value>添加 .jmap…</value>
+  </data>
+  <data name="Gui_BtnRemoveJmap" xml:space="preserve">
+    <value>移除选中</value>
+  </data>
+  <data name="Gui_GroupOutput" xml:space="preserve">
+    <value>3. 输出位置</value>
+  </data>
+  <data name="Gui_LabelOutputDir" xml:space="preserve">
+    <value>输出目录：</value>
+  </data>
+  <data name="Gui_BtnBrowseOutput" xml:space="preserve">
+    <value>浏览…</value>
+  </data>
+  <data name="Gui_BtnStartExport" xml:space="preserve">
+    <value>开始导出</value>
+  </data>
+  <data name="Gui_BtnCancel" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="Gui_StatusReady" xml:space="preserve">
+    <value>状态：就绪</value>
+  </data>
+  <data name="Gui_GroupResult" xml:space="preserve">
+    <value>4. 完成结果</value>
+  </data>
+  <data name="Gui_ResultNotRun" xml:space="preserve">
+    <value>尚未导出</value>
+  </data>
+  <data name="Gui_ResultNotRunDetail" xml:space="preserve">
+    <value>点击“开始导出”后，此处将显示数据库路径、哈希及与 known-builds.json 的比对结论。</value>
+  </data>
+  <data name="Gui_LabelDbPath" xml:space="preserve">
+    <value>数据库路径：</value>
+  </data>
+  <data name="Gui_BtnOpenOutput" xml:space="preserve">
+    <value>打开输出文件夹</value>
+  </data>
+  <data name="Gui_LabelFileSha" xml:space="preserve">
+    <value>文件哈希：</value>
+  </data>
+  <data name="Gui_BtnCopyHash" xml:space="preserve">
+    <value>复制哈希</value>
+  </data>
+  <data name="Gui_LabelContentSha" xml:space="preserve">
+    <value>内容哈希：</value>
+  </data>
+  <data name="Gui_StatusStripIntegrity" xml:space="preserve">
+    <value>完整性级别：{0}</value>
+  </data>
+  <data name="Gui_StatusStripDataRoot" xml:space="preserve">
+    <value>数据目录：{0}</value>
+  </data>
+  <data name="Gui_LogPrefixInfo" xml:space="preserve">
+    <value>[提示] {0}</value>
+  </data>
+  <data name="Gui_LogPrefixWarn" xml:space="preserve">
+    <value>[警告] {0}</value>
+  </data>
+  <data name="Gui_LogPrefixError" xml:space="preserve">
+    <value>[错误] {0}</value>
+  </data>
+  <data name="Gui_LogPrefixDone" xml:space="preserve">
+    <value>[完成] {0}</value>
+  </data>
+  <data name="Gui_LogPrefixCancelled" xml:space="preserve">
+    <value>[已取消] {0}</value>
+  </data>
+  <data name="Gui_OpNameFetchUsmap" xml:space="preserve">
+    <value>获取 .usmap</value>
+  </data>
+  <data name="Gui_OpNameCleanUe4ss" xml:space="preserve">
+    <value>清理 UE4SS</value>
+  </data>
+  <data name="Gui_OpNameExport" xml:space="preserve">
+    <value>导出</value>
+  </data>
+  <data name="Gui_ConfirmCloseBody" xml:space="preserve">
+    <value>{0}仍在进行中。关闭窗口会取消{0}并清理后台进程，确定要退出吗？</value>
+  </data>
+  <data name="Gui_ConfirmCloseTitle" xml:space="preserve">
+    <value>确认退出</value>
+  </data>
+  <data name="Gui_CliMissingFallback" xml:space="preserve">
+    <value>找不到命令行程序 ffr-export.exe。</value>
+  </data>
+  <data name="Gui_CliMissingTitle" xml:space="preserve">
+    <value>缺少命令行程序</value>
+  </data>
+  <data name="Gui_ShownCheckFailed" xml:space="preserve">
+    <value>窗口首次显示检查失败：{0}</value>
+  </data>
+  <data name="Gui_GamesFoundStatus" xml:space="preserve">
+    <value>已在 Steam 游戏库中找到 {0} 个可导出游戏。</value>
+  </data>
+  <data name="Gui_GamesNotFoundStatus" xml:space="preserve">
+    <value>未在 Steam 库中自动找到《FINAL FANTASY RESONANCE》，请点击右侧“手动选择游戏目录…”。</value>
+  </data>
+  <data name="Gui_SelectGameDialogDesc" xml:space="preserve">
+    <value>选择《FINAL FANTASY RESONANCE》的游戏安装根目录（包含 FFRS 文件夹）</value>
+  </data>
+  <data name="Gui_GameInvalidFallback" xml:space="preserve">
+    <value>所选目录不是支持的游戏目录。</value>
+  </data>
+  <data name="Gui_GameCheckFailedTitle" xml:space="preserve">
+    <value>游戏目录检查失败</value>
+  </data>
+  <data name="Gui_GameAddedManually" xml:space="preserve">
+    <value>已手动添加游戏目录：{0}</value>
+  </data>
+  <data name="Gui_UsmapDirAccessWarn" xml:space="preserve">
+    <value>自动查找 .usmap 时遇到目录访问错误：{0}</value>
+  </data>
+  <data name="Gui_UsmapAutoFoundStatus" xml:space="preserve">
+    <value>已自动找到：{0}</value>
+  </data>
+  <data name="Gui_UsmapAutoFindError" xml:space="preserve">
+    <value>自动查找 .usmap 失败：{0}；请点击「一键获取 .usmap」或「选择 .usmap…」。</value>
+  </data>
+  <data name="Gui_JmapUncheckedStatus" xml:space="preserve">
+    <value>未勾选（仅使用 .usmap 导出）。</value>
+  </data>
+  <data name="Gui_OpenUsmapDialogTitle" xml:space="preserve">
+    <value>选择 .usmap 映射文件</value>
+  </data>
+  <data name="Gui_OpenUsmapDialogFilter" xml:space="preserve">
+    <value>UE 映射文件 (*.usmap)|*.usmap|所有文件 (*.*)|*.*</value>
+  </data>
+  <data name="Gui_UsmapManualStatus" xml:space="preserve">
+    <value>已手动选择：{0}</value>
+  </data>
+  <data name="Gui_CleanupUnexpectedLog" xml:space="preserve">
+    <value>清理 UE4SS 时发生未预期异常：{0}</value>
+  </data>
+  <data name="Gui_CleanupFailedBody" xml:space="preserve">
+    <value>清理 UE4SS 失败：{0}</value>
+  </data>
+  <data name="Gui_CleanupFailedTitle" xml:space="preserve">
+    <value>清理 UE4SS 失败</value>
+  </data>
+  <data name="Gui_NoGameSelectedBody" xml:space="preserve">
+    <value>请先选择一个游戏，或点击「手动选择游戏目录…」指定《FINAL FANTASY RESONANCE》安装目录。</value>
+  </data>
+  <data name="Gui_NoGameSelectedTitle" xml:space="preserve">
+    <value>未选择游戏</value>
+  </data>
+  <data name="Gui_GameDirInvalidBody" xml:space="preserve">
+    <value>所选游戏目录无效，请重新选择。</value>
+  </data>
+  <data name="Gui_GameDirInvalidTitle" xml:space="preserve">
+    <value>游戏目录无效</value>
+  </data>
+  <data name="Gui_GameRunningCleanupBody" xml:space="preserve">
+    <value>检测到游戏（{0}）正在运行，请先关闭游戏后再清理 UE4SS。</value>
+  </data>
+  <data name="Gui_GameRunningTitle" xml:space="preserve">
+    <value>游戏正在运行</value>
+  </data>
+  <data name="Gui_Ue4ssNotFoundTitle" xml:space="preserve">
+    <value>未发现 UE4SS</value>
+  </data>
+  <data name="Gui_LaunchCommandLog" xml:space="preserve">
+    <value>启动命令：{0} {1}</value>
+  </data>
+  <data name="Gui_LogStartCleanup" xml:space="preserve">
+    <value>开始清理 UE4SS：game={0}, includeForeign={1}</value>
+  </data>
+  <data name="Gui_StatusCleaningUe4ss" xml:space="preserve">
+    <value>状态：正在清理 UE4SS……</value>
+  </data>
+  <data name="Gui_StatusCleanupComplete" xml:space="preserve">
+    <value>状态：UE4SS 清理完成</value>
+  </data>
+  <data name="Gui_CleanupCompleteDefaultBody" xml:space="preserve">
+    <value>UE4SS 清理已完成。</value>
+  </data>
+  <data name="Gui_LogCleanupComplete" xml:space="preserve">
+    <value>UE4SS 清理完成：{0}</value>
+  </data>
+  <data name="Gui_CleanupCompleteTitle" xml:space="preserve">
+    <value>清理 UE4SS 完成</value>
+  </data>
+  <data name="Gui_StatusCleanupFailedExit" xml:space="preserve">
+    <value>状态：清理 UE4SS 失败（退出码：{0}）</value>
+  </data>
+  <data name="Gui_CleanupFailedExitBody" xml:space="preserve">
+    <value>清理 UE4SS 失败（退出码：{0}）。</value>
+  </data>
+  <data name="Gui_LogCleanupFailedExit" xml:space="preserve">
+    <value>UE4SS 清理失败（exit={0}）：{1}</value>
+  </data>
+  <data name="Gui_StatusCleanupCancelled" xml:space="preserve">
+    <value>状态：已取消清理 UE4SS</value>
+  </data>
+  <data name="Gui_CleanupCancelledLog" xml:space="preserve">
+    <value>已取消清理 UE4SS。</value>
+  </data>
+  <data name="Gui_FetchUsmapUnexpectedLog" xml:space="preserve">
+    <value>一键获取 .usmap 时发生未预期异常：{0}</value>
+  </data>
+  <data name="Gui_FetchUsmapErrorBody" xml:space="preserve">
+    <value>获取 .usmap 过程发生错误：{0}</value>
+  </data>
+  <data name="Gui_FetchUsmapFailedTitle" xml:space="preserve">
+    <value>获取 .usmap 失败</value>
+  </data>
+  <data name="Gui_GameRunningFetchBody" xml:space="preserve">
+    <value>检测到游戏（{0}）正在运行，请先关闭游戏后再获取 .usmap。</value>
+  </data>
+  <data name="Gui_FetchUsmapConfirmBody" xml:space="preserve">
+    <value>即将一键获取 .usmap 映射文件，执行前请知悉：
+
+1. 若游戏目录尚未安装 UE4SS，将从 UE4SS 官方 GitHub（RE-UE4SS v4.0.0）下载约 8.4 MB 压缩包并严格校验 SHA-256，安装进游戏目录；若您原本已安装 UE4SS，则完全不动原有配置。
+2. 会放入临时转储模组并通过 Steam 启动一次游戏，等待引擎初始化后在标题画面转储 .usmap，随后自动移除临时模组并关闭游戏。
+3. 转储完成后会保留 UE4SS 供下次复用，您可以随时点击主窗口「清理 UE4SS…」按钮清理本工具安装的文件。
+4. 全程只读取类型映射，停留在标题画面，不会触碰或修改任何游戏存档。
+
+确定要开始获取 .usmap 吗？</value>
+  </data>
+  <data name="Gui_FetchUsmapConfirmTitle" xml:space="preserve">
+    <value>确认一键获取 .usmap</value>
+  </data>
+  <data name="Gui_StatusPreparingFetchUsmap" xml:space="preserve">
+    <value>状态：正在准备获取 .usmap……</value>
+  </data>
+  <data name="Gui_StatusFetchUsmapComplete" xml:space="preserve">
+    <value>状态：.usmap 获取完成</value>
+  </data>
+  <data name="Gui_UsmapFetchedStatus" xml:space="preserve">
+    <value>已自动获取：{0}</value>
+  </data>
+  <data name="Gui_FetchUsmapDoneLog" xml:space="preserve">
+    <value>.usmap 已获取并自动选中，现在可以点击「开始导出」。</value>
+  </data>
+  <data name="Gui_StatusFetchUsmapFailedExit" xml:space="preserve">
+    <value>状态：获取 .usmap 失败（退出码：{0}）</value>
+  </data>
+  <data name="Gui_FetchUsmapFailedExitLog" xml:space="preserve">
+    <value>fetch-usmap 异常结束（退出码：{0}）。</value>
+  </data>
+  <data name="Gui_FetchUsmapFailedExitBody" xml:space="preserve">
+    <value>获取 .usmap 失败（退出码：{0}），请查看窗口日志了解具体原因和排查建议。</value>
+  </data>
+  <data name="Gui_StatusCancellingFetchUsmap" xml:space="preserve">
+    <value>状态：正在取消——停用临时模组并关闭游戏……</value>
+  </data>
+  <data name="Gui_FetchUsmapCancellingLog" xml:space="preserve">
+    <value>用户取消了获取 .usmap，正在停用临时模组并关闭游戏……</value>
+  </data>
+  <data name="Gui_StatusFetchUsmapCancelled" xml:space="preserve">
+    <value>状态：已取消获取 .usmap</value>
+  </data>
+  <data name="Gui_FetchUsmapCancelledDoneLog" xml:space="preserve">
+    <value>已停用临时转储模组并结束游戏进程。</value>
+  </data>
+  <data name="Gui_StatusFetchUsmapFailed" xml:space="preserve">
+    <value>状态：获取 .usmap 失败</value>
+  </data>
+  <data name="Gui_JmapAutoFindError" xml:space="preserve">
+    <value>自动查找 .jmap 失败：{0}；请点「添加 .jmap…」手动选择，或取消勾选继续导出。</value>
+  </data>
+  <data name="Gui_JmapDirAccessWarn" xml:space="preserve">
+    <value>自动查找 .jmap 时遇到目录访问错误：{0}</value>
+  </data>
+  <data name="Gui_JmapAutoFoundStatus" xml:space="preserve">
+    <value>已自动找到 {0} 份 .jmap 文件（可继续添加或移除）。</value>
+  </data>
+  <data name="Gui_JmapPartialFoundStatus" xml:space="preserve">
+    <value>已找到 {0} 份 .jmap，但部分目录无法读取（{1}），可点「添加 .jmap…」手动补充。</value>
+  </data>
+  <data name="Gui_JmapScanErrorStatus" xml:space="preserve">
+    <value>自动查找 .jmap 失败（{0}）；请检查权限，或点「添加 .jmap…」手动选择。</value>
+  </data>
+  <data name="Gui_JmapNotFoundStatus" xml:space="preserve">
+    <value>未在游戏目录的 ue4ss / Win64 下找到 .jmap 文件，可点“添加 .jmap…”手动选择，或取消勾选继续导出。</value>
+  </data>
+  <data name="Gui_OpenJmapDialogTitle" xml:space="preserve">
+    <value>选择 .jmap 反射转储文件（可多选）</value>
+  </data>
+  <data name="Gui_OpenJmapDialogFilter" xml:space="preserve">
+    <value>UE 反射转储 (*.jmap)|*.jmap|所有文件 (*.*)|*.*</value>
+  </data>
+  <data name="Gui_JmapSelectedCountStatus" xml:space="preserve">
+    <value>当前共选择 {0} 份 .jmap 文件。</value>
+  </data>
+  <data name="Gui_JmapEmptyListStatus" xml:space="preserve">
+    <value>当前 .jmap 列表为空，可点“添加 .jmap…”手动选择，或取消勾选继续导出。</value>
+  </data>
+  <data name="Gui_BrowseOutputDialogDesc" xml:space="preserve">
+    <value>选择导出输出目录</value>
+  </data>
+  <data name="Gui_ExportUnexpectedLog" xml:space="preserve">
+    <value>启动导出时发生未预期异常：{0}</value>
+  </data>
+  <data name="Gui_ExportErrorBody" xml:space="preserve">
+    <value>导出过程发生错误：{0}</value>
+  </data>
+  <data name="Gui_ExportFailedTitle" xml:space="preserve">
+    <value>导出失败</value>
+  </data>
+  <data name="Gui_MissingUsmapBody" xml:space="preserve">
+    <value>请先指定有效的 .usmap 映射文件。
+
+{0}</value>
+  </data>
+  <data name="Gui_MissingUsmapTitle" xml:space="preserve">
+    <value>缺少 .usmap 映射文件</value>
+  </data>
+  <data name="Gui_MissingJmapFileBody" xml:space="preserve">
+    <value>反射数据文件不存在：{0}
+请移除该条目或重新选择。</value>
+  </data>
+  <data name="Gui_MissingJmapFileTitle" xml:space="preserve">
+    <value>找不到 .jmap 文件</value>
+  </data>
+  <data name="Gui_NoJmapConfirmBody" xml:space="preserve">
+    <value>已勾选“包含反射数据（.jmap，可选）”，但当前列表里没有 .jmap 文件。
+
+是否按“仅使用 .usmap”继续导出？</value>
+  </data>
+  <data name="Gui_NoJmapConfirmTitle" xml:space="preserve">
+    <value>未选择 .jmap 文件</value>
+  </data>
+  <data name="Gui_OutputDirInvalidFallback" xml:space="preserve">
+    <value>输出目录无效，请重新选择。</value>
+  </data>
+  <data name="Gui_OutputDirInvalidTitle" xml:space="preserve">
+    <value>输出目录无效</value>
+  </data>
+  <data name="Gui_OverwritePrevBuildBody" xml:space="preserve">
+    <value>目标输出目录已存在之前的导出结果：
+{0}
+
+是否清空该目录并重新导出？</value>
+  </data>
+  <data name="Gui_OverwritePrevBuildTitle" xml:space="preserve">
+    <value>确认覆盖已有导出</value>
+  </data>
+  <data name="Gui_ProtectedDirFallback" xml:space="preserve">
+    <value>拒绝覆盖受保护目录，请选择其他子文件夹。</value>
+  </data>
+  <data name="Gui_CannotUseOutputDirTitle" xml:space="preserve">
+    <value>无法使用该输出目录</value>
+  </data>
+  <data name="Gui_OverwriteForeignDirBody" xml:space="preserve">
+    <value>输出目录已存在，且不是本工具创建的目录（当前包含 {0} 个项目）：
+{1}
+
+为避免与无关文件混杂，继续导出前需要清空该目录内的所有原有文件。
+确定要清空并继续导出吗？（如不想删除原有文件，请点“否”并更换输出目录）</value>
+  </data>
+  <data name="Gui_OverwriteForeignDirTitle" xml:space="preserve">
+    <value>确认覆盖非本工具目录</value>
+  </data>
+  <data name="Gui_ClearDirFailedBody" xml:space="preserve">
+    <value>清空输出目录失败（{0}）：{1}</value>
+  </data>
+  <data name="Gui_ClearDirFailedTitle" xml:space="preserve">
+    <value>清理目录失败</value>
+  </data>
+  <data name="Gui_ResultExporting" xml:space="preserve">
+    <value>正在导出……</value>
+  </data>
+  <data name="Gui_ResultExportingDetail" xml:space="preserve">
+    <value>导出完成后将自动读取构建报告（*.build.json）并展示哈希与比对结论。</value>
+  </data>
+  <data name="Gui_StatusStartingExport" xml:space="preserve">
+    <value>状态：正在启动导出流程……</value>
+  </data>
+  <data name="Gui_StatusExportComplete" xml:space="preserve">
+    <value>状态：导出完成</value>
+  </data>
+  <data name="Gui_StatusExportCompletePartial" xml:space="preserve">
+    <value>状态：导出完成（有少量资源包失败）</value>
+  </data>
+  <data name="Gui_ResultReadReportFailed" xml:space="preserve">
+    <value>✗ 无法读取构建报告</value>
+  </data>
+  <data name="Gui_StatusExportFailedExit" xml:space="preserve">
+    <value>状态：导出失败（退出码：{0}）</value>
+  </data>
+  <data name="Gui_ResultExportFailed" xml:space="preserve">
+    <value>✗ 导出失败</value>
+  </data>
+  <data name="Gui_ResultExportFailedDetail" xml:space="preserve">
+    <value>命令行程序返回退出码 {0}，请查看上方日志定位具体原因。</value>
+  </data>
+  <data name="Gui_ExportFailedExitLog" xml:space="preserve">
+    <value>命令行程序异常结束（退出码：{0}）。</value>
+  </data>
+  <data name="Gui_ExportFailedExitBody" xml:space="preserve">
+    <value>导出失败（退出码：{0}），请查看窗口中的日志信息。</value>
+  </data>
+  <data name="Gui_StatusCancelled" xml:space="preserve">
+    <value>状态：已取消</value>
+  </data>
+  <data name="Gui_ResultCancelled" xml:space="preserve">
+    <value>已取消导出</value>
+  </data>
+  <data name="Gui_ResultCancelledDetail" xml:space="preserve">
+    <value>已终止后台导出进程。</value>
+  </data>
+  <data name="Gui_ExportCancelledLog" xml:space="preserve">
+    <value>用户已取消导出，后台进程树已终止。</value>
+  </data>
+  <data name="Gui_StatusExportFailed" xml:space="preserve">
+    <value>状态：导出失败</value>
+  </data>
+  <data name="Gui_ExportExecFailedLog" xml:space="preserve">
+    <value>执行失败：{0}</value>
+  </data>
+  <data name="Gui_ExportExecFailedBody" xml:space="preserve">
+    <value>启动或执行导出程序失败：{0}</value>
+  </data>
+  <data name="Gui_StatusCancellingExport" xml:space="preserve">
+    <value>状态：正在取消并结束后台进程……</value>
+  </data>
+  <data name="Gui_ExportCancellingLog" xml:space="preserve">
+    <value>正在取消导出并结束子进程树……</value>
+  </data>
+  <data name="Gui_StatusStep" xml:space="preserve">
+    <value>状态：步骤 {0}/{1}</value>
+  </data>
+  <data name="Gui_StatusStepWithTitle" xml:space="preserve">
+    <value>状态：步骤 {0}/{1} — {2}</value>
+  </data>
+  <data name="Gui_ResultElapsedSuffix" xml:space="preserve">
+    <value>（总耗时：{0}s）</value>
+  </data>
+  <data name="Gui_OpenOutputMissingBody" xml:space="preserve">
+    <value>输出文件夹不存在或已被移动。</value>
+  </data>
+  <data name="Gui_OpenOutputFailedTitle" xml:space="preserve">
+    <value>无法打开文件夹</value>
+  </data>
+  <data name="Gui_OpenOutputFailedBody" xml:space="preserve">
+    <value>打开输出文件夹失败（{0}）：{1}</value>
+  </data>
+  <data name="Gui_CopiedFeedback" xml:space="preserve">
+    <value>已复制到剪贴板</value>
+  </data>
+  <data name="Gui_CopyFailedBody" xml:space="preserve">
+    <value>复制到剪贴板失败：{0}</value>
+  </data>
+  <data name="Gui_CopyFailedTitle" xml:space="preserve">
+    <value>复制失败</value>
+  </data>
+  <data name="Gui_CalcDefaultOutputFailed" xml:space="preserve">
+    <value>计算默认输出目录失败：{0}；请点击「浏览…」手动选择输出目录。</value>
+  </data>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="Settings_GroupDataDir" xml:space="preserve">
+    <value>数据目录</value>
+  </data>
+  <data name="Settings_BtnOpenDataDir" xml:space="preserve">
+    <value>打开数据目录</value>
+  </data>
+  <data name="Settings_DataDirContentsNote" xml:space="preserve">
+    <value>包含 output\（默认导出）、usmap\（映射文件）、downloads\（下载缓存）、logs\、tmp\、ue4ss-backup\ 与 settings.json。</value>
+  </data>
+  <data name="Settings_Ue4ssTip" xml:space="preserve">
+    <value>提示：UE4SS 清理功能位于主窗口「2. 映射与反射文件」区域的「清理 UE4SS…」按钮。</value>
+  </data>
+  <data name="Settings_BtnClose" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="Settings_IntegrityLine" xml:space="preserve">
+    <value>进程完整性级别：{0}</value>
+  </data>
+  <data name="Settings_OpenDataDirFailedBody" xml:space="preserve">
+    <value>打开数据目录失败（{0}）：{1}</value>
+  </data>
+  <data name="Settings_OpenDataDirFailedTitle" xml:space="preserve">
+    <value>无法打开目录</value>
+  </data>
+  <data name="Cleanup_Title" xml:space="preserve">
+    <value>清理 UE4SS</value>
+  </data>
+  <data name="Cleanup_GameDirLabel" xml:space="preserve">
+    <value>游戏目录：{0}</value>
+  </data>
+  <data name="Cleanup_CheckIncludeForeign" xml:space="preserve">
+    <value>连同 UE4SS 一起移除（不直接删除，移动到备份目录以便随时恢复）</value>
+  </data>
+  <data name="Cleanup_BtnConfirm" xml:space="preserve">
+    <value>确认清理</value>
+  </data>
+  <data name="Cleanup_HeaderOwn" xml:space="preserve">
+    <value>检测到由本工具安装的 UE4SS（{0}），确认后将按安装清单清理下列内容：</value>
+  </data>
+  <data name="Cleanup_HeaderForeign" xml:space="preserve">
+    <value>检测到非本工具安装的 UE4SS（缺少本工具安装标记文件）：默认仅清理本工具残留，原有 UE4SS 保持不动。</value>
+  </data>
+  <data name="Cleanup_HeaderRemnantsOnly" xml:space="preserve">
+    <value>未发现完整 UE4SS 安装，检测到本工具留下的临时残留文件：</value>
+  </data>
+  <data name="Cleanup_HintForeignNoRemnants" xml:space="preserve">
+    <value>当前没有本工具的残留文件需要清理；如需将非本工具安装的 UE4SS 移出游戏目录（移动至备份目录），请勾选上方选项。</value>
+  </data>
+  <data name="Cleanup_HintIncludeForeign" xml:space="preserve">
+    <value>说明：执行时会弹出第二次确认；已复制到 agp\ffr-export\usmap\ 的 .usmap 文件不受影响。</value>
+  </data>
+  <data name="Cleanup_HintDefault" xml:space="preserve">
+    <value>说明：已复制到 agp\ffr-export\usmap\ 的 .usmap 文件不受影响，清理后仍可继续使用。</value>
+  </data>
+  <data name="Cleanup_SecondConfirmBody" xml:space="preserve">
+    <value>二次确认：当前游戏目录中的 UE4SS 不是本工具安装的，里面可能包含您自行安装的其他模组或自定义配置！
+
+执行时不会直接删除这些文件，而是将 dwmapi.dll 和整个 ue4ss\ 目录移动到备份目录：
+{0}
+
+如需恢复原状，只需把备份目录内的 dwmapi.dll 和 ue4ss 文件夹复制回：
+{1}
+
+确定要连同非本工具安装的 UE4SS 一起移出游戏目录吗？</value>
+  </data>
+  <data name="Cleanup_SecondConfirmTitle" xml:space="preserve">
+    <value>二次确认：移除非本工具安装的 UE4SS</value>
+  </data>
+</root>
