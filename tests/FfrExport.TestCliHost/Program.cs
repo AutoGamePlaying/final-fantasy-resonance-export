@@ -24,7 +24,7 @@ internal static class Program
 
         var assembly = Assembly.Load("FfrExport");
         var entryPoint = assembly.EntryPoint
-            ?? throw new InvalidOperationException("找不到 FfrExport 程序入口点");
+            ?? throw new InvalidOperationException("Could not find entry point for FfrExport.");
 
         object? result;
         try

@@ -54,14 +54,14 @@ internal static class FixtureExportRunner
                 case "--manifest-out":
                     if (i + 1 >= args.Length)
                     {
-                        Console.Error.WriteLine("错误：--manifest-out 缺少文件路径参数");
+                        Console.Error.WriteLine("Error: --manifest-out requires a file path argument.");
                         return 2;
                     }
 
                     manifestOut = args[++i];
                     break;
                 default:
-                    Console.Error.WriteLine($"错误：--fixture-export 收到未知参数：{args[i]}");
+                    Console.Error.WriteLine($"Error: unknown argument for --fixture-export: {args[i]}");
                     return 2;
             }
         }
@@ -69,7 +69,7 @@ internal static class FixtureExportRunner
         var ffrExportDll = Path.Combine(AppContext.BaseDirectory, "FfrExport.dll");
         if (!File.Exists(ffrExportDll))
         {
-            Console.Error.WriteLine($"错误：找不到 FfrExport.dll：{ffrExportDll}");
+            Console.Error.WriteLine($"Error: FfrExport.dll not found: {ffrExportDll}");
             return 2;
         }
 
@@ -147,7 +147,7 @@ internal static class FixtureExportRunner
             var entries = await CollectFileEntriesAsync(ffrOutputRoot);
             if (entries.Count == 0)
             {
-                Console.Error.WriteLine($"错误：合成导出未生成任何输出文件（目录：{ffrOutputRoot}）");
+                Console.Error.WriteLine($"Error: synthetic export produced no output files (directory: {ffrOutputRoot})");
                 return 2;
             }
 
@@ -170,7 +170,7 @@ internal static class FixtureExportRunner
                 }
 
                 await File.WriteAllTextAsync(fullOut, json, Utf8WithoutBom);
-                Console.Error.WriteLine($"==> 合成导出完成：共 {entries.Count} 个文件，已写入清单：{fullOut}");
+                Console.Error.WriteLine($"==> Synthetic export completed: {entries.Count} files written to manifest: {fullOut}");
             }
             else
             {
@@ -438,7 +438,7 @@ internal static class FixtureExportRunner
         startInfo.Environment["AGP_HOME"] = agpHomeDir;
 
         using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException($"无法启动 FfrExport 子进程（阶段：{stageLabel}）");
+            ?? throw new InvalidOperationException($"Failed to launch FfrExport child process (stage: {stageLabel}).");
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();
@@ -449,7 +449,7 @@ internal static class FixtureExportRunner
         if (process.ExitCode != expectedExitCode)
         {
             throw new InvalidOperationException(
-                $"合成导出阶段 {stageLabel} 退出码异常：期望 {expectedExitCode}，实际 {process.ExitCode}\n" +
+                $"Synthetic export stage '{stageLabel}' exited with unexpected code: expected {expectedExitCode}, actual {process.ExitCode}\n" +
                 $"stdout:\n{stdout}\nstderr:\n{stderr}");
         }
     }

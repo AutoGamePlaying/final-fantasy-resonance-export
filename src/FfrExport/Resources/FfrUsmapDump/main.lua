@@ -79,24 +79,24 @@ local function writeAtomic(path, content)
   local temporary = path .. ".tmp"
   local file, openErr = io.open(temporary, "wb")
   if not file then
-    error("无法打开完成标记临时文件：" .. tostring(openErr))
+    error("Failed to open temporary completion marker file: " .. tostring(openErr))
   end
   local okWrite, writeErr = file:write(content)
   if not okWrite then
     pcall(function() file:close() end)
     pcall(os.remove, temporary)
-    error("写入完成标记失败：" .. tostring(writeErr))
+    error("Failed to write completion marker: " .. tostring(writeErr))
   end
   local okClose, closeErr = file:close()
   if not okClose then
     pcall(os.remove, temporary)
-    error("关闭完成标记失败：" .. tostring(closeErr))
+    error("Failed to close completion marker: " .. tostring(closeErr))
   end
   pcall(os.remove, path)
   local okRename, renameErr = os.rename(temporary, path)
   if not okRename then
     pcall(os.remove, temporary)
-    error("提交完成标记失败：" .. tostring(renameErr))
+    error("Failed to commit completion marker: " .. tostring(renameErr))
   end
 end
 
@@ -225,7 +225,7 @@ local function runDumpOnce(ue4ssDir, worldName)
   local beforeUe4ss, beforeWin64 = listUsmapFiles()
   local dumpFn = rawget(_G, "DumpUSMAP")
   if type(dumpFn) ~= "function" then
-    error("UE4SS 未提供 DumpUSMAP() 函数")
+    error("UE4SS did not expose the DumpUSMAP() function")
   end
 
   log("calling DumpUSMAP() world=" .. tostring(worldName))
@@ -284,7 +284,7 @@ end
 local okInit, initErr = pcall(function()
   local ue4ssDir = locateUe4ssDir()
   if not ue4ssDir then
-    log("error 无法确定 UE4SS 目录")
+    log("error: unable to determine UE4SS directory")
     return
   end
 
