@@ -10,9 +10,10 @@
 //!   canonically encoded as `tag + length + bytes`.
 //! - Canonical exporter manifest SHA-256 (`hash_manifest_file`): parses `manifest.json`,
 //!   recursively strips volatile per-run keys listed in [`MANIFEST_VOLATILE_KEYS`] (`startedAt`,
-//!   `finishedAt`, `elapsedSeconds`, `elapsedMs`, `generatedAt`, `jobs`), sorts all JSON object
-//!   keys lexicographically, serializes to compact canonical JSON, and computes SHA-256. The raw
-//!   file SHA-256 is returned alongside it for recording only in `<db>.manifest.json`.
+//!   `finishedAt`, `elapsedSeconds`, `elapsedMs`, `generatedAt`, `jobs`, `usmapSha256`), sorts all
+//!   JSON object keys lexicographically, serializes to compact canonical JSON, and computes
+//!   SHA-256. The raw file SHA-256 is returned alongside it for recording only in
+//!   `<db>.manifest.json`.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -39,6 +40,11 @@ pub const HASH_FORMAT_VERSION: u32 = 1;
 /// - `elapsedMs`: elapsed wall-clock milliseconds in `export-full/maps/manifest.json`.
 /// - `generatedAt`: wall-clock UTC timestamp in `export-full/maps/_graph.json`.
 /// - `jobs`: worker concurrency level in `export-full/manifest.json`.
+/// - `usmapSha256`: raw `.usmap` file SHA-256 in `export`, `export-full`, and `export-full/maps`
+///   manifests. Different dumps of the exact same Unreal type schema can produce different `.usmap`
+///   file bytes; `.usmap` identity (file and content SHA-256) is recorded separately in the
+///   exporter's build report (`*.build.json`) and `known-builds.json`; and if the `.usmap` schema
+///   content genuinely differs, the exported database data tables themselves will change.
 pub const MANIFEST_VOLATILE_KEYS: &[&str] = &[
     "startedAt",
     "finishedAt",
@@ -46,6 +52,7 @@ pub const MANIFEST_VOLATILE_KEYS: &[&str] = &[
     "elapsedMs",
     "generatedAt",
     "jobs",
+    "usmapSha256",
 ];
 
 /// Canonicalized and raw SHA-256 digests of an input exporter `manifest.json` file.
@@ -573,6 +580,7 @@ mod tests {
             "elapsedMs",
             "generatedAt",
             "jobs",
+            "usmapSha256",
         ] {
             assert!(
                 MANIFEST_VOLATILE_KEYS.contains(&required),
@@ -584,12 +592,14 @@ mod tests {
         let path_a = dir.path().join("manifest_a.json");
         let path_b = dir.path().join("manifest_b.json");
         let path_c = dir.path().join("manifest_c.json");
+        let path_d = dir.path().join("manifest_d.json");
 
-        // Manifest A and B differ only in volatile keys (top-level and nested), key order,
-        // indentation, and UTF-8 BOM.
+        // Manifest A and B differ only in volatile keys (top-level and nested, including
+        // `usmapSha256`), key order, indentation, and UTF-8 BOM.
         let raw_a = r#"{
   "usmapSha256": "AABBCC",
   "command": "export-assets",
+  "successCount": 10,
   "jobs": 4,
   "startedAt": "2026-11-25T14:00:00.0000001Z",
   "finishedAt": "2026-11-25T14:00:15.1234567Z",
@@ -605,21 +615,27 @@ mod tests {
     ]
   }
 }"#;
-        let raw_b = "\u{feff}{\"nested\":{\"items\":[{\"jobs\":16,\"a\":\"first\",\"elapsedMs\":999,\"z\":\"last\"}],\"a\":1,\"b\":2,\"startedAt\":\"2099-01-01T00:00:00Z\"},\"command\":\"export-assets\",\"usmapSha256\":\"AABBCC\",\"jobs\":16,\"startedAt\":\"2099-01-01T00:00:00Z\",\"finishedAt\":\"2099-01-01T01:00:00Z\",\"elapsedSeconds\":3600.0,\"elapsedMs\":3600000,\"generatedAt\":\"2099-01-01T01:00:00Z\"}";
-        // Manifest C changes one non-volatile semantic key (`usmapSha256`).
-        let raw_c = raw_a.replace("AABBCC", "DDEEFF");
+        let raw_b = "\u{feff}{\"nested\":{\"items\":[{\"jobs\":16,\"a\":\"first\",\"elapsedMs\":999,\"z\":\"last\"}],\"a\":1,\"b\":2,\"startedAt\":\"2099-01-01T00:00:00Z\"},\"command\":\"export-assets\",\"successCount\":10,\"usmapSha256\":\"DDEEFF\",\"jobs\":16,\"startedAt\":\"2099-01-01T00:00:00Z\",\"finishedAt\":\"2099-01-01T01:00:00Z\",\"elapsedSeconds\":3600.0,\"elapsedMs\":3600000,\"generatedAt\":\"2099-01-01T01:00:00Z\"}";
+        // Manifest C differs from A ONLY in `usmapSha256` -> canonical hash must match.
+        let raw_c = raw_a.replace("AABBCC", "112233");
+        // Manifest D differs from A ONLY in semantic key `successCount` -> canonical hash must differ.
+        let raw_d = raw_a.replace("\"successCount\": 10", "\"successCount\": 11");
 
         std::fs::write(&path_a, raw_a).expect("write manifest A");
         std::fs::write(&path_b, raw_b).expect("write manifest B");
         std::fs::write(&path_c, raw_c).expect("write manifest C");
+        std::fs::write(&path_d, raw_d).expect("write manifest D");
 
         let digest_a = hash_manifest_file(&path_a).expect("hash manifest A");
         let digest_b = hash_manifest_file(&path_b).expect("hash manifest B");
         let digest_c = hash_manifest_file(&path_c).expect("hash manifest C");
+        let digest_d = hash_manifest_file(&path_d).expect("hash manifest D");
 
         assert_eq!(digest_a.canonical_sha256, digest_b.canonical_sha256);
         assert_ne!(digest_a.raw_sha256, digest_b.raw_sha256);
-        assert_ne!(digest_a.canonical_sha256, digest_c.canonical_sha256);
+        assert_eq!(digest_a.canonical_sha256, digest_c.canonical_sha256);
+        assert_ne!(digest_a.raw_sha256, digest_c.raw_sha256);
+        assert_ne!(digest_a.canonical_sha256, digest_d.canonical_sha256);
 
         // Verify canonical bytes have keys sorted and volatile keys stripped at every level.
         let val_a: serde_json::Value = serde_json::from_str(raw_a).expect("parse A");
@@ -627,12 +643,13 @@ mod tests {
             .expect("utf8 canon A");
         assert_eq!(
             canonical_str,
-            r#"{"command":"export-assets","nested":{"a":1,"b":2,"items":[{"a":"first","z":"last"}]},"usmapSha256":"AABBCC"}"#
+            r#"{"command":"export-assets","nested":{"a":1,"b":2,"items":[{"a":"first","z":"last"}]},"successCount":10}"#
         );
 
         // Changing a nested semantic key also changes the canonical hash.
         let nested_changed = json!({
             "command": "export-assets",
+            "successCount": 10,
             "usmapSha256": "AABBCC",
             "nested": {
                 "a": 1,

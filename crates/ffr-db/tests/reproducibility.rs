@@ -567,7 +567,7 @@ fn exporter_manifest_volatile_keys_do_not_change_source_hash_but_semantic_keys_d
 
     // Write realistic exporter manifests matching `src/FfrExport/` formats.
     // Run A and Run B differ ONLY in volatile keys (`startedAt`, `finishedAt`, `elapsedSeconds`,
-    // `elapsedMs`, `generatedAt`, `jobs`) and key ordering / whitespace.
+    // `elapsedMs`, `generatedAt`, `jobs`, `usmapSha256`) and key ordering / whitespace.
     let write_manifests = |root: &Path,
                            started: &str,
                            finished: &str,
@@ -575,10 +575,11 @@ fn exporter_manifest_volatile_keys_do_not_change_source_hash_but_semantic_keys_d
                            elapsed_ms: u64,
                            jobs: u32,
                            usmap_sha: &str,
+                           success_count: u64,
                            compact: bool| {
         let export_manifest = if compact {
             format!(
-                r#"{{"failureCount":0,"failures":[],"finishedAt":"{finished}","startedAt":"{started}","successCount":10,"usmapSha256":"{usmap_sha}","cue4ParseVersion":"1.2.2"}}"#
+                r#"{{"failureCount":0,"failures":[],"finishedAt":"{finished}","startedAt":"{started}","successCount":{success_count},"usmapSha256":"{usmap_sha}","cue4ParseVersion":"1.2.2"}}"#
             )
         } else {
             format!(
@@ -587,7 +588,7 @@ fn exporter_manifest_volatile_keys_do_not_change_source_hash_but_semantic_keys_d
   "usmapSha256": "{usmap_sha}",
   "startedAt": "{started}",
   "finishedAt": "{finished}",
-  "successCount": 10,
+  "successCount": {success_count},
   "failureCount": 0,
   "failures": []
 }}"#
@@ -662,6 +663,7 @@ fn exporter_manifest_volatile_keys_do_not_change_source_hash_but_semantic_keys_d
         1234,
         4,
         "USMAP_HASH_V1",
+        10,
         false,
     );
     write_manifests(
@@ -671,7 +673,8 @@ fn exporter_manifest_volatile_keys_do_not_change_source_hash_but_semantic_keys_d
         165.889,
         9876,
         16,
-        "USMAP_HASH_V1",
+        "USMAP_HASH_V2",
+        10,
         true,
     );
     write_manifests(
@@ -681,7 +684,8 @@ fn exporter_manifest_volatile_keys_do_not_change_source_hash_but_semantic_keys_d
         60.111,
         1234,
         4,
-        "USMAP_HASH_V2",
+        "USMAP_HASH_V1",
+        11,
         false,
     );
 
@@ -710,7 +714,8 @@ fn exporter_manifest_volatile_keys_do_not_change_source_hash_but_semantic_keys_d
     let rep_b = build_one(&run_b, &db_b);
     let rep_c = build_one(&run_c, &db_c);
 
-    // Run A and Run B only differed in volatile manifest keys -> byte-for-byte identical DBs!
+    // Run A and Run B only differed in volatile manifest keys (including `usmapSha256`) ->
+    // byte-for-byte identical DBs!
     assert_eq!(rep_a.file_sha256, rep_b.file_sha256);
     assert_eq!(rep_a.content_sha256, rep_b.content_sha256);
     assert_eq!(
@@ -718,7 +723,7 @@ fn exporter_manifest_volatile_keys_do_not_change_source_hash_but_semantic_keys_d
         fs::read(&db_b).expect("read db B")
     );
 
-    // Run C changed a non-volatile manifest key (`usmapSha256`) -> source & content hash must differ!
+    // Run C changed a non-volatile semantic key (`successCount`) -> source & content hash must differ!
     assert_ne!(rep_a.content_sha256, rep_c.content_sha256);
     assert_ne!(rep_a.file_sha256, rep_c.file_sha256);
 
