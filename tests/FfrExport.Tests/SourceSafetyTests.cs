@@ -311,4 +311,53 @@ public sealed class SourceSafetyTests
         Assert.DoesNotContain("Application.EnableVisualStyles(", mainBody, StringComparison.Ordinal);
         Assert.DoesNotContain("Application.SetHighDpiMode(", mainBody, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void ProviderSetup_EnforcesDeterministicMountingAndHeaderPreloading()
+    {
+        var root = TestHarness.FindRepoRoot();
+        var srcDir = Path.Combine(root, "src", "FfrExport");
+        var csFiles = Directory.EnumerateFiles(srcDir, "*.cs", SearchOption.TopDirectoryOnly)
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+
+        var newDefaultProviderPattern = new Regex(@"\bnew\s+DefaultFileProvider\b", RegexOptions.CultureInvariant);
+        var rawMountCallPattern = new Regex(@"\.\s*Mount(?:Async)?\s*\(", RegexOptions.CultureInvariant);
+        var directIoPackagePattern = new Regex(@"\bnew\s+IoPackage\b", RegexOptions.CultureInvariant);
+
+        foreach (var path in csFiles)
+        {
+            var relativePath = Path.GetRelativePath(root, path).Replace('\\', '/');
+            var content = File.ReadAllText(path);
+
+            Assert.False(
+                newDefaultProviderPattern.IsMatch(content),
+                $"{relativePath} 不得直接构造 DefaultFileProvider；请统一通过 DeterministicFileProvider 创建并确定性挂载");
+
+            if (string.Equals(relativePath, "src/FfrExport/DeterministicFileProvider.cs", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            Assert.False(
+                rawMountCallPattern.IsMatch(content),
+                $"{relativePath} 不得直接调用未排序的 Mount()/MountAsync()；请通过 DeterministicFileProvider.MountDeterministically() 挂载并预加载 ContainerHeader");
+
+            Assert.False(
+                directIoPackagePattern.IsMatch(content),
+                $"{relativePath} 不得在导出代码里手写 new IoPackage 回退；补丁容器包头解析必须统一由 DeterministicFileProvider.LoadPackage 处理");
+        }
+
+        var programCs = File.ReadAllText(Path.Combine(srcDir, "Program.cs"));
+        Assert.Contains("new DeterministicFileProvider(", programCs, StringComparison.Ordinal);
+        Assert.Contains("provider.MountDeterministically()", programCs, StringComparison.Ordinal);
+
+        var assetExportCs = File.ReadAllText(Path.Combine(srcDir, "AssetExport.cs"));
+        Assert.Contains("provider.EnsureReadyForDeterministicLoads()", assetExportCs, StringComparison.Ordinal);
+        Assert.Contains("provider.LoadSyncRoot", assetExportCs, StringComparison.Ordinal);
+
+        var mapExportCs = File.ReadAllText(Path.Combine(srcDir, "MapExport.cs"));
+        Assert.Contains("provider.EnsureReadyForDeterministicLoads()", mapExportCs, StringComparison.Ordinal);
+        Assert.Contains("provider.LoadSyncRoot", mapExportCs, StringComparison.Ordinal);
+    }
 }

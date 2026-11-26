@@ -77,7 +77,7 @@ internal static partial class Program
     }
 
     private static async Task<int> RunExportMapsWithProviderAsync(
-        DefaultFileProvider provider,
+        DeterministicFileProvider provider,
         string usmapHash,
         string outputPath,
         string? mapDataJsonPath,
@@ -86,6 +86,7 @@ internal static partial class Program
         bool force,
         bool allowDefaultMapDataFallback)
     {
+        provider.EnsureReadyForDeterministicLoads();
         var startedAt = DateTimeOffset.UtcNow;
         var stopwatch = Stopwatch.StartNew();
 
@@ -127,6 +128,8 @@ internal static partial class Program
         var exportedCount = 0;
         var skippedCount = 0;
 
+        var readLock = provider.LoadSyncRoot;
+
         Parallel.ForEach(
             umaps,
             new ParallelOptions { MaxDegreeOfParallelism = maxParallelism },
@@ -144,12 +147,17 @@ internal static partial class Program
                         return;
                     }
 
-                    if (!provider.TryLoadPackage(file.Path, out IPackage? package) || package is null)
+                    IPackage? package;
+                    CUE4Parse.UE4.Assets.Exports.UObject[] exports;
+                    lock (readLock)
                     {
-                        throw new InvalidDataException("CUE4Parse 无法加载此关卡包");
-                    }
+                        if (!provider.TryLoadPackage(file.Path, out package) || package is null)
+                        {
+                            throw new InvalidDataException("CUE4Parse 无法加载此关卡包");
+                        }
 
-                    var exports = package.GetExports().ToArray();
+                        exports = package.GetExports().ToArray();
+                    }
                     var levelName = Path.GetFileNameWithoutExtension(file.Path);
                     var packagePath = MapExtractor.ToGamePackagePath(file.Path);
                     var sublevelType = MapExtractor.ClassifySublevelType(levelName, file.Path);
@@ -585,7 +593,7 @@ internal static partial class Program
         Dictionary<string, string> ByDirectory);
 
     private static LevelOwnershipIndex BuildLevelOwnershipIndex(
-        DefaultFileProvider provider,
+        DeterministicFileProvider provider,
         GameFile[] allPlFiles,
         List<MapDataEntry> mapDataEntries)
     {
@@ -603,18 +611,23 @@ internal static partial class Program
             }
         }
 
+        var readLock = provider.LoadSyncRoot;
         Parallel.ForEach(
             allPlFiles,
             new ParallelOptions { MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount, 1, 16) },
             plFile =>
             {
                 var plName = Path.GetFileNameWithoutExtension(plFile.Path);
-                if (!provider.TryLoadPackage(plFile.Path, out IPackage? package) || package is null)
+                CUE4Parse.UE4.Assets.Exports.UObject[] exports;
+                lock (readLock)
                 {
-                    return;
-                }
+                    if (!provider.TryLoadPackage(plFile.Path, out IPackage? package) || package is null)
+                    {
+                        return;
+                    }
 
-                var exports = package.GetExports().ToArray();
+                    exports = package.GetExports().ToArray();
+                }
                 foreach (var streaming in MapExtractor.ExtractStreamingLevels(exports))
                 {
                     var pkgPath = NormalizeWorldAssetToPackagePath(streaming.WorldAsset);

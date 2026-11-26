@@ -2,13 +2,9 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Security.Cryptography;
-using CUE4Parse.FileProvider;
 using CUE4Parse.FileProvider.Objects;
 using CUE4Parse.UE4.Assets;
 using CUE4Parse.UE4.Assets.Exports;
-using CUE4Parse.UE4.IO;
-using CUE4Parse.UE4.IO.Objects;
-using CUE4Parse.UE4.Readers;
 using Newtonsoft.Json.Linq;
 
 namespace FfrExport;
@@ -122,7 +118,7 @@ internal static partial class Program
     }
 
     private static async Task<int> RunExportAssetsWithProviderAsync(
-        DefaultFileProvider provider,
+        DeterministicFileProvider provider,
         string usmapHash,
         string outputPath,
         IReadOnlyList<string> prefixes,
@@ -130,6 +126,7 @@ internal static partial class Program
         bool force,
         AssetRegistrySnapshot? preloadedSnapshot = null)
     {
+        provider.EnsureReadyForDeterministicLoads();
         var startedAt = DateTimeOffset.UtcNow;
         var stopwatch = Stopwatch.StartNew();
 
@@ -184,11 +181,11 @@ internal static partial class Program
         }
 
         var failures = new ConcurrentBag<(string Path, string PrimaryClass, string Error)>();
-        var readLock = new object();
-        var fallbackContainerHeader = FindFallbackContainerHeader(provider);
+        var readLock = provider.LoadSyncRoot;
 
-        // Export eligible packages in parallel. Serialize provider reads with a lightweight lock while
-        // running JSON serialization and disk writes concurrently across worker threads.
+        // Export eligible packages in parallel. Provider package loads (including lazy external
+        // FPackageId imports resolved during JSON serialization) share provider.LoadSyncRoot while
+        // JSON formatting and disk writes run concurrently across worker threads.
         Parallel.ForEach(
             toExport,
             new ParallelOptions { MaxDegreeOfParallelism = jobs },
@@ -211,13 +208,12 @@ internal static partial class Program
                     UObject[] exports;
                     lock (readLock)
                     {
-                        exports = LoadFilteredExportsWithPatchFallback(
-                            provider,
-                            pkg.VfsFile,
-                            pkg.Path,
-                            pkg.PrimaryClass,
-                            pkg.Classification.Decision,
-                            fallbackContainerHeader);
+                        if (!provider.TryLoadPackage(pkg.Path, out IPackage? loaded) || loaded is null)
+                        {
+                            throw new InvalidDataException("CUE4Parse 无法加载此包");
+                        }
+
+                        exports = FilterExportsForClass(loaded.GetExports(), pkg.PrimaryClass, pkg.Classification.Decision);
                     }
 
                     var bytesWritten = TextOutput.WriteJsonAtomic(targetPath, exports);
@@ -438,61 +434,6 @@ internal static partial class Program
             stopwatch.Elapsed.TotalSeconds.ToString("F2", CultureInfo.InvariantCulture)));
 
         return orderedFailures.Length == 0 ? 0 : 1;
-    }
-
-    // Selects a valid base IoStore ContainerHeader deterministically so patch fallback does not
-    // depend on MountedVfs completion order (where a patch *_P.utoc without chunk 6 could appear first).
-    private static FIoContainerHeader? FindFallbackContainerHeader(DefaultFileProvider provider)
-    {
-        foreach (var reader in provider.MountedVfs
-            .OfType<IoStoreReader>()
-            .OrderBy(r => r.Name.Contains("_P.", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
-            .ThenBy(r => r.Name, StringComparer.Ordinal))
-        {
-            try
-            {
-                if (reader.ContainerHeader is { } header)
-                {
-                    return header;
-                }
-            }
-            catch
-            {
-                // Skip containers without a ContainerHeader chunk (such as patch *_P.utoc files).
-            }
-        }
-
-        return null;
-    }
-
-    // Loads and filters package exports, falling back to direct IoPackage construction when a
-    // UE5 patch IoStore container (*_P.utoc) omits the optional ContainerHeader chunk (type 6).
-    private static UObject[] LoadFilteredExportsWithPatchFallback(
-        DefaultFileProvider provider,
-        GameFile? vfsFile,
-        string path,
-        string primaryClass,
-        string decision,
-        FIoContainerHeader? fallbackContainerHeader)
-    {
-        if (provider.TryLoadPackage(path, out IPackage? loaded) && loaded is not null)
-        {
-            return FilterExportsForClass(loaded.GetExports(), primaryClass, decision);
-        }
-
-        if (vfsFile is FIoStoreEntry ioEntry)
-        {
-            using var uasset = ioEntry.CreateReader();
-            IPackage patchPackage = new IoPackage(
-                uasset,
-                fallbackContainerHeader,
-                (FArchive?)null,
-                (FArchive?)null,
-                provider);
-            return FilterExportsForClass(patchPackage.GetExports(), primaryClass, decision);
-        }
-
-        throw new InvalidDataException("CUE4Parse 无法加载此包");
     }
 
     internal static UObject[] FilterExportsForClass(

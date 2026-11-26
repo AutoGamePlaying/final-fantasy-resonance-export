@@ -279,11 +279,12 @@ internal static partial class Program
     }
 
     private static async Task<int> ExportAssetsWithProviderAsync(
-        DefaultFileProvider provider,
+        DeterministicFileProvider provider,
         string usmapHash,
         string outputPath,
         IReadOnlyCollection<string> prefixes)
     {
+        provider.EnsureReadyForDeterministicLoads();
         var startedAt = DateTimeOffset.UtcNow;
         var failures = new List<(string Path, string Error)>();
         var successCount = 0;
@@ -520,7 +521,7 @@ internal static partial class Program
         return (namespaces, entryCount);
     }
 
-    private static DefaultFileProvider CreateProvider(string paks, string? usmapPath)
+    internal static DeterministicFileProvider CreateProvider(string paks, string? usmapPath)
     {
         var ioPaks = PathSupport.ToIoPath(paks);
         if (!Directory.Exists(ioPaks))
@@ -528,7 +529,7 @@ internal static partial class Program
             throw new DirectoryNotFoundException(L.Format("Cli_PaksDirNotFound", paks));
         }
 
-        var provider = new DefaultFileProvider(
+        var provider = new DeterministicFileProvider(
             ioPaks,
             SearchOption.TopDirectoryOnly,
             new VersionContainer(EGame.GAME_UE5_6));
@@ -538,7 +539,7 @@ internal static partial class Program
         }
 
         provider.Initialize();
-        provider.Mount();
+        provider.MountDeterministically();
         return provider;
     }
 
