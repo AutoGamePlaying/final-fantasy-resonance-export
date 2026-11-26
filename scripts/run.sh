@@ -11,7 +11,7 @@ else
 fi
 
 if [[ ! -x "$DOTNET_BIN" ]]; then
-  echo "错误：找不到 dotnet 可执行文件：$DOTNET_BIN（请安装 .NET 10 SDK 到 .deps/dotnet 或设置 DOTNET_ROOT）" >&2
+  echo "Error: dotnet executable not found: $DOTNET_BIN (install .NET 10 SDK into .deps/dotnet or set DOTNET_ROOT)" >&2
   exit 2
 fi
 

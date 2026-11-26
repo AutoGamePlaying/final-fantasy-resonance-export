@@ -34,18 +34,18 @@ jobs:
         shell: bash
         run: |
           if [[ ! -f VERSION ]]; then
-            echo "错误：仓库根目录缺少 VERSION 文件" >&2
+            echo "Error: VERSION file is missing at repository root" >&2
             exit 1
           fi
           TAG_NAME="${GITHUB_REF_NAME}"
           TAG_VERSION="${TAG_NAME#v}"
           FILE_VERSION="$(tr -d '[:space:]' < VERSION)"
           if [[ -z "$TAG_VERSION" || "$TAG_VERSION" != "$FILE_VERSION" ]]; then
-            echo "错误：tag 版本（${TAG_NAME} -> ${TAG_VERSION}）与 VERSION 文件（${FILE_VERSION}）不一致" >&2
+            echo "Error: tag version (${TAG_NAME} -> ${TAG_VERSION}) does not match VERSION file (${FILE_VERSION})" >&2
             exit 1
           fi
           echo "RELEASE_VERSION=${FILE_VERSION}" >> "${GITHUB_ENV}"
-          echo "==> 版本校验通过：${TAG_NAME}（VERSION=${FILE_VERSION}）"
+          echo "==> Version check passed: ${TAG_NAME} (VERSION=${FILE_VERSION})"
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
@@ -84,7 +84,7 @@ jobs:
         shell: bash
         run: |
           if [[ -e .deps ]]; then
-            echo "错误：发布工作区中不应存在 .deps 目录" >&2
+            echo "Error: .deps directory must not exist in the release workspace" >&2
             exit 1
           fi
           bash scripts/check.sh
@@ -101,9 +101,9 @@ jobs:
           } finally {
             $zip.Dispose()
           }
-          foreach ($expected in @("ffr-export-gui.exe", "ffr-export.exe", "ffr-db.exe", "known-builds.json", "使用说明.txt", "SHA256SUMS")) {
+          foreach ($expected in @("ffr-export-gui.exe", "ffr-export.exe", "ffr-db.exe", "known-builds.json", "README-Windows.txt", "SHA256SUMS")) {
             if ($names -notcontains $expected) {
-              throw "错误：发布压缩包 $zipPath 缺少必需文件：$expected"
+              throw "Error: release archive $zipPath is missing required file: $expected"
             }
           }
 
@@ -128,6 +128,8 @@ jobs:
           $hadTmp = Test-Path Env:TMP
           $previousAgp = $env:AGP_HOME
           $hadAgp = Test-Path Env:AGP_HOME
+          $previousLang = $env:AGP_LANG
+          $hadLang = Test-Path Env:AGP_LANG
           try {
             New-Item -ItemType Directory -Path $extractDir, $selfTestAgpHome, $deniedTempDir -Force | Out-Null
             [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $extractDir)
@@ -137,14 +139,14 @@ jobs:
             $packagedDbExe = Join-Path $extractDir "ffr-db.exe"
             foreach ($bin in @($packagedGuiExe, $packagedCliExe, $packagedDbExe)) {
               if (-not (Test-Path -LiteralPath $bin -PathType Leaf)) {
-                throw "错误：解压后的发布压缩包缺少可执行文件：$bin"
+                throw "Error: extracted release archive is missing executable: $bin"
               }
             }
 
             # Apply an explicit deny-write NTFS ACL to an existing temp directory via icacls.
-            & icacls $deniedTempDir /deny '*S-1-1-0:(OI)(CI)(W)' | Out-Null
+            & icacls $deniedTempDir /deny '*S-1-1-0:(OI)(CI)(WD,AD,WEA,WA)' | Out-Null
             if ($LASTEXITCODE -ne 0) {
-              throw "错误：使用 icacls 为临时目录设置拒绝写入 ACL 失败：$deniedTempDir（退出码 $LASTEXITCODE）"
+              throw "Error: icacls failed to apply deny-write ACL on temp directory: $deniedTempDir (exit code $LASTEXITCODE)"
             }
             $aclBlocked = $false
             try {
@@ -153,12 +155,13 @@ jobs:
               $aclBlocked = $true
             }
             if (-not $aclBlocked) {
-              throw "错误：icacls 拒绝写入 ACL 未生效，仍可向目录写入文件：$deniedTempDir"
+              throw "Error: icacls deny-write ACL did not take effect; file write still succeeded in $deniedTempDir"
             }
 
             $env:TEMP = $deniedTempDir
             $env:TMP = $deniedTempDir
             $env:AGP_HOME = $selfTestAgpHome
+            Remove-Item Env:AGP_LANG -ErrorAction SilentlyContinue
 
             $selfTest = Start-Process -FilePath $packagedGuiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow -RedirectStandardError $stderrFile
             if ($selfTest.ExitCode -ne 0) {
@@ -168,15 +171,27 @@ jobs:
                   [Console]::Error.WriteLine($stderrText)
                 }
               }
-              throw "错误：TEMP 被 icacls 拒绝写入时发布压缩包内的 ffr-export-gui.exe --self-test 失败（退出码 $($selfTest.ExitCode)）"
+              throw "Error: packaged ffr-export-gui.exe --self-test failed with icacls deny-write TEMP (exit code $($selfTest.ExitCode))"
             }
 
-            $cliHelp = Start-Process -FilePath $packagedCliExe -ArgumentList @('--help') -Wait -PassThru -NoNewWindow -RedirectStandardOutput $cliOutFile -RedirectStandardError $cliErrFile
-            if ($cliHelp.ExitCode -ne 0) {
-              if (Test-Path -LiteralPath $cliErrFile -PathType Leaf) {
-                [Console]::Error.WriteLine((Get-Content -LiteralPath $cliErrFile -Raw -Encoding UTF8))
+            $langChecks = @(
+              @{ Code = 'en'; Expected = 'Usage:' },
+              @{ Code = 'zh-Hans'; Expected = '用法' },
+              @{ Code = 'ja'; Expected = '使い方:' }
+            )
+            foreach ($check in $langChecks) {
+              $cliArgs = if ($check.Code -eq 'en') { @('--help') } else { @('--lang', $check.Code, '--help') }
+              $cliHelp = Start-Process -FilePath $packagedCliExe -ArgumentList $cliArgs -Wait -PassThru -NoNewWindow -RedirectStandardOutput $cliOutFile -RedirectStandardError $cliErrFile
+              if ($cliHelp.ExitCode -ne 0) {
+                if (Test-Path -LiteralPath $cliErrFile -PathType Leaf) {
+                  [Console]::Error.WriteLine((Get-Content -LiteralPath $cliErrFile -Raw -Encoding UTF8))
+                }
+                throw "Error: packaged ffr-export.exe ($($check.Code)) --help failed with icacls deny-write TEMP (exit code $($cliHelp.ExitCode))"
               }
-              throw "错误：TEMP 被 icacls 拒绝写入时发布压缩包内的 ffr-export.exe --help 失败（退出码 $($cliHelp.ExitCode)）"
+              $helpOut = Get-Content -LiteralPath $cliOutFile -Raw -Encoding UTF8
+              if (-not $helpOut.Contains($check.Expected)) {
+                throw "Error: packaged ffr-export.exe ($($check.Code)) --help output did not contain expected localized marker."
+              }
             }
 
             $dbHelp = Start-Process -FilePath $packagedDbExe -ArgumentList @('--help') -Wait -PassThru -NoNewWindow -RedirectStandardOutput $dbOutFile -RedirectStandardError $dbErrFile
@@ -184,19 +199,22 @@ jobs:
               if (Test-Path -LiteralPath $dbErrFile -PathType Leaf) {
                 [Console]::Error.WriteLine((Get-Content -LiteralPath $dbErrFile -Raw -Encoding UTF8))
               }
-              throw "错误：TEMP 被 icacls 拒绝写入时发布压缩包内的 ffr-db.exe --help 失败（退出码 $($dbHelp.ExitCode)）"
+              throw "Error: packaged ffr-db.exe --help failed with icacls deny-write TEMP (exit code $($dbHelp.ExitCode))"
             }
 
+            # Lift the deny ACE before inspecting the directory; the check itself must not be blocked by it.
+            & icacls $deniedTempDir /remove:d '*S-1-1-0' | Out-Null
             $leakedTempFiles = @(Get-ChildItem -LiteralPath $deniedTempDir -Force)
             if ($leakedTempFiles.Count -ne 0) {
-              throw "错误：拒绝写入的 TEMP 目录内出现了意外文件：$($leakedTempFiles.Name -join ', ')"
+              throw "Error: unexpected files appeared inside deny-write TEMP directory: $($leakedTempFiles.Name -join ', ')"
             }
 
-            Write-Host "发布压缩包自检通过（icacls 拒绝写入 TEMP/TMP 模拟）：ffr-export-gui.exe --self-test、ffr-export.exe --help、ffr-db.exe --help"
+            Write-Host "Release archive self-test passed (icacls deny-write TEMP/TMP): ffr-export-gui.exe --self-test, ffr-export.exe --help (en/zh-Hans/ja), ffr-db.exe --help"
           } finally {
             if ($hadTemp) { $env:TEMP = $previousTemp } else { Remove-Item Env:TEMP -ErrorAction SilentlyContinue }
             if ($hadTmp) { $env:TMP = $previousTmp } else { Remove-Item Env:TMP -ErrorAction SilentlyContinue }
             if ($hadAgp) { $env:AGP_HOME = $previousAgp } else { Remove-Item Env:AGP_HOME -ErrorAction SilentlyContinue }
+            if ($hadLang) { $env:AGP_LANG = $previousLang } else { Remove-Item Env:AGP_LANG -ErrorAction SilentlyContinue }
             if (Test-Path -LiteralPath $deniedTempDir) {
               & icacls $deniedTempDir /remove:d '*S-1-1-0' 2>$null | Out-Null
             }
@@ -211,35 +229,36 @@ jobs:
           ZIP_NAME="ffr-export-${RELEASE_VERSION}-win-x64.zip"
           for required in "dist/${ZIP_NAME}" "dist/SHA256SUMS" "dist/known-builds.json"; do
             if [[ ! -f "$required" ]]; then
-              echo "错误：缺少发布产物：$required" >&2
+              echo "Error: missing release artifact: $required" >&2
               exit 1
             fi
           done
 
           cat > "${RUNNER_TEMP}/release-notes.md" <<EOF
-          ## 说明
+          ## Notes
 
-          - 本发布包**不含任何游戏数据**（仅包含导出与建库工具本体、校验文件与已知构建清单）。
-          - \`.usmap\` 映射文件需要用户自行用 UE4SS 从运行中的游戏里转储（默认保存在游戏目录 \`FFRS\\Binaries\\Win64\\ue4ss\\\` 下）。
-          - 构建完成后，工具会自动将生成的数据库与 \`known-builds.json\` 中的已知构建记录进行哈希比对（同时登记了“只有 \`.usmap\`”与“\`.usmap\` 加两份 \`.jmap\`”两种输入组合）。
+          - This release **does not contain any game data** (only the exporter/builder executables, checksums, and the known-builds manifest).
+          - UI and CLI support **English (default)**, **Simplified Chinese (zh-Hans)**, and **Japanese (ja)** — switch anytime via the GUI top-right language dropdown, \`--lang\`, or \`AGP_LANG\`.
+          - A \`.usmap\` mapping file must be dumped from the running game. You can use the built-in one-click **Fetch .usmap** button in the GUI (\`ffr-export fetch-usmap\`) or dump it manually with UE4SS.
+          - After building, the database hashes are compared automatically against \`known-builds.json\` (which registers both \`.usmap\`-only and \`.usmap\` + two \`.jmap\` builds).
 
-          ## 快速使用（Windows）
+          ## Quick Start (Windows)
 
-          1. 下载 \`${ZIP_NAME}\` 并用 \`SHA256SUMS\` 校验完整性后，完整解压到同一个文件夹；
-          2. 双击运行 **\`ffr-export-gui.exe\`**（图形界面）：
-             - 自动扫描 Steam 游戏库并查找最新的 \`.usmap\`；
-             - 确认输出位置后点击 **开始导出** 即可生成 \`ffr.sqlite\` 并查看版本比对结果。
-          3. 如需命令行方式，可在解压目录运行：
+          1. Download \`${ZIP_NAME}\`, verify its checksum against \`SHA256SUMS\`, and extract all files into one folder.
+          2. Double-click **\`ffr-export-gui.exe\`**:
+             - Automatically scans Steam libraries and locates the newest \`.usmap\` (or offers one-click **Fetch .usmap**);
+             - Confirm the output folder and click **Start Export** to build \`ffr.sqlite\` and check build hashes.
+          3. For CLI usage, run from the extracted folder:
 
           \`\`\`powershell
-          ffr-export build-db --game "<Steam 游戏目录>" --usmap <文件>
+          ffr-export build-db --game "<Steam Game Directory>" --usmap <file.usmap>
           \`\`\`
 
-          ## 附件
+          ## Assets
 
-          - \`${ZIP_NAME}\`：Windows x64 原生单文件版 \`ffr-export-gui.exe\`、\`ffr-export.exe\`、\`ffr-db.exe\`、\`known-builds.json\`、\`使用说明.txt\`、\`SHA256SUMS\`、\`README.md\`、\`LICENSE\`
-          - \`SHA256SUMS\`：发布附件的 SHA-256 校验值
-          - \`known-builds.json\`：已登记的游戏版本与数据库哈希清单
+          - \`${ZIP_NAME}\`: Windows x64 self-contained single-file \`ffr-export-gui.exe\`, \`ffr-export.exe\`, \`ffr-db.exe\`, \`known-builds.json\`, \`README-Windows.txt\`, \`SHA256SUMS\`, \`README.md\`, \`LICENSE\`
+          - \`SHA256SUMS\`: SHA-256 checksums for release assets
+          - \`known-builds.json\`: Registered game versions and database hash manifest
           EOF
 
       - name: Create GitHub Release

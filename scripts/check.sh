@@ -520,7 +520,7 @@ else
 fi
 
 if [[ ! -x "$DOTNET_BIN" ]]; then
-  echo "错误：找不到 dotnet 可执行文件：$DOTNET_BIN（请安装 .NET 10 SDK 到 .deps/dotnet 或设置 DOTNET_ROOT）" >&2
+  echo "Error: dotnet executable not found: $DOTNET_BIN (install .NET 10 SDK into .deps/dotnet or set DOTNET_ROOT)" >&2
   exit 2
 fi
 
@@ -547,7 +547,7 @@ if [[ "$SKIP_FMT" == "0" ]]; then
   echo "==> dotnet format --verify-no-changes"
   "$DOTNET_BIN" format FfrExport.sln --verify-no-changes
 else
-  echo "==> 跳过 dotnet format（非 Linux 环境或已设置 FFR_CHECK_SKIP_FMT）"
+  echo "==> Skipping dotnet format (non-Linux environment or FFR_CHECK_SKIP_FMT is set)"
 fi
 
 echo "==> dotnet build -c Release"
@@ -566,7 +566,7 @@ if ! command -v cargo >/dev/null 2>&1; then
 fi
 
 if ! command -v cargo >/dev/null 2>&1; then
-  echo "错误：找不到 cargo 可执行文件（请确认 PATH 或 \$HOME/.cargo/bin 已安装 Rust 工具链）" >&2
+  echo "Error: cargo executable not found (ensure the Rust toolchain is on PATH or in \$HOME/.cargo/bin)" >&2
   exit 2
 fi
 
@@ -574,7 +574,7 @@ if [[ "$SKIP_FMT" == "0" ]]; then
   echo "==> cargo fmt --check"
   cargo fmt --check
 else
-  echo "==> 跳过 cargo fmt（非 Linux 环境或已设置 FFR_CHECK_SKIP_FMT）"
+  echo "==> Skipping cargo fmt (non-Linux environment or FFR_CHECK_SKIP_FMT is set)"
 fi
 
 echo "==> cargo clippy --workspace --all-targets -- -D warnings"

@@ -12,7 +12,7 @@ else
 fi
 
 if [[ ! -x "$DOTNET_BIN" ]]; then
-  echo "错误：找不到 dotnet 可执行文件：$DOTNET_BIN（请安装 .NET 10 SDK 到 .deps/dotnet 或设置 DOTNET_ROOT）" >&2
+  echo "Error: dotnet executable not found: $DOTNET_BIN (install .NET 10 SDK into .deps/dotnet or set DOTNET_ROOT)" >&2
   exit 2
 fi
 
@@ -29,12 +29,12 @@ export UseSharedCompilation=false
 export PATH="$HOME/.cargo/bin:$PATH"
 
 if ! command -v cargo >/dev/null 2>&1; then
-  echo "错误：找不到 cargo 可执行文件（请确认 \$HOME/.cargo/bin 已安装 Rust 工具链）" >&2
+  echo "Error: cargo executable not found (ensure the Rust toolchain is installed in \$HOME/.cargo/bin)" >&2
   exit 2
 fi
 
 if ! command -v cargo-xwin >/dev/null 2>&1; then
-  echo "错误：找不到 cargo-xwin（请安装 cargo-xwin 以交叉编译 Windows 可执行文件）" >&2
+  echo "Error: cargo-xwin not found (install cargo-xwin to cross-compile Windows executables)" >&2
   exit 2
 fi
 
@@ -45,12 +45,12 @@ if [[ -n "$RAW_TAG" ]]; then
 elif [[ -f "$ROOT/VERSION" ]]; then
   VERSION="$(tr -d '[:space:]' < "$ROOT/VERSION")"
 else
-  echo "错误：找不到 git tag 且仓库根目录缺少 VERSION 文件" >&2
+  echo "Error: no git tag on HEAD and VERSION file is missing at repository root" >&2
   exit 2
 fi
 
 if [[ -z "$VERSION" ]]; then
-  echo "错误：解析到的版本号为空" >&2
+  echo "Error: resolved package version is empty" >&2
   exit 2
 fi
 
@@ -64,8 +64,8 @@ trap 'rm -rf "$STAGE_DIR"' EXIT
 
 mkdir -p "$DOTNET_OUT" "$GUI_OUT" "$PACKAGE_DIR" "$ROOT/dist"
 
-echo "==> 打包版本：$VERSION（git: $GIT_COMMIT）"
-echo "==> 发布 ffr-export.exe（win-x64 self-contained single-file，不向 TEMP 自解压原生库）"
+echo "==> Packaging version: $VERSION (git: $GIT_COMMIT)"
+echo "==> Publishing ffr-export.exe (win-x64 self-contained single-file, no TEMP native self-extract)"
 "$DOTNET_BIN" publish "$ROOT/src/FfrExport/FfrExport.csproj" \
   -c Release \
   -r win-x64 \
@@ -81,11 +81,11 @@ echo "==> 发布 ffr-export.exe（win-x64 self-contained single-file，不向 TE
   -o "$DOTNET_OUT"
 
 if [[ ! -f "$DOTNET_OUT/ffr-export.exe" ]]; then
-  echo "错误：dotnet publish 未生成 $DOTNET_OUT/ffr-export.exe" >&2
+  echo "Error: dotnet publish did not produce $DOTNET_OUT/ffr-export.exe" >&2
   exit 2
 fi
 
-echo "==> 发布 ffr-export-gui.exe（win-x64 self-contained single-file WinForms，不向 TEMP 自解压原生库）"
+echo "==> Publishing ffr-export-gui.exe (win-x64 self-contained single-file WinForms, no TEMP native self-extract)"
 "$DOTNET_BIN" publish "$ROOT/src/FfrExport.Gui/FfrExport.Gui.csproj" \
   -c Release \
   -r win-x64 \
@@ -101,22 +101,22 @@ echo "==> 发布 ffr-export-gui.exe（win-x64 self-contained single-file WinForm
   -o "$GUI_OUT"
 
 if [[ ! -f "$GUI_OUT/ffr-export-gui.exe" ]]; then
-  echo "错误：dotnet publish 未生成 $GUI_OUT/ffr-export-gui.exe" >&2
+  echo "Error: dotnet publish did not produce $GUI_OUT/ffr-export-gui.exe" >&2
   exit 2
 fi
 
-echo "==> 交叉编译 ffr-db.exe（x86_64-pc-windows-msvc）"
+echo "==> Cross-compiling ffr-db.exe (x86_64-pc-windows-msvc)"
 cargo xwin build --release --target x86_64-pc-windows-msvc -p ffr-db
 
 FFR_DB_EXE="$ROOT/target/x86_64-pc-windows-msvc/release/ffr-db.exe"
 if [[ ! -f "$FFR_DB_EXE" ]]; then
-  echo "错误：cargo xwin 未生成 $FFR_DB_EXE" >&2
+  echo "Error: cargo xwin did not produce $FFR_DB_EXE" >&2
   exit 2
 fi
 
 for required in known-builds.json README.md LICENSE; do
   if [[ ! -f "$ROOT/$required" ]]; then
-    echo "错误：打包缺少必需文件：$ROOT/$required" >&2
+    echo "Error: required packaging file not found: $ROOT/$required" >&2
     exit 2
   fi
 done
@@ -139,7 +139,7 @@ for publish_dir in "$DOTNET_OUT" "$GUI_OUT"; do
       existing_hash="$(sha256sum "$dst" | awk '{print $1}')"
       incoming_hash="$(sha256sum "$dll" | awk '{print $1}')"
       if [[ "$existing_hash" != "$incoming_hash" ]]; then
-        echo "错误：CLI 与 GUI 产出的同名原生库内容不一致：$base" >&2
+        echo "Error: mismatched sidecar native DLL between CLI and GUI publish outputs: $base" >&2
         exit 2
       fi
     else
@@ -151,21 +151,36 @@ for publish_dir in "$DOTNET_OUT" "$GUI_OUT"; do
 done
 
 if (( ${#COPIED_DLLS[@]} > 0 )); then
-  echo "==> 已随包复制原生库（${#COPIED_DLLS[@]} 个）：${COPIED_DLLS[*]}"
+  echo "==> Copied ${#COPIED_DLLS[@]} sidecar native DLL(s): ${COPIED_DLLS[*]}"
 else
-  echo "==> 本次 .NET 10 win-x64 单文件发布未产出额外外部原生 DLL（运行时原生代码已内置于 exe 中，不向 TEMP 解压）"
+  echo "==> No external native sidecar DLLs emitted by .NET 10 win-x64 single-file publish"
 fi
 
-# Write a concise Chinese quick-start guide (<= 10 lines, UTF-8 without BOM, CRLF for Windows Notepad).
+# Write Windows quick-start guide (English primary with concise Chinese & Japanese sections, UTF-8 without BOM, CRLF for Notepad).
 printf '%s\r\n' \
-  '《FINAL FANTASY RESONANCE》数据导出工具使用说明' \
+  'FINAL FANTASY RESONANCE Data Exporter (Windows Quick Start)' \
   '' \
-  '1. 将本压缩包完整解压到同一个文件夹（不要单独移动某个 exe 或原生库）。' \
-  '2. 如双击时提示低完整性级别，可右键压缩包 -> 属性 -> 解除锁定，再用资源管理器重新解压。' \
-  '3. 双击打开 ffr-export-gui.exe，可一键获取 .usmap 或手动选择，确认后点「开始导出」。' \
-  '4. 导出完成后可点「打开输出文件夹」查看 ffr.sqlite，或点「复制哈希」核对版本。' \
-  '5. 如需清理游戏目录中的 UE4SS，可点击主窗口「清理 UE4SS…」按钮；命令行用法见 README.md。' \
-  > "$PACKAGE_DIR/使用说明.txt"
+  '1. Extract this entire zip archive into one folder (keep all .exe files and known-builds.json together).' \
+  '2. If Windows warns about Low Integrity Level when launching, right-click the .zip -> Properties -> Unblock, then re-extract with File Explorer.' \
+  '3. Double-click ffr-export-gui.exe. Switch language anytime in the top-right dropdown (English / 简体中文 / 日本語).' \
+  '4. Click "Fetch .usmap (launches game once)" or select an existing .usmap file, then click "Start Export".' \
+  '5. When finished, click "Open Output Folder" to view ffr.sqlite or "Copy Hashes" to compare against known-builds.json.' \
+  '6. To remove UE4SS from the game folder, click "Clean up UE4SS..." in the main window. For CLI usage, see README.md.' \
+  '' \
+  '---' \
+  '[简体中文简版]' \
+  '1. 将整个压缩包解压到同一个文件夹（保留所有 exe 与 known-builds.json 在一起）。' \
+  '2. 若启动时提示低完整性级别，右键压缩包 -> 属性 -> 解除锁定，再用资源管理器重新解压。' \
+  '3. 双击 ffr-export-gui.exe，可在右上角切换语言（English / 简体中文 / 日本語）；获取或选择 .usmap 后点「开始导出」。' \
+  '4. 完成后可点「打开输出文件夹」查看 ffr.sqlite，或点「清理 UE4SS…」卸载 UE4SS；命令行用法见 README.md。' \
+  '' \
+  '---' \
+  '[日本語クイックガイド]' \
+  '1. zip 全体を 1 つのフォルダに展開してください（すべての exe と known-builds.json を同じ場所に保ちます）。' \
+  '2. 起動時に低整合性レベルの警告が出た場合は、zip を右クリック -> プロパティ -> 許可する（ブロック解除）後にエクスプローラーで再展開してください。' \
+  '3. ffr-export-gui.exe を開き、右上で表示言語（English / 简体中文 / 日本語）を切り替えられます。.usmap を取得または選択して「エクスポート開始」をクリックします。' \
+  '4. 完了後は「出力フォルダを開く」で ffr.sqlite を確認できます。UE4SS の削除は「UE4SS をクリーンアップ…」から行えます。CLI の使い方は README.md を参照してください。' \
+  > "$PACKAGE_DIR/README-Windows.txt"
 
 (
   cd "$PACKAGE_DIR"
@@ -176,8 +191,7 @@ printf '%s\r\n' \
 ZIP_PATH="$ROOT/dist/ffr-export-${VERSION}-win-x64.zip"
 rm -f "$ZIP_PATH"
 
-echo "==> 生成压缩包：$ZIP_PATH"
-# Prefer Python zipfile so UTF-8 entry names (使用说明.txt) always carry the ZIP UTF-8 flag for Windows Explorer.
+echo "==> Creating archive: $ZIP_PATH"
 if command -v python3 >/dev/null 2>&1; then
   python3 - "$PACKAGE_DIR" "$ZIP_PATH" <<'PY'
 import os
@@ -192,10 +206,10 @@ files = sorted(
 with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
     for name in files:
         zf.write(os.path.join(pkg_dir, name), arcname=name)
-print("==> 压缩包内文件列表（zip 内容）：")
+print("==> Zip archive entries:")
 with zipfile.ZipFile(zip_path, "r") as zf:
     for info in zf.infolist():
-        print(f"  {info.filename}\t{info.file_size} 字节\t(压缩后 {info.compress_size} 字节)")
+        print(f"  {info.filename}\t{info.file_size} bytes\t(compressed {info.compress_size} bytes)")
 PY
 elif command -v zip >/dev/null 2>&1; then
   (
@@ -205,12 +219,12 @@ elif command -v zip >/dev/null 2>&1; then
   )
   unzip -l "$ZIP_PATH"
 else
-  echo "错误：缺少 python3 或 zip，无法生成 .zip 压缩包" >&2
+  echo "Error: neither python3 nor zip is available to build the .zip archive" >&2
   exit 2
 fi
 
-echo "==> 打包完成：$ZIP_PATH"
+echo "==> Packaging complete: $ZIP_PATH"
 ls -lh "$ZIP_PATH"
-echo "==> 压缩包内文件与校验："
+echo "==> Packaged files and checksums:"
 ls -lh "$PACKAGE_DIR"
 cat "$PACKAGE_DIR/SHA256SUMS"

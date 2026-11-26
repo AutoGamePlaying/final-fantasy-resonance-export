@@ -13,13 +13,13 @@ FFR_DB_BIN="${FFR_DB_BIN:-}"
 
 usage() {
   cat >&2 <<'EOF'
-用法：scripts/fixture-db.sh [--hash-out <JSON 文件>] [--db-out <SQLite 文件>] [--ffr-db <可执行文件>]
+Usage: scripts/fixture-db.sh [--hash-out <json-file>] [--db-out <sqlite-file>] [--ffr-db <executable>]
 
-使用 tests/fixtures/rust/db/ 下的全部区域合成夹具执行完整 ffr-db build，并输出 ffr-db hash --json。
-  --hash-out <文件>   将哈希 JSON 写入指定文件（不传时输出到标准输出）
-  --db-out <文件>     保留构建出的 SQLite 数据库到指定路径（不传时使用临时文件并自动清理）
-  --ffr-db <文件>     使用指定的 ffr-db 可执行文件（不传时自动编译 target/release/ffr-db）
-  -h, --help          显示此帮助信息
+Run a full `ffr-db build` across all synthetic fixtures in tests/fixtures/rust/db/ and emit `ffr-db hash --json`.
+  --hash-out <file>   Write the hash JSON report to <file> (defaults to stdout)
+  --db-out <file>     Keep the built SQLite database at <file> (defaults to a temporary file)
+  --ffr-db <file>     Use an existing ffr-db executable (defaults to building target/release/ffr-db)
+  -h, --help          Show this help message
 EOF
 }
 
@@ -27,7 +27,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --hash-out)
       if [[ $# -lt 2 ]]; then
-        echo "错误：--hash-out 缺少文件路径参数" >&2
+        echo "Error: --hash-out requires a file path argument" >&2
         exit 2
       fi
       HASH_OUT="$2"
@@ -35,7 +35,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --db-out)
       if [[ $# -lt 2 ]]; then
-        echo "错误：--db-out 缺少文件路径参数" >&2
+        echo "Error: --db-out requires a file path argument" >&2
         exit 2
       fi
       DB_OUT="$2"
@@ -43,7 +43,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --ffr-db)
       if [[ $# -lt 2 ]]; then
-        echo "错误：--ffr-db 缺少可执行文件路径参数" >&2
+        echo "Error: --ffr-db requires an executable path argument" >&2
         exit 2
       fi
       FFR_DB_BIN="$2"
@@ -54,7 +54,7 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      echo "错误：未知参数：$1" >&2
+      echo "Error: unknown argument: $1" >&2
       usage
       exit 2
       ;;
@@ -71,7 +71,7 @@ to_native_path() {
 
 FIXTURE_ROOT="$ROOT/tests/fixtures/rust/db"
 if [[ ! -d "$FIXTURE_ROOT" ]]; then
-  echo "错误：找不到假数据目录：$FIXTURE_ROOT" >&2
+  echo "Error: fixture directory not found: $FIXTURE_ROOT" >&2
   exit 2
 fi
 
@@ -86,11 +86,11 @@ if [[ -z "$FFR_DB_BIN" ]]; then
   fi
 
   if ! command -v cargo >/dev/null 2>&1; then
-    echo "错误：找不到 cargo 可执行文件，且未通过 --ffr-db 指定二进制路径" >&2
+    echo "Error: cargo executable not found and no binary was specified via --ffr-db" >&2
     exit 2
   fi
 
-  echo "==> 编译 ffr-db（release）" >&2
+  echo "==> Building ffr-db (release)" >&2
   cargo build --release -p ffr-db >&2
 
   if [[ -x "$ROOT/target/release/ffr-db.exe" ]]; then
@@ -98,11 +98,11 @@ if [[ -z "$FFR_DB_BIN" ]]; then
   elif [[ -x "$ROOT/target/release/ffr-db" ]]; then
     FFR_DB_BIN="$ROOT/target/release/ffr-db"
   else
-    echo "错误：cargo build 未生成 target/release/ffr-db 可执行文件" >&2
+    echo "Error: cargo build did not produce target/release/ffr-db" >&2
     exit 2
   fi
 elif [[ ! -x "$FFR_DB_BIN" ]]; then
-  echo "错误：指定的 ffr-db 可执行文件不存在或不可执行：$FFR_DB_BIN" >&2
+  echo "Error: specified ffr-db executable does not exist or is not executable: $FFR_DB_BIN" >&2
   exit 2
 fi
 
@@ -122,7 +122,7 @@ mkdir -p \
 # cross-area references in the `links` fixture remain internally consistent.
 for area in text datatable battle world links; do
   if [[ ! -d "$FIXTURE_ROOT/$area/export" ]]; then
-    echo "错误：缺少导出夹具目录：$FIXTURE_ROOT/$area/export" >&2
+    echo "Error: missing export fixture directory: $FIXTURE_ROOT/$area/export" >&2
     exit 2
   fi
   cp -R "$FIXTURE_ROOT/$area/export/." "$IN_DIR/export/"
@@ -131,7 +131,7 @@ done
 # Stage `export-full`: all four fixture areas occupy disjoint paths.
 for area in assets input_ui sequences links; do
   if [[ ! -d "$FIXTURE_ROOT/$area/export-full" ]]; then
-    echo "错误：缺少全量资源夹具目录：$FIXTURE_ROOT/$area/export-full" >&2
+    echo "Error: missing full-asset fixture directory: $FIXTURE_ROOT/$area/export-full" >&2
     exit 2
   fi
   cp -R "$FIXTURE_ROOT/$area/export-full/." "$IN_DIR/export-full/"
@@ -143,7 +143,7 @@ cp -R "$FIXTURE_ROOT/assets/inventory/." "$IN_DIR/inventory/"
 # Stage `maps`: load `levels/maps` first, then `links/maps` on top so `_graph.json` matches links.
 for area in levels links; do
   if [[ ! -d "$FIXTURE_ROOT/$area/maps" ]]; then
-    echo "错误：缺少关卡夹具目录：$FIXTURE_ROOT/$area/maps" >&2
+    echo "Error: missing map fixture directory: $FIXTURE_ROOT/$area/maps" >&2
     exit 2
   fi
   cp -R "$FIXTURE_ROOT/$area/maps/." "$IN_DIR/maps/"
@@ -162,7 +162,7 @@ JMAP_FILES=(
 STAGED_JMAPS=()
 for jmap in "${JMAP_FILES[@]}"; do
   if [[ ! -f "$jmap" ]]; then
-    echo "错误：缺少反射夹具文件：$jmap" >&2
+    echo "Error: missing reflection fixture file: $jmap" >&2
     exit 2
   fi
   base="$(basename -- "$jmap")"
@@ -180,7 +180,7 @@ else
   DB_PATH="$STAGE_DIR/fixture.sqlite"
 fi
 
-echo "==> 使用全部合成夹具构建假数据库" >&2
+echo "==> Building synthetic database from all fixtures" >&2
 BUILD_ARGS=(
   build
   --export "$(to_native_path "$IN_DIR/export")"
@@ -196,13 +196,13 @@ done
 
 env -u FFR_DEPS "$FFR_DB_BIN" "${BUILD_ARGS[@]}" >&2
 
-echo "==> 计算假数据库哈希（ffr-db hash --json）" >&2
+echo "==> Computing synthetic database hashes (ffr-db hash --json)" >&2
 HASH_JSON="$(env -u FFR_DEPS "$FFR_DB_BIN" hash "$(to_native_path "$DB_PATH")" --json)"
 
 if [[ -n "$HASH_OUT" ]]; then
   mkdir -p "$(dirname -- "$HASH_OUT")"
   printf '%s\n' "$HASH_JSON" > "$HASH_OUT"
-  echo "==> 已写入哈希报告：$HASH_OUT" >&2
+  echo "==> Wrote hash report: $HASH_OUT" >&2
 else
   printf '%s\n' "$HASH_JSON"
 fi
