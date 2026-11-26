@@ -1,122 +1,134 @@
+**English** | [简体中文](README.zh-CN.md) | [日本語](README.ja.md)
+
 # final-fantasy-resonance-export
 
-《FINAL FANTASY RESONANCE》的资源导出工具（C# / .NET 10 / CUE4Parse）。工具以只读方式挂载游戏安装目录中的 UE5 IoStore / Pak 资源包，导出数据表、多语言文本、资源总索引、全量非图像资源以及关卡与地图图谱为 JSON。
+Asset exporter and local database builder for **FINAL FANTASY RESONANCE** (C# / .NET 10 / CUE4Parse + Rust / SQLite). It mounts the game's UE5 IoStore / Pak archives in read-only mode to export DataTables, localized strings, full asset inventories, non-image assets, and level/map graphs as JSON, then compiles them into a deterministic SQLite database (`ffr.sqlite`).
 
-> 本仓库仅面向《FINAL FANTASY RESONANCE》服务，不做通用化；所有游戏文件、`.usmap` 映射文件与导出产物均留在 `.deps/`（或 `$FFR_DEPS`）下，不进入版本库。
+> This repository is dedicated strictly to **FINAL FANTASY RESONANCE** and is not a general-purpose UE5 extractor. No game files, `.usmap` dumps, or exported outputs are committed to the repository; local working data stays under `.deps/` (or `$FFR_DEPS`).
 
-## 快速开始（Windows）
+## Quick Start (Windows)
 
-无需安装开发环境，直接下载打包好的 Windows 版本并用图形界面点几下即可导出：
+No development environment is required. Download the packaged Windows release and export with a few clicks in the GUI:
 
-1. **下载压缩包**：
-   - **正式版本**：前往仓库的 **Releases** 页面下载最新 `ffr-export-<版本>-win-x64.zip`；
-   - **最新开发构建**：前往仓库的 **Actions** 页面，打开最新一次 `main` 分支通过的 **CI** 记录，在底部的 **Artifacts** 中下载 `ffr-export-<版本>-<提交短号>-win-x64`（保留 30 天）。
-2. **解压到同一目录**：将压缩包完整解压到一个文件夹，确保 `ffr-export-gui.exe`、`ffr-export.exe`、`ffr-db.exe` 与 `known-builds.json` 位于同一目录（不要只单独移动 `ffr-export-gui.exe`；压缩包内另附简短中文 `使用说明.txt`）。
-3. **准备 `.usmap` 映射文件**：`.usmap` 无法随工具分发，需要从运行中的游戏内存转储。若游戏目录和本地缓存里还没有 `.usmap`，可以直接在窗口程序里点 **一键获取 .usmap（会启动一次游戏）**（或运行 `ffr-export.exe fetch-usmap`），也可以手动用 UE4SS 转储；详见下文 [获取 `.usmap`](#获取-usmap) 与 [docs/usmap.md](docs/usmap.md)。
-4. **双击打开 `ffr-export-gui.exe`**，按界面顺序确认并点击 **开始导出**：
-   - **自动扫描游戏**：启动时自动扫描 Steam 全部游戏库并列出名称、Steam 构建号和安装目录；若未找到可点 **手动选择游戏目录…**；
-   - **自动查找 / 一键获取 `.usmap`（及可选 `.jmap`）**：依次查找 `%LOCALAPPDATA%\agp\ffr-export\usmap\*.usmap`、`FFRS\Binaries\Win64\ue4ss\*.usmap` 与 `FFRS\Binaries\Win64\*.usmap` 并选中最新一份；未找到时会显示 **一键获取 .usmap（会启动一次游戏）** 按钮；勾选 **包含反射数据（.jmap，可选）** 后会在 `ue4ss\` / `Win64\` 下自动列出 `.jmap`（默认不勾选）；
-   - **输出位置与统一数据目录**：默认导出、`.usmap` 归档、下载缓存、日志与设置统一保存在 `%LOCALAPPDATA%\agp\ffr-export\`（详见下方 [统一数据目录与 `AGP_HOME`](#统一数据目录与-agp_home)），下次启动会自动记住上次的输出根目录与勾选状态（不写注册表）；
-   - **设置与卸载 UE4SS**：点击 **设置…** 可查看数据目录，并在本工具曾安装过 UE4SS 时点击 **卸载 UE4SS**（只删本工具标记清单里的文件，不碰用户原有 UE4SS）；
-   - **完成与核对**：导出时界面实时显示进度条与日志，可随时点 **取消** 结束后台进程树；完成后直接显示数据库路径、文件哈希、内容哈希与 `✓` / `✗` 比对结论，并提供 **打开输出文件夹**（打开本次实际使用的目录）与 **复制哈希** 按钮。
+1. **Download the archive**:
+   - **Official releases**: download the latest `ffr-export-<version>-win-x64.zip` from the repository's **Releases** page.
+   - **Latest development builds**: open the latest passing **CI** run on `main` in **Actions** and download `ffr-export-<version>-<short-sha>-win-x64` from **Artifacts** (retained for 30 days).
+2. **Extract to one folder**: extract the entire zip archive into a single folder so `ffr-export-gui.exe`, `ffr-export.exe`, `ffr-db.exe`, and `known-builds.json` sit side by side (do not move `ffr-export-gui.exe` out by itself; the archive also includes a quick-start guide in `README-Windows.txt`).
+3. **Prepare a `.usmap` mapping file**: `.usmap` files cannot be bundled and must be dumped from the running game. If none is found in the game directory or local archive, click **Fetch .usmap (launches game once)** in the GUI (or run `ffr-export.exe fetch-usmap`), or dump it manually with UE4SS; see [Obtaining `.usmap`](#obtaining-usmap) and [docs/usmap.md](docs/usmap.md).
+4. **Launch `ffr-export-gui.exe`**, verify the detected paths, and click **Start Export**:
+   - **Language selector**: use the top-right dropdown (**English** / **简体中文** / **日本語**) to switch UI and child-CLI language immediately (defaults to English and saves your choice to `settings.json`).
+   - **Auto-detect game**: automatically scans all Steam libraries on startup and lists the game title, Steam Build ID, and install path; click **Select Game Folder…** to pick manually.
+   - **Auto-locate / one-click `.usmap` (and optional `.jmap`)**: searches `%LOCALAPPDATA%\agp\ffr-export\usmap\*.usmap`, `FFRS\Binaries\Win64\ue4ss\*.usmap`, and `FFRS\Binaries\Win64\*.usmap` in order and picks the newest file; when missing, **Fetch .usmap (launches game once)** appears. Check **Include reflection data (.jmap, optional)** to scan `ue4ss\` / `Win64\` for `.jmap` files (off by default).
+   - **Unified data directory**: default exports, archived `.usmap` files, download caches, logs, and GUI settings live under `%LOCALAPPDATA%\agp\ffr-export\` (see [Unified Data Directory and `AGP_HOME`](#unified-data-directory-and-agp_home)); your last output root, `.jmap` checkbox, and language preference are remembered automatically (no registry writes).
+   - **Settings & UE4SS cleanup**: click **Settings…** to inspect the active data root, or **Clean up UE4SS…** on the main window to uninstall UE4SS installed by this tool (or back up and remove a user-installed UE4SS if explicitly chosen).
+   - **Progress & verification**: displays live progress and logs with a **Cancel** button that terminates the child process tree cleanly. When finished, it shows the database path, file/content SHA-256 hashes, `✓` / `✗` comparison against `known-builds.json`, **Open Output Folder**, and **Copy Hashes**.
 
-> 已知版本表（`known-builds.json`）同时登记了两种输入组合：“只有 `.usmap`”和“`.usmap` 加两份 `.jmap`”，因此勾选或不勾选 `.jmap` 都可能与登记版本一致。
+> `known-builds.json` registers both input combinations — **`.usmap` only** and **`.usmap` + two `.jmap` files** — so either mode can match a registered build.
 
-窗口界面示意：
+GUI overview:
 
 ```text
 +------------------------------------------------------------------------------+
-| 《FINAL FANTASY RESONANCE》数据导出工具                                      |
+| FINAL FANTASY RESONANCE Data Exporter          Language: [ English       v ] |
 +------------------------------------------------------------------------------+
-| [1. 游戏（FINAL FANTASY RESONANCE）]                                         |
-|   游戏名称                  | Steam 构建号 | 安装目录           [手动选择…]  |
-| > FINAL FANTASY RESONANCE   | 24250053     | ...\common\...     [重新扫描]   |
+| [1. Game (FINAL FANTASY RESONANCE)]                                          |
+|   Game                      | Steam Build  | Install Folder     [Browse...]  |
+| > FINAL FANTASY RESONANCE   | 24250053     | ...\common\...     [Rescan]     |
 +------------------------------------------------------------------------------+
-| [2. 映射与反射文件（.usmap / .jmap）]                                        |
-|   .usmap（必填）：已自动找到 FFRS-5.6.1.usmap（2026-11-25）     [选择 .usmap…]|
-|   [ ] 包含反射数据（.jmap，可选）                                            |
-|       (勾选后自动扫描 ue4ss / Win64 下的 *.jmap，支持添加/移除)              |
+| [2. Mapping & Reflection Files (.usmap / .jmap)]                             |
+|   .usmap (required): Auto-found FFRS-5.6.1.usmap (2026-11-25)  [Select ...]  |
+|   [ ] Include reflection data (.jmap, optional)                              |
+|       (scans ue4ss / Win64 for *.jmap when checked; supports add/remove)     |
 +------------------------------------------------------------------------------+
-| [3. 输出位置]                                                                |
-|   输出目录：[ %LOCALAPPDATA%\agp\ffr-export\output\ffr-24250053   ] [ 浏览… ]  |
+| [3. Output Location]                                                         |
+|   Output folder: [ %LOCALAPPDATA%\agp\ffr-export\output\ffr-24250053 ] [...] |
 +------------------------------------------------------------------------------+
-| [                  开 始 导 出                  ]                [ 取 消 ]   |
-| 状态：步骤 3/5 — 调用 ffr-db build 构建 SQLite 数据库   [=========>      ]   |
+| [                 S T A R T   E X P O R T                 ]     [ Cancel ]   |
+| Status: Step 3/5 - Building SQLite database via ffr-db    [=========>     ]  |
 | +--------------------------------------------------------------------------+ |
-| | ==> 步骤 1/5：识别游戏版本与输入哈希                                     | |
-| | ==> 步骤 2/5：导出游戏数据为 JSON                                        | |
-| | ==> 步骤 3/5：调用 ffr-db build 构建 SQLite 数据库                       | |
+| | ==> Step 1/5: Detecting game version and input hashes                    | |
+| | ==> Step 2/5: Exporting game data to JSON                                | |
+| | ==> Step 3/5: Building SQLite database via ffr-db build                  | |
 | +--------------------------------------------------------------------------+ |
 +------------------------------------------------------------------------------+
-| [4. 完成结果]  ✓ 与登记的版本一致（仅 .usmap / .usmap + 两份 .jmap 均可比对）|
-|   数据库路径：[ ...\FF-Export\ffr-24250053\ffr.sqlite       ] [打开输出文件夹]|
-|   文件哈希：  [ b0a228269588...                             ] [  复制哈希   ]|
-|   内容哈希：  [ 28374329602c...                             ]                |
+| [4. Result]  ✓ Matches registered build (.usmap only or .usmap + 2 .jmap)    |
+|   Database:     [ ...\ffr-24250053\ffr.sqlite          ] [Open Output Folder]|
+|   File SHA256:  [ b0a228269588...                      ] [   Copy Hashes    ]|
+|   Content Hash: [ 28374329602c...                      ]                     |
 +------------------------------------------------------------------------------+
 ```
 
-### 统一数据目录与 `AGP_HOME`
+### Language Selection
 
-窗口程序与 `build-db` / 交互式向导 / `fetch-usmap` 的默认文件全部集中在统一目录下（避免文件分散在文档、桌面和程序目录各处）：
+Both the GUI (`ffr-export-gui`) and CLI (`ffr-export`) support **English (`en`, default)**, **Simplified Chinese (`zh-Hans`)**, and **Japanese (`ja`)**. Language never auto-switches based on the OS locale; resolution follows strict priority order:
+
+1. Command-line option: `--lang en|zh-Hans|ja` (must appear before `locres` if used with the `locres` subcommand, because `locres --lang` selects game localization languages)
+2. Environment variable: `AGP_LANG`
+3. Saved GUI preference: `"language"` in `<AGP_HOME>/ffr-export/settings.json`
+4. Default: `en`
+
+When the GUI spawns `ffr-export` child processes, it forwards `--lang <active-language>` and `--progress-json` so progress tracking uses the language-independent machine protocol (`@@progress {"step":n,"total":m,...}`).
+
+### Unified Data Directory and `AGP_HOME`
+
+All user-facing default files for the GUI, `build-db`, the interactive wizard, and `fetch-usmap` are stored in one directory tree:
 
 ```text
 %LOCALAPPDATA%\agp\ffr-export\
-  output\ffr-<Steam 构建号>\   默认导出位置（ffr.sqlite、ffr.sqlite.build.json、--keep-json 时的 json\）
-  usmap\                       一键获取或手动复制来的 .usmap（自动查找优先覆盖此目录）
-  downloads\                   UE4SS 官方安装包下载缓存（复用前会校验 SHA-256）
-  logs\                        窗口程序与命令行的运行日志（仅保留最近 10 个）
-  settings.json                窗口程序的设置
+  output\ffr-<Steam Build ID>\  Default export output (ffr.sqlite, ffr.sqlite.build.json, and json\ with --keep-json)
+  usmap\                        Archived .usmap files from fetch-usmap or manual copies (searched first)
+  downloads\                    Verified UE4SS official archive cache (SHA-256 verified before reuse)
+  logs\                         GUI and CLI run logs (retains the latest 10 files)
+  settings.json                 GUI settings (output root, .jmap toggle, language)
 ```
 
-- **根目录优先级**：环境变量 `AGP_HOME`（直接作为 `agp` 这一层目录）→ Windows 的 `%LOCALAPPDATA%\agp` → Linux/macOS 的 `$XDG_DATA_HOME/agp`（未设置时为 `~/.local/share/agp`）；
-- **显式路径优先**：命令行传入的 `--out` 或窗口程序里通过 **浏览…** 选定的目录照旧优先使用；**打开输出文件夹** 打开的是本次实际导出的目录；
-- **旧版位置说明与设置迁移**：
-  - 旧版窗口程序的设置位于 `%APPDATA%\ffr-export\settings.json`。新版首次启动时若旧文件存在且新位置不存在，会自动迁移到 `%LOCALAPPDATA%\agp\ffr-export\settings.json`，并将旧文件改名为 `settings.json.migrated`（不删除）；
-  - 旧版默认导出结果（此前位于 `%USERPROFILE%\Documents\FF-Export\` 或程序旁的 `output\`）与旧版日志（`%LOCALAPPDATA%\ffr-export\logs\`）不会自动迁移，您可按需自行保留或清理。
+- **Root priority**: `AGP_HOME` environment variable (used directly as the `agp` root) -> `%LOCALAPPDATA%\agp` on Windows -> `$XDG_DATA_HOME/agp` (or `~/.local/share/agp`) on Linux/macOS. On restricted Windows environments (e.g. Low Integrity / unwritable `%LOCALAPPDATA%`), the tool automatically probes `%USERPROFILE%\AppData\LocalLow\agp`, `<exeDir>\agp-data`, `%USERPROFILE%\agp`, and saved `agp-location.txt` without ever writing to `%TEMP%`.
+- **Explicit path priority**: `--out` on the CLI or **Browse…** in the GUI always takes precedence; **Open Output Folder** opens the actual directory used for that run.
+- **Legacy settings migration**: if `%APPDATA%\ffr-export\settings.json` exists and the new `settings.json` does not, the GUI migrates it automatically on first start and renames the old file to `settings.json.migrated` without deleting it.
 
-### 获取 `.usmap`
+### Obtaining `.usmap`
 
-详细原理、改动文件列表与排查建议见 [docs/usmap.md](docs/usmap.md)。
+See [docs/usmap.md](docs/usmap.md) for technical details, touched files, and troubleshooting.
 
-#### 方式一：一键获取（推荐，Windows）
+#### Option 1: One-click fetch (recommended on Windows)
 
-- **图形界面**：打开 `ffr-export-gui.exe`，当 `.usmap` 缺失时点击 **一键获取 .usmap（会启动一次游戏）**，确认弹窗说明后等待自动完成并自动选中新的 `.usmap`（支持随时取消，取消时同样停用模组并关闭游戏）；
-- **命令行**：
+- **GUI**: launch `ffr-export-gui.exe` and click **Fetch .usmap (launches game once)** when no `.usmap` is found. Confirm the prompt and wait for completion; the archived `.usmap` is selected automatically (canceling at any point still cleans up the temporary mod and closes the game).
+- **CLI**:
 
 ```powershell
-ffr-export.exe fetch-usmap --game "<Steam 游戏目录>" [--timeout 300] [--yes]
+ffr-export.exe fetch-usmap --game "<Steam Game Directory>" [--timeout 300] [--yes]
 ```
 
-一键获取仅在您确认后按固定版本下载官方 `UE4SS v4.0.0`（校验大小与 SHA-256，若游戏目录已自行安装 UE4SS 则完全不动原有配置），部署临时只读模组（使用 `enabled.txt`，不改 `mods.txt`），经 Steam 启动游戏并在标题画面转储 `.usmap`，归档到 `%LOCALAPPDATA%\agp\ffr-export\usmap\` 并与 `known-builds.json` 核对，最后移除临时模组并安全关闭游戏（停在标题画面，不触碰存档）。UE4SS 本体保留供下次复用，随时可卸载：
+After your confirmation, `fetch-usmap` downloads the pinned official `UE4SS v4.0.0` release (verifying exact byte size and SHA-256; existing user-installed UE4SS configurations are left untouched), deploys a temporary read-only Lua dump mod via `enabled.txt` (never modifying `mods.txt`), launches the game via Steam to dump `.usmap` on the title screen, archives it into `%LOCALAPPDATA%\agp\ffr-export\usmap\`, compares it against `known-builds.json`, removes the temporary mod, and closes the game cleanly without touching saves. UE4SS remains installed for future updates and can be removed at any time:
 
 ```powershell
-ffr-export.exe uninstall-ue4ss --game "<Steam 游戏目录>"
+ffr-export.exe uninstall-ue4ss --game "<Steam Game Directory>"
 ```
 
-或在窗口程序点击 **设置… → 卸载 UE4SS**（仅在存在本工具标记文件时可用，绝不卸载用户自行安装的 UE4SS）。
+Or click **Clean up UE4SS…** in the GUI (only removes files recorded in our install marker unless you explicitly opt to back up and remove a user-installed UE4SS).
 
-#### 方式二：手动获取
+#### Option 2: Manual dump
 
-自行从 [RE-UE4SS v4.0.0](https://github.com/UE4SS-RE/RE-UE4SS/releases/tag/v4.0.0) 下载解压到 `<游戏目录>\FFRS\Binaries\Win64\`，运行游戏通过 UE4SS 转储 `.usmap` 后，留在 `FFRS\Binaries\Win64\ue4ss\` 或复制到 `%LOCALAPPDATA%\agp\ffr-export\usmap\` 即可被工具自动发现。
+Download [RE-UE4SS v4.0.0](https://github.com/UE4SS-RE/RE-UE4SS/releases/tag/v4.0.0), extract it to `<GameDir>\FFRS\Binaries\Win64\`, run the game to dump `.usmap`, and leave it in `FFRS\Binaries\Win64\ue4ss\` or copy it into `%LOCALAPPDATA%\agp\ffr-export\usmap\`.
 
-### 控制台向导与命令行（Windows 可选）
+### Interactive Console Wizard & CLI (Windows Optional)
 
-如果偏好终端操作或在脚本中自动化运行，也可以直接使用同目录下的 `ffr-export.exe`：
+You can also use `ffr-export.exe` directly from the same folder:
 
-- **交互式控制台向导**：双击运行不带参数的 `ffr-export.exe`，按中文提示选择游戏、确认自动发现或粘贴的 `.usmap`/`.jmap` 与输出目录（默认 `%LOCALAPPDATA%\agp\ffr-export\output\ffr-<Steam 构建号>\`）即可完成导出与建库。
-- **命令行一键建库**：直接带参数调用 `build-db` 子命令（窗口程序后台调用的也是同一条命令；不传 `--out` 时默认输出到 `%LOCALAPPDATA%\agp\ffr-export\output\ffr-<Steam 构建号>\`）：
+- **Interactive wizard**: double-click `ffr-export.exe` with no arguments to follow step-by-step prompts to pick the game, `.usmap`/`.jmap`, and output directory (defaults to `%LOCALAPPDATA%\agp\ffr-export\output\ffr-<Steam Build ID>\`).
+- **One-command database build**: run `build-db` directly (the same subcommand used behind the scenes by the GUI):
 
 ```powershell
-ffr-export.exe build-db --game "<Steam 游戏目录>" --usmap "<Mappings.usmap>" [--out "<输出目录>"]
+ffr-export.exe build-db --game "<Steam Game Directory>" --usmap "<Mappings.usmap>" [--out "<Output Directory>"]
 ```
 
-## 命令行与开发用法
+## CLI & Development Usage
 
-### 环境准备
+### Prerequisites
 
-#### 1. 安装 .NET 10 SDK
+#### 1. Install .NET 10 SDK
 
-默认使用仓库根目录下的 `.deps/dotnet`（NuGet 缓存位于 `.deps/nuget`，不改动 `~/.dotnet`）：
+By default, the scripts use `.deps/dotnet` in the repository root (with NuGet cache under `.deps/nuget`, never touching `~/.dotnet`):
 
 ```bash
 mkdir -p .deps
@@ -124,122 +136,122 @@ curl -fsSL https://dot.net/v1/dotnet-install.sh -o .deps/dotnet-install.sh
 bash .deps/dotnet-install.sh --channel 10.0 --install-dir .deps/dotnet --no-path
 ```
 
-也可以通过环境变量 `DOTNET_ROOT` 指定已安装好的 .NET 10 SDK 目录，`scripts/run.sh` 与 `scripts/check.sh` 会自动识别。
+You can also set `DOTNET_ROOT` to an existing .NET 10 SDK installation; `scripts/run.sh` and `scripts/check.sh` honor it automatically.
 
-#### 2. 准备游戏文件与 `.usmap`
+#### 2. Game Files and `.usmap`
 
-- **游戏文件（只读）**：将游戏安装目录放到 `.deps/ffr/files/`（或指向安装目录的软链接）。默认挂载目录为 `$FFR_DEPS/ffr/files/FFRS/Content/Paks`（未设 `FFR_DEPS` 时为 `.deps/ffr/files/FFRS/Content/Paks`）。工具绝不修改游戏文件。
-- **`.usmap` 映射文件**：`list`、`raw`、`locres`、`inventory` 不需要映射文件；`export`、`export-assets`、`export-maps` 需要从游戏进程中用 UE4SS 导出的 `.usmap`，运行时通过 `--usmap <文件>` 传入。
+- **Game files (read-only)**: place or symlink the game installation at `.deps/ffr/files/`. The default mount path is `$FFR_DEPS/ffr/files/FFRS/Content/Paks` (or `.deps/ffr/files/FFRS/Content/Paks` when `FFR_DEPS` is unset). Game files are never modified.
+- **`.usmap` mapping file**: `list`, `raw`, `locres`, and `inventory` do not require `.usmap`; `export`, `export-assets`, and `export-maps` require `--usmap <file>`.
 
-## 路径约定与 `FFR_DEPS`
+## Path Conventions and `FFR_DEPS`
 
-工具所有默认输入与输出目录均优先读取环境变量 `FFR_DEPS`（与下游共鸣仓库 `Final-Fantasy-Resonance-Agent` 的 Rust 数据层 `ffr-data` 同名、同义）；未设置 `FFR_DEPS` 时默认使用本仓库的 `.deps/`。
+All developer subcommands read `FFR_DEPS` first (matching the downstream repository `Final-Fantasy-Resonance-Agent`) and fall back to `.deps/` in the repository root.
 
-### 默认输出布局
+### Default Layout
 
-设 `DEPS="${FFR_DEPS:-.deps}"`：
+Let `DEPS="${FFR_DEPS:-.deps}"`:
 
-| 路径 | 对应子命令 | 说明 |
+| Path | Subcommand | Description |
 | --- | --- | --- |
-| `$DEPS/ffr/files/FFRS/Content/Paks` | 全部（默认输入） | 游戏 IoStore / Pak 目录（只读，可用 `--paks` 覆盖） |
-| `$DEPS/ffr/export` | `export` | 数据表 / 字符串表导出 JSON 与 `manifest.json` |
-| `$DEPS/ffr/export/Localization` | `locres` | 多语言文本 `<lang>.json` 与 `manifest.json` |
-| `$DEPS/ffr/inventory` | `inventory` | 资源索引 `registry.jsonl`、`summary.json`、`manifest.json` |
-| `$DEPS/ffr/export-full` | `export-assets` | 全量非图像资源 JSON、原样拷贝的 `Config/*.ini`/`.uplugin`/`.uproject` 与 `manifest.json` |
-| `$DEPS/ffr/export-full/maps` | `export-maps` | 全量关卡 `<关卡名>.json`、地图图谱 `_graph.json` 与 `manifest.json` |
-| `$DEPS/ffr/db/ffr.sqlite` | `ffr-db build` | 汇总导出 JSON 与可选 `.jmap`/快照的本地 SQLite 游戏数据库 |
+| `$DEPS/ffr/files/FFRS/Content/Paks` | All (default input) | Read-only game IoStore / Pak directory (override with `--paks`) |
+| `$DEPS/ffr/export` | `export` | DataTable / StringTable JSON exports and `manifest.json` |
+| `$DEPS/ffr/export/Localization` | `locres` | Localized text `<lang>.json` files and `manifest.json` |
+| `$DEPS/ffr/inventory` | `inventory` | Asset inventory `registry.jsonl`, `summary.json`, `manifest.json` |
+| `$DEPS/ffr/export-full` | `export-assets` | Full non-image asset JSONs, verbatim `Config/*.ini`/`.uplugin`/`.uproject`, and `manifest.json` |
+| `$DEPS/ffr/export-full/maps` | `export-maps` | Level `<Level>.json` files, map connectivity `_graph.json`, and `manifest.json` |
+| `$DEPS/ffr/db/ffr.sqlite` | `ffr-db build` | Compiled local SQLite game database |
 
-### 输出目录护栏
+### Output Directory Guardrails
 
-- `--out` 必须位于 `$FFR_DEPS`（或未设置时的 `.deps/`）内部，且禁止指向受保护目录（`ffr` 本身、`ffr/files`、`r1`、`dotnet`、`nuget`、`dotnet-home`、`nuget-http` 及其子目录）。
-- 非续跑命令（`export`、`locres`、`inventory`）遇到非空目录时拒绝执行；加 `--force` 时必须校验目标目录存在属于同一子命令的 `manifest.json`（带 `cue4ParseVersion`）后才清空。
-- 续跑命令（`export-assets`、`export-maps`）在不加 `--force` 时自动复用同名 `manifest.json` 目录并跳过已有文件；`export-assets --force` 清空时会自动保留含独立 `manifest.json` 的其他子命令子目录（例如 `maps/`）。
+- `--out` for low-level subcommands must stay inside `$FFR_DEPS` (or `.deps/`) and cannot target protected directories (`ffr`, `ffr/files`, `r1`, `dotnet`, `nuget`, `dotnet-home`, `nuget-http`, or their subdirectories).
+- Non-resumable subcommands (`export`, `locres`, `inventory`) refuse non-empty directories without `--force`; with `--force`, they require a matching `manifest.json` (with `cue4ParseVersion`) owned by the same subcommand before clearing.
+- Resumable subcommands (`export-assets`, `export-maps`) reuse their own output directory and skip existing files without `--force`; `export-assets --force` preserves sibling subdirectories containing another subcommand's `manifest.json` (such as `maps/`).
 
-## 子命令与参数
+## Subcommands & Options
 
-所有子命令通过 `scripts/run.sh <子命令> [参数...]` 运行：
+Run any subcommand via `scripts/run.sh [--lang en|zh-Hans|ja] <subcommand> [options...]`:
 
-### 1. `list` — 列出包内文件
-
-```bash
-scripts/run.sh list [--paks <目录>] [--prefix <前缀>]...
-```
-
-逐行打印匹配的虚拟路径和字节数，并在末尾打印总数。不传 `--prefix` 时默认匹配 `FFRS/Content/Datatable/` 与 `FFRS/Content/L10N/`。
-
-### 2. `raw` — 导出单个包原始字节
+### 1. `list` — List archive entries
 
 ```bash
-scripts/run.sh raw <包路径> --out <输出文件> [--paks <目录>]
+scripts/run.sh list [--paks <dir>] [--prefix <prefix>]...
 ```
 
-将指定虚拟路径的原始字节写入 `--out`（必须在 `$FFR_DEPS` / `.deps/` 下），并打印长度与 SHA-256。
+Prints each matching virtual path and byte size, followed by the total count. Defaults to `FFRS/Content/Datatable/` and `FFRS/Content/L10N/`.
 
-### 3. `export` — 导出数据表为 JSON
+### 2. `raw` — Extract raw package bytes
+
+```bash
+scripts/run.sh raw <package-path> --out <file> [--paks <dir>]
+```
+
+Writes the raw bytes of a virtual entry to `--out` (under `$FFR_DEPS` / `.deps/`) and prints byte length and SHA-256.
+
+### 3. `export` — Export DataTables to JSON
 
 ```bash
 scripts/run.sh export --usmap <Mappings.usmap> \
-  [--out <目录>] [--prefix <前缀>]... [--paks <目录>] [--force]
+  [--out <dir>] [--prefix <prefix>]... [--paks <dir>] [--force]
 ```
 
-默认前缀为 `FFRS/Content/Datatable/`、`FFRS/Content/L10N/`，默认输出到 `$DEPS/ffr/export`。每个 `.uasset` 导出为 `<out>/<包路径去扩展名>.json`（两空格缩进、UTF-8 无 BOM）。单个包失败记录进 `manifest.json` 的 `failures` 不中断其余包；存在失败时退出码为 1。
+Defaults to prefixes `FFRS/Content/Datatable/` and `FFRS/Content/L10N/` and outputs to `$DEPS/ffr/export`. Each `.uasset` is exported as 2-space indented UTF-8 (no BOM, LF) JSON. Per-file failures are recorded in `manifest.json` (`failures`) without aborting the batch; exit code is `1` if any package failed.
 
-### 4. `locres` — 导出多语言文本
+### 4. `locres` — Export localized text
 
 ```bash
-scripts/run.sh locres [--lang <语言>]... [--out <目录>] [--paks <目录>] [--force]
+scripts/run.sh locres [--lang <game-langs>]... [--out <dir>] [--paks <dir>] [--force]
 ```
 
-读取 `FFRS/Content/Localization/Game/<语言>/Game.locres`（使用 CUE4Parse `FTextLocalizationResource`），默认导出 `zh-Hans`、`en`、`ja` 到 `$DEPS/ffr/export/Localization/<语言>.json`（格式 `{ namespace: { key: text } }`）并写出 `manifest.json`。`--lang` 支持重复传入或逗号分隔（如 `--lang zh-Hans,en,ja`）。
+Reads `FFRS/Content/Localization/Game/<lang>/Game.locres` via CUE4Parse `FTextLocalizationResource`, defaulting to `zh-Hans`, `en`, and `ja`, and writes `$DEPS/ffr/export/Localization/<lang>.json` (`{ namespace: { key: text } }`) plus `manifest.json`. `--lang` accepts repeated flags or comma-separated values (e.g., `--lang zh-Hans,en,ja`).
 
-### 5. `inventory` — 生成全量资源索引
+### 5. `inventory` — Generate full asset inventory
 
 ```bash
-scripts/run.sh inventory [--paks <目录>] [--out <目录>] [--force]
+scripts/run.sh inventory [--paks <dir>] [--out <dir>] [--force]
 ```
 
-解析 `FFRS/AssetRegistry.bin`（`FAssetRegistryState`）并结合去重后的 VFS 挂载表（按补丁包生效版本去重并计入伴随 `.ubulk`/`.uptnl` 体积），输出 `registry.jsonl`、`summary.json`、`manifest.json` 到 `$DEPS/ffr/inventory`。详细规则与统计见 [docs/data-inventory.md](docs/data-inventory.md)。
+Parses `FFRS/AssetRegistry.bin` (`FAssetRegistryState`) combined with the deduplicated VFS mount table (accounting for patch overrides and companion `.ubulk`/`.uptnl` sizes) and writes `registry.jsonl`, `summary.json`, and `manifest.json` to `$DEPS/ffr/inventory`. See [docs/data-inventory.md](docs/data-inventory.md).
 
-### 6. `export-assets` — 全量非图像资源导出
+### 6. `export-assets` — Export all non-image assets
 
 ```bash
 scripts/run.sh export-assets --usmap <Mappings.usmap> \
-  [--out <目录>] [--prefix <前缀>]... [--jobs <并行数>] [--paks <目录>] [--force]
+  [--out <dir>] [--prefix <prefix>]... [--jobs <n>] [--paks <dir>] [--force]
 ```
 
-按 [docs/data-inventory.md](docs/data-inventory.md) 的分类规则并行导出 `FFRS/` 下全部非图像、非关卡、非大体积二进制资源（数据表、字符串表、曲线、DataAsset、Enhanced Input、过场 `LevelSequence`、用户自定义枚举/结构体、蓝图与控件蓝图 CDO/组件默认值/`WidgetTree`），并原样拷贝 `Config/*.ini`、`.uplugin`、`.uproject`。支持断点续跑、对缺失 `ContainerHeader` 的补丁 IoStore 自动回退以及单文件容错。
+Concurrently exports all non-image, non-level, non-large-binary assets under `FFRS/` (DataTables, StringTables, Curves, DataAssets, Enhanced Input, `LevelSequence`, user-defined enums/structs, Blueprint/WidgetBlueprint CDO/component defaults/`WidgetTree`) and copies `Config/*.ini`, `.uplugin`, and `.uproject` verbatim. Supports resume, fallback for patched IoStore containers lacking `ContainerHeader`, and per-file error isolation.
 
-另提供分类查询模式（不挂载游戏包，直接打印 JSON）：
+Classification lookup mode (offline, prints JSON directly):
 
 ```bash
 scripts/run.sh export-assets --classify DataTable,Texture2D,BlueprintGeneratedClass
 ```
 
-### 7. `export-maps` — 全量关卡导出与地图图谱
+### 7. `export-maps` — Export levels and map connectivity graph
 
 ```bash
 scripts/run.sh export-maps --usmap <Mappings.usmap> \
-  [--out <目录>] [--prefix <前缀>]... [--map-data <CDT_MapData_Prod.json>] \
-  [--jobs <并行数>] [--paks <目录>] [--force]
+  [--out <dir>] [--prefix <prefix>]... [--map-data <CDT_MapData_Prod.json>] \
+  [--jobs <n>] [--paks <dir>] [--force]
 ```
 
-扫描 `FFRS/Content/` 下全部 `.umap` 关卡，分层导出游戏类与引擎类 Actor，提取 NPC、宝箱、商店、旅店、存档点、出入口触发器、传送落点、事件触发器、机关与遇敌区域摘要，并聚合生成 `_graph.json` 地图连通图谱。详细格式与统计见 [docs/maps.md](docs/maps.md)。
+Scans all `.umap` levels under `FFRS/Content/`, separates game and engine actors, extracts summaries (NPCs, treasure boxes, shops, inns, save points, transitions, transition points, event triggers, gimmicks, encounter zones), and aggregates `_graph.json`. See [docs/maps.md](docs/maps.md).
 
-也支持 `--from-json <夹具目录>` 离线模式（供测试与合成夹具验证摘要提取和图谱聚合，不需要游戏包与 `.usmap`）。
+Also supports `--from-json <fixture-dir>` offline mode for synthetic testing without game paks or `.usmap`.
 
-## JSON → SQLite
+## JSON to SQLite (`ffr-db`)
 
-本仓库内置 Rust 数据层（`crates/ffr-data`）与本地数据库工具（`crates/ffr-db`），将前面导出的 JSON（数据表、多语言文本、资源索引、全量非图像资源、关卡图谱）以及可选的 `.jmap` 反射转储、真机快照统一构造成单个 SQLite 文件。表结构、索引与查询 API 设计见 [docs/database.md](docs/database.md)。
+The repository includes the Rust data crate (`crates/ffr-data`) and SQLite builder CLI (`crates/ffr-db`) to compile exported JSONs plus optional `.jmap` reflection dumps and live snapshots into a single SQLite file. See [docs/database.md](docs/database.md).
 
-### 用法
+### Usage
 
 ```bash
 FFR_DEPS=.deps cargo run --release -p ffr-db -- build \
-  [--export <目录>] [--full <目录>] [--inventory <目录>] [--maps <目录>] \
-  [--jmap <文件>]... [--snapshots <目录>] [--stages <阶段列表>] [--out <文件>]
+  [--export <dir>] [--full <dir>] [--inventory <dir>] [--maps <dir>] \
+  [--jmap <file>]... [--snapshots <dir>] [--stages <list>] [--out <file>]
 ```
 
-典型完整构建（合并多份 `.jmap`，不含真机快照）：
+Typical full build (merging multiple `.jmap` dumps without live snapshots):
 
 ```bash
 FFR_DEPS=.deps cargo run --release -p ffr-db -- build \
@@ -247,86 +259,84 @@ FFR_DEPS=.deps cargo run --release -p ffr-db -- build \
   --jmap .deps/r1/<battle-jmap>/<Mappings>.jmap
 ```
 
-### 输入与输出位置
+### Inputs and Output
 
-- **默认输入**：全部从 `$FFR_DEPS/ffr/` 下读取（`export`、`export-full`、`inventory`、`export-full/maps`），可通过 `--export`、`--full`、`--inventory`、`--maps` 单独覆盖。
-- **显式输入**：`--jmap`（可多次传入合并，冲突以后者为准）与 `--snapshots` 必须显式指定；未传时跳过对应阶段。部署到游戏机的库不带 `--snapshots`。
-- **默认输出**：`$FFR_DEPS/ffr/db/ffr.sqlite`（例如 `FFR_DEPS=.deps` 时为 `.deps/ffr/db/ffr.sqlite`），可用 `--out <文件>` 覆盖。构建过程先写入临时文件并完成建索引、`ANALYZE`、`VACUUM`，全部成功后再原子替换目标文件。
+- **Default inputs**: read from `$FFR_DEPS/ffr/` (`export`, `export-full`, `inventory`, `export-full/maps`), individually overridable via `--export`, `--full`, `--inventory`, and `--maps`.
+- **Explicit inputs**: `--jmap` (repeatable, later entries win on conflict) and `--snapshots` must be passed explicitly; omitted stages are skipped.
+- **Default output**: `$FFR_DEPS/ffr/db/ffr.sqlite` (overridable via `--out <file>`). Builds into a temporary file, creates indexes, runs `ANALYZE` and `VACUUM`, and atomically replaces the target on success.
 
-`ffr-db` 同时提供只读查询与检查子命令：`stats`（表行数与文件大小）、`sql "<SELECT ...>"`、`explain "<SELECT ...>"`、`bench`。
+`ffr-db` also provides read-only inspection subcommands: `stats`, `sql "<SELECT ...>"`, `explain "<SELECT ...>"`, `hash`, and `bench`.
 
-## 与共鸣仓库的关系
+## Integration with `Final-Fantasy-Resonance-Agent`
 
-本仓库的下游是同级目录的 `../Final-Fantasy-Resonance-Agent`（其中的 `ffr-module` 直接依赖本仓库的 `ffr-data` / `ffr-db` 读取 API 以及构建出的 SQLite 数据库）。
-
-只需设置 `FFR_DEPS` 指向共鸣仓库的 `.deps`，即可直接向共鸣仓库输出全套数据：
+Downstream consumers live in the sibling repository `../Final-Fantasy-Resonance-Agent`. Point `FFR_DEPS` to its `.deps` directory to export directly into it:
 
 ```bash
 FFR_DEPS=../Final-Fantasy-Resonance-Agent/.deps scripts/run.sh export \
-  --usmap ../Final-Fantasy-Resonance-Agent/.deps/r1/<转储目录>/<Mappings>.usmap \
+  --usmap ../Final-Fantasy-Resonance-Agent/.deps/r1/<dump-dir>/<Mappings>.usmap \
   --prefix FFRS/Content/Datatable/ --force
 
 FFR_DEPS=../Final-Fantasy-Resonance-Agent/.deps scripts/run.sh locres --force
 FFR_DEPS=../Final-Fantasy-Resonance-Agent/.deps scripts/run.sh inventory --force
 FFR_DEPS=../Final-Fantasy-Resonance-Agent/.deps scripts/run.sh export-assets \
-  --usmap ../Final-Fantasy-Resonance-Agent/.deps/r1/<转储目录>/<Mappings>.usmap --force
+  --usmap ../Final-Fantasy-Resonance-Agent/.deps/r1/<dump-dir>/<Mappings>.usmap --force
 FFR_DEPS=../Final-Fantasy-Resonance-Agent/.deps scripts/run.sh export-maps \
-  --usmap ../Final-Fantasy-Resonance-Agent/.deps/r1/<转储目录>/<Mappings>.usmap --force
+  --usmap ../Final-Fantasy-Resonance-Agent/.deps/r1/<dump-dir>/<Mappings>.usmap --force
 ```
 
-## 构建与测试
+## Building and Testing
 
 ```bash
 scripts/check.sh
 ```
 
-脚本依次执行：
+The script runs:
 
-1. `dotnet format FfrExport.sln --verify-no-changes`
-2. `dotnet build FfrExport.sln -c Release`（启用 `Nullable` 与警告当错误）
-3. `dotnet test FfrExport.sln -c Release --no-build`（xUnit，全部使用合成测试数据，不依赖真实游戏文件）
-4. `cargo fmt --check`
+1. `dotnet format FfrExport.sln --verify-no-changes` (Linux)
+2. `dotnet build FfrExport.sln -c Release` (`Nullable` enabled, warnings treated as errors)
+3. `dotnet test FfrExport.sln -c Release --no-build` (xUnit with synthetic fixtures only)
+4. `cargo fmt --check` (Linux)
 5. `cargo clippy --workspace --all-targets -- -D warnings`
-6. `cargo test --workspace`（`ffr-data` 与 `ffr-db` 单元/集成测试；真实数据测试通过 `FFR_DEPS` 或 `.deps` 发现，无数据时自动跳过）
+6. `cargo test --workspace` (`ffr-data` and `ffr-db` tests; real-data tests are auto-skipped when `.deps` is absent)
 
-## CI 和发布
+## CI and Releases
 
-仓库通过 GitHub Actions 在 `ubuntu-latest` 与 `windows-latest` 上使用各自原生工具链执行持续集成与自动发版。
+GitHub Actions runs native toolchains on both `ubuntu-latest` and `windows-latest`:
 
-### 持续集成（`.github/workflows/ci.yml`）
+### Continuous Integration (`.github/workflows/ci.yml`)
 
-每次向任意分支 `push` 或提交 `pull_request` 时触发（默认 `contents: read` 权限），包含四个 job：
+Triggered on every `push` and `pull_request` (with `contents: read`):
 
-1. **`check`**（`ubuntu-latest` + `windows-latest`）：安装 .NET 10 SDK 与 Rust stable，缓存 NuGet 与 Cargo 后执行 `scripts/check.sh`（Linux 上额外跑 `dotnet format --verify-no-changes` 与 `cargo fmt --check`，两个平台均执行 `dotnet build -c Release`、`dotnet test`、`cargo clippy --workspace --all-targets -- -D warnings` 与 `cargo test --workspace`；CI 上无 `.deps/`，真实数据测试自动跳过）。
-2. **`fixture-hash`**（`ubuntu-latest` + `windows-latest`）：执行 `scripts/fixture-db.sh`，汇总 `tests/fixtures/rust/db/` 下全部区域的合成假数据运行一次完整 `ffr-db build`，再运行 `ffr-db hash --json` 并将结果上传为 artifact。
-3. **`compare-hash`**（依赖两个 `fixture-hash`）：下载 Linux 与 Windows 两份哈希 JSON，比对 `file_sha256`、`content_sha256` 以及每张普通表的行数与哈希；任意一项不一致即失败并打印存在差异的表。
-4. **`package-windows`**（仅在 `push` 到 `main` 且 `check` 通过后运行，`windows-latest`）：执行 `scripts/package-windows.ps1` 原生打包 Windows x64 压缩包，并上传为名为 `ffr-export-<版本>-<提交短号>-win-x64` 的 artifact（保留 30 天）。
+1. **`check`** (`ubuntu-latest` + `windows-latest`): runs `scripts/check.sh`, plus a Windows GUI `--self-test` under an `icacls` deny-write `TEMP` directory.
+2. **`fixture-hash`** (`ubuntu-latest` + `windows-latest`): runs `scripts/fixture-db.sh` and `scripts/fixture-export.sh` on synthetic fixtures and uploads hash reports/manifests.
+3. **`compare-hash`** (`ubuntu-latest`): verifies byte-identical `file_sha256`, `content_sha256`, per-table hashes, and per-exported-file SHA-256 across Linux and Windows.
+4. **`package-windows`** (`push` to `main`, `windows-latest`): runs `scripts/package-windows.ps1`, verifies zip entries and single-file self-tests (including `en`, `zh-Hans`, and `ja` localization), and uploads the zip artifact for 30 days.
 
-### 跨平台哈希核对的意义
+### Cross-Platform Hash Verification
 
-真实游戏文件与导出数据不会上传到公开仓库或 CI。通过同一套合成假数据在 Linux 与 Windows 上各自原生编译 `ffr-db` 并建库，强制要求 `file_sha256`（整个 SQLite 文件字节级一致）、`content_sha256` 以及全部表哈希完全相同，可以在每次改动时持续验证建库流程没有引入与操作系统、路径分隔符、线程调度或换行符相关的非确定性差异。
+Real game data is never uploaded to the public repo or CI. Running the identical synthetic fixtures natively on Linux and Windows enforces byte-identical SQLite and JSON outputs, catching OS-, path-separator-, threading-, or line-ending-dependent drift immediately.
 
-### 发版流程（`.github/workflows/release.yml`）
+### Release Workflow (`.github/workflows/release.yml`)
 
-发版由 `v*` tag 自动触发，流程如下：
+Triggered automatically by pushing a `v*` tag:
 
-1. 更新仓库根目录的 `VERSION` 文件（例如 `0.1.0`）并提交到目标分支；
-2. 创建与 `VERSION` 一致的 tag 并推送：
+1. Update `VERSION` at the repository root (e.g., `0.2.0`) and commit.
+2. Create and push the matching tag:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
-推送 tag 后，`release.yml` 会在 `windows-latest` 上校验 tag 去掉 `v` 后与 `VERSION` 一致，先完整运行 `scripts/check.sh`，再运行 `scripts/package-windows.ps1` 原生打包，最后使用 `GITHUB_TOKEN` 创建标题为 tag 名的 GitHub Release，并上传 `ffr-export-<版本>-win-x64.zip`、`SHA256SUMS` 与 `known-builds.json`（本地 Linux 交叉编译打包脚本 `scripts/package-windows.sh` 保留供本机使用）。
+`release.yml` verifies the tag matches `VERSION`, runs `scripts/check.sh`, builds the native Windows x64 archive with `scripts/package-windows.ps1`, self-tests the packaged single-file binaries, and creates a GitHub Release attaching `ffr-export-<version>-win-x64.zip`, `SHA256SUMS`, and `known-builds.json` (the local Linux cross-compilation script `scripts/package-windows.sh` remains available for local builds).
 
-## Oodle 与联网说明
+## Oodle and Network Policy
 
-- **Oodle 解压**：完全使用 CUE4Parse 自带的开源纯 C# 实现 `OodleSharp`。工具绝不调用 `OodleHelper.Initialize` 或 `DownloadOodleDll` 下载专有 Oodle 动态库。
-- **联网范围**：
-  - **资源导出与建库完全离线**：`list`、`raw`、`export`、`locres`、`inventory`、`export-assets`、`export-maps`、`build-db` 以及 `ffr-db` 建库过程中绝不发起任何网络请求；
-  - **仅「一键获取 `.usmap`」会联网**：只有用户明确触发 `fetch-usmap` 或点击窗口程序 **一键获取 .usmap** 并二次确认，且游戏目录尚未安装 UE4SS 且本地下载缓存未命中时，才会通过 HTTPS 访问唯一写死的官方发布包地址 `https://github.com/UE4SS-RE/RE-UE4SS/releases/download/v4.0.0/UE4SS_v4.0.0.zip`，并对字节数与 SHA-256 做强校验（安装包内不携带任何注入用 DLL）。
+- **Oodle decompression**: uses CUE4Parse's built-in open-source pure-C# `OodleSharp` only. `OodleHelper.Initialize` and `DownloadOodleDll` are never called.
+- **Network scope**:
+  - **Completely offline export and database build**: `list`, `raw`, `export`, `locres`, `inventory`, `export-assets`, `export-maps`, `build-db`, and `ffr-db` never make any network requests.
+  - **Only one-click `.usmap` fetch accesses the network**: only when you explicitly invoke `fetch-usmap` or click **Fetch .usmap** and confirm, and neither an existing UE4SS installation nor a verified cached archive exists, does the tool download the pinned release `https://github.com/UE4SS-RE/RE-UE4SS/releases/download/v4.0.0/UE4SS_v4.0.0.zip` over HTTPS with strict byte-size and SHA-256 verification.
 
-## 许可
+## License
 
 [MIT License](LICENSE)
