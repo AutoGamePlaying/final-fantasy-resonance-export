@@ -5,13 +5,14 @@ namespace FfrExport.Tests;
 
 public sealed class SourceSafetyTests
 {
-    private static readonly string[] ForbiddenTokens =
+    private static readonly string[] AlwaysForbiddenTokens =
     [
         "OodleHelper",
         "DownloadOodle",
-        "HttpClient",
         "WebClient",
     ];
+
+    private const string AllowedHttpClientFile = "src/FfrExport/Ue4ssDownloader.cs";
 
     private static IReadOnlyList<(string RelativePath, string Content)> ReadSourceAndScriptFiles()
     {
@@ -43,24 +44,47 @@ public sealed class SourceSafetyTests
     }
 
     [Fact]
-    public void SourcesAndScripts_NeverInitializeProprietaryOodleOrUseWebClients()
+    public void SourcesAndScripts_NeverInitializeProprietaryOodleOrUseUnauthorizedNetworkClients()
     {
+        var sawDownloader = false;
         foreach (var (relativePath, content) in ReadSourceAndScriptFiles())
         {
-            foreach (var forbidden in ForbiddenTokens)
+            foreach (var forbidden in AlwaysForbiddenTokens)
             {
                 Assert.False(
                     content.Contains(forbidden, StringComparison.Ordinal),
                     $"{relativePath} 不得包含 {forbidden}");
             }
+
+            if (string.Equals(relativePath, AllowedHttpClientFile, StringComparison.Ordinal))
+            {
+                sawDownloader = true;
+                Assert.Contains(
+                    "https://github.com/UE4SS-RE/RE-UE4SS/releases/download/v4.0.0/UE4SS_v4.0.0.zip",
+                    content,
+                    StringComparison.Ordinal);
+                Assert.Contains(
+                    "251ad0d1381a241750e036f5918cbf2b5d7ec58ebc608cb2dd09d459d0c81e45",
+                    content,
+                    StringComparison.Ordinal);
+            }
+            else
+            {
+                Assert.False(
+                    content.Contains("HttpClient", StringComparison.Ordinal),
+                    $"{relativePath} 不得包含 HttpClient（仅允许 {AllowedHttpClientFile} 联网下载官方 UE4SS）");
+            }
         }
+
+        Assert.True(sawDownloader, $"应扫描到 {AllowedHttpClientFile}");
     }
 
     [Fact]
     public void SourcesAndScripts_ContainNoMachineSpecificAbsolutePaths()
     {
         var linuxRootRegex = new Regex(@"/root/", RegexOptions.CultureInvariant);
-        var windowsDriveRegex = new Regex(@"[A-Za-z]:[\\/]", RegexOptions.CultureInvariant);
+        // Match Windows drive paths (e.g. C:\ or D:/) without false-matching URI schemes like https:// or steam://.
+        var windowsDriveRegex = new Regex(@"(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]", RegexOptions.CultureInvariant);
 
         foreach (var (relativePath, content) in ReadSourceAndScriptFiles())
         {

@@ -120,8 +120,13 @@ internal static partial class Program
                 return await RunExportMapsAsync(args[1..]);
             case "build-db":
                 return await RunBuildDbAsync(args[1..]);
+            case "fetch-usmap":
+                return await RunFetchUsmapAsync(args[1..]);
+            case "uninstall-ue4ss":
+                return await RunUninstallUe4ssAsync(args[1..]);
             default:
-                throw new ArgumentException($"未知子命令：{args[0]}；可用命令：list、raw、export、locres、inventory、export-assets、export-maps、build-db");
+                throw new ArgumentException(
+                    $"未知子命令：{args[0]}；可用命令：list、raw、export、locres、inventory、export-assets、export-maps、build-db、fetch-usmap、uninstall-ue4ss");
         }
     }
 

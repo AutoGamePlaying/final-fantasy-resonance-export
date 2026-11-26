@@ -16,6 +16,7 @@
     <PackageReference Include="Microsoft.Bcl.Memory" Version="9.0.14" />
     <InternalsVisibleTo Include="FfrExport.Tests" />
     <EmbeddedResource Include="../../known-builds.json" LogicalName="FfrExport.known-builds.json" />
+    <EmbeddedResource Include="Resources/FfrUsmapDump/main.lua" LogicalName="FfrExport.FfrUsmapDump.main.lua" />
   </ItemGroup>
   <Target Name="EmbedGitCommitMetadata" BeforeTargets="GetAssemblyAttributes">
     <Exec Condition="'$(FfrGitCommit)' == ''"

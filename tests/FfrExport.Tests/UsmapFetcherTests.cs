@@ -1,0 +1,871 @@
+using System.IO.Compression;
+using System.Security.Cryptography;
+using System.Text;
+using FfrExport.Gui.Core;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Xunit;
+
+namespace FfrExport.Tests;
+
+public sealed class UsmapFetcherTests
+{
+    [Fact]
+    public void AgpPaths_ResolvesPriorityOrderAndUnifiedSubdirectories()
+    {
+        using var workspace = new TempWorkspace("ffr-agp-paths");
+
+        var envHome = Path.Combine(workspace.Root, "env-agp");
+        var winLocal = Path.Combine(workspace.Root, "WinLocalAppData");
+        var xdgData = Path.Combine(workspace.Root, "XdgData");
+        var unixHome = Path.Combine(workspace.Root, "UnixHome");
+
+        // 1. AGP_HOME takes highest priority and is used directly as the agp layer.
+        Assert.Equal(
+            envHome,
+            AgpPaths.ResolveAgpHome(
+                agpHomeEnvOverride: envHome,
+                isWindowsOverride: true,
+                localAppDataOverride: winLocal,
+                xdgDataHomeOverride: xdgData,
+                userProfileOverride: unixHome));
+
+        // 2. Windows falls back to %LOCALAPPDATA%\agp when AGP_HOME is unset.
+        Assert.Equal(
+            Path.Combine(winLocal, "agp"),
+            AgpPaths.ResolveAgpHome(
+                agpHomeEnvOverride: string.Empty,
+                isWindowsOverride: true,
+                localAppDataOverride: winLocal));
+
+        // 3. Linux/macOS uses $XDG_DATA_HOME/agp, then ~/.local/share/agp.
+        Assert.Equal(
+            Path.Combine(xdgData, "agp"),
+            AgpPaths.ResolveAgpHome(
+                agpHomeEnvOverride: string.Empty,
+                isWindowsOverride: false,
+                xdgDataHomeOverride: xdgData,
+                userProfileOverride: unixHome));
+
+        Assert.Equal(
+            Path.Combine(unixHome, ".local", "share", "agp"),
+            AgpPaths.ResolveAgpHome(
+                agpHomeEnvOverride: string.Empty,
+                isWindowsOverride: false,
+                xdgDataHomeOverride: string.Empty,
+                userProfileOverride: unixHome));
+
+        // 4. Unified subdirectories under <agp>/ffr-export/.
+        Assert.Equal(
+            Path.Combine(envHome, "ffr-export", "output", "ffr-24250053"),
+            AgpPaths.GetDefaultOutputDirectory("ffr", "24250053", agpHomeEnvOverride: envHome));
+        Assert.Equal(
+            Path.Combine(envHome, "ffr-export", "usmap"),
+            AgpPaths.GetUsmapDirectory(agpHomeEnvOverride: envHome));
+        Assert.Equal(
+            Path.Combine(envHome, "ffr-export", "downloads"),
+            AgpPaths.GetDownloadsDirectory(agpHomeEnvOverride: envHome));
+        Assert.Equal(
+            Path.Combine(envHome, "ffr-export", "logs"),
+            AgpPaths.GetLogsDirectory(agpHomeEnvOverride: envHome));
+        Assert.Equal(
+            Path.Combine(envHome, "ffr-export", "settings.json"),
+            AgpPaths.GetSettingsFilePath(agpHomeEnvOverride: envHome));
+    }
+
+    [Fact]
+    public async Task Ue4ssArchiveVerification_RejectsWrongHashOrSizeAndReusesValidCache()
+    {
+        using var workspace = new TempWorkspace("ffr-ue4ss-verify");
+
+        var zipPath = CreateSyntheticUe4ssZip(Path.Combine(workspace.Root, "synthetic.zip"));
+        var zipBytes = await File.ReadAllBytesAsync(zipPath);
+        var validSha = Convert.ToHexStringLower(SHA256.HashData(zipBytes));
+
+        // Valid size and SHA-256 pass.
+        Assert.True(HttpsUe4ssPackageDownloader.TryVerifyArchiveFile(zipPath, zipBytes.Length, validSha, out var okReason));
+        Assert.Null(okReason);
+
+        // Wrong SHA-256 is rejected.
+        var badHashEx = Assert.Throws<InvalidDataException>(() =>
+            HttpsUe4ssPackageDownloader.VerifyArchiveFileOrThrow(
+                zipPath,
+                zipBytes.Length,
+                new string('0', 64),
+                "synthetic-source"));
+        Assert.Contains("SHA-256 校验不一致", badHashEx.Message, StringComparison.Ordinal);
+
+        // Wrong size is rejected.
+        var badSizeEx = Assert.Throws<InvalidDataException>(() =>
+            HttpsUe4ssPackageDownloader.VerifyArchiveFileOrThrow(
+                zipPath,
+                zipBytes.Length + 1,
+                validSha,
+                "synthetic-source"));
+        Assert.Contains("文件大小不匹配", badSizeEx.Message, StringComparison.Ordinal);
+
+        // When a valid archive is already cached in downloads/, HttpsUe4ssPackageDownloader reuses it without network access.
+        var downloadsDir = AgpPaths.GetDownloadsDirectory(agpHomeEnvOverride: workspace.AgpHomeDir);
+        Directory.CreateDirectory(downloadsDir);
+        var cachedFile = Path.Combine(downloadsDir, "UE4SS_v4.0.0.zip");
+        File.Copy(zipPath, cachedFile, overwrite: true);
+
+        var downloader = new HttpsUe4ssPackageDownloader(
+            downloadUrl: "https://invalid.example.test/must-not-connect.zip",
+            expectedSize: zipBytes.Length,
+            expectedSha256: validSha);
+        var logOut = new StringWriter();
+        var resolved = await downloader.EnsureVerifiedArchiveAsync(downloadsDir, logOut, CancellationToken.None);
+        Assert.Equal(cachedFile, resolved);
+        Assert.Contains("已命中本地下载缓存", logOut.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Ue4ssArchiveInstaller_ExtractsPatchesSettingsRollsBackAndUninstallsOnlyMarkedFiles()
+    {
+        using var workspace = new TempWorkspace("ffr-ue4ss-install");
+
+        var gameDir = CreateSyntheticGameDirectory(workspace.Root, "24250053");
+        var win64Dir = Ue4ssRuntimeSupport.GetWin64Directory(gameDir);
+        var ue4ssDir = Ue4ssRuntimeSupport.GetUe4ssDirectory(gameDir);
+        var zipPath = CreateSyntheticUe4ssZip(Path.Combine(workspace.Root, "UE4SS_v4.0.0.zip"));
+        var zipSha = GameVersionDetector.ComputeFileSha256Lower(zipPath);
+
+        // 1. Zip-slip entry is rejected before touching Win64.
+        var evilZip = Path.Combine(workspace.Root, "evil.zip");
+        using (var archive = ZipFile.Open(evilZip, ZipArchiveMode.Create))
+        {
+            WriteZipEntry(archive, "dwmapi.dll", "dll");
+            WriteZipEntry(archive, "ue4ss/UE4SS.dll", "dll");
+            WriteZipEntry(archive, "../escape.dll", "evil");
+        }
+
+        Assert.Throws<InvalidDataException>(() =>
+            Ue4ssArchiveInstaller.InstallFromVerifiedZip(evilZip, gameDir, zipSha));
+        Assert.False(File.Exists(Path.Combine(win64Dir, "dwmapi.dll")));
+
+        // 2. Halfway extraction failure rolls back every written file and created directory.
+        var failEx = Assert.Throws<IOException>(() =>
+            Ue4ssArchiveInstaller.InstallFromVerifiedZip(
+                zipPath,
+                gameDir,
+                zipSha,
+                beforeFileWriteHook: rel =>
+                {
+                    if (rel.EndsWith("UE4SS-settings.ini", StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new IOException("模拟磁盘写入中断");
+                    }
+                }));
+        Assert.Contains("模拟磁盘写入中断", failEx.Message, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(win64Dir, "dwmapi.dll")));
+        Assert.False(Directory.Exists(ue4ssDir));
+
+        // 3. Clean install extracts all files, preserves LICENSE, patches UE4SS-settings.ini, writes marker.
+        var marker = Ue4ssArchiveInstaller.InstallFromVerifiedZip(zipPath, gameDir, zipSha);
+        Assert.Equal("v4.0.0", marker.Ue4ssVersion);
+        Assert.True(File.Exists(Path.Combine(win64Dir, "dwmapi.dll")));
+        Assert.True(File.Exists(Path.Combine(ue4ssDir, "UE4SS.dll")));
+        Assert.True(File.Exists(Path.Combine(ue4ssDir, "LICENSE")));
+        Assert.True(Ue4ssRuntimeSupport.HasOwnInstallMarker(gameDir));
+
+        var patchedIni = File.ReadAllText(Path.Combine(ue4ssDir, "UE4SS-settings.ini"), Encoding.UTF8);
+        Assert.Contains("ConsoleEnabled = 0", patchedIni, StringComparison.Ordinal);
+        Assert.Contains("GuiConsoleEnabled = 0", patchedIni, StringComparison.Ordinal);
+        Assert.Contains("GuiConsoleVisible = 0", patchedIni, StringComparison.Ordinal);
+        Assert.Contains("EnableHotReloadSystem = 0", patchedIni, StringComparison.Ordinal);
+        Assert.Contains("bUseUObjectArrayCache = false", patchedIni, StringComparison.Ordinal);
+        Assert.Contains("MajorVersion = 5", patchedIni, StringComparison.Ordinal);
+        Assert.Contains("MinorVersion = 6", patchedIni, StringComparison.Ordinal);
+
+        var inspection = Ue4ssRuntimeSupport.InspectUe4ssState(gameDir);
+        Assert.Equal(Ue4ssInstallState.InstalledByFfrExport, inspection.State);
+
+        // 4. Uninstall is refused while the game is running.
+        var runningLauncher = new FakeGameLauncher { Running = true };
+        var runningEx = Assert.Throws<InvalidOperationException>(() =>
+            Ue4ssArchiveInstaller.Uninstall(gameDir, runningLauncher, new StringWriter()));
+        Assert.Contains("正在运行", runningEx.Message, StringComparison.Ordinal);
+
+        // 5. Uninstall deletes only files recorded in the marker and preserves user/runtime files.
+        var runtimeLogPath = Path.Combine(ue4ssDir, "UE4SS.log");
+        var userModFile = Path.Combine(ue4ssDir, "Mods", "UserCustomMod", "Scripts", "main.lua");
+        Directory.CreateDirectory(Path.GetDirectoryName(userModFile)!);
+        File.WriteAllText(runtimeLogPath, "runtime log", Encoding.UTF8);
+        File.WriteAllText(userModFile, "-- user mod\n", Encoding.UTF8);
+
+        var stoppedLauncher = new FakeGameLauncher { Running = false };
+        var uninstallOut = new StringWriter();
+        var (removedFiles, _, remaining) = Ue4ssArchiveInstaller.Uninstall(gameDir, stoppedLauncher, uninstallOut);
+        Assert.True(removedFiles >= 5);
+        Assert.Equal(2, remaining);
+        Assert.False(File.Exists(Path.Combine(win64Dir, "dwmapi.dll")));
+        Assert.False(File.Exists(Path.Combine(ue4ssDir, "UE4SS.dll")));
+        Assert.False(File.Exists(Path.Combine(ue4ssDir, "UE4SS-settings.ini")));
+        Assert.False(File.Exists(Ue4ssRuntimeSupport.GetInstallMarkerPath(gameDir)));
+        Assert.False(Ue4ssRuntimeSupport.HasOwnInstallMarker(gameDir));
+        Assert.True(File.Exists(runtimeLogPath));
+        Assert.True(File.Exists(userModFile));
+
+        // 6. Uninstall refuses a pre-existing user UE4SS installation (no marker file).
+        File.WriteAllText(Path.Combine(win64Dir, "dwmapi.dll"), "user-dwmapi", Encoding.UTF8);
+        File.WriteAllText(Path.Combine(ue4ssDir, "UE4SS.dll"), "user-ue4ss", Encoding.UTF8);
+        Assert.Equal(Ue4ssInstallState.InstalledByUser, Ue4ssRuntimeSupport.InspectUe4ssState(gameDir).State);
+        Assert.False(Ue4ssRuntimeSupport.HasOwnInstallMarker(gameDir));
+
+        var noMarkerEx = Assert.Throws<InvalidOperationException>(() =>
+            Ue4ssArchiveInstaller.Uninstall(gameDir, stoppedLauncher, new StringWriter()));
+        Assert.Contains("拒绝卸载", noMarkerEx.Message, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(win64Dir, "dwmapi.dll")));
+        Assert.True(File.Exists(Path.Combine(ue4ssDir, "UE4SS.dll")));
+
+        // 7. Tampered marker with path traversal is rejected before deleting anything.
+        var tamperedMarkerPath = Ue4ssRuntimeSupport.GetInstallMarkerPath(gameDir);
+        File.WriteAllText(
+            tamperedMarkerPath,
+            JsonConvert.SerializeObject(new
+            {
+                format = 1,
+                installed_by = "ffr-export",
+                ue4ss_version = "v4.0.0",
+                source_url = "https://example.invalid",
+                archive_sha256 = zipSha,
+                installed_at = "2026-11-26T00:00:00Z",
+                files = new[] { "../outside.txt" },
+                directories = Array.Empty<string>(),
+            }),
+            Encoding.UTF8);
+        Assert.Throws<InvalidDataException>(() =>
+            Ue4ssArchiveInstaller.Uninstall(gameDir, stoppedLauncher, new StringWriter()));
+    }
+
+    [Fact]
+    public void Ue4ssModManager_EmbeddedLuaEnabledTxtAndModsTxtPreservation()
+    {
+        using var workspace = new TempWorkspace("ffr-ue4ss-mod");
+
+        // 1. Embedded Lua resource content checks.
+        var lua = Ue4ssModManager.LoadEmbeddedMainLua();
+        Assert.Contains("DumpUSMAP", lua, StringComparison.Ordinal);
+        Assert.Contains("pcall", lua, StringComparison.Ordinal);
+        Assert.Contains("ffr-export-usmap.done", lua, StringComparison.Ordinal);
+        Assert.Contains("usmapFile", lua, StringComparison.Ordinal);
+        Assert.Contains("ExecuteInGameThread", lua, StringComparison.Ordinal);
+        Assert.Contains("LoopAsync", lua, StringComparison.Ordinal);
+        Assert.DoesNotContain("os.execute", lua, StringComparison.Ordinal);
+
+        // 2. Deployment uses enabled.txt and leaves mods.txt untouched byte-for-byte.
+        var gameDir = CreateSyntheticGameDirectory(workspace.Root, "24250053");
+        var modsDir = Path.Combine(Ue4ssRuntimeSupport.GetUe4ssDirectory(gameDir), "Mods");
+        Directory.CreateDirectory(modsDir);
+        var modsTxtPath = Path.Combine(modsDir, "mods.txt");
+        const string originalModsTxt = "; User comments kept verbatim\r\nMyCustomMod : 1\r\n\r\n; Built-in keybinds\r\nKeybinds : 0\r\n";
+        File.WriteAllText(modsTxtPath, originalModsTxt, new UTF8Encoding(false));
+
+        var deployedDir = Ue4ssModManager.DeployTemporaryDumpMod(gameDir);
+        Assert.True(File.Exists(Path.Combine(deployedDir, "Scripts", "main.lua")));
+        Assert.True(File.Exists(Path.Combine(deployedDir, "enabled.txt")));
+        Assert.Equal(originalModsTxt, File.ReadAllText(modsTxtPath, new UTF8Encoding(false)));
+
+        Ue4ssRuntimeSupport.DisableAndRemoveDumpMod(gameDir);
+        Assert.False(Directory.Exists(deployedDir));
+        Assert.Equal(originalModsTxt, File.ReadAllText(modsTxtPath, new UTF8Encoding(false)));
+
+        // 3. Fallback mods.txt helper appends one line while preserving all existing lines, comments, and CRLF.
+        var appended = Ue4ssModManager.AppendModEntryPreservingModsTxt(originalModsTxt, "FfrUsmapDump", enabled: true);
+        Assert.Equal(originalModsTxt + "FfrUsmapDump : 1\r\n", appended);
+
+        var disabled = Ue4ssModManager.AppendModEntryPreservingModsTxt(appended, "FfrUsmapDump", enabled: false);
+        Assert.Equal(originalModsTxt + "FfrUsmapDump : 0\r\n", disabled);
+    }
+
+    [Fact]
+    public async Task UsmapFetcher_EndToEndFlow_FreshInstallUserUe4ssTimeoutModErrorAndGuards()
+    {
+        using var workspace = new TempWorkspace("ffr-fetch-e2e");
+
+        var zipPath = CreateSyntheticUe4ssZip(Path.Combine(workspace.Root, "UE4SS_v4.0.0.zip"));
+        var syntheticUsmapBytes = SyntheticFixtureBuilder.BuildUsmapV0(
+            ["EDemo", "Zero", "One", "FDemoRow", "Id"],
+            [new("EDemo", ["Zero", "One"])],
+            [new("FDemoRow", null, 1, [new(0, 1, "Id", 2)])]);
+        var tempUsmapForHash = Path.Combine(workspace.Root, "ref.usmap");
+        await File.WriteAllBytesAsync(tempUsmapForHash, syntheticUsmapBytes);
+        var expectedHashes = GameVersionDetector.ComputeUsmapHashes(tempUsmapForHash);
+
+        // Prepare a temporary known-builds.json matching our synthetic .usmap.
+        var knownBuildsDir = Path.Combine(workspace.Root, "known-builds-bin");
+        Directory.CreateDirectory(knownBuildsDir);
+        await File.WriteAllTextAsync(
+            Path.Combine(knownBuildsDir, "known-builds.json"),
+            JsonConvert.SerializeObject(new[]
+            {
+                new
+                {
+                    registered_at = "2026-11-26",
+                    note = "synthetic usmap test",
+                    game_version = new
+                    {
+                        steam = new { app_id = 3259780, build_id = "24250053" },
+                        exe = new { relative_path = GameVersionDetector.RelativeExeSubpath, size = 100L },
+                        pak_fingerprint = "0000",
+                        pak_files = Array.Empty<object>(),
+                    },
+                    inputs = new
+                    {
+                        usmap = new
+                        {
+                            file_name = "FFRS-5.6.1-0+UE5-30afe5ff.usmap",
+                            size = expectedHashes.Size,
+                            file_sha256 = expectedHashes.FileSha256,
+                            content_sha256 = expectedHashes.ContentSha256,
+                            type_count = expectedHashes.TypeCount,
+                            enum_count = expectedHashes.EnumCount,
+                        },
+                        jmaps = Array.Empty<object>(),
+                    },
+                    database = new
+                    {
+                        file_name = "ffr.sqlite",
+                        size = 1024L,
+                        file_sha256 = new string('a', 64),
+                        content_sha256 = new string('b', 64),
+                        tables = Array.Empty<object>(),
+                    },
+                },
+            }),
+            Encoding.UTF8);
+
+        // 1. Fresh install happy path (--yes): installs UE4SS, launches game, ignores stale .usmap,
+        //    archives fresh .usmap to <AGP_HOME>/ffr-export/usmap/, compares with known-builds, removes mod, closes game.
+        var gameDir1 = CreateSyntheticGameDirectory(workspace.Root, "24250053", "GameFresh");
+        var downloader1 = new FakeUe4ssDownloader(zipPath);
+        var launcher1 = new FakeGameLauncher
+        {
+            OnLaunch = uri =>
+            {
+                Assert.Equal(Ue4ssRuntimeSupport.SteamRunGameUri, uri);
+                var ue4ssDir = Ue4ssRuntimeSupport.GetUe4ssDirectory(gameDir1);
+                // Ensure the temporary mod was deployed before launching.
+                Assert.True(File.Exists(Path.Combine(ue4ssDir, "Mods", "FfrUsmapDump", "enabled.txt")));
+
+                var dumpedPath = Path.Combine(ue4ssDir, "FFRS-5.6.1-0+UE5-30afe5ff.usmap");
+                File.WriteAllBytes(dumpedPath, syntheticUsmapBytes);
+                File.SetLastWriteTimeUtc(dumpedPath, DateTime.UtcNow.AddSeconds(5));
+
+                var donePath = Ue4ssRuntimeSupport.GetDoneMarkerPath(gameDir1);
+                File.WriteAllText(
+                    donePath,
+                    """{"ok":true,"usmapFile":"FFRS-5.6.1-0+UE5-30afe5ff.usmap","timestamp":"2026-11-26T12:00:00Z"}""",
+                    Encoding.UTF8);
+            },
+        };
+
+        var out1 = new StringWriter();
+        var err1 = new StringWriter();
+        var (exit1, res1) = await UsmapFetcher.FetchCoreAsync(
+            new FetchUsmapOptions(gameDir1, TimeoutSeconds: 10, Yes: true),
+            new StringReader(string.Empty),
+            out1,
+            err1,
+            downloader1,
+            launcher1,
+            agpHomeOverride: workspace.AgpHomeDir,
+            isWindowsOverride: true,
+            pollIntervalOverride: TimeSpan.FromMilliseconds(10),
+            progressIntervalOverride: TimeSpan.FromMilliseconds(50),
+            gracefulCloseWaitOverride: TimeSpan.FromMilliseconds(50),
+            knownBuildsBaseDirOverride: knownBuildsDir);
+
+        Assert.Equal(0, exit1);
+        Assert.NotNull(res1);
+        Assert.True(res1.InstalledUe4ss);
+        Assert.Equal(1, downloader1.CallCount);
+        Assert.Equal(1, launcher1.LaunchCount);
+        Assert.Equal(1, launcher1.CloseCount);
+        Assert.Equal(UsmapComparisonStatus.ExactMatch, res1.KnownBuildComparison.Status);
+        Assert.Equal(expectedHashes.FileSha256, res1.UsmapHashes.FileSha256);
+        Assert.Equal(expectedHashes.ContentSha256, res1.UsmapHashes.ContentSha256);
+        Assert.True(File.Exists(res1.ArchivedUsmapPath));
+        Assert.StartsWith(
+            AgpPaths.GetUsmapDirectory(agpHomeEnvOverride: workspace.AgpHomeDir),
+            res1.ArchivedUsmapPath,
+            StringComparison.Ordinal);
+        Assert.Contains("24250053", Path.GetFileName(res1.ArchivedUsmapPath), StringComparison.Ordinal);
+        Assert.Contains(expectedHashes.FileSha256[..8], Path.GetFileName(res1.ArchivedUsmapPath), StringComparison.Ordinal);
+
+        // Temporary mod & done marker removed; UE4SS and marker retained.
+        Assert.False(Directory.Exists(Ue4ssRuntimeSupport.GetDumpModDirectory(gameDir1)));
+        Assert.False(File.Exists(Ue4ssRuntimeSupport.GetDoneMarkerPath(gameDir1)));
+        Assert.True(Ue4ssRuntimeSupport.HasOwnInstallMarker(gameDir1));
+        Assert.True(File.Exists(Path.Combine(Ue4ssRuntimeSupport.GetUe4ssDirectory(gameDir1), "LICENSE")));
+
+        // Verify progress lines and BuildCliCommand parser compatibility.
+        var out1Lines = out1.ToString().Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        var parsedSteps = new List<StepProgress>();
+        string? parsedSavedPath = null;
+        foreach (var line in out1Lines)
+        {
+            if (BuildCliCommand.TryParseStepProgress(line, out var step))
+            {
+                parsedSteps.Add(step);
+            }
+
+            if (BuildCliCommand.TryParseFetchedUsmapPath(line, out var saved))
+            {
+                parsedSavedPath = saved;
+            }
+        }
+
+        Assert.Equal([1, 2, 3, 4, 5, 6], parsedSteps.Select(s => s.CurrentStep).ToArray());
+        Assert.All(parsedSteps, s => Assert.Equal(6, s.TotalSteps));
+        Assert.Equal(res1.ArchivedUsmapPath, parsedSavedPath);
+
+        // 2. Pre-existing user UE4SS (no marker): never calls downloader, never edits UE4SS-settings.ini or mods.txt, never writes marker.
+        var gameDirUser = CreateSyntheticGameDirectory(workspace.Root, "24250053", "GameUserUe4ss");
+        var userWin64 = Ue4ssRuntimeSupport.GetWin64Directory(gameDirUser);
+        var userUe4ss = Ue4ssRuntimeSupport.GetUe4ssDirectory(gameDirUser);
+        Directory.CreateDirectory(Path.Combine(userUe4ss, "Mods"));
+        File.WriteAllText(Path.Combine(userWin64, "dwmapi.dll"), "user-proxy");
+        File.WriteAllText(Path.Combine(userUe4ss, "UE4SS.dll"), "user-core");
+        const string userSettingsIni = "[Debug]\nGuiConsoleEnabled = 1\nConsoleEnabled = 1\n";
+        const string userModsTxt = "UserCoolMod : 1\n";
+        File.WriteAllText(Path.Combine(userUe4ss, "UE4SS-settings.ini"), userSettingsIni);
+        File.WriteAllText(Path.Combine(userUe4ss, "Mods", "mods.txt"), userModsTxt);
+
+        var downloaderUser = new FakeUe4ssDownloader(zipPath);
+        var launcherUser = new FakeGameLauncher
+        {
+            OnLaunch = _ =>
+            {
+                var dumped = Path.Combine(userUe4ss, "UserDump.usmap");
+                File.WriteAllBytes(dumped, syntheticUsmapBytes);
+                File.SetLastWriteTimeUtc(dumped, DateTime.UtcNow.AddSeconds(5));
+                File.WriteAllText(
+                    Ue4ssRuntimeSupport.GetDoneMarkerPath(gameDirUser),
+                    """{"ok":true,"usmapFile":"UserDump.usmap","timestamp":"2026-11-26T12:00:00Z"}""");
+            },
+        };
+
+        var (exitUser, resUser) = await UsmapFetcher.FetchCoreAsync(
+            new FetchUsmapOptions(gameDirUser, TimeoutSeconds: 10, Yes: true),
+            new StringReader(string.Empty),
+            new StringWriter(),
+            new StringWriter(),
+            downloaderUser,
+            launcherUser,
+            agpHomeOverride: workspace.AgpHomeDir,
+            isWindowsOverride: true,
+            pollIntervalOverride: TimeSpan.FromMilliseconds(10),
+            gracefulCloseWaitOverride: TimeSpan.FromMilliseconds(50),
+            knownBuildsBaseDirOverride: knownBuildsDir);
+
+        Assert.Equal(0, exitUser);
+        Assert.NotNull(resUser);
+        Assert.False(resUser.InstalledUe4ss);
+        Assert.Equal(0, downloaderUser.CallCount);
+        Assert.Equal(userSettingsIni, File.ReadAllText(Path.Combine(userUe4ss, "UE4SS-settings.ini")));
+        Assert.Equal(userModsTxt, File.ReadAllText(Path.Combine(userUe4ss, "Mods", "mods.txt")));
+        Assert.False(Ue4ssRuntimeSupport.HasOwnInstallMarker(gameDirUser));
+        Assert.False(Directory.Exists(Ue4ssRuntimeSupport.GetDumpModDirectory(gameDirUser)));
+
+        // 3. Timeout: throws TimeoutException with UE4SS.log advice, STILL cleans up mod and closes game.
+        var launcherTimeout = new FakeGameLauncher
+        {
+            OnLaunch = _ => { /* never writes .done */ },
+            RunningAfterLaunch = true,
+        };
+        var timeoutOut = new StringWriter();
+        var timeoutEx = await Assert.ThrowsAsync<TimeoutException>(() =>
+            UsmapFetcher.FetchCoreAsync(
+                new FetchUsmapOptions(gameDir1, TimeoutSeconds: 1, Yes: true),
+                new StringReader(string.Empty),
+                timeoutOut,
+                new StringWriter(),
+                downloader1,
+                launcherTimeout,
+                agpHomeOverride: workspace.AgpHomeDir,
+                isWindowsOverride: true,
+                pollIntervalOverride: TimeSpan.FromMilliseconds(20),
+                progressIntervalOverride: TimeSpan.FromMilliseconds(200),
+                gracefulCloseWaitOverride: TimeSpan.FromMilliseconds(20)));
+        Assert.Contains("UE4SS.log", timeoutEx.Message, StringComparison.Ordinal);
+        Assert.Contains("等待 .usmap 转储", timeoutOut.ToString(), StringComparison.Ordinal);
+        Assert.Equal(1, launcherTimeout.CloseCount);
+        Assert.False(Directory.Exists(Ue4ssRuntimeSupport.GetDumpModDirectory(gameDir1)));
+
+        // 4. Mod reports ok:false -> fails promptly, cleans up mod and closes game.
+        var launcherModError = new FakeGameLauncher
+        {
+            OnLaunch = _ =>
+            {
+                File.WriteAllText(
+                    Ue4ssRuntimeSupport.GetDoneMarkerPath(gameDir1),
+                    """{"ok":false,"usmapFile":null,"error":"DumpUSMAP failed"}""");
+            },
+        };
+        var modErrEx = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            UsmapFetcher.FetchCoreAsync(
+                new FetchUsmapOptions(gameDir1, TimeoutSeconds: 5, Yes: true),
+                new StringReader(string.Empty),
+                new StringWriter(),
+                new StringWriter(),
+                downloader1,
+                launcherModError,
+                agpHomeOverride: workspace.AgpHomeDir,
+                isWindowsOverride: true,
+                pollIntervalOverride: TimeSpan.FromMilliseconds(10),
+                gracefulCloseWaitOverride: TimeSpan.FromMilliseconds(20)));
+        Assert.Contains("DumpUSMAP failed", modErrEx.Message, StringComparison.Ordinal);
+        Assert.Contains("UE4SS.log", modErrEx.Message, StringComparison.Ordinal);
+        Assert.Equal(1, launcherModError.CloseCount);
+        Assert.False(Directory.Exists(Ue4ssRuntimeSupport.GetDumpModDirectory(gameDir1)));
+
+        // 5. Without --yes, declining confirmation aborts cleanly without downloading or launching.
+        var gameDirCancel = CreateSyntheticGameDirectory(workspace.Root, "24250053", "GameDecline");
+        var cancelDownloader = new FakeUe4ssDownloader(zipPath);
+        var cancelLauncher = new FakeGameLauncher();
+        var cancelOut = new StringWriter();
+        var (exitCancel, _) = await UsmapFetcher.FetchCoreAsync(
+            new FetchUsmapOptions(gameDirCancel, TimeoutSeconds: 10, Yes: false),
+            new StringReader("n\n"),
+            cancelOut,
+            new StringWriter(),
+            cancelDownloader,
+            cancelLauncher,
+            agpHomeOverride: workspace.AgpHomeDir,
+            isWindowsOverride: true);
+        Assert.Equal(0, exitCancel);
+        Assert.Equal(0, cancelDownloader.CallCount);
+        Assert.Equal(0, cancelLauncher.LaunchCount);
+        Assert.Contains("即将执行以下操作", cancelOut.ToString(), StringComparison.Ordinal);
+
+        // 6. Non-Windows platform is explicitly rejected.
+        var nonWinEx = await Assert.ThrowsAsync<PlatformNotSupportedException>(() =>
+            UsmapFetcher.FetchCoreAsync(
+                new FetchUsmapOptions(gameDir1, TimeoutSeconds: 10, Yes: true),
+                new StringReader(string.Empty),
+                new StringWriter(),
+                new StringWriter(),
+                downloader1,
+                new FakeGameLauncher(),
+                agpHomeOverride: workspace.AgpHomeDir,
+                isWindowsOverride: false));
+        Assert.Contains("仅支持 Windows", nonWinEx.Message, StringComparison.Ordinal);
+
+        // 7. Game already running is rejected before modifying anything.
+        var runningEx = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            UsmapFetcher.FetchCoreAsync(
+                new FetchUsmapOptions(gameDir1, TimeoutSeconds: 10, Yes: true),
+                new StringReader(string.Empty),
+                new StringWriter(),
+                new StringWriter(),
+                downloader1,
+                new FakeGameLauncher { Running = true },
+                agpHomeOverride: workspace.AgpHomeDir,
+                isWindowsOverride: true));
+        Assert.Contains("正在运行", runningEx.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CliArgsWizardDiscoveryBuildDbDefaultOutAndLogsRetention()
+    {
+        using var workspace = new TempWorkspace("ffr-unified-cli");
+
+        // 1. BuildCliCommand fetch-usmap & uninstall-ue4ss args roundtrip through CLI parsers.
+        var fetchArgs = BuildCliCommand.BuildFetchUsmapArguments("/games/FFRS", timeoutSeconds: 180, yes: true);
+        var parsedFetch = UsmapFetcher.ParseFetchUsmapArgs(fetchArgs.Skip(1).ToArray());
+        Assert.Equal("/games/FFRS", parsedFetch.GameDirectory);
+        Assert.Equal(180, parsedFetch.TimeoutSeconds);
+        Assert.True(parsedFetch.Yes);
+
+        var uninstallArgs = BuildCliCommand.BuildUninstallUe4ssArguments("/games/FFRS");
+        var parsedUninstall = UsmapFetcher.ParseUninstallUe4ssArgs(uninstallArgs.Skip(1).ToArray());
+        Assert.Equal("/games/FFRS", parsedUninstall.GameDirectory);
+
+        // 2. InteractiveWizard auto-discovers .usmap in <AGP_HOME>/ffr-export/usmap/ and pressing Enter accepts it.
+        var gameDir = CreateSyntheticGameDirectory(workspace.Root, "24250053", "GameWizard");
+        var agpUsmapDir = AgpPaths.GetUsmapDirectory(agpHomeEnvOverride: workspace.AgpHomeDir);
+        Directory.CreateDirectory(agpUsmapDir);
+        var archivedUsmap = Path.Combine(agpUsmapDir, "FFRS-24250053-11223344.usmap");
+        await File.WriteAllBytesAsync(archivedUsmap, SyntheticFixtureBuilder.BuildUsmap());
+
+        var discovered = InteractiveWizard.TryDiscoverLatestUsmap(gameDir, workspace.AgpHomeDir);
+        Assert.NotNull(discovered);
+        Assert.Equal(archivedUsmap, discovered.Value.FullPath);
+        Assert.Equal("agp/usmap", discovered.Value.SourceLabel);
+
+        string[]? wizardBuildArgs = null;
+        var wizardStdin = string.Join(Environment.NewLine, ["1", "", "", "", "", ""]) + Environment.NewLine;
+        var wizardExit = await InteractiveWizard.RunAsync(
+            new StringReader(wizardStdin),
+            new StringWriter(),
+            new StringWriter(),
+            args =>
+            {
+                wizardBuildArgs = args;
+                return Task.FromResult(0);
+            },
+            () => [new DiscoveredSteamGame(SteamLocator.ResonanceGame, "FINAL FANTASY RESONANCE", gameDir, "24250053", workspace.Root, workspace.Root)],
+            () => Path.Combine(workspace.Root, "fake-ffr-db"),
+            workspace.Root,
+            isWindowsOverride: false,
+            agpHomeOverride: workspace.AgpHomeDir);
+        Assert.Equal(0, wizardExit);
+        Assert.NotNull(wizardBuildArgs);
+        var parsedWizardBuild = Program.ParseBuildDbArgs(wizardBuildArgs);
+        Assert.Equal(archivedUsmap, parsedWizardBuild.UsmapPath);
+        Assert.Equal(
+            Path.Combine(workspace.AgpHomeDir, "ffr-export", "output", "ffr-24250053"),
+            parsedWizardBuild.OutputArgument);
+
+        // 3. CliLogWriter writes to <AGP_HOME>/ffr-export/logs and prunes to latest 10 files.
+        var logsDir = AgpPaths.GetLogsDirectory(agpHomeEnvOverride: workspace.AgpHomeDir);
+        Directory.CreateDirectory(logsDir);
+        var baseStamp = new DateTime(2026, 11, 26, 8, 0, 0, DateTimeKind.Utc);
+        for (var i = 0; i < 12; i++)
+        {
+            var stamp = baseStamp.AddMinutes(i);
+            var path = Path.Combine(logsDir, $"cli-{stamp:yyyyMMdd-HHmmss}.log");
+            await File.WriteAllTextAsync(path, $"old {i}\n");
+            File.SetLastWriteTimeUtc(path, stamp);
+        }
+
+        using (var logWriter = CliLogWriter.Create(new StringWriter(), logsDir))
+        {
+            logWriter.WriteLine("测试命令行日志");
+            Assert.NotNull(logWriter.LogFilePath);
+        }
+
+        Assert.Equal(10, Directory.EnumerateFiles(logsDir, "cli-*.log").Count());
+
+        // 4. End-to-end CLI smoke test for uninstall-ue4ss (and fetch-usmap platform check on non-Windows).
+        var zipPath = CreateSyntheticUe4ssZip(Path.Combine(workspace.Root, "UE4SS_v4.0.0.zip"));
+        Ue4ssArchiveInstaller.InstallFromVerifiedZip(
+            zipPath,
+            gameDir,
+            GameVersionDetector.ComputeFileSha256Lower(zipPath));
+        Assert.True(Ue4ssRuntimeSupport.HasOwnInstallMarker(gameDir));
+
+        var cliUninstall = await TestHarness.RunCliAsync(
+            ["uninstall-ue4ss", "--game", gameDir],
+            agpHome: workspace.AgpHomeDir);
+        Assert.Equal(0, cliUninstall.ExitCode);
+        Assert.Contains("已按安装标记卸载 UE4SS", cliUninstall.Stdout, StringComparison.Ordinal);
+        Assert.False(Ue4ssRuntimeSupport.HasOwnInstallMarker(gameDir));
+
+        // Second uninstall (no marker) fails with exit code 2.
+        var cliUninstallAgain = await TestHarness.RunCliAsync(
+            ["uninstall-ue4ss", "--game", gameDir],
+            agpHome: workspace.AgpHomeDir);
+        Assert.Equal(2, cliUninstallAgain.ExitCode);
+        Assert.Contains("拒绝", cliUninstallAgain.Stderr, StringComparison.Ordinal);
+
+        if (!OperatingSystem.IsWindows())
+        {
+            var cliFetchLinux = await TestHarness.RunCliAsync(
+                ["fetch-usmap", "--game", gameDir, "--yes"],
+                agpHome: workspace.AgpHomeDir);
+            Assert.Equal(2, cliFetchLinux.ExitCode);
+            Assert.Contains("仅支持 Windows", cliFetchLinux.Stderr, StringComparison.Ordinal);
+        }
+
+        // 5. build-db without --out defaults to <AGP_HOME>/ffr-export/output/ffr-24250053.
+        var paksDir = Path.Combine(gameDir, "FFRS", "Content", "Paks");
+        var arBytes = SyntheticFixtureBuilder.BuildAssetRegistry([
+            new("/Game/Textures/T_Sample", "/Game/Textures", "T_Sample", "Texture2D"),
+        ]);
+        var zhLocres = SyntheticFixtureBuilder.BuildLocres(new Dictionary<string, IReadOnlyDictionary<string, string>>
+        {
+            ["ST_Demo"] = new Dictionary<string, string> { ["Title"] = "示例" },
+        });
+        var enLocres = SyntheticFixtureBuilder.BuildLocres(new Dictionary<string, IReadOnlyDictionary<string, string>>
+        {
+            ["ST_Demo"] = new Dictionary<string, string> { ["Title"] = "Sample" },
+        });
+        var jaLocres = SyntheticFixtureBuilder.BuildLocres(new Dictionary<string, IReadOnlyDictionary<string, string>>
+        {
+            ["ST_Demo"] = new Dictionary<string, string> { ["Title"] = "サンプル" },
+        });
+        var pakBytes = SyntheticFixtureBuilder.BuildPak([
+            new("FFRS/AssetRegistry.bin", arBytes),
+            new("FFRS/Content/Localization/Game/zh-Hans/Game.locres", zhLocres),
+            new("FFRS/Content/Localization/Game/en/Game.locres", enLocres),
+            new("FFRS/Content/Localization/Game/ja/Game.locres", jaLocres),
+            new("FFRS/Config/DefaultGame.ini", Encoding.UTF8.GetBytes("[/Script/Test]\nKey=Value\n")),
+        ]);
+        await File.WriteAllBytesAsync(Path.Combine(paksDir, "Fixture-Windows.pak"), pakBytes);
+
+        var fakeDbExe = CopyFakeFfrDbTo(Path.Combine(workspace.Root, "fake-db"));
+        var defaultBuildResult = await TestHarness.RunCliAsync(
+            ["build-db", "--game", gameDir, "--usmap", archivedUsmap, "--ffr-db", fakeDbExe],
+            agpHome: workspace.AgpHomeDir);
+        Assert.True(defaultBuildResult.ExitCode == 0, $"stdout:\n{defaultBuildResult.Stdout}\nstderr:\n{defaultBuildResult.Stderr}");
+        var expectedDefaultSqlite = Path.Combine(
+            workspace.AgpHomeDir,
+            "ffr-export",
+            "output",
+            "ffr-24250053",
+            "ffr.sqlite");
+        Assert.True(File.Exists(expectedDefaultSqlite));
+    }
+
+    private sealed class FakeUe4ssDownloader : IUe4ssPackageDownloader
+    {
+        private readonly string _zipPath;
+
+        internal FakeUe4ssDownloader(string zipPath)
+        {
+            _zipPath = zipPath;
+        }
+
+        internal int CallCount { get; private set; }
+
+        public Task<string> EnsureVerifiedArchiveAsync(
+            string downloadsDirectory,
+            TextWriter output,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            Directory.CreateDirectory(downloadsDirectory);
+            var target = Path.Combine(downloadsDirectory, HttpsUe4ssPackageDownloader.OfficialArchiveFileName);
+            File.Copy(_zipPath, target, overwrite: true);
+            return Task.FromResult(target);
+        }
+    }
+
+    private sealed class FakeGameLauncher : IGameLauncher
+    {
+        internal bool Running { get; set; }
+
+        internal bool RunningAfterLaunch { get; set; }
+
+        internal int LaunchCount { get; private set; }
+
+        internal int CloseCount { get; private set; }
+
+        internal Action<string>? OnLaunch { get; set; }
+
+        public bool IsGameRunning() => Running;
+
+        public void LaunchGameViaSteam(string steamUri)
+        {
+            LaunchCount++;
+            if (RunningAfterLaunch)
+            {
+                Running = true;
+            }
+
+            OnLaunch?.Invoke(steamUri);
+        }
+
+        public Task CloseGameAsync(TimeSpan gracefulWait, Action<string> log, CancellationToken cancellationToken)
+        {
+            CloseCount++;
+            Running = false;
+            log("模拟关闭游戏进程完成。");
+            return Task.CompletedTask;
+        }
+    }
+
+    private static string CreateSyntheticGameDirectory(string root, string buildId, string folderName = "FINAL FANTASY RESONANCE")
+    {
+        var steamappsDir = Path.Combine(root, "Steam", "steamapps");
+        var gameDir = Path.Combine(steamappsDir, "common", folderName);
+        var paksDir = Path.Combine(gameDir, "FFRS", "Content", "Paks");
+        var win64Dir = Path.Combine(gameDir, "FFRS", "Binaries", "Win64");
+        Directory.CreateDirectory(paksDir);
+        Directory.CreateDirectory(win64Dir);
+
+        File.WriteAllBytes(
+            Path.Combine(win64Dir, "FFRS-Win64-Shipping.exe"),
+            SyntheticFixtureBuilder.BuildMinimalPeWithVersionResource((1, 0, 0, 0), (1, 0, 0, 0)));
+
+        File.WriteAllText(
+            Path.Combine(steamappsDir, "appmanifest_3259780.acf"),
+            $$"""
+            "AppState"
+            {
+            	"appid"		"3259780"
+            	"name"		"FINAL FANTASY RESONANCE"
+            	"installdir"		"{{folderName}}"
+            	"buildid"		"{{buildId}}"
+            }
+            """,
+            Encoding.UTF8);
+
+        return gameDir;
+    }
+
+    private static string CreateSyntheticUe4ssZip(string zipPath)
+    {
+        if (File.Exists(zipPath))
+        {
+            File.Delete(zipPath);
+        }
+
+        using var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create);
+        WriteZipEntry(archive, "dwmapi.dll", "synthetic-dwmapi-dll");
+        WriteZipEntry(archive, "ue4ss/UE4SS.dll", "synthetic-ue4ss-dll");
+        WriteZipEntry(archive, "ue4ss/LICENSE", "MIT License - synthetic test copy\n");
+        WriteZipEntry(
+            archive,
+            "ue4ss/UE4SS-settings.ini",
+            """
+            [General]
+            EnableHotReloadSystem = 1
+            bUseUObjectArrayCache = true
+
+            [EngineVersionOverride]
+            MajorVersion =
+            MinorVersion =
+
+            [Debug]
+            ; Whether to enable the external UE4SS debug console.
+            ConsoleEnabled = 1
+            GuiConsoleEnabled = 1
+            GuiConsoleVisible = 1
+            """);
+        WriteZipEntry(archive, "ue4ss/Mods/mods.txt", "CheatManagerEnablerMod : 0\nKeybinds : 1\n");
+        return zipPath;
+    }
+
+    private static void WriteZipEntry(ZipArchive archive, string entryName, string content)
+    {
+        var entry = archive.CreateEntry(entryName);
+        using var stream = entry.Open();
+        using var writer = new StreamWriter(stream, new UTF8Encoding(false));
+        writer.Write(content);
+    }
+
+    private static string CopyFakeFfrDbTo(string directory)
+    {
+        var sourceDir = Path.Combine(AppContext.BaseDirectory, "fake-ffr-db");
+        Directory.CreateDirectory(directory);
+        foreach (var srcFile in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(sourceDir, srcFile);
+            var dstFile = Path.Combine(directory, relative);
+            var dstParent = Path.GetDirectoryName(dstFile);
+            if (!string.IsNullOrEmpty(dstParent))
+            {
+                Directory.CreateDirectory(dstParent);
+            }
+
+            File.Copy(srcFile, dstFile, overwrite: true);
+        }
+
+        var exeName = OperatingSystem.IsWindows() ? "FfrExport.FakeFfrDb.exe" : "FfrExport.FakeFfrDb";
+        var exePath = Path.Combine(directory, exeName);
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(
+                exePath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+                | UnixFileMode.GroupRead | UnixFileMode.GroupExecute
+                | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+        }
+
+        return exePath;
+    }
+}

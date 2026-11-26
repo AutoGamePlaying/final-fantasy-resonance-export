@@ -60,6 +60,20 @@ internal sealed record TableDiffInfo(
     [property: JsonProperty("expected_sha256")] string? ExpectedSha256,
     [property: JsonProperty("actual_sha256")] string? ActualSha256);
 
+internal enum UsmapComparisonStatus
+{
+    ExactMatch,
+    ContentMatch,
+    NotRegistered,
+}
+
+internal sealed record UsmapComparisonResult(
+    UsmapComparisonStatus Status,
+    string Message,
+    string Source,
+    string? MatchedRegisteredAt,
+    string? MatchedFileName);
+
 internal enum KnownBuildComparisonStatus
 {
     Matched,
@@ -312,6 +326,70 @@ internal static class KnownBuildsRegistry
         }
 
         return [.. diffs];
+    }
+
+    internal static UsmapComparisonResult CompareUsmap(
+        IReadOnlyList<KnownBuildEntry> entries,
+        string source,
+        UsmapHashInfo actualUsmap)
+    {
+        KnownBuildEntry? contentMatch = null;
+        foreach (var entry in entries)
+        {
+            var registered = entry.Inputs?.Usmap;
+            if (registered is null)
+            {
+                continue;
+            }
+
+            var contentEquals = !string.IsNullOrEmpty(registered.ContentSha256)
+                && string.Equals(registered.ContentSha256, actualUsmap.ContentSha256, StringComparison.OrdinalIgnoreCase);
+            if (!contentEquals)
+            {
+                continue;
+            }
+
+            var fileEquals = !string.IsNullOrEmpty(registered.FileSha256)
+                && string.Equals(registered.FileSha256, actualUsmap.FileSha256, StringComparison.OrdinalIgnoreCase);
+            if (fileEquals)
+            {
+                return new UsmapComparisonResult(
+                    UsmapComparisonStatus.ExactMatch,
+                    "与登记的 .usmap 完全一致（文件哈希与内容哈希均匹配）",
+                    source,
+                    entry.RegisteredAt,
+                    registered.FileName);
+            }
+
+            contentMatch ??= entry;
+        }
+
+        if (contentMatch is not null)
+        {
+            return new UsmapComparisonResult(
+                UsmapComparisonStatus.ContentMatch,
+                "与登记的 .usmap 内容一致（content_sha256 匹配，仅文件字节顺序不同，导出结果等价）",
+                source,
+                contentMatch.RegisteredAt,
+                contentMatch.Inputs?.Usmap.FileName);
+        }
+
+        return new UsmapComparisonResult(
+            UsmapComparisonStatus.NotRegistered,
+            "新的 .usmap 内容哈希，未在 known-builds.json 中登记",
+            source,
+            null,
+            null);
+    }
+
+    internal static void PrintUsmapComparison(UsmapComparisonResult result, TextWriter output)
+    {
+        var symbol = result.Status == UsmapComparisonStatus.NotRegistered ? "!" : "✓";
+        output.WriteLine($"已知版本 .usmap 比对（来源：{result.Source}）：{symbol} {result.Message}");
+        if (!string.IsNullOrEmpty(result.MatchedRegisteredAt))
+        {
+            output.WriteLine($"  匹配登记日期：{result.MatchedRegisteredAt}（登记文件名：{result.MatchedFileName ?? "未知"}）");
+        }
     }
 
     internal static (string Version, string GitCommit) ReadBuildMetadata()
