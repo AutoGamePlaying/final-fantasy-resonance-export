@@ -58,7 +58,7 @@ public sealed class TextOutputLineEndingTests
     [Fact]
     public void SystemTextJson_ForcesLfEvenWhenOptionsSpecifyCrlf()
     {
-        var settings = new GuiSettings("/tmp/sample-output", true);
+        var settings = new GuiSettings("/tmp/sample-output", "en");
         var windowsOptions = new JsonSerializerOptions
         {
             WriteIndented = true,
@@ -126,7 +126,7 @@ public sealed class TextOutputLineEndingTests
 
         // GUI settings, GUI startup log, and CLI log files must also be BOM-less LF UTF-8.
         var settingsPath = Path.Combine(workspace.Root, "settings.json");
-        GuiSettingsStore.Save(new GuiSettings(workspace.Root, true), settingsPath);
+        GuiSettingsStore.Save(new GuiSettings(workspace.Root, "en"), settingsPath);
 
         var guiLogSession = GuiStartupLog.StartSession(
             GuiStartupLog.CollectStartupInfo(typeof(TextOutputLineEndingTests).Assembly, "PerMonitorV2", "test"),

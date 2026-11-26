@@ -188,8 +188,8 @@ public sealed class SteamLocatorAndWizardTests
             @"C:\Users\Player\My Dumps\FFRS.usmap",
             InteractiveWizard.CleanUserPathInput("  \"C:\\Users\\Player\\My Dumps\\FFRS.usmap\"  "));
         Assert.Equal(
-            "/tmp/path with spaces/file.jmap",
-            InteractiveWizard.CleanUserPathInput("'/tmp/path with spaces/file.jmap'"));
+            "/tmp/path with spaces/file.usmap",
+            InteractiveWizard.CleanUserPathInput("'/tmp/path with spaces/file.usmap'"));
         Assert.Equal(
             "nested quotes path",
             InteractiveWizard.CleanUserPathInput("  \"' nested quotes path '\"  "));
@@ -210,7 +210,7 @@ public sealed class SteamLocatorAndWizardTests
         using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-wizard-flow");
 
-        // Synthetic Steam library + game + usmap + two jmaps in directories with spaces
+        // Synthetic Steam library + game + usmap in directories with spaces
         var steamRoot = Path.Combine(workspace.Root, "Steam Root");
         var steamappsDir = Path.Combine(steamRoot, "steamapps");
         var gameDir = Path.Combine(steamappsDir, "common", "FINAL FANTASY RESONANCE");
@@ -232,11 +232,7 @@ public sealed class SteamLocatorAndWizardTests
         var mappingsDir = Path.Combine(workspace.Root, "My Mappings Dir");
         Directory.CreateDirectory(mappingsDir);
         var usmapPath = Path.Combine(mappingsDir, "Title Dump.usmap");
-        var jmap1Path = Path.Combine(mappingsDir, "Title Dump.jmap");
-        var jmap2Path = Path.Combine(mappingsDir, "Battle Dump.jmap");
         await File.WriteAllBytesAsync(usmapPath, [1, 2, 3]);
-        await File.WriteAllTextAsync(jmap1Path, "{}");
-        await File.WriteAllTextAsync(jmap2Path, "{}");
 
         var exeDir = Path.Combine(workspace.Root, "Portable App");
         Directory.CreateDirectory(exeDir);
@@ -246,20 +242,14 @@ public sealed class SteamLocatorAndWizardTests
         // Redirected standard input:
         // 1) "1" -> choose Steam game #1
         // 2) quoted usmap path (with surrounding spaces & double quotes)
-        // 3) quoted jmap 1 path (double quotes)
-        // 4) quoted jmap 2 path (single quotes)
-        // 5) "" -> finish jmap list
-        // 6) "" -> accept default output directory (<exeDir>/output/ffr-24250053)
-        // 7) "" -> confirm start
-        // 8) "" -> press Enter to exit
+        // 3) "" -> accept default output directory (<agp>/ffr-export/output/ffr-24250053)
+        // 4) "" -> confirm start
+        // 5) "" -> press Enter to exit
         var stdinText = string.Join(
             Environment.NewLine,
             [
                 "1",
                 $"  \"{usmapPath}\"  ",
-                $"\"{jmap1Path}\"",
-                $"'{jmap2Path}'",
-                "",
                 "",
                 "",
                 "",
@@ -335,13 +325,14 @@ public sealed class SteamLocatorAndWizardTests
         var expectedDefaultOut = Path.Combine(workspace.AgpHomeDir, "ffr-export", "output", "ffr-24250053");
         Assert.Equal(PathSupport.TrimTrailingSeparators(Path.GetFullPath(gameDir)), options.GameDirectory);
         Assert.Equal(Path.GetFullPath(usmapPath), options.UsmapPath);
-        Assert.Equal([Path.GetFullPath(jmap1Path), Path.GetFullPath(jmap2Path)], options.JmapPaths);
+        Assert.DoesNotContain("--jmap", capturedBuildDbArgs);
         Assert.Equal(PathSupport.TrimTrailingSeparators(Path.GetFullPath(expectedDefaultOut)), options.OutputArgument);
         Assert.Equal("24250053", options.SteamBuildId);
         Assert.Equal(fakeFfrDbPath, options.ExplicitFfrDbPath);
         Assert.False(options.Force);
 
         var outputText = stdout.ToString();
+        Assert.DoesNotContain(".jmap", outputText, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("FINAL FANTASY RESONANCE", outputText, StringComparison.Ordinal);
         Assert.Contains("24250053", outputText, StringComparison.Ordinal);
         Assert.Contains("UE4SS", outputText, StringComparison.Ordinal);
@@ -381,7 +372,7 @@ public sealed class SteamLocatorAndWizardTests
         }
 
         // 2. End-to-end through Program.DefaultBuildDbRunner (the exact build-db code path)
-        //    with 0 auto-detected Steam games -> manual quoted game dir, skip jmap, custom quoted output dir.
+        //    with 0 auto-detected Steam games -> manual quoted game dir, custom quoted output dir.
         var gameDir = Path.Combine(workspace.Root, "Manual Game Dir");
         var paksDir = Path.Combine(gameDir, "FFRS", "Content", "Paks");
         var binDir = Path.Combine(gameDir, "FFRS", "Binaries", "Win64");
@@ -435,7 +426,6 @@ public sealed class SteamLocatorAndWizardTests
                 $"\"{gameDir}\"",
                 Path.Combine(workspace.Root, "missing.usmap"), // triggers re-prompt
                 $"\"{usmapPath}\"",
-                "", // skip jmap
                 $"\"{customOutDir}\"",
                 "y", // confirm
                 "", // press Enter to exit
@@ -464,7 +454,7 @@ public sealed class SteamLocatorAndWizardTests
         var summaryText = realStdout.ToString();
         Assert.Contains("找不到目录", summaryText, StringComparison.Ordinal);
         Assert.Contains("找不到文件", summaryText, StringComparison.Ordinal);
-        Assert.Contains("已跳过 .jmap 文件", summaryText, StringComparison.Ordinal);
+        Assert.DoesNotContain(".jmap", summaryText, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(Path.Combine(customOutDir, "ffr.sqlite"), summaryText, StringComparison.Ordinal);
         Assert.Contains("deadbeef00000000000000000000000000000000000000000000000000000001", summaryText, StringComparison.Ordinal);
         Assert.Contains(KnownBuildsRegistry.MessageNewGameVersion, summaryText, StringComparison.Ordinal);

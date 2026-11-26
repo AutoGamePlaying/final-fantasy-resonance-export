@@ -1615,7 +1615,7 @@ internal static class UsmapFetcher
                 usmapInfo.TypeCount,
                 usmapInfo.EnumCount));
 
-            var (knownEntries, knownSource) = KnownBuildsRegistry.Load(knownBuildsBaseDirOverride);
+            var (knownEntries, knownSource) = KnownBuildsRegistry.Load(knownBuildsBaseDirOverride, error);
             var comparison = KnownBuildsRegistry.CompareUsmap(knownEntries, knownSource, usmapInfo);
             KnownBuildsRegistry.PrintUsmapComparison(comparison, output);
 

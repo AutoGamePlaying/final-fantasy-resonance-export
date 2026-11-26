@@ -8,7 +8,6 @@ namespace FfrExport;
 internal sealed record BuildDbOptions(
     string GameDirectory,
     string UsmapPath,
-    List<string> JmapPaths,
     string OutputArgument,
     string? ExplicitFfrDbPath,
     string? SteamBuildId,
@@ -119,18 +118,6 @@ internal static partial class Program
             throw new FileNotFoundException(L.Format("Cli_MappingFileNotFound", options.UsmapPath));
         }
 
-        var jmapFullPaths = new List<string>(options.JmapPaths.Count);
-        foreach (var jmap in options.JmapPaths)
-        {
-            var fullJmap = Path.GetFullPath(jmap);
-            if (!File.Exists(PathSupport.ToIoPath(fullJmap)))
-            {
-                throw new FileNotFoundException(L.Format("BuildDb_JmapNotFound", jmap));
-            }
-
-            jmapFullPaths.Add(fullJmap);
-        }
-
         var ffrDbExecutable = FfrDbLocator.Resolve(options.ExplicitFfrDbPath);
 
         var effectiveOutputArgument = options.OutputArgument;
@@ -179,7 +166,6 @@ internal static partial class Program
 
         var usmapStopwatch = Stopwatch.StartNew();
         var usmapInfo = GameVersionDetector.ComputeUsmapHashes(usmapFullPath);
-        var jmapInfos = jmapFullPaths.Select(GameVersionDetector.ComputeJmapHash).ToArray();
         usmapStopwatch.Stop();
 
         Console.WriteLine(L.Format(
@@ -292,15 +278,9 @@ internal static partial class Program
             inventoryDir,
             "--maps",
             mapsDir,
+            "--out",
+            sqlitePath,
         };
-        foreach (var jmap in jmapFullPaths)
-        {
-            buildArgs.Add("--jmap");
-            buildArgs.Add(jmap);
-        }
-
-        buildArgs.Add("--out");
-        buildArgs.Add(sqlitePath);
 
         var buildResult = await RunExternalProcessAsync(ffrDbExecutable, buildArgs, clearFfrDepsEnv: true);
         dbBuildStopwatch.Stop();
@@ -362,7 +342,7 @@ internal static partial class Program
         var finishedAt = DateTimeOffset.UtcNow;
 
         var gameVersion = new GameVersionInfo(steamInfo, exeInfo, pakResult.Fingerprint, pakResult.Files);
-        var inputsInfo = new BuildInputsInfo(usmapInfo, jmapInfos);
+        var inputsInfo = new BuildInputsInfo(usmapInfo);
         var toolsInfo = new BuildToolsInfo(
             new FfrExportToolInfo(toolVersion, gitCommit, Cue4ParseVersion),
             new FfrDbToolInfo(ffrDbVersion));
@@ -391,7 +371,7 @@ internal static partial class Program
             {
                 game_version = versionStopwatch.ElapsedMilliseconds,
                 pak_fingerprint = pakResult.ElapsedMs,
-                usmap_and_jmap_hash = usmapStopwatch.ElapsedMilliseconds,
+                usmap_hash = usmapStopwatch.ElapsedMilliseconds,
                 export_datatable = exportDatatableMs,
                 export_locres = exportLocresMs,
                 export_inventory = exportInventoryMs,
@@ -419,7 +399,6 @@ internal static partial class Program
     {
         string? gameDirectory = null;
         string? usmapPath = null;
-        var jmaps = new List<string>();
         string? explicitOutputArgument = null;
         string? explicitFfrDb = null;
         string? steamBuildId = null;
@@ -442,6 +421,12 @@ internal static partial class Program
                 continue;
             }
 
+            if (string.Equals(token, "--jmap", StringComparison.Ordinal)
+                || token.StartsWith("--jmap=", StringComparison.Ordinal))
+            {
+                throw new ArgumentException(L.Get("BuildDb_JmapRemoved"));
+            }
+
             switch (token)
             {
                 case "--game":
@@ -449,9 +434,6 @@ internal static partial class Program
                     break;
                 case "--usmap":
                     usmapPath = RequireValue(args, ref index, "--usmap");
-                    break;
-                case "--jmap":
-                    jmaps.Add(RequireValue(args, ref index, "--jmap"));
                     break;
                 case "--out":
                     explicitOutputArgument = RequireValue(args, ref index, "--out");
@@ -512,7 +494,6 @@ internal static partial class Program
         return new BuildDbOptions(
             gameDirectory,
             usmapPath,
-            jmaps,
             resolvedOutputArgument,
             explicitFfrDb,
             steamBuildId,

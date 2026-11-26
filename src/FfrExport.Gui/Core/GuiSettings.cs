@@ -6,10 +6,9 @@ namespace FfrExport.Gui.Core;
 
 internal sealed record GuiSettings(
     [property: JsonPropertyName("output_root_directory")] string? OutputRootDirectory,
-    [property: JsonPropertyName("include_jmap")] bool IncludeJmap,
     [property: JsonPropertyName("language")] string? Language = null)
 {
-    internal static GuiSettings Default => new(null, false, null);
+    internal static GuiSettings Default => new(null, null);
 }
 
 internal sealed record GuiSettingsLoadResult(
@@ -159,7 +158,7 @@ internal static class GuiSettingsStore
                 ? canonicalLang
                 : null;
             return new GuiSettingsLoadResult(
-                new GuiSettings(outputRoot, parsed.IncludeJmap, language),
+                new GuiSettings(outputRoot, language),
                 migrationWarning,
                 migratedFrom);
         }
@@ -239,7 +238,6 @@ internal static class GuiSettingsStore
                 : null;
             var normalized = new GuiSettings(
                 string.IsNullOrWhiteSpace(parsed.OutputRootDirectory) ? null : parsed.OutputRootDirectory.Trim(),
-                parsed.IncludeJmap,
                 migratedLanguage);
             Save(normalized, fullTarget);
 

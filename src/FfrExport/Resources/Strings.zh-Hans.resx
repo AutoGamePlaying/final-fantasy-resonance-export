@@ -275,8 +275,8 @@
   <data name="BuildDb_FfrDbNotFound" xml:space="preserve">
     <value>找不到 ffr-db 可执行文件（已依次检查：--ffr-db 参数、程序同目录 {0}、环境变量 PATH）。请通过 --ffr-db &lt;路径&gt; 指定，或将 ffr-db 放到程序同目录 / PATH 中。</value>
   </data>
-  <data name="BuildDb_JmapNotFound" xml:space="preserve">
-    <value>反射转储文件（--jmap）不存在：{0}</value>
+  <data name="BuildDb_JmapRemoved" xml:space="preserve">
+    <value>ffr-export build-db 已移除 --jmap 参数：运行时转储的 .jmap 反射数据会随转储时机和内存地址变化，导致数据库哈希无法复现。研究需要反射数据时，请直接运行 "ffr-db build --jmap &lt;文件&gt;"（详见 docs/database.md）。</value>
   </data>
   <data name="BuildDb_StepLine" xml:space="preserve">
     <value>==&gt; 步骤 {0}/{1}：{2}</value>
@@ -389,9 +389,6 @@
   <data name="Version_UsmapParseFailed" xml:space="preserve">
     <value>解析 .usmap 失败：{0}：{1}</value>
   </data>
-  <data name="Version_JmapFileNotFound" xml:space="preserve">
-    <value>计算 .jmap 哈希失败：文件不存在：{0}</value>
-  </data>
   <data name="Version_PeNotSeekable" xml:space="preserve">
     <value>解析 PE 版本资源失败：{0}：不支持定位的输入流</value>
   </data>
@@ -448,6 +445,9 @@
   </data>
   <data name="KnownBuilds_ParseFailed" xml:space="preserve">
     <value>解析已知版本登记表失败：{0}：{1}</value>
+  </data>
+  <data name="KnownBuilds_SkippedJmapEntryWarning" xml:space="preserve">
+    <value>警告：跳过 {0} 中第 {1} 条登记记录（登记日期：{2}），因其包含 {3} 份 .jmap 文件；已知版本比对只接受“游戏文件 + .usmap”组合。</value>
   </data>
   <data name="KnownBuilds_ComparisonHeader" xml:space="preserve">
     <value>已知版本比对（来源：{0}）：{1}</value>
@@ -642,13 +642,10 @@
     <value>【步骤 1/4】定位游戏目录</value>
   </data>
   <data name="Wizard_Step2Header" xml:space="preserve">
-    <value>【步骤 2/4】指定映射文件（.usmap / .jmap）</value>
+    <value>【步骤 2/4】指定映射文件（.usmap）</value>
   </data>
   <data name="Wizard_UsmapNote" xml:space="preserve">
     <value>说明：.usmap 为必填项；可用「ffr-export fetch-usmap --game &lt;目录&gt;」一键获取，或用 UE4SS 在游戏运行时转储。</value>
-  </data>
-  <data name="Wizard_JmapNote" xml:space="preserve">
-    <value>可选：.jmap 反射转储文件（可添加多个，不提供请直接回车跳过）。</value>
   </data>
   <data name="Wizard_Step3Header" xml:space="preserve">
     <value>【步骤 3/4】选择输出目录</value>
@@ -667,12 +664,6 @@
   </data>
   <data name="Wizard_SummaryUsmap" xml:space="preserve">
     <value>  .usmap 文件：{0}</value>
-  </data>
-  <data name="Wizard_SummaryJmapNone" xml:space="preserve">
-    <value>  .jmap 文件：无（已跳过）</value>
-  </data>
-  <data name="Wizard_SummaryJmapCount" xml:space="preserve">
-    <value>  .jmap 文件：共 {0} 个</value>
   </data>
   <data name="Wizard_SummaryOutputForce" xml:space="preserve">
     <value>  输出目录：{0}（将清空并重新建库）</value>
@@ -751,33 +742,6 @@
   </data>
   <data name="Wizard_RequiredFieldEmpty" xml:space="preserve">
     <value>{0} 为必填项，不能为空，请重新输入。</value>
-  </data>
-  <data name="Wizard_JmapFirstPrompt" xml:space="preserve">
-    <value>第 1 个 .jmap 文件路径（直接回车跳过）：</value>
-  </data>
-  <data name="Wizard_JmapNextPrompt" xml:space="preserve">
-    <value>第 {0} 个 .jmap 文件路径（继续粘贴或直接回车结束）：</value>
-  </data>
-  <data name="Wizard_JmapSkipped" xml:space="preserve">
-    <value>已跳过 .jmap 文件。</value>
-  </data>
-  <data name="Wizard_JmapAddedCount" xml:space="preserve">
-    <value>共添加 {0} 个 .jmap 文件。</value>
-  </data>
-  <data name="Wizard_InvalidPathOrSkip" xml:space="preserve">
-    <value>路径格式无效：{0}，请重新输入或直接回车跳过。</value>
-  </data>
-  <data name="Wizard_JmapIsDirOrSkip" xml:space="preserve">
-    <value>输入的是目录而不是文件：{0}，请粘贴具体的 .jmap 文件路径或直接回车跳过。</value>
-  </data>
-  <data name="Wizard_FileNotFoundOrSkip" xml:space="preserve">
-    <value>找不到文件：{0}，请检查路径后重新输入或直接回车跳过。</value>
-  </data>
-  <data name="Wizard_JmapDuplicate" xml:space="preserve">
-    <value>提示：该 .jmap 文件已添加，已跳过重复项：{0}</value>
-  </data>
-  <data name="Wizard_JmapAddedItem" xml:space="preserve">
-    <value>  已添加：{0}</value>
   </data>
   <data name="Wizard_DefaultOutputDir" xml:space="preserve">
     <value>默认输出目录：{0}</value>
@@ -885,7 +849,7 @@
     <value>  2. 如文件缺失，请在 Steam 中右键游戏 -&gt; 属性 -&gt; 已安装文件 -&gt; 验证游戏文件的完整性。</value>
   </data>
   <data name="Wizard_AdviceGeneric1" xml:space="preserve">
-    <value>  1. 根据上方错误信息检查游戏目录、.usmap/.jmap 文件以及输出目录权限；</value>
+    <value>  1. 根据上方错误信息检查游戏目录、.usmap 文件以及输出目录权限；</value>
   </data>
   <data name="Wizard_AdviceGeneric2" xml:space="preserve">
     <value>  2. 确认输出磁盘留有充足可用空间（建库过程需要数 GB 临时空间）；</value>
@@ -1289,9 +1253,6 @@
   <data name="GuiCore_LaunchCliFailed" xml:space="preserve">
     <value>无法启动命令行程序：{0}</value>
   </data>
-  <data name="GuiCore_DualComboHint" xml:space="preserve">
-    <value>已知版本表里登记了两种输入组合：一种是“只有 .usmap”，一种是“.usmap 加两份 .jmap”，所以无论是否勾选 .jmap，都可能对得上。</value>
-  </data>
   <data name="GuiCore_ReportNotFound" xml:space="preserve">
     <value>读取构建结果失败：在输出目录 {0} 中找不到 *.build.json 文件。</value>
   </data>
@@ -1307,12 +1268,6 @@
   <data name="GuiCore_ReportMissingFileSha" xml:space="preserve">
     <value>构建报告缺少 database.file_sha256 字段：{0}</value>
   </data>
-  <data name="GuiCore_InputDescUsmapOnly" xml:space="preserve">
-    <value>本次输入：仅 .usmap（未包含 .jmap）</value>
-  </data>
-  <data name="GuiCore_InputDescWithJmaps" xml:space="preserve">
-    <value>本次输入：.usmap + {0} 份 .jmap</value>
-  </data>
   <data name="GuiCore_PartialExportNotice" xml:space="preserve">
     <value>（提示：导出过程中有少量资源包失败，详见日志与构建报告。）</value>
   </data>
@@ -1323,13 +1278,13 @@
     <value>与登记的版本一致</value>
   </data>
   <data name="GuiCore_VerdictMatchedExplanation" xml:space="preserve">
-    <value>{0}{1}。{2}{3}</value>
+    <value>基于游戏文件 + .usmap 构建{0}。{1}</value>
   </data>
   <data name="GuiCore_VerdictNewVersionTitle" xml:space="preserve">
     <value>新版本，未登记</value>
   </data>
   <data name="GuiCore_VerdictNewVersionExplanation" xml:space="preserve">
-    <value>{0}。当前游戏版本尚未登记在 known-builds.json 中。{1}{2}</value>
+    <value>当前游戏版本（游戏文件 + .usmap）尚未登记在 known-builds.json 中。{0}</value>
   </data>
   <data name="GuiCore_VerdictHashMismatchTitle" xml:space="preserve">
     <value>哈希不同</value>
@@ -1343,17 +1298,14 @@
   <data name="GuiCore_VerdictGenericMismatchDetail" xml:space="preserve">
     <value>游戏版本已登记，但数据库哈希与登记记录不同。</value>
   </data>
-  <data name="GuiCore_VerdictOddJmapCountNote" xml:space="preserve">
-    <value>注意：当前提供了 {0} 份 .jmap，而登记组合为“0 份”或“2 份”。</value>
-  </data>
   <data name="GuiCore_VerdictHashMismatchExplanation" xml:space="preserve">
-    <value>{0}。{1}{2}{3}{4}</value>
+    <value>{0}{1}</value>
   </data>
   <data name="GuiCore_VerdictUnknownTitle" xml:space="preserve">
     <value>比对结论未知</value>
   </data>
   <data name="GuiCore_VerdictUnknownExplanation" xml:space="preserve">
-    <value>{0}。构建报告中未包含可识别的版本比对结论。{1}{2}</value>
+    <value>构建报告中未包含可识别的版本比对结论。{0}</value>
   </data>
   <data name="GuiCore_ClipboardDbPath" xml:space="preserve">
     <value>数据库路径：{0}</value>
@@ -1577,18 +1529,6 @@
   <data name="GuiCore_UsmapDisplaySingle" xml:space="preserve">
     <value>{0}（修改日期：{1}）</value>
   </data>
-  <data name="GuiCore_JmapDisplay" xml:space="preserve">
-    <value>{0}（修改日期：{1}，{2}） — {3}</value>
-  </data>
-  <data name="GuiCore_SourceManualSelect" xml:space="preserve">
-    <value>手动选择</value>
-  </data>
-  <data name="GuiCore_SourceManualAdd" xml:space="preserve">
-    <value>手动添加</value>
-  </data>
-  <data name="GuiCore_SourceFetched" xml:space="preserve">
-    <value>一键获取</value>
-  </data>
   <data name="GuiCore_ScanDirCannotAccess" xml:space="preserve">
     <value>无法访问目录 {0}：{1}</value>
   </data>
@@ -1754,7 +1694,7 @@
     <value>设置…</value>
   </data>
   <data name="Gui_GroupMappings" xml:space="preserve">
-    <value>2. 映射与反射文件（.usmap / .jmap）</value>
+    <value>2. 映射文件（.usmap）</value>
   </data>
   <data name="Gui_LabelUsmapRequired" xml:space="preserve">
     <value>.usmap（必填）：</value>
@@ -1770,15 +1710,6 @@
   </data>
   <data name="Gui_LabelFilePath" xml:space="preserve">
     <value>文件路径：</value>
-  </data>
-  <data name="Gui_CheckIncludeJmap" xml:space="preserve">
-    <value>包含反射数据（.jmap，可选）</value>
-  </data>
-  <data name="Gui_BtnAddJmap" xml:space="preserve">
-    <value>添加 .jmap…</value>
-  </data>
-  <data name="Gui_BtnRemoveJmap" xml:space="preserve">
-    <value>移除选中</value>
   </data>
   <data name="Gui_GroupOutput" xml:space="preserve">
     <value>3. 输出位置</value>
@@ -1893,9 +1824,6 @@
   </data>
   <data name="Gui_UsmapAutoFindError" xml:space="preserve">
     <value>自动查找 .usmap 失败：{0}；请点击「一键获取 .usmap」或「选择 .usmap…」。</value>
-  </data>
-  <data name="Gui_JmapUncheckedStatus" xml:space="preserve">
-    <value>未勾选（仅使用 .usmap 导出）。</value>
   </data>
   <data name="Gui_OpenUsmapDialogTitle" xml:space="preserve">
     <value>选择 .usmap 映射文件</value>
@@ -2033,36 +1961,6 @@
   <data name="Gui_StatusFetchUsmapFailed" xml:space="preserve">
     <value>状态：获取 .usmap 失败</value>
   </data>
-  <data name="Gui_JmapAutoFindError" xml:space="preserve">
-    <value>自动查找 .jmap 失败：{0}；请点「添加 .jmap…」手动选择，或取消勾选继续导出。</value>
-  </data>
-  <data name="Gui_JmapDirAccessWarn" xml:space="preserve">
-    <value>自动查找 .jmap 时遇到目录访问错误：{0}</value>
-  </data>
-  <data name="Gui_JmapAutoFoundStatus" xml:space="preserve">
-    <value>已自动找到 {0} 份 .jmap 文件（可继续添加或移除）。</value>
-  </data>
-  <data name="Gui_JmapPartialFoundStatus" xml:space="preserve">
-    <value>已找到 {0} 份 .jmap，但部分目录无法读取（{1}），可点「添加 .jmap…」手动补充。</value>
-  </data>
-  <data name="Gui_JmapScanErrorStatus" xml:space="preserve">
-    <value>自动查找 .jmap 失败（{0}）；请检查权限，或点「添加 .jmap…」手动选择。</value>
-  </data>
-  <data name="Gui_JmapNotFoundStatus" xml:space="preserve">
-    <value>未在游戏目录的 ue4ss / Win64 下找到 .jmap 文件，可点“添加 .jmap…”手动选择，或取消勾选继续导出。</value>
-  </data>
-  <data name="Gui_OpenJmapDialogTitle" xml:space="preserve">
-    <value>选择 .jmap 反射转储文件（可多选）</value>
-  </data>
-  <data name="Gui_OpenJmapDialogFilter" xml:space="preserve">
-    <value>UE 反射转储 (*.jmap)|*.jmap|所有文件 (*.*)|*.*</value>
-  </data>
-  <data name="Gui_JmapSelectedCountStatus" xml:space="preserve">
-    <value>当前共选择 {0} 份 .jmap 文件。</value>
-  </data>
-  <data name="Gui_JmapEmptyListStatus" xml:space="preserve">
-    <value>当前 .jmap 列表为空，可点“添加 .jmap…”手动选择，或取消勾选继续导出。</value>
-  </data>
   <data name="Gui_BrowseOutputDialogDesc" xml:space="preserve">
     <value>选择导出输出目录</value>
   </data>
@@ -2082,21 +1980,6 @@
   </data>
   <data name="Gui_MissingUsmapTitle" xml:space="preserve">
     <value>缺少 .usmap 映射文件</value>
-  </data>
-  <data name="Gui_MissingJmapFileBody" xml:space="preserve">
-    <value>反射数据文件不存在：{0}
-请移除该条目或重新选择。</value>
-  </data>
-  <data name="Gui_MissingJmapFileTitle" xml:space="preserve">
-    <value>找不到 .jmap 文件</value>
-  </data>
-  <data name="Gui_NoJmapConfirmBody" xml:space="preserve">
-    <value>已勾选“包含反射数据（.jmap，可选）”，但当前列表里没有 .jmap 文件。
-
-是否按“仅使用 .usmap”继续导出？</value>
-  </data>
-  <data name="Gui_NoJmapConfirmTitle" xml:space="preserve">
-    <value>未选择 .jmap 文件</value>
   </data>
   <data name="Gui_OutputDirInvalidFallback" xml:space="preserve">
     <value>输出目录无效，请重新选择。</value>
@@ -2238,7 +2121,7 @@
     <value>包含 output\（默认导出）、usmap\（映射文件）、downloads\（下载缓存）、logs\、tmp\、ue4ss-backup\ 与 settings.json。</value>
   </data>
   <data name="Settings_Ue4ssTip" xml:space="preserve">
-    <value>提示：UE4SS 清理功能位于主窗口「2. 映射与反射文件」区域的「清理 UE4SS…」按钮。</value>
+    <value>提示：UE4SS 清理功能位于主窗口「2. 映射文件（.usmap）」区域的「清理 UE4SS…」按钮。</value>
   </data>
   <data name="Settings_BtnClose" xml:space="preserve">
     <value>关闭</value>

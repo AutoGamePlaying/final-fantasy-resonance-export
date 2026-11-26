@@ -56,21 +56,6 @@ internal static class Program
                 required[flag] = args[i + 1];
                 i += 2;
             }
-            else if (flag == "--jmap")
-            {
-                if (i + 1 >= args.Length)
-                {
-                    return Fail("missing value for --jmap");
-                }
-
-                var jmapPath = args[i + 1];
-                if (!File.Exists(ToIoPath(jmapPath)))
-                {
-                    return Fail($"missing jmap: {jmapPath}");
-                }
-
-                i += 2;
-            }
             else
             {
                 return Fail($"unexpected flag: {flag}");

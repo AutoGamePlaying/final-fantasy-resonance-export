@@ -276,8 +276,8 @@
   <data name="BuildDb_FfrDbNotFound" xml:space="preserve">
     <value>ffr-db 実行ファイルが見つかりません（確認順: --ffr-db 引数、アプリ同一ディレクトリ {0}、環境変数 PATH）。--ffr-db &lt;パス&gt; で指定するか、ffr-db を同じフォルダまたは PATH に配置してください。</value>
   </data>
-  <data name="BuildDb_JmapNotFound" xml:space="preserve">
-    <value>リフレクションダンプファイル（--jmap）が見つかりません: {0}</value>
+  <data name="BuildDb_JmapRemoved" xml:space="preserve">
+    <value>ffr-export build-db から --jmap オプションは削除されました。実行時にダンプされる .jmap リフレクションデータは取得タイミングやメモリアドレスによって変化し、データベースハッシュを再現できないためです。研究用途でリフレクションデータが必要な場合は、直接 "ffr-db build --jmap &lt;file&gt;" を実行してください（詳細は docs/database.md を参照）。</value>
   </data>
   <data name="BuildDb_StepLine" xml:space="preserve">
     <value>==&gt; ステップ {0}/{1}: {2}</value>
@@ -390,9 +390,6 @@
   <data name="Version_UsmapParseFailed" xml:space="preserve">
     <value>.usmap の解析に失敗しました: {0}: {1}</value>
   </data>
-  <data name="Version_JmapFileNotFound" xml:space="preserve">
-    <value>.jmap ハッシュの計算に失敗しました: ファイルが存在しません: {0}</value>
-  </data>
   <data name="Version_PeNotSeekable" xml:space="preserve">
     <value>PE バージョンリソースの解析に失敗しました: {0}: シーク非対応の入力ストリームです。</value>
   </data>
@@ -449,6 +446,9 @@
   </data>
   <data name="KnownBuilds_ParseFailed" xml:space="preserve">
     <value>既知ビルド登録表の解析に失敗しました: {0}: {1}</value>
+  </data>
+  <data name="KnownBuilds_SkippedJmapEntryWarning" xml:space="preserve">
+    <value>警告: {0} の登録エントリ #{1}（登録日: {2}）は .jmap ファイルを {3} 件含むためスキップしました。既知ビルド照合は「ゲームファイル + .usmap」の組み合わせのみ対象とします。</value>
   </data>
   <data name="KnownBuilds_ComparisonHeader" xml:space="preserve">
     <value>既知ビルド照合（参照元: {0}）: {1}</value>
@@ -643,13 +643,10 @@
     <value>【ステップ 1/4】ゲームディレクトリの指定</value>
   </data>
   <data name="Wizard_Step2Header" xml:space="preserve">
-    <value>【ステップ 2/4】マッピングファイルの指定（.usmap / .jmap）</value>
+    <value>【ステップ 2/4】マッピングファイルの指定（.usmap）</value>
   </data>
   <data name="Wizard_UsmapNote" xml:space="preserve">
     <value>説明: .usmap は必須です。「ffr-export fetch-usmap --game &lt;dir&gt;」で自動取得するか、ゲーム実行中に UE4SS でダンプしてください。</value>
-  </data>
-  <data name="Wizard_JmapNote" xml:space="preserve">
-    <value>任意: .jmap リフレクションダンプファイル（複数追加可。不要な場合はそのまま Enter でスキップ）。</value>
   </data>
   <data name="Wizard_Step3Header" xml:space="preserve">
     <value>【ステップ 3/4】出力ディレクトリの選択</value>
@@ -668,12 +665,6 @@
   </data>
   <data name="Wizard_SummaryUsmap" xml:space="preserve">
     <value>  .usmap ファイル: {0}</value>
-  </data>
-  <data name="Wizard_SummaryJmapNone" xml:space="preserve">
-    <value>  .jmap ファイル: なし（スキップ）</value>
-  </data>
-  <data name="Wizard_SummaryJmapCount" xml:space="preserve">
-    <value>  .jmap ファイル: 計 {0} 件</value>
   </data>
   <data name="Wizard_SummaryOutputForce" xml:space="preserve">
     <value>  出力ディレクトリ: {0}（クリアして再構築します）</value>
@@ -752,33 +743,6 @@
   </data>
   <data name="Wizard_RequiredFieldEmpty" xml:space="preserve">
     <value>{0} は必須です。空にせずもう一度入力してください。</value>
-  </data>
-  <data name="Wizard_JmapFirstPrompt" xml:space="preserve">
-    <value>1 つ目の .jmap ファイルパス（Enter でスキップ）: </value>
-  </data>
-  <data name="Wizard_JmapNextPrompt" xml:space="preserve">
-    <value>{0} つ目の .jmap ファイルパス（続けて貼り付けるか Enter で終了）: </value>
-  </data>
-  <data name="Wizard_JmapSkipped" xml:space="preserve">
-    <value>.jmap ファイルをスキップしました。</value>
-  </data>
-  <data name="Wizard_JmapAddedCount" xml:space="preserve">
-    <value>計 {0} 件の .jmap ファイルを追加しました。</value>
-  </data>
-  <data name="Wizard_InvalidPathOrSkip" xml:space="preserve">
-    <value>パスの形式が無効です: {0}。再入力するか Enter でスキップしてください。</value>
-  </data>
-  <data name="Wizard_JmapIsDirOrSkip" xml:space="preserve">
-    <value>入力されたパスはディレクトリです: {0}。.jmap ファイルのパスを貼り付けるか Enter でスキップしてください。</value>
-  </data>
-  <data name="Wizard_FileNotFoundOrSkip" xml:space="preserve">
-    <value>ファイルが見つかりません: {0}。パスを確認して再入力するか Enter でスキップしてください。</value>
-  </data>
-  <data name="Wizard_JmapDuplicate" xml:space="preserve">
-    <value>ヒント: この .jmap ファイルは追加済みのため重複をスキップしました: {0}</value>
-  </data>
-  <data name="Wizard_JmapAddedItem" xml:space="preserve">
-    <value>  追加しました: {0}</value>
   </data>
   <data name="Wizard_DefaultOutputDir" xml:space="preserve">
     <value>既定の出力ディレクトリ: {0}</value>
@@ -886,7 +850,7 @@
     <value>  2. ファイルが不足している場合は、Steam でゲームを右クリック → プロパティ → インストール済みファイル → ゲームファイルの整合性を確認してください。</value>
   </data>
   <data name="Wizard_AdviceGeneric1" xml:space="preserve">
-    <value>  1. 上記エラーを確認し、ゲームディレクトリ・.usmap/.jmap ファイル・出力先の権限を見直してください。</value>
+    <value>  1. 上記エラーを確認し、ゲームディレクトリ・.usmap ファイル・出力先の権限を見直してください。</value>
   </data>
   <data name="Wizard_AdviceGeneric2" xml:space="preserve">
     <value>  2. 出力先ドライブに数 GB 以上の空き容量があることを確認してください。</value>
@@ -1290,9 +1254,6 @@
   <data name="GuiCore_LaunchCliFailed" xml:space="preserve">
     <value>CLI 実行ファイルを起動できませんでした: {0}</value>
   </data>
-  <data name="GuiCore_DualComboHint" xml:space="preserve">
-    <value>known-builds.json には「.usmap のみ」と「.usmap + .jmap 2 件」の 2 通りが登録されているため、.jmap の有無にかかわらず照合できます。</value>
-  </data>
   <data name="GuiCore_ReportNotFound" xml:space="preserve">
     <value>ビルド結果の読み取りに失敗しました: 出力ディレクトリ {0} に *.build.json が見つかりません。</value>
   </data>
@@ -1308,12 +1269,6 @@
   <data name="GuiCore_ReportMissingFileSha" xml:space="preserve">
     <value>ビルドレポートに database.file_sha256 フィールドがありません: {0}</value>
   </data>
-  <data name="GuiCore_InputDescUsmapOnly" xml:space="preserve">
-    <value>今回の入力: .usmap のみ（.jmap なし）</value>
-  </data>
-  <data name="GuiCore_InputDescWithJmaps" xml:space="preserve">
-    <value>今回の入力: .usmap + .jmap {0} 件</value>
-  </data>
   <data name="GuiCore_PartialExportNotice" xml:space="preserve">
     <value>（ヒント: エクスポート中に一部のアセットパッケージが失敗しました。詳細はログとビルドレポートをご確認ください。）</value>
   </data>
@@ -1324,13 +1279,13 @@
     <value>登録済みビルドと一致</value>
   </data>
   <data name="GuiCore_VerdictMatchedExplanation" xml:space="preserve">
-    <value>{0}{1}。{2}{3}</value>
+    <value>ゲームファイル + .usmap から構築{0}。{1}</value>
   </data>
   <data name="GuiCore_VerdictNewVersionTitle" xml:space="preserve">
     <value>新バージョン（未登録）</value>
   </data>
   <data name="GuiCore_VerdictNewVersionExplanation" xml:space="preserve">
-    <value>{0}。現在のゲームバージョンは known-builds.json に未登録です。{1}{2}</value>
+    <value>現在のゲームバージョン（ゲームファイル + .usmap）は known-builds.json に未登録です。{0}</value>
   </data>
   <data name="GuiCore_VerdictHashMismatchTitle" xml:space="preserve">
     <value>ハッシュ不一致</value>
@@ -1344,17 +1299,14 @@
   <data name="GuiCore_VerdictGenericMismatchDetail" xml:space="preserve">
     <value>ゲームバージョンは登録済みですが、データベースハッシュが登録記録と異なります。</value>
   </data>
-  <data name="GuiCore_VerdictOddJmapCountNote" xml:space="preserve">
-    <value>注意: 現在 .jmap が {0} 件指定されていますが、登録済みの組み合わせは「0 件」または「2 件」です。</value>
-  </data>
   <data name="GuiCore_VerdictHashMismatchExplanation" xml:space="preserve">
-    <value>{0}。{1}{2}{3}{4}</value>
+    <value>{0}{1}</value>
   </data>
   <data name="GuiCore_VerdictUnknownTitle" xml:space="preserve">
     <value>照合結果不明</value>
   </data>
   <data name="GuiCore_VerdictUnknownExplanation" xml:space="preserve">
-    <value>{0}。ビルドレポートに認識可能な照合結果が含まれていません。{1}{2}</value>
+    <value>ビルドレポートに認識可能な照合結果が含まれていません。{0}</value>
   </data>
   <data name="GuiCore_ClipboardDbPath" xml:space="preserve">
     <value>データベースパス: {0}</value>
@@ -1578,18 +1530,6 @@
   <data name="GuiCore_UsmapDisplaySingle" xml:space="preserve">
     <value>{0}（更新日時: {1}）</value>
   </data>
-  <data name="GuiCore_JmapDisplay" xml:space="preserve">
-    <value>{0}（更新日時: {1}、{2}） — {3}</value>
-  </data>
-  <data name="GuiCore_SourceManualSelect" xml:space="preserve">
-    <value>手動選択</value>
-  </data>
-  <data name="GuiCore_SourceManualAdd" xml:space="preserve">
-    <value>手動追加</value>
-  </data>
-  <data name="GuiCore_SourceFetched" xml:space="preserve">
-    <value>自動取得</value>
-  </data>
   <data name="GuiCore_ScanDirCannotAccess" xml:space="preserve">
     <value>ディレクトリ {0} にアクセスできません: {1}</value>
   </data>
@@ -1755,7 +1695,7 @@
     <value>設定…</value>
   </data>
   <data name="Gui_GroupMappings" xml:space="preserve">
-    <value>2. マッピング・リフレクションファイル（.usmap / .jmap）</value>
+    <value>2. マッピングファイル（.usmap）</value>
   </data>
   <data name="Gui_LabelUsmapRequired" xml:space="preserve">
     <value>.usmap（必須）:</value>
@@ -1771,15 +1711,6 @@
   </data>
   <data name="Gui_LabelFilePath" xml:space="preserve">
     <value>ファイルパス:</value>
-  </data>
-  <data name="Gui_CheckIncludeJmap" xml:space="preserve">
-    <value>リフレクションデータを含める（.jmap、任意）</value>
-  </data>
-  <data name="Gui_BtnAddJmap" xml:space="preserve">
-    <value>.jmap を追加…</value>
-  </data>
-  <data name="Gui_BtnRemoveJmap" xml:space="preserve">
-    <value>選択を削除</value>
   </data>
   <data name="Gui_GroupOutput" xml:space="preserve">
     <value>3. 出力先</value>
@@ -1894,9 +1825,6 @@
   </data>
   <data name="Gui_UsmapAutoFindError" xml:space="preserve">
     <value>.usmap の自動検索に失敗しました: {0}。「.usmap を自動取得」または「.usmap を選択…」をクリックしてください。</value>
-  </data>
-  <data name="Gui_JmapUncheckedStatus" xml:space="preserve">
-    <value>未チェック（.usmap のみでエクスポート）。</value>
   </data>
   <data name="Gui_OpenUsmapDialogTitle" xml:space="preserve">
     <value>.usmap マッピングファイルを選択</value>
@@ -2034,36 +1962,6 @@
   <data name="Gui_StatusFetchUsmapFailed" xml:space="preserve">
     <value>状態: .usmap 取得失敗</value>
   </data>
-  <data name="Gui_JmapAutoFindError" xml:space="preserve">
-    <value>.jmap の自動検索に失敗しました: {0}。「.jmap を追加…」で手動選択するか、チェックを外して続行してください。</value>
-  </data>
-  <data name="Gui_JmapDirAccessWarn" xml:space="preserve">
-    <value>.jmap の自動検索中にディレクトリアクセスエラーが発生しました: {0}</value>
-  </data>
-  <data name="Gui_JmapAutoFoundStatus" xml:space="preserve">
-    <value>.jmap ファイルを {0} 件自動検出しました（追加・削除できます）。</value>
-  </data>
-  <data name="Gui_JmapPartialFoundStatus" xml:space="preserve">
-    <value>.jmap を {0} 件検出しましたが、一部ディレクトリを読み取れませんでした（{1}）。「.jmap を追加…」から補完できます。</value>
-  </data>
-  <data name="Gui_JmapScanErrorStatus" xml:space="preserve">
-    <value>.jmap の自動検索に失敗しました（{0}）。権限を確認するか、「.jmap を追加…」から手動選択してください。</value>
-  </data>
-  <data name="Gui_JmapNotFoundStatus" xml:space="preserve">
-    <value>ゲームフォルダの ue4ss / Win64 に .jmap ファイルが見つかりませんでした。「.jmap を追加…」から手動選択するか、チェックを外して続行してください。</value>
-  </data>
-  <data name="Gui_OpenJmapDialogTitle" xml:space="preserve">
-    <value>.jmap リフレクションダンプファイルを選択（複数選択可）</value>
-  </data>
-  <data name="Gui_OpenJmapDialogFilter" xml:space="preserve">
-    <value>UE リフレクションダンプ (*.jmap)|*.jmap|すべてのファイル (*.*)|*.*</value>
-  </data>
-  <data name="Gui_JmapSelectedCountStatus" xml:space="preserve">
-    <value>現在 {0} 件の .jmap ファイルが選択されています。</value>
-  </data>
-  <data name="Gui_JmapEmptyListStatus" xml:space="preserve">
-    <value>.jmap リストは空です。「.jmap を追加…」から選択するか、チェックを外して続行してください。</value>
-  </data>
   <data name="Gui_BrowseOutputDialogDesc" xml:space="preserve">
     <value>エクスポート出力先ディレクトリを選択</value>
   </data>
@@ -2083,21 +1981,6 @@
   </data>
   <data name="Gui_MissingUsmapTitle" xml:space="preserve">
     <value>.usmap ファイル未指定</value>
-  </data>
-  <data name="Gui_MissingJmapFileBody" xml:space="preserve">
-    <value>リフレクションデータファイルが存在しません: {0}
-項目を削除するか別のファイルを選択してください。</value>
-  </data>
-  <data name="Gui_MissingJmapFileTitle" xml:space="preserve">
-    <value>.jmap ファイルが見つかりません</value>
-  </data>
-  <data name="Gui_NoJmapConfirmBody" xml:space="preserve">
-    <value>「リフレクションデータを含める（.jmap、任意）」がオンですが、リストに .jmap ファイルがありません。
-
-「.usmap のみ」でエクスポートを続行しますか？</value>
-  </data>
-  <data name="Gui_NoJmapConfirmTitle" xml:space="preserve">
-    <value>.jmap 未選択</value>
   </data>
   <data name="Gui_OutputDirInvalidFallback" xml:space="preserve">
     <value>出力ディレクトリが無効です。選び直してください。</value>
@@ -2239,7 +2122,7 @@
     <value>output\（既定出力）、usmap\（マッピング）、downloads\（キャッシュ）、logs\、tmp\、ue4ss-backup\、settings.json が含まれます。</value>
   </data>
   <data name="Settings_Ue4ssTip" xml:space="preserve">
-    <value>ヒント: UE4SS のクリーンアップは、メインウィンドウの「2. マッピング・リフレクションファイル」にある「UE4SS をクリーンアップ…」ボタンから実行できます。</value>
+    <value>ヒント: UE4SS のクリーンアップは、メインウィンドウの「2. マッピングファイル（.usmap）」にある「UE4SS をクリーンアップ…」ボタンから実行できます。</value>
   </data>
   <data name="Settings_BtnClose" xml:space="preserve">
     <value>閉じる</value>

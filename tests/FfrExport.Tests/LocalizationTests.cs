@@ -147,7 +147,7 @@ public sealed class LocalizationTests
 
         // 2b. Saved settings.json language ("ja") takes effect when --lang and AGP_LANG are absent.
         var settingsPath = GuiSettingsStore.GetDefaultSettingsPath(agpHomeOverride: workspace.AgpHomeDir);
-        GuiSettingsStore.Save(new GuiSettings(null, false, "ja"), settingsPath);
+        GuiSettingsStore.Save(new GuiSettings(null, "ja"), settingsPath);
 
         var savedHelp = await TestHarness.RunCliAsync(["--help"], agpHome: workspace.AgpHomeDir);
         Assert.Equal(0, savedHelp.ExitCode);
@@ -309,7 +309,8 @@ public sealed class LocalizationTests
         WriteSyntheticBuildReport(reportDir, "matched");
         var report = BuildReportReader.ReadFromOutputDirectory(reportDir);
         Assert.Equal("Matches registered build", report.VerdictTitle);
-        Assert.Contains(".usmap only", report.VerdictExplanation, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".usmap", report.VerdictExplanation, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(".jmap", report.VerdictExplanation, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -390,7 +391,7 @@ public sealed class LocalizationTests
                 format = 1,
                 command = "build-db",
                 status = "completed",
-                inputs = new { jmaps = Array.Empty<object>() },
+                inputs = new { },
                 database = new
                 {
                     file_name = "ffr.sqlite",

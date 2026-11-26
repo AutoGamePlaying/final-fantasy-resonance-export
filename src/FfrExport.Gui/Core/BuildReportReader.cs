@@ -19,7 +19,6 @@ internal sealed record BuildReportSummary(
     long? DatabaseSize,
     string FileSha256,
     string? ContentSha256,
-    int JmapCount,
     BuildComparisonVerdict Verdict,
     string VerdictSymbol,
     string VerdictTitle,
@@ -36,8 +35,6 @@ internal sealed record BuildReportSummary(
 /// </summary>
 internal static class BuildReportReader
 {
-    internal static string DualComboHint => L.Get("GuiCore_DualComboHint");
-
     private static readonly UTF8Encoding Utf8WithoutBom = new(false);
 
     internal static string? FindBuildReportPath(string outputDirectory)
@@ -133,15 +130,6 @@ internal static class BuildReportReader
                 throw new InvalidDataException(L.Format("GuiCore_ReportMissingFileSha", reportPath));
             }
 
-            var jmapCount = 0;
-            if (root.TryGetProperty("inputs", out var inputsElement)
-                && inputsElement.ValueKind == JsonValueKind.Object
-                && inputsElement.TryGetProperty("jmaps", out var jmapsElement)
-                && jmapsElement.ValueKind == JsonValueKind.Array)
-            {
-                jmapCount = jmapsElement.GetArrayLength();
-            }
-
             string? cmpStatusRaw = null;
             string? cmpSource = null;
             string? matchedDate = null;
@@ -181,7 +169,6 @@ internal static class BuildReportReader
             var verdict = ClassifyVerdict(cmpStatusRaw);
             var (symbol, title, explanation) = FormatVerdictDisplay(
                 verdict,
-                jmapCount,
                 matchedDate,
                 fileShaOnly,
                 tableDiffCount,
@@ -195,7 +182,6 @@ internal static class BuildReportReader
                 dbSize,
                 fileSha256,
                 contentSha256,
-                jmapCount,
                 verdict,
                 symbol,
                 title,
@@ -222,16 +208,11 @@ internal static class BuildReportReader
 
     internal static (string Symbol, string Title, string Explanation) FormatVerdictDisplay(
         BuildComparisonVerdict verdict,
-        int jmapCount,
         string? matchedRegisteredAt,
         bool fileSha256MismatchOnly,
         int tableDiffCount,
         bool hasPartialExportFailure)
     {
-        var inputDesc = jmapCount == 0
-            ? L.Get("GuiCore_InputDescUsmapOnly")
-            : L.Format("GuiCore_InputDescWithJmaps", jmapCount);
-
         var partialNotice = hasPartialExportFailure
             ? L.Get("GuiCore_PartialExportNotice")
             : string.Empty;
@@ -243,13 +224,13 @@ internal static class BuildReportReader
                     var regPart = string.IsNullOrWhiteSpace(matchedRegisteredAt)
                         ? string.Empty
                         : L.Format("GuiCore_MatchedRegDatePart", matchedRegisteredAt);
-                    var explanation = L.Format("GuiCore_VerdictMatchedExplanation", inputDesc, regPart, DualComboHint, partialNotice);
+                    var explanation = L.Format("GuiCore_VerdictMatchedExplanation", regPart, partialNotice);
                     return ("✓", L.Get("GuiCore_VerdictMatchedTitle"), explanation);
                 }
 
             case BuildComparisonVerdict.NewVersion:
                 {
-                    var explanation = L.Format("GuiCore_VerdictNewVersionExplanation", inputDesc, DualComboHint, partialNotice);
+                    var explanation = L.Format("GuiCore_VerdictNewVersionExplanation", partialNotice);
                     return ("✗", L.Get("GuiCore_VerdictNewVersionTitle"), explanation);
                 }
 
@@ -269,23 +250,16 @@ internal static class BuildReportReader
                         detail = L.Get("GuiCore_VerdictGenericMismatchDetail");
                     }
 
-                    var jmapNote = jmapCount is > 0 and not 2
-                        ? L.Format("GuiCore_VerdictOddJmapCountNote", jmapCount)
-                        : string.Empty;
-
                     var explanation = L.Format(
                         "GuiCore_VerdictHashMismatchExplanation",
-                        inputDesc,
                         detail,
-                        jmapNote,
-                        DualComboHint,
                         partialNotice);
                     return ("✗", L.Get("GuiCore_VerdictHashMismatchTitle"), explanation);
                 }
 
             default:
                 {
-                    var explanation = L.Format("GuiCore_VerdictUnknownExplanation", inputDesc, DualComboHint, partialNotice);
+                    var explanation = L.Format("GuiCore_VerdictUnknownExplanation", partialNotice);
                     return ("✗", L.Get("GuiCore_VerdictUnknownTitle"), explanation);
                 }
         }
@@ -295,7 +269,6 @@ internal static class BuildReportReader
     {
         var (symbol, title, _) = FormatVerdictDisplay(
             summary.Verdict,
-            summary.JmapCount,
             summary.MatchedRegisteredAt,
             summary.FileSha256MismatchOnly,
             summary.TableDiffCount,

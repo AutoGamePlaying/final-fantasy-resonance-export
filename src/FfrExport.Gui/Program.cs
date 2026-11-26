@@ -458,10 +458,10 @@ internal static class Program
                 throw new InvalidOperationException(L.Get("Gui_SelfTestOutputCalcFailed"));
             }
 
-            var serialized = TextOutput.SerializeSystemJson(new GuiSettings(sampleOutputRoot, true, Localization.DefaultLanguage));
+            var serialized = TextOutput.SerializeSystemJson(new GuiSettings(sampleOutputRoot, Localization.DefaultLanguage));
             var deserialized = JsonSerializer.Deserialize<GuiSettings>(serialized);
             if (deserialized is null
-                || !deserialized.IncludeJmap
+                || !string.Equals(deserialized.OutputRootDirectory, sampleOutputRoot, StringComparison.Ordinal)
                 || !string.Equals(deserialized.Language, Localization.DefaultLanguage, StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(L.Get("Gui_SelfTestSettingsJsonFailed"));

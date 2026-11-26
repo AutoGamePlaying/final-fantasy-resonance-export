@@ -18,12 +18,12 @@
 4. **双击打开 `ffr-export-gui.exe`**，按界面顺序确认并点击 **开始导出**：
    - **切换界面语言**：默认使用英文，可在窗口右上角下拉框切换 **English** / **简体中文** / **日本語**，切换后立刻生效并自动写入 `settings.json`（启动后台命令行时也会透传 `--lang`）；
    - **自动扫描游戏**：启动时自动扫描 Steam 全部游戏库并列出名称、Steam 构建号和安装目录；若未找到可点 **手动选择游戏目录…**；
-   - **自动查找 / 一键获取 `.usmap`（及可选 `.jmap`）**：依次查找 `%LOCALAPPDATA%\agp\ffr-export\usmap\*.usmap`、`FFRS\Binaries\Win64\ue4ss\*.usmap` 与 `FFRS\Binaries\Win64\*.usmap` 并选中最新一份；未找到时会显示 **一键获取 .usmap（会启动一次游戏）** 按钮；勾选 **包含反射数据（.jmap，可选）** 后会在 `ue4ss\` / `Win64\` 下自动列出 `.jmap`（默认不勾选）；
-   - **输出位置与统一数据目录**：默认导出、`.usmap` 归档、下载缓存、日志与设置统一保存在 `%LOCALAPPDATA%\agp\ffr-export\`（详见下方 [统一数据目录与 `AGP_HOME`](#统一数据目录与-agp_home)），下次启动会自动记住上次的输出根目录、勾选状态与语言选择（不写注册表）；
+   - **自动查找 / 一键获取 `.usmap`**：依次查找 `%LOCALAPPDATA%\agp\ffr-export\usmap\*.usmap`、`FFRS\Binaries\Win64\ue4ss\*.usmap` 与 `FFRS\Binaries\Win64\*.usmap` 并选中最新一份；未找到时会显示 **一键获取 .usmap（会启动一次游戏）** 按钮；
+   - **输出位置与统一数据目录**：默认导出、`.usmap` 归档、下载缓存、日志与设置统一保存在 `%LOCALAPPDATA%\agp\ffr-export\`（详见下方 [统一数据目录与 `AGP_HOME`](#统一数据目录与-agp_home)），下次启动会自动记住上次的输出根目录与语言选择（不写注册表）；
    - **设置与清理 UE4SS**：点击 **设置…** 可查看数据目录；点击主窗口 **清理 UE4SS…** 可卸载本工具安装的 UE4SS（或按需备份并移走用户原有 UE4SS）；
    - **完成与核对**：导出时界面实时显示进度条与日志，可随时点 **取消** 结束后台进程树；完成后直接显示数据库路径、文件哈希、内容哈希与 `✓` / `✗` 比对结论，并提供 **打开输出文件夹** 与 **复制哈希** 按钮。
 
-> 已知版本表（`known-builds.json`）同时登记了两种输入组合：“只有 `.usmap`”和“`.usmap` 加两份 `.jmap`”，因此勾选或不勾选 `.jmap` 都可能与登记版本一致。
+> 已知版本表（`known-builds.json`）只登记“游戏文件 + `.usmap`”这一种组合。反射数据不属于导出工具，研究需要时，直接用 `ffr-db build --jmap`，见 [docs/database.md](docs/database.md)。
 
 窗口界面示意：
 
@@ -35,10 +35,8 @@
 |   游戏名称                  | Steam 构建号 | 安装目录           [手动选择…]  |
 | > FINAL FANTASY RESONANCE   | 24250053     | ...\common\...     [重新扫描]   |
 +------------------------------------------------------------------------------+
-| [2. 映射与反射文件（.usmap / .jmap）]                                        |
+| [2. 映射文件（.usmap）]                                                      |
 |   .usmap（必填）：已自动找到 FFRS-5.6.1.usmap（2026-11-25）     [选择 .usmap…]|
-|   [ ] 包含反射数据（.jmap，可选）                                            |
-|       (勾选后自动扫描 ue4ss / Win64 下的 *.jmap，支持添加/移除)              |
 +------------------------------------------------------------------------------+
 | [3. 输出位置]                                                                |
 |   输出目录：[ %LOCALAPPDATA%\agp\ffr-export\output\ffr-24250053   ] [ 浏览… ]  |
@@ -51,7 +49,7 @@
 | | ==> 步骤 3/5：调用 ffr-db build 构建 SQLite 数据库                       | |
 | +--------------------------------------------------------------------------+ |
 +------------------------------------------------------------------------------+
-| [4. 完成结果]  ✓ 与登记的版本一致（仅 .usmap / .usmap + 两份 .jmap 均可比对）|
+| [4. 完成结果]  ✓ 与登记的版本一致（游戏文件 + .usmap）                       |
 |   数据库路径：[ ...\ffr-24250053\ffr.sqlite                  ] [打开输出文件夹]|
 |   文件哈希：  [ b0a228269588...                              ] [  复制哈希   ]|
 |   内容哈希：  [ 28374329602c...                              ]                |
@@ -79,7 +77,7 @@
   usmap\                       一键获取或手动复制来的 .usmap（自动查找优先覆盖此目录）
   downloads\                   UE4SS 官方安装包下载缓存（复用前会校验 SHA-256）
   logs\                        窗口程序与命令行的运行日志（仅保留最近 10 个）
-  settings.json                窗口程序的设置（输出根目录、.jmap 开关、语言选择）
+  settings.json                窗口程序的设置（输出根目录、语言选择）
 ```
 
 - **根目录优先级**：环境变量 `AGP_HOME`（直接作为 `agp` 这一层目录）→ Windows 的 `%LOCALAPPDATA%\agp` → Linux/macOS 的 `$XDG_DATA_HOME/agp`（未设置时为 `~/.local/share/agp`）。在低完整性级别或 `%LOCALAPPDATA%` 不可写的 Windows 环境下，会自动依次回退检测 `%USERPROFILE%\AppData\LocalLow\agp`、`<程序目录>\agp-data`、`%USERPROFILE%\agp` 及已保存的 `agp-location.txt`，绝不回退写入 `%TEMP%`；
@@ -115,7 +113,7 @@ ffr-export.exe uninstall-ue4ss --game "<Steam 游戏目录>"
 
 如果偏好终端操作或在脚本中自动化运行，也可以直接使用同目录下的 `ffr-export.exe`：
 
-- **交互式控制台向导**：双击运行不带参数的 `ffr-export.exe`（可配合 `AGP_LANG=zh-Hans` 或 `--lang zh-Hans`），按提示选择游戏、确认 `.usmap`/`.jmap` 与输出目录（默认 `%LOCALAPPDATA%\agp\ffr-export\output\ffr-<Steam 构建号>\`）即可完成导出与建库。
+- **交互式控制台向导**：双击运行不带参数的 `ffr-export.exe`（可配合 `AGP_LANG=zh-Hans` 或 `--lang zh-Hans`），按提示选择游戏、确认 `.usmap` 与输出目录（默认 `%LOCALAPPDATA%\agp\ffr-export\output\ffr-<Steam 构建号>\`）即可完成导出与建库。
 - **命令行一键建库**：直接带参数调用 `build-db` 子命令（窗口程序后台调用的也是同一条命令）：
 
 ```powershell
@@ -249,7 +247,7 @@ FFR_DEPS=.deps cargo run --release -p ffr-db -- build \
   [--jmap <文件>]... [--snapshots <目录>] [--stages <阶段列表>] [--out <文件>]
 ```
 
-典型完整构建（合并多份 `.jmap`，不含真机快照）：
+研究用途构建（附加可选 `.jmap`，不属于导出工具流程，详见 [docs/database.md](docs/database.md)）：
 
 ```bash
 FFR_DEPS=.deps cargo run --release -p ffr-db -- build \

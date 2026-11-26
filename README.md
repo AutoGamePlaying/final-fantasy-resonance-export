@@ -18,12 +18,12 @@ No development environment is required. Download the packaged Windows release an
 4. **Launch `ffr-export-gui.exe`**, verify the detected paths, and click **Start Export**:
    - **Language selector**: use the top-right dropdown (**English** / **简体中文** / **日本語**) to switch UI and child-CLI language immediately (defaults to English and saves your choice to `settings.json`).
    - **Auto-detect game**: automatically scans all Steam libraries on startup and lists the game title, Steam Build ID, and install path; click **Select Game Folder…** to pick manually.
-   - **Auto-locate / one-click `.usmap` (and optional `.jmap`)**: searches `%LOCALAPPDATA%\agp\ffr-export\usmap\*.usmap`, `FFRS\Binaries\Win64\ue4ss\*.usmap`, and `FFRS\Binaries\Win64\*.usmap` in order and picks the newest file; when missing, **Fetch .usmap (launches game once)** appears. Check **Include reflection data (.jmap, optional)** to scan `ue4ss\` / `Win64\` for `.jmap` files (off by default).
-   - **Unified data directory**: default exports, archived `.usmap` files, download caches, logs, and GUI settings live under `%LOCALAPPDATA%\agp\ffr-export\` (see [Unified Data Directory and `AGP_HOME`](#unified-data-directory-and-agp_home)); your last output root, `.jmap` checkbox, and language preference are remembered automatically (no registry writes).
+   - **Auto-locate / one-click `.usmap`**: searches `%LOCALAPPDATA%\agp\ffr-export\usmap\*.usmap`, `FFRS\Binaries\Win64\ue4ss\*.usmap`, and `FFRS\Binaries\Win64\*.usmap` in order and picks the newest file; when missing, **Fetch .usmap (launches game once)** appears.
+   - **Unified data directory**: default exports, archived `.usmap` files, download caches, logs, and GUI settings live under `%LOCALAPPDATA%\agp\ffr-export\` (see [Unified Data Directory and `AGP_HOME`](#unified-data-directory-and-agp_home)); your last output root and language preference are remembered automatically (no registry writes).
    - **Settings & UE4SS cleanup**: click **Settings…** to inspect the active data root, or **Clean up UE4SS…** on the main window to uninstall UE4SS installed by this tool (or back up and remove a user-installed UE4SS if explicitly chosen).
    - **Progress & verification**: displays live progress and logs with a **Cancel** button that terminates the child process tree cleanly. When finished, it shows the database path, file/content SHA-256 hashes, `✓` / `✗` comparison against `known-builds.json`, **Open Output Folder**, and **Copy Hashes**.
 
-> `known-builds.json` registers both input combinations — **`.usmap` only** and **`.usmap` + two `.jmap` files** — so either mode can match a registered build.
+> `known-builds.json` only registers the **game files + `.usmap`** combination. Reflection data (`.jmap`) is outside the scope of the exporter; when needed for research, run `ffr-db build --jmap` directly (see [docs/database.md](docs/database.md)).
 
 GUI overview:
 
@@ -35,10 +35,8 @@ GUI overview:
 |   Game                      | Steam Build  | Install Folder     [Browse...]  |
 | > FINAL FANTASY RESONANCE   | 24250053     | ...\common\...     [Rescan]     |
 +------------------------------------------------------------------------------+
-| [2. Mapping & Reflection Files (.usmap / .jmap)]                             |
+| [2. Mapping File (.usmap)]                                                   |
 |   .usmap (required): Auto-found FFRS-5.6.1.usmap (2026-11-25)  [Select ...]  |
-|   [ ] Include reflection data (.jmap, optional)                              |
-|       (scans ue4ss / Win64 for *.jmap when checked; supports add/remove)     |
 +------------------------------------------------------------------------------+
 | [3. Output Location]                                                         |
 |   Output folder: [ %LOCALAPPDATA%\agp\ffr-export\output\ffr-24250053 ] [...] |
@@ -51,7 +49,7 @@ GUI overview:
 | | ==> Step 3/5: Building SQLite database via ffr-db build                  | |
 | +--------------------------------------------------------------------------+ |
 +------------------------------------------------------------------------------+
-| [4. Result]  ✓ Matches registered build (.usmap only or .usmap + 2 .jmap)    |
+| [4. Result]  ✓ Matches registered build (game files + .usmap)                |
 |   Database:     [ ...\ffr-24250053\ffr.sqlite          ] [Open Output Folder]|
 |   File SHA256:  [ b0a228269588...                      ] [   Copy Hashes    ]|
 |   Content Hash: [ 28374329602c...                      ]                     |
@@ -79,7 +77,7 @@ All user-facing default files for the GUI, `build-db`, the interactive wizard, a
   usmap\                        Archived .usmap files from fetch-usmap or manual copies (searched first)
   downloads\                    Verified UE4SS official archive cache (SHA-256 verified before reuse)
   logs\                         GUI and CLI run logs (retains the latest 10 files)
-  settings.json                 GUI settings (output root, .jmap toggle, language)
+  settings.json                 GUI settings (output root, language)
 ```
 
 - **Root priority**: `AGP_HOME` environment variable (used directly as the `agp` root) -> `%LOCALAPPDATA%\agp` on Windows -> `$XDG_DATA_HOME/agp` (or `~/.local/share/agp`) on Linux/macOS. On restricted Windows environments (e.g. Low Integrity / unwritable `%LOCALAPPDATA%`), the tool automatically probes `%USERPROFILE%\AppData\LocalLow\agp`, `<exeDir>\agp-data`, `%USERPROFILE%\agp`, and saved `agp-location.txt` without ever writing to `%TEMP%`.
@@ -115,7 +113,7 @@ Download [RE-UE4SS v4.0.0](https://github.com/UE4SS-RE/RE-UE4SS/releases/tag/v4.
 
 You can also use `ffr-export.exe` directly from the same folder:
 
-- **Interactive wizard**: double-click `ffr-export.exe` with no arguments to follow step-by-step prompts to pick the game, `.usmap`/`.jmap`, and output directory (defaults to `%LOCALAPPDATA%\agp\ffr-export\output\ffr-<Steam Build ID>\`).
+- **Interactive wizard**: double-click `ffr-export.exe` with no arguments to follow step-by-step prompts to pick the game, `.usmap`, and output directory (defaults to `%LOCALAPPDATA%\agp\ffr-export\output\ffr-<Steam Build ID>\`).
 - **One-command database build**: run `build-db` directly (the same subcommand used behind the scenes by the GUI):
 
 ```powershell
@@ -251,7 +249,7 @@ FFR_DEPS=.deps cargo run --release -p ffr-db -- build \
   [--jmap <file>]... [--snapshots <dir>] [--stages <list>] [--out <file>]
 ```
 
-Typical full build (merging multiple `.jmap` dumps without live snapshots):
+Research build with optional `.jmap` dumps (outside the exporter workflow; see [docs/database.md](docs/database.md)):
 
 ```bash
 FFR_DEPS=.deps cargo run --release -p ffr-db -- build \

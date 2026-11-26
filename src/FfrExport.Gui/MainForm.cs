@@ -11,7 +11,7 @@ namespace FfrExport.Gui;
 internal sealed class MainForm : Form
 {
     private const int MinimumWindowWidth = 800;
-    private const int MinimumWindowHeight = 760;
+    private const int MinimumWindowHeight = 680;
     private const int MaxLogCharacters = 400_000;
 
     private enum ActiveOperation
@@ -38,16 +38,6 @@ internal sealed class MainForm : Form
         NotFound,
         ManualSelected,
         Fetched,
-        RawError,
-    }
-
-    private enum JmapStatusKind
-    {
-        Unchecked,
-        AutoFound,
-        NotFound,
-        SelectedCount,
-        EmptyList,
         RawError,
     }
 
@@ -94,7 +84,6 @@ internal sealed class MainForm : Form
     private readonly Font _monoFont;
 
     private readonly List<GameEntry> _games = [];
-    private readonly List<DiscoveredMappingFile> _jmapFiles = [];
 
     private readonly Label _languageLabel;
     private readonly ComboBox _languageComboBox;
@@ -117,12 +106,6 @@ internal sealed class MainForm : Form
     private readonly Button _browseUsmapButton;
     private readonly Button _cleanupUe4ssButton;
     private readonly Button _fetchUsmapButton;
-    private readonly CheckBox _includeJmapCheckBox;
-    private readonly Label _jmapComboHint;
-    private readonly ListBox _jmapListBox;
-    private readonly Button _addJmapButton;
-    private readonly Button _removeJmapButton;
-    private readonly Label _jmapStatusLabel;
 
     private readonly GroupBox _outputGroup;
     private readonly Label _outputCaption;
@@ -161,7 +144,6 @@ internal sealed class MainForm : Form
     private bool _usmapManuallySelected;
     private bool _userCustomizedOutputDir;
     private bool _suppressOutputTextChanged;
-    private bool _suppressJmapToggle;
     private bool _suppressLanguageChanged;
     private ActiveOperation _activeOperation = ActiveOperation.None;
     private bool _isExporting => _activeOperation != ActiveOperation.None;
@@ -173,7 +155,6 @@ internal sealed class MainForm : Form
     private GameStatusKind _gameStatusKind = GameStatusKind.None;
     private string? _gameStatusArg;
     private UsmapStatusKind _usmapStatusKind = UsmapStatusKind.None;
-    private JmapStatusKind _jmapStatusKind = JmapStatusKind.Unchecked;
     private bool _outputHintIsDefault = true;
     private ProgressDisplayKind _progressDisplayKind = ProgressDisplayKind.Ready;
     private int _lastProgressExitCode;
@@ -262,7 +243,7 @@ internal sealed class MainForm : Form
         AutoScaleMode = AutoScaleMode.Dpi;
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(MinimumWindowWidth, MinimumWindowHeight);
-        ClientSize = new Size(920, 880);
+        ClientSize = new Size(920, 800);
 
         var rootLayout = new TableLayoutPanel
         {
@@ -436,7 +417,7 @@ internal sealed class MainForm : Form
         gameLayout.SetColumnSpan(_gameStatusLabel, 2);
         _gameGroup.Controls.Add(gameLayout);
 
-        // Section 2: Resonance-specific .usmap and optional .jmap inputs
+        // Section 2: Resonance-specific .usmap mapping file
         _mappingGroup = new GroupBox
         {
             Text = L.Get("Gui_GroupMappings"),
@@ -451,7 +432,7 @@ internal sealed class MainForm : Form
             Dock = DockStyle.Fill,
             AutoSize = true,
             ColumnCount = 3,
-            RowCount = 7,
+            RowCount = 3,
         };
         mappingLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         mappingLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
@@ -532,70 +513,6 @@ internal sealed class MainForm : Form
             Margin = new Padding(0, 2, 8, 6),
         };
 
-        _includeJmapCheckBox = new CheckBox
-        {
-            Text = L.Get("Gui_CheckIncludeJmap"),
-            AutoSize = true,
-            Margin = new Padding(0, 4, 0, 2),
-        };
-        _includeJmapCheckBox.CheckedChanged += OnIncludeJmapCheckedChanged;
-
-        _jmapComboHint = new Label
-        {
-            Text = BuildReportReader.DualComboHint,
-            AutoSize = true,
-            ForeColor = SystemColors.GrayText,
-            MaximumSize = new Size(900, 0),
-            Margin = new Padding(20, 0, 0, 4),
-        };
-
-        _jmapListBox = new ListBox
-        {
-            Dock = DockStyle.Fill,
-            Height = 64,
-            HorizontalScrollbar = true,
-            IntegralHeight = false,
-            Margin = new Padding(0, 2, 8, 4),
-        };
-
-        var jmapButtonsPanel = new FlowLayoutPanel
-        {
-            FlowDirection = FlowDirection.TopDown,
-            WrapContents = false,
-            AutoSize = true,
-            Margin = new Padding(0, 2, 0, 4),
-        };
-        _addJmapButton = new Button
-        {
-            Text = L.Get("Gui_BtnAddJmap"),
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            MinimumSize = new Size(132, 29),
-            Padding = new Padding(8, 0, 8, 0),
-            Margin = new Padding(0, 0, 0, 4),
-        };
-        _addJmapButton.Click += OnAddJmapClick;
-
-        _removeJmapButton = new Button
-        {
-            Text = L.Get("Gui_BtnRemoveJmap"),
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            MinimumSize = new Size(132, 29),
-            Padding = new Padding(8, 0, 8, 0),
-            Margin = new Padding(0),
-        };
-        _removeJmapButton.Click += OnRemoveJmapClick;
-        jmapButtonsPanel.Controls.Add(_addJmapButton);
-        jmapButtonsPanel.Controls.Add(_removeJmapButton);
-
-        _jmapStatusLabel = new Label
-        {
-            AutoSize = true,
-            ForeColor = SystemColors.GrayText,
-            Margin = new Padding(0, 0, 0, 0),
-        };
-
         mappingLayout.Controls.Add(_usmapCaption, 0, 0);
         mappingLayout.Controls.Add(_usmapStatusLabel, 1, 0);
         mappingLayout.Controls.Add(usmapActionButtons, 2, 0);
@@ -606,19 +523,6 @@ internal sealed class MainForm : Form
         mappingLayout.Controls.Add(_usmapPathCaption, 0, 2);
         mappingLayout.Controls.Add(_usmapPathTextBox, 1, 2);
         mappingLayout.SetColumnSpan(_usmapPathTextBox, 2);
-
-        mappingLayout.Controls.Add(_includeJmapCheckBox, 0, 3);
-        mappingLayout.SetColumnSpan(_includeJmapCheckBox, 3);
-
-        mappingLayout.Controls.Add(_jmapComboHint, 0, 4);
-        mappingLayout.SetColumnSpan(_jmapComboHint, 3);
-
-        mappingLayout.Controls.Add(_jmapListBox, 0, 5);
-        mappingLayout.SetColumnSpan(_jmapListBox, 2);
-        mappingLayout.Controls.Add(jmapButtonsPanel, 2, 5);
-
-        mappingLayout.Controls.Add(_jmapStatusLabel, 0, 6);
-        mappingLayout.SetColumnSpan(_jmapStatusLabel, 3);
         _mappingGroup.Controls.Add(mappingLayout);
 
         // Section 3: Output directory
@@ -939,11 +843,6 @@ internal sealed class MainForm : Form
         Controls.Add(rootLayout);
         Controls.Add(_statusStrip);
 
-        // Apply persisted .jmap checkbox state without firing redundant scans before initial game discovery.
-        _suppressJmapToggle = true;
-        _includeJmapCheckBox.Checked = loadedSettings.IncludeJmap;
-        _suppressJmapToggle = false;
-
         ResumeLayout(false);
         Shown += OnFormShown;
 
@@ -953,7 +852,6 @@ internal sealed class MainForm : Form
         }
 
         ScanAndPopulateGames();
-        UpdateJmapControlsEnabledState();
     }
 
     private string FormatDefaultOutputHintText()
@@ -1037,12 +935,7 @@ internal sealed class MainForm : Form
             _cleanupUe4ssButton.Text = L.Get("Gui_BtnCleanupUe4ss");
             _fetchUsmapButton.Text = L.Get("Gui_BtnFetchUsmap");
             _usmapPathCaption.Text = L.Get("Gui_LabelFilePath");
-            _includeJmapCheckBox.Text = L.Get("Gui_CheckIncludeJmap");
-            _jmapComboHint.Text = BuildReportReader.DualComboHint;
-            _addJmapButton.Text = L.Get("Gui_BtnAddJmap");
-            _removeJmapButton.Text = L.Get("Gui_BtnRemoveJmap");
             RefreshUsmapStatusLabelText();
-            RefreshJmapListAndStatusText();
 
             _outputGroup.Text = L.Get("Gui_GroupOutput");
             _outputCaption.Text = L.Get("Gui_LabelOutputDir");
@@ -1117,48 +1010,6 @@ internal sealed class MainForm : Form
                 _usmapStatusLabel.Text = L.Format(
                     "Gui_UsmapFetchedStatus",
                     MappingDiscovery.FormatUsmapDisplay(_selectedUsmap));
-                break;
-        }
-    }
-
-    private void RefreshJmapListAndStatusText()
-    {
-        var selectedIndex = _jmapListBox.SelectedIndex;
-        _jmapListBox.BeginUpdate();
-        try
-        {
-            _jmapListBox.Items.Clear();
-            foreach (var file in _jmapFiles)
-            {
-                _jmapListBox.Items.Add(MappingDiscovery.FormatJmapDisplay(file));
-            }
-
-            if (selectedIndex >= 0 && selectedIndex < _jmapListBox.Items.Count)
-            {
-                _jmapListBox.SelectedIndex = selectedIndex;
-            }
-        }
-        finally
-        {
-            _jmapListBox.EndUpdate();
-        }
-
-        switch (_jmapStatusKind)
-        {
-            case JmapStatusKind.Unchecked:
-                _jmapStatusLabel.Text = L.Get("Gui_JmapUncheckedStatus");
-                break;
-            case JmapStatusKind.AutoFound:
-                _jmapStatusLabel.Text = L.Format("Gui_JmapAutoFoundStatus", _jmapFiles.Count);
-                break;
-            case JmapStatusKind.NotFound:
-                _jmapStatusLabel.Text = L.Get("Gui_JmapNotFoundStatus");
-                break;
-            case JmapStatusKind.SelectedCount:
-                _jmapStatusLabel.Text = L.Format("Gui_JmapSelectedCountStatus", _jmapFiles.Count);
-                break;
-            case JmapStatusKind.EmptyList:
-                _jmapStatusLabel.Text = L.Get("Gui_JmapEmptyListStatus");
                 break;
         }
     }
@@ -1562,17 +1413,6 @@ internal sealed class MainForm : Form
                 _startupLog?.WriteWarning(errorMessage);
                 AppendLogLine(L.Format("Gui_LogPrefixInfo", errorMessage));
             }
-        }
-
-        if (_includeJmapCheckBox.Checked)
-        {
-            RefreshDiscoveredJmaps();
-        }
-        else
-        {
-            _jmapStatusKind = JmapStatusKind.Unchecked;
-            _jmapStatusLabel.ForeColor = SystemColors.GrayText;
-            _jmapStatusLabel.Text = L.Get("Gui_JmapUncheckedStatus");
         }
     }
 
@@ -2041,164 +1881,6 @@ internal sealed class MainForm : Form
         }
     }
 
-    private void OnIncludeJmapCheckedChanged(object? sender, EventArgs e)
-    {
-        UpdateJmapControlsEnabledState();
-        if (_suppressJmapToggle)
-        {
-            return;
-        }
-
-        if (_includeJmapCheckBox.Checked)
-        {
-            RefreshDiscoveredJmaps();
-        }
-        else
-        {
-            _jmapStatusKind = JmapStatusKind.Unchecked;
-            _jmapStatusLabel.ForeColor = SystemColors.GrayText;
-            _jmapStatusLabel.Text = L.Get("Gui_JmapUncheckedStatus");
-        }
-
-        SaveSettingsSafely();
-    }
-
-    private void RefreshDiscoveredJmaps()
-    {
-        _jmapFiles.Clear();
-        _jmapListBox.Items.Clear();
-
-        JmapDiscoveryResult jmapResult;
-        try
-        {
-            jmapResult = MappingDiscovery.DiscoverJmapsWithDiagnostics(_selectedGame?.GameDirectory);
-        }
-        catch (Exception exception)
-        {
-            _jmapStatusKind = JmapStatusKind.RawError;
-            var errorMessage = L.Format("Gui_JmapAutoFindError", exception.Message);
-            _jmapStatusLabel.ForeColor = Color.FromArgb(185, 28, 28);
-            _jmapStatusLabel.Text = errorMessage;
-            _startupLog?.WriteWarning(errorMessage);
-            AppendLogLine(L.Format("Gui_LogPrefixInfo", errorMessage));
-            return;
-        }
-
-        foreach (var file in jmapResult.Files)
-        {
-            _jmapFiles.Add(file);
-            _jmapListBox.Items.Add(MappingDiscovery.FormatJmapDisplay(file));
-        }
-
-        if (!string.IsNullOrWhiteSpace(jmapResult.ScanError))
-        {
-            var warn = L.Format("Gui_JmapDirAccessWarn", jmapResult.ScanError);
-            _startupLog?.WriteWarning(warn);
-            AppendLogLine(L.Format("Gui_LogPrefixInfo", warn));
-        }
-
-        if (_jmapFiles.Count > 0)
-        {
-            if (string.IsNullOrWhiteSpace(jmapResult.ScanError))
-            {
-                _jmapStatusKind = JmapStatusKind.AutoFound;
-                _jmapStatusLabel.ForeColor = Color.FromArgb(0, 120, 0);
-                _jmapStatusLabel.Text = L.Format("Gui_JmapAutoFoundStatus", _jmapFiles.Count);
-            }
-            else
-            {
-                _jmapStatusKind = JmapStatusKind.RawError;
-                _jmapStatusLabel.ForeColor = Color.FromArgb(180, 100, 0);
-                _jmapStatusLabel.Text = L.Format("Gui_JmapPartialFoundStatus", _jmapFiles.Count, jmapResult.ScanError);
-            }
-        }
-        else if (!string.IsNullOrWhiteSpace(jmapResult.ScanError))
-        {
-            _jmapStatusKind = JmapStatusKind.RawError;
-            _jmapStatusLabel.ForeColor = Color.FromArgb(185, 28, 28);
-            _jmapStatusLabel.Text = L.Format("Gui_JmapScanErrorStatus", jmapResult.ScanError);
-        }
-        else
-        {
-            _jmapStatusKind = JmapStatusKind.NotFound;
-            _jmapStatusLabel.ForeColor = Color.FromArgb(180, 100, 0);
-            _jmapStatusLabel.Text = L.Get("Gui_JmapNotFoundStatus");
-        }
-    }
-
-    private void OnAddJmapClick(object? sender, EventArgs e)
-    {
-        using var dialog = new OpenFileDialog
-        {
-            Title = L.Get("Gui_OpenJmapDialogTitle"),
-            Filter = L.Get("Gui_OpenJmapDialogFilter"),
-            CheckFileExists = true,
-            Multiselect = true,
-        };
-        if (_selectedGame is not null)
-        {
-            var ue4ssDir = SteamLocator.CombineRelativeSubpath(
-                _selectedGame.GameDirectory,
-                MappingDiscovery.RelativeUe4ssSubpath);
-            if (Directory.Exists(ue4ssDir))
-            {
-                dialog.InitialDirectory = ue4ssDir;
-            }
-        }
-
-        if (dialog.ShowDialog(this) != DialogResult.OK)
-        {
-            return;
-        }
-
-        var added = 0;
-        foreach (var fileName in dialog.FileNames)
-        {
-            var entry = MappingDiscovery.CreateFromExistingFile(fileName, "manual-add");
-            var duplicate = _jmapFiles.Any(existing =>
-                string.Equals(existing.FullPath, entry.FullPath, StringComparison.OrdinalIgnoreCase));
-            if (duplicate)
-            {
-                continue;
-            }
-
-            _jmapFiles.Add(entry);
-            _jmapListBox.Items.Add(MappingDiscovery.FormatJmapDisplay(entry));
-            added++;
-        }
-
-        if (added > 0 || _jmapFiles.Count > 0)
-        {
-            _jmapStatusKind = JmapStatusKind.SelectedCount;
-            _jmapStatusLabel.ForeColor = Color.FromArgb(0, 120, 0);
-            _jmapStatusLabel.Text = L.Format("Gui_JmapSelectedCountStatus", _jmapFiles.Count);
-        }
-    }
-
-    private void OnRemoveJmapClick(object? sender, EventArgs e)
-    {
-        var index = _jmapListBox.SelectedIndex;
-        if (index < 0 || index >= _jmapFiles.Count)
-        {
-            return;
-        }
-
-        _jmapFiles.RemoveAt(index);
-        _jmapListBox.Items.RemoveAt(index);
-        if (_jmapFiles.Count == 0)
-        {
-            _jmapStatusKind = JmapStatusKind.EmptyList;
-            _jmapStatusLabel.ForeColor = Color.FromArgb(180, 100, 0);
-            _jmapStatusLabel.Text = L.Get("Gui_JmapEmptyListStatus");
-        }
-        else
-        {
-            _jmapStatusKind = JmapStatusKind.SelectedCount;
-            _jmapStatusLabel.ForeColor = Color.FromArgb(0, 120, 0);
-            _jmapStatusLabel.Text = L.Format("Gui_JmapSelectedCountStatus", _jmapFiles.Count);
-        }
-    }
-
     private void OnBrowseOutputClick(object? sender, EventArgs e)
     {
         using var dialog = new FolderBrowserDialog
@@ -2310,43 +1992,7 @@ internal sealed class MainForm : Form
             return;
         }
 
-        // 4. Validate optional .jmap selection.
-        var jmapPaths = new List<string>();
-        if (_includeJmapCheckBox.Checked)
-        {
-            foreach (var file in _jmapFiles)
-            {
-                if (!File.Exists(PathSupport.ToIoPath(file.FullPath)))
-                {
-                    MessageBox.Show(
-                        this,
-                        L.Format("Gui_MissingJmapFileBody", file.FullPath),
-                        L.Get("Gui_MissingJmapFileTitle"),
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                    return;
-                }
-
-                jmapPaths.Add(file.FullPath);
-            }
-
-            if (jmapPaths.Count == 0)
-            {
-                var proceedWithoutJmap = MessageBox.Show(
-                    this,
-                    L.Get("Gui_NoJmapConfirmBody"),
-                    L.Get("Gui_NoJmapConfirmTitle"),
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question,
-                    MessageBoxDefaultButton.Button1);
-                if (proceedWithoutJmap != DialogResult.Yes)
-                {
-                    return;
-                }
-            }
-        }
-
-        // 5. Inspect output directory and confirm before overwriting existing files.
+        // 4. Inspect output directory and confirm before overwriting existing files.
         var inspection = GuiPaths.InspectOutputDirectory(_outputDirTextBox.Text, _selectedGame.GameDirectory);
         var useForce = false;
 
@@ -2437,7 +2083,6 @@ internal sealed class MainForm : Form
         var request = new BuildCommandRequest(
             _selectedGame.GameDirectory,
             _selectedUsmap.FullPath,
-            jmapPaths,
             inspection.NormalizedPath,
             _selectedGame.SteamBuildId,
             useForce,
@@ -2646,7 +2291,6 @@ internal sealed class MainForm : Form
 
         var (symbol, title, explanation) = BuildReportReader.FormatVerdictDisplay(
             report.Verdict,
-            report.JmapCount,
             report.MatchedRegisteredAt,
             report.FileSha256MismatchOnly,
             report.TableDiffCount,
@@ -2761,13 +2405,10 @@ internal sealed class MainForm : Form
         _browseUsmapButton.Enabled = !busy;
         _cleanupUe4ssButton.Enabled = !busy;
         _fetchUsmapButton.Enabled = !busy;
-        _includeJmapCheckBox.Enabled = !busy;
         _outputDirTextBox.Enabled = !busy;
         _browseOutputButton.Enabled = !busy;
         _startButton.Enabled = !busy;
         _cancelButton.Enabled = busy;
-
-        UpdateJmapControlsEnabledState();
     }
 
     private void PostLogLineSafely(string line)
@@ -2795,14 +2436,6 @@ internal sealed class MainForm : Form
         {
             // Ignore shutdown races.
         }
-    }
-
-    private void UpdateJmapControlsEnabledState()
-    {
-        var enabled = !_isExporting && _includeJmapCheckBox.Checked;
-        _jmapListBox.Enabled = enabled;
-        _addJmapButton.Enabled = enabled;
-        _removeJmapButton.Enabled = enabled;
     }
 
     private void UpdateDefaultOutputDirectory(string gameCode, string? steamBuildId)
@@ -2875,7 +2508,6 @@ internal sealed class MainForm : Form
         {
             var settings = new GuiSettings(
                 _outputRootDirectory,
-                _includeJmapCheckBox.Checked,
                 Localization.CurrentLanguage);
             GuiSettingsStore.Save(settings, _settingsPath);
         }

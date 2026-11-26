@@ -7,7 +7,6 @@ namespace FfrExport.Gui.Core;
 internal sealed record BuildCommandRequest(
     string GameDirectory,
     string UsmapPath,
-    IReadOnlyList<string> JmapPaths,
     string OutputDirectory,
     string? SteamBuildId,
     bool Force,
@@ -39,19 +38,9 @@ internal static class BuildCliCommand
             request.GameDirectory,
             "--usmap",
             request.UsmapPath,
+            "--out",
+            request.OutputDirectory,
         };
-
-        foreach (var jmap in request.JmapPaths)
-        {
-            if (!string.IsNullOrWhiteSpace(jmap))
-            {
-                args.Add("--jmap");
-                args.Add(jmap);
-            }
-        }
-
-        args.Add("--out");
-        args.Add(request.OutputDirectory);
 
         if (!string.IsNullOrWhiteSpace(request.SteamBuildId))
         {

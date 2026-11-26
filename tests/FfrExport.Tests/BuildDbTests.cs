@@ -270,12 +270,16 @@ public sealed class BuildDbTests
         Assert.Contains("skill", output, StringComparison.Ordinal);
         Assert.Contains("unit", output, StringComparison.Ordinal);
 
-        // 4. Load prefers adjacent known-builds.json, falls back to the embedded registry.
+        // 4. Load prefers adjacent known-builds.json, falls back to the embedded registry,
+        //    and skips any entries containing non-empty jmaps.
         var emptyDir = Path.Combine(workspace.Root, "empty-bin");
         Directory.CreateDirectory(emptyDir);
-        var (embeddedEntries, embeddedSource) = KnownBuildsRegistry.Load(emptyDir);
+        var embeddedWarnings = new StringWriter();
+        var (embeddedEntries, embeddedSource) = KnownBuildsRegistry.Load(emptyDir, embeddedWarnings);
         Assert.Equal("embedded", embeddedSource);
         Assert.NotNull(embeddedEntries);
+        Assert.NotEmpty(embeddedEntries);
+        Assert.All(embeddedEntries, entry => Assert.False(KnownBuildsRegistry.HasNonEmptyJmaps(entry, out _)));
 
         var lowerHex64Regex = new Regex("^[0-9a-f]{64}$", RegexOptions.CultureInvariant);
         foreach (var entry in embeddedEntries)
@@ -296,10 +300,194 @@ public sealed class BuildDbTests
         File.WriteAllText(
             Path.Combine(adjacentDir, "known-builds.json"),
             JsonConvert.SerializeObject(new[] { registeredEntry }, Formatting.Indented));
-        var (fileEntries, fileSource) = KnownBuildsRegistry.Load(adjacentDir);
+        var fileWarnings = new StringWriter();
+        var (fileEntries, fileSource) = KnownBuildsRegistry.Load(adjacentDir, fileWarnings);
         Assert.Equal("file", fileSource);
         Assert.Single(fileEntries);
         Assert.Equal("aaaa1111bbbb2222", fileEntries[0].GameVersion.PakFingerprint);
+        Assert.Empty(fileWarnings.ToString());
+    }
+
+    [Fact]
+    public void KnownBuildsRegistry_SkipsEntriesWithNonEmptyJmapsAndLogsWarning()
+    {
+        using var langScope = Localization.UseLanguageScope("zh-Hans");
+        using var workspace = new TempWorkspace("ffr-known-builds-skip-jmap");
+
+        var usmapSample = new
+        {
+            file_name = "FFRS.usmap",
+            size = 1024L,
+            file_sha256 = new string('1', 64),
+            content_sha256 = new string('2', 64),
+            type_count = 10,
+            enum_count = 2,
+        };
+        var gameVersionSample = new
+        {
+            steam = new { app_id = 3259780, build_id = "24250053", source = "manual" },
+            exe = new { relative_path = GameVersionDetector.RelativeExeSubpath, size = 1024L },
+            pak_fingerprint = "fp_same_game",
+            pak_files = Array.Empty<object>(),
+        };
+
+        var json = JsonConvert.SerializeObject(new object[]
+        {
+            new
+            {
+                registered_at = "2026-11-25",
+                note = "legacy with jmaps",
+                game_version = gameVersionSample,
+                inputs = new
+                {
+                    usmap = usmapSample,
+                    jmaps = new object[]
+                    {
+                        new { file_name = "title.jmap", size = 100L, sha256 = new string('a', 64) },
+                        new { file_name = "battle.jmap", size = 200L, sha256 = new string('b', 64) },
+                    },
+                },
+                database = new
+                {
+                    file_name = "ffr.sqlite",
+                    size = 4096L,
+                    schema_version = 3,
+                    sqlite_version = "3.54.1",
+                    file_sha256 = new string('c', 64),
+                    content_sha256 = new string('d', 64),
+                    hash_format = 1,
+                    tables = Array.Empty<object>(),
+                },
+            },
+            new
+            {
+                registered_at = "2026-11-26",
+                note = "usmap only with empty jmaps array",
+                game_version = gameVersionSample,
+                inputs = new
+                {
+                    usmap = usmapSample,
+                    jmaps = Array.Empty<object>(),
+                },
+                database = new
+                {
+                    file_name = "ffr.sqlite",
+                    size = 2048L,
+                    schema_version = 3,
+                    sqlite_version = "3.54.1",
+                    file_sha256 = new string('e', 64),
+                    content_sha256 = new string('f', 64),
+                    hash_format = 1,
+                    tables = Array.Empty<object>(),
+                },
+            },
+            new
+            {
+                registered_at = "2026-11-27",
+                note = "usmap only without jmaps property",
+                game_version = gameVersionSample,
+                inputs = new
+                {
+                    usmap = usmapSample,
+                },
+                database = new
+                {
+                    file_name = "ffr.sqlite",
+                    size = 2048L,
+                    schema_version = 3,
+                    sqlite_version = "3.54.1",
+                    file_sha256 = new string('9', 64),
+                    content_sha256 = new string('8', 64),
+                    hash_format = 1,
+                    tables = Array.Empty<object>(),
+                },
+            },
+        });
+
+        var adjacentDir = Path.Combine(workspace.Root, "bin");
+        Directory.CreateDirectory(adjacentDir);
+        File.WriteAllText(Path.Combine(adjacentDir, "known-builds.json"), json, Encoding.UTF8);
+
+        var warnings = new StringWriter();
+        var (entries, source) = KnownBuildsRegistry.Load(adjacentDir, warnings);
+
+        Assert.Equal("file", source);
+        Assert.Equal(2, entries.Length);
+        Assert.Equal(["2026-11-26", "2026-11-27"], entries.Select(e => e.RegisteredAt).ToArray());
+
+        var warningText = warnings.ToString();
+        Assert.Contains("警告", warningText, StringComparison.Ordinal);
+        Assert.Contains(".jmap", warningText, StringComparison.Ordinal);
+        Assert.Contains("2026-11-25", warningText, StringComparison.Ordinal);
+
+        // Database matching the skipped jmap entry must NOT match; database matching a usmap-only entry MUST match.
+        var skippedDb = new BuildDatabaseInfo("ffr.sqlite", 4096, 3, "3.54.1", new string('c', 64), new string('d', 64), 1, []);
+        var mismatch = KnownBuildsRegistry.Compare(entries, source, "fp_same_game", skippedDb);
+        Assert.Equal(KnownBuildComparisonStatus.HashMismatch, mismatch.StatusKind);
+
+        var validDb = new BuildDatabaseInfo("ffr.sqlite", 2048, 3, "3.54.1", new string('9', 64), new string('8', 64), 1, []);
+        var matched = KnownBuildsRegistry.Compare(entries, source, "fp_same_game", validDb);
+        Assert.Equal(KnownBuildComparisonStatus.Matched, matched.StatusKind);
+        Assert.Equal("2026-11-27", matched.MatchedRegisteredAt);
+
+        // Even if a jmap-bearing entry is constructed directly and passed to Compare/CompareUsmap, it is ignored.
+        var directJmapEntry = new KnownBuildEntry(
+            RegisteredAt: "2026-11-25",
+            Note: null,
+            GameVersion: new GameVersionInfo(
+                new SteamBuildInfo(3259780, "24250053", null, null, "manual"),
+                new ExeVersionInfo(GameVersionDetector.RelativeExeSubpath, 1024, null, null),
+                "fp_direct_only",
+                []),
+            Inputs: new BuildInputsInfo(
+                new UsmapHashInfo("FFRS.usmap", 1024, new string('1', 64), new string('2', 64), 10, 2),
+                new JArray(new JObject { ["file_name"] = "direct.jmap" })),
+            Tools: null,
+            Database: skippedDb);
+        Assert.Equal(
+            KnownBuildComparisonStatus.NewGameVersion,
+            KnownBuildsRegistry.Compare([directJmapEntry], "file", "fp_direct_only", skippedDb).StatusKind);
+        Assert.Equal(
+            UsmapComparisonStatus.NotRegistered,
+            KnownBuildsRegistry.CompareUsmap([directJmapEntry], "file", directJmapEntry.Inputs!.Usmap).Status);
+    }
+
+    [Fact]
+    public async Task BuildDb_RejectsRemovedJmapFlagWithClearExplanation()
+    {
+        using var workspace = new TempWorkspace("ffr-build-db-reject-jmap");
+
+        // 1. Unit check in default English for both "--jmap <file>" and "--jmap=<file>".
+        using (Localization.UseLanguageScope("en"))
+        {
+            var exFlag = Assert.Throws<ArgumentException>(() =>
+                Program.ParseBuildDbArgs(["--game", "/g", "--usmap", "/u.usmap", "--jmap", "/r.jmap"]));
+            Assert.Contains("--jmap", exFlag.Message, StringComparison.Ordinal);
+            Assert.Contains("reproducible", exFlag.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("ffr-db build --jmap", exFlag.Message, StringComparison.Ordinal);
+
+            var exEquals = Assert.Throws<ArgumentException>(() =>
+                Program.ParseBuildDbArgs(["--game", "/g", "--usmap", "/u.usmap", "--jmap=/r.jmap"]));
+            Assert.Contains("--jmap", exEquals.Message, StringComparison.Ordinal);
+        }
+
+        // 2. End-to-end CLI invocation returns exit code 2 with localized explanation.
+        var resZh = await TestHarness.RunCliAsync(
+            ["--lang", "zh-Hans", "build-db", "--game", workspace.Root, "--usmap", "a.usmap", "--jmap", "b.jmap"],
+            agpHome: workspace.AgpHomeDir);
+        Assert.Equal(2, resZh.ExitCode);
+        Assert.Contains("--jmap", resZh.Stderr, StringComparison.Ordinal);
+        Assert.Contains("已移除", resZh.Stderr, StringComparison.Ordinal);
+        Assert.Contains("无法复现", resZh.Stderr, StringComparison.Ordinal);
+        Assert.Contains("ffr-db build --jmap", resZh.Stderr, StringComparison.Ordinal);
+
+        var resEn = await TestHarness.RunCliAsync(
+            ["--lang", "en", "build-db", "--game", workspace.Root, "--usmap", "a.usmap", "--jmap=b.jmap"],
+            agpHome: workspace.AgpHomeDir);
+        Assert.Equal(2, resEn.ExitCode);
+        Assert.Contains("--jmap", resEn.Stderr, StringComparison.Ordinal);
+        Assert.Contains("removed", resEn.Stderr, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("reproducible", resEn.Stderr, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -465,9 +653,6 @@ public sealed class BuildDbTests
             [new("FDemoRow", null, 1, [new(0, 1, "Id", 2)])]);
         await File.WriteAllBytesAsync(usmapPath, usmapBytes);
 
-        var jmapPath = Path.Combine(workspace.Root, "Mappings Folder", "Fixture.jmap");
-        await File.WriteAllTextAsync(jmapPath, "{\"classes\":[]}\n");
-
         // Create fake ffr-db script in a path with spaces
         var fakeDbScript = CreateFakeFfrDbScript(Path.Combine(workspace.Root, "Tools With Spaces"));
 
@@ -478,7 +663,6 @@ public sealed class BuildDbTests
             "build-db",
             "--game", gameDir,
             "--usmap", usmapPath,
-            "--jmap", jmapPath,
             "--out", outDir1,
             "--ffr-db", fakeDbScript,
             "--jobs", "2",
@@ -502,7 +686,8 @@ public sealed class BuildDbTests
         Assert.Equal(2, Assert.IsType<JArray>(buildMeta1["game_version"]?["pak_files"]).Count);
         Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(usmapBytes)), buildMeta1["inputs"]?["usmap"]?["file_sha256"]?.Value<string>());
         Assert.False(string.IsNullOrWhiteSpace(buildMeta1["inputs"]?["usmap"]?["content_sha256"]?.Value<string>()));
-        Assert.Single(Assert.IsType<JArray>(buildMeta1["inputs"]?["jmaps"]));
+        Assert.Null(buildMeta1["inputs"]?["jmaps"]);
+        Assert.NotNull(buildMeta1["timings_ms"]?["usmap_hash"]);
         Assert.Equal("ffr-db 0.1.0-fake", buildMeta1["tools"]?["ffr_db"]?["version"]?.Value<string>());
         Assert.Equal("deadbeef00000000000000000000000000000000000000000000000000000001", buildMeta1["database"]?["content_sha256"]?.Value<string>());
         Assert.Equal(643, buildMeta1["database"]?["tables"]?[0]?["rows"]?.Value<long>());

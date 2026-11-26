@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace FfrExport;
 
@@ -20,7 +21,7 @@ internal sealed record FfrDbHashReport(
 
 internal sealed record BuildInputsInfo(
     [property: JsonProperty("usmap")] UsmapHashInfo Usmap,
-    [property: JsonProperty("jmaps")] JmapHashInfo[] Jmaps);
+    [property: JsonProperty("jmaps", NullValueHandling = NullValueHandling.Ignore)] JToken? Jmaps = null);
 
 internal sealed record FfrExportToolInfo(
     [property: JsonProperty("version")] string Version,
@@ -106,14 +107,16 @@ internal static class KnownBuildsRegistry
     internal static string MessageNewGameVersion => L.Get("KnownBuilds_NewGameVersion");
     internal static string MessageHashMismatch => L.Get("KnownBuilds_HashMismatch");
 
-    internal static (KnownBuildEntry[] Entries, string Source) Load(string? executableDirectoryOverride = null)
+    internal static (KnownBuildEntry[] Entries, string Source) Load(
+        string? executableDirectoryOverride = null,
+        TextWriter? warningOutput = null)
     {
         var baseDir = executableDirectoryOverride ?? AppContext.BaseDirectory;
         var adjacentPath = Path.Combine(baseDir, FileName);
         if (File.Exists(PathSupport.ToIoPath(adjacentPath)))
         {
             var json = File.ReadAllText(PathSupport.ToIoPath(adjacentPath), Encoding.UTF8);
-            return (ParseEntries(json, adjacentPath), "file");
+            return (ParseEntries(json, adjacentPath, warningOutput), "file");
         }
 
         var assembly = typeof(KnownBuildsRegistry).Assembly;
@@ -125,25 +128,69 @@ internal static class KnownBuildsRegistry
 
         using var reader = new StreamReader(stream, Encoding.UTF8);
         var embeddedJson = reader.ReadToEnd();
-        return (ParseEntries(embeddedJson, EmbeddedResourceName), "embedded");
+        return (ParseEntries(embeddedJson, EmbeddedResourceName, warningOutput), "embedded");
     }
 
-    internal static KnownBuildEntry[] ParseEntries(string json, string sourceName)
+    internal static KnownBuildEntry[] ParseEntries(
+        string json,
+        string sourceName,
+        TextWriter? warningOutput = null)
     {
+        KnownBuildEntry[]? parsed;
         try
         {
-            var parsed = JsonConvert.DeserializeObject<KnownBuildEntry[]>(json);
-            if (parsed is null)
-            {
-                throw new InvalidDataException(L.Format("KnownBuilds_EmptyOrNotArray", sourceName));
-            }
-
-            return parsed;
+            parsed = JsonConvert.DeserializeObject<KnownBuildEntry[]>(json);
         }
         catch (JsonException exception)
         {
             throw new InvalidDataException(L.Format("KnownBuilds_ParseFailed", sourceName, exception.Message), exception);
         }
+
+        if (parsed is null)
+        {
+            throw new InvalidDataException(L.Format("KnownBuilds_EmptyOrNotArray", sourceName));
+        }
+
+        var warn = warningOutput ?? Console.Error;
+        var filtered = new List<KnownBuildEntry>(parsed.Length);
+        for (var i = 0; i < parsed.Length; i++)
+        {
+            var entry = parsed[i];
+            if (HasNonEmptyJmaps(entry, out var jmapCount))
+            {
+                var registeredAt = string.IsNullOrWhiteSpace(entry?.RegisteredAt)
+                    ? L.Get("Common_Unknown")
+                    : entry.RegisteredAt;
+                warn.WriteLine(L.Format("KnownBuilds_SkippedJmapEntryWarning", sourceName, i + 1, registeredAt, jmapCount));
+                continue;
+            }
+
+            if (entry is not null)
+            {
+                filtered.Add(entry);
+            }
+        }
+
+        return [.. filtered];
+    }
+
+    internal static bool HasNonEmptyJmaps(KnownBuildEntry? entry, out int jmapCount)
+    {
+        jmapCount = 0;
+        var jmaps = entry?.Inputs?.Jmaps;
+        if (jmaps is null || jmaps.Type == JTokenType.Null)
+        {
+            return false;
+        }
+
+        if (jmaps is JArray array)
+        {
+            jmapCount = array.Count;
+            return array.Count > 0;
+        }
+
+        jmapCount = 1;
+        return true;
     }
 
     internal static KnownBuildComparisonResult Compare(
@@ -153,7 +200,9 @@ internal static class KnownBuildsRegistry
         BuildDatabaseInfo actualDb)
     {
         var sameGameEntries = entries
-            .Where(entry => entry.GameVersion is not null
+            .Where(entry => entry is not null
+                && !HasNonEmptyJmaps(entry, out _)
+                && entry.GameVersion is not null
                 && string.Equals(entry.GameVersion.PakFingerprint, pakFingerprint, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
@@ -328,6 +377,11 @@ internal static class KnownBuildsRegistry
         KnownBuildEntry? contentMatch = null;
         foreach (var entry in entries)
         {
+            if (entry is null || HasNonEmptyJmaps(entry, out _))
+            {
+                continue;
+            }
+
             var registered = entry.Inputs?.Usmap;
             if (registered is null)
             {

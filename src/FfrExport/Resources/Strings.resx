@@ -276,8 +276,8 @@ Environment variables:
   <data name="BuildDb_FfrDbNotFound" xml:space="preserve">
     <value>ffr-db executable not found (checked: --ffr-db option, application directory {0}, PATH). Specify --ffr-db &lt;path&gt;, or place ffr-db next to the tool or on PATH.</value>
   </data>
-  <data name="BuildDb_JmapNotFound" xml:space="preserve">
-    <value>Reflection dump file (--jmap) not found: {0}</value>
+  <data name="BuildDb_JmapRemoved" xml:space="preserve">
+    <value>--jmap has been removed from ffr-export build-db because runtime .jmap reflection dumps contain run-specific data and memory addresses that prevent reproducible database hashes. If you need reflection data for research, run "ffr-db build --jmap &lt;file&gt;" directly (see docs/database.md).</value>
   </data>
   <data name="BuildDb_StepLine" xml:space="preserve">
     <value>==&gt; Step {0}/{1}: {2}</value>
@@ -390,9 +390,6 @@ Environment variables:
   <data name="Version_UsmapParseFailed" xml:space="preserve">
     <value>Failed to parse .usmap: {0}: {1}</value>
   </data>
-  <data name="Version_JmapFileNotFound" xml:space="preserve">
-    <value>Failed to compute .jmap hash: file does not exist: {0}</value>
-  </data>
   <data name="Version_PeNotSeekable" xml:space="preserve">
     <value>Failed to parse PE version resource: {0}: input stream is not seekable.</value>
   </data>
@@ -449,6 +446,9 @@ Environment variables:
   </data>
   <data name="KnownBuilds_ParseFailed" xml:space="preserve">
     <value>Failed to parse known builds registry: {0}: {1}</value>
+  </data>
+  <data name="KnownBuilds_SkippedJmapEntryWarning" xml:space="preserve">
+    <value>Warning: skipping known-builds entry #{1} in {0} (registered_at: {2}) because it includes {3} .jmap file(s); known-builds verification only accepts game files + .usmap.</value>
   </data>
   <data name="KnownBuilds_ComparisonHeader" xml:space="preserve">
     <value>Known builds comparison (source: {0}): {1}</value>
@@ -643,13 +643,10 @@ Environment variables:
     <value>[Step 1/4] Locate game directory</value>
   </data>
   <data name="Wizard_Step2Header" xml:space="preserve">
-    <value>[Step 2/4] Select mapping files (.usmap / .jmap)</value>
+    <value>[Step 2/4] Select mapping file (.usmap)</value>
   </data>
   <data name="Wizard_UsmapNote" xml:space="preserve">
     <value>Note: .usmap is required. Run "ffr-export fetch-usmap --game &lt;dir&gt;" to fetch it automatically, or dump it with UE4SS while the game is running.</value>
-  </data>
-  <data name="Wizard_JmapNote" xml:space="preserve">
-    <value>Optional: .jmap reflection dump files (you may add multiple; press Enter to skip).</value>
   </data>
   <data name="Wizard_Step3Header" xml:space="preserve">
     <value>[Step 3/4] Choose output directory</value>
@@ -668,12 +665,6 @@ Environment variables:
   </data>
   <data name="Wizard_SummaryUsmap" xml:space="preserve">
     <value>  .usmap file: {0}</value>
-  </data>
-  <data name="Wizard_SummaryJmapNone" xml:space="preserve">
-    <value>  .jmap files: none (skipped)</value>
-  </data>
-  <data name="Wizard_SummaryJmapCount" xml:space="preserve">
-    <value>  .jmap files: {0}</value>
   </data>
   <data name="Wizard_SummaryOutputForce" xml:space="preserve">
     <value>  Output directory: {0} (will be cleared and rebuilt)</value>
@@ -752,33 +743,6 @@ Environment variables:
   </data>
   <data name="Wizard_RequiredFieldEmpty" xml:space="preserve">
     <value>{0} is required and cannot be empty; please try again.</value>
-  </data>
-  <data name="Wizard_JmapFirstPrompt" xml:space="preserve">
-    <value>.jmap file #1 path (press Enter to skip): </value>
-  </data>
-  <data name="Wizard_JmapNextPrompt" xml:space="preserve">
-    <value>.jmap file #{0} path (paste another or press Enter to finish): </value>
-  </data>
-  <data name="Wizard_JmapSkipped" xml:space="preserve">
-    <value>Skipped .jmap files.</value>
-  </data>
-  <data name="Wizard_JmapAddedCount" xml:space="preserve">
-    <value>Added {0} .jmap file(s).</value>
-  </data>
-  <data name="Wizard_InvalidPathOrSkip" xml:space="preserve">
-    <value>Invalid path format: {0}. Please try again or press Enter to skip.</value>
-  </data>
-  <data name="Wizard_JmapIsDirOrSkip" xml:space="preserve">
-    <value>Path is a directory, not a file: {0}. Paste a .jmap file path or press Enter to skip.</value>
-  </data>
-  <data name="Wizard_FileNotFoundOrSkip" xml:space="preserve">
-    <value>File not found: {0}. Check the path and try again or press Enter to skip.</value>
-  </data>
-  <data name="Wizard_JmapDuplicate" xml:space="preserve">
-    <value>Note: this .jmap file was already added; skipping duplicate: {0}</value>
-  </data>
-  <data name="Wizard_JmapAddedItem" xml:space="preserve">
-    <value>  Added: {0}</value>
   </data>
   <data name="Wizard_DefaultOutputDir" xml:space="preserve">
     <value>Default output directory: {0}</value>
@@ -886,7 +850,7 @@ Environment variables:
     <value>  2. If files are missing, verify integrity of game files in Steam (right-click game -&gt; Properties -&gt; Installed Files).</value>
   </data>
   <data name="Wizard_AdviceGeneric1" xml:space="preserve">
-    <value>  1. Review the error above and check the game directory, .usmap/.jmap files, and output directory permissions;</value>
+    <value>  1. Review the error above and check the game directory, .usmap file, and output directory permissions;</value>
   </data>
   <data name="Wizard_AdviceGeneric2" xml:space="preserve">
     <value>  2. Make sure the output drive has several GB of free temporary disk space;</value>
@@ -1290,9 +1254,6 @@ Environment variables:
   <data name="GuiCore_LaunchCliFailed" xml:space="preserve">
     <value>Failed to launch CLI executable: {0}</value>
   </data>
-  <data name="GuiCore_DualComboHint" xml:space="preserve">
-    <value>known-builds.json registers two input combinations: ".usmap only" and ".usmap + two .jmap files", so either choice can match a registered build.</value>
-  </data>
   <data name="GuiCore_ReportNotFound" xml:space="preserve">
     <value>Failed to read build result: no *.build.json file found in output directory {0}.</value>
   </data>
@@ -1308,12 +1269,6 @@ Environment variables:
   <data name="GuiCore_ReportMissingFileSha" xml:space="preserve">
     <value>Build report is missing database.file_sha256: {0}</value>
   </data>
-  <data name="GuiCore_InputDescUsmapOnly" xml:space="preserve">
-    <value>Inputs: .usmap only (no .jmap)</value>
-  </data>
-  <data name="GuiCore_InputDescWithJmaps" xml:space="preserve">
-    <value>Inputs: .usmap + {0} .jmap file(s)</value>
-  </data>
   <data name="GuiCore_PartialExportNotice" xml:space="preserve">
     <value> (Note: a small number of asset packages failed during export; see the log and build report for details.)</value>
   </data>
@@ -1324,13 +1279,13 @@ Environment variables:
     <value>Matches registered build</value>
   </data>
   <data name="GuiCore_VerdictMatchedExplanation" xml:space="preserve">
-    <value>{0}{1}. {2}{3}</value>
+    <value>Built from game files + .usmap{0}.{1}</value>
   </data>
   <data name="GuiCore_VerdictNewVersionTitle" xml:space="preserve">
     <value>New version, not registered</value>
   </data>
   <data name="GuiCore_VerdictNewVersionExplanation" xml:space="preserve">
-    <value>{0}. This game version is not yet registered in known-builds.json. {1}{2}</value>
+    <value>This game version (game files + .usmap) is not yet registered in known-builds.json.{0}</value>
   </data>
   <data name="GuiCore_VerdictHashMismatchTitle" xml:space="preserve">
     <value>Hash mismatch</value>
@@ -1344,17 +1299,14 @@ Environment variables:
   <data name="GuiCore_VerdictGenericMismatchDetail" xml:space="preserve">
     <value>Game version is registered, but the database hash differs from the registered record.</value>
   </data>
-  <data name="GuiCore_VerdictOddJmapCountNote" xml:space="preserve">
-    <value> Note: {0} .jmap file(s) provided, whereas registered combinations use "0" or "2".</value>
-  </data>
   <data name="GuiCore_VerdictHashMismatchExplanation" xml:space="preserve">
-    <value>{0}. {1}{2} {3}{4}</value>
+    <value>{0}{1}</value>
   </data>
   <data name="GuiCore_VerdictUnknownTitle" xml:space="preserve">
     <value>Unknown comparison result</value>
   </data>
   <data name="GuiCore_VerdictUnknownExplanation" xml:space="preserve">
-    <value>{0}. No recognizable comparison verdict was found in the build report. {1}{2}</value>
+    <value>No recognizable comparison verdict was found in the build report.{0}</value>
   </data>
   <data name="GuiCore_ClipboardDbPath" xml:space="preserve">
     <value>Database path: {0}</value>
@@ -1578,18 +1530,6 @@ Environment variables:
   <data name="GuiCore_UsmapDisplaySingle" xml:space="preserve">
     <value>{0} (modified: {1})</value>
   </data>
-  <data name="GuiCore_JmapDisplay" xml:space="preserve">
-    <value>{0} (modified: {1}, {2}) — {3}</value>
-  </data>
-  <data name="GuiCore_SourceManualSelect" xml:space="preserve">
-    <value>Manual selection</value>
-  </data>
-  <data name="GuiCore_SourceManualAdd" xml:space="preserve">
-    <value>Manually added</value>
-  </data>
-  <data name="GuiCore_SourceFetched" xml:space="preserve">
-    <value>Auto-fetched</value>
-  </data>
   <data name="GuiCore_ScanDirCannotAccess" xml:space="preserve">
     <value>Unable to access directory {0}: {1}</value>
   </data>
@@ -1755,7 +1695,7 @@ Set environment variable {2} to a writable folder and restart this tool, or righ
     <value>Settings...</value>
   </data>
   <data name="Gui_GroupMappings" xml:space="preserve">
-    <value>2. Mapping &amp; Reflection Files (.usmap / .jmap)</value>
+    <value>2. Mapping File (.usmap)</value>
   </data>
   <data name="Gui_LabelUsmapRequired" xml:space="preserve">
     <value>.usmap (required):</value>
@@ -1771,15 +1711,6 @@ Set environment variable {2} to a writable folder and restart this tool, or righ
   </data>
   <data name="Gui_LabelFilePath" xml:space="preserve">
     <value>File path:</value>
-  </data>
-  <data name="Gui_CheckIncludeJmap" xml:space="preserve">
-    <value>Include reflection data (.jmap, optional)</value>
-  </data>
-  <data name="Gui_BtnAddJmap" xml:space="preserve">
-    <value>Add .jmap...</value>
-  </data>
-  <data name="Gui_BtnRemoveJmap" xml:space="preserve">
-    <value>Remove Selected</value>
   </data>
   <data name="Gui_GroupOutput" xml:space="preserve">
     <value>3. Output Location</value>
@@ -1894,9 +1825,6 @@ Set environment variable {2} to a writable folder and restart this tool, or righ
   </data>
   <data name="Gui_UsmapAutoFindError" xml:space="preserve">
     <value>Automatic .usmap search failed: {0}. Click "Fetch .usmap" or "Select .usmap...".</value>
-  </data>
-  <data name="Gui_JmapUncheckedStatus" xml:space="preserve">
-    <value>Unchecked (exporting with .usmap only).</value>
   </data>
   <data name="Gui_OpenUsmapDialogTitle" xml:space="preserve">
     <value>Select .usmap Mapping File</value>
@@ -2034,36 +1962,6 @@ Start fetching .usmap now?</value>
   <data name="Gui_StatusFetchUsmapFailed" xml:space="preserve">
     <value>Status: .usmap fetch failed</value>
   </data>
-  <data name="Gui_JmapAutoFindError" xml:space="preserve">
-    <value>Automatic .jmap search failed: {0}. Click "Add .jmap..." to choose manually, or uncheck to continue without .jmap.</value>
-  </data>
-  <data name="Gui_JmapDirAccessWarn" xml:space="preserve">
-    <value>Directory access error while auto-discovering .jmap: {0}</value>
-  </data>
-  <data name="Gui_JmapAutoFoundStatus" xml:space="preserve">
-    <value>Auto-discovered {0} .jmap file(s) (you may add or remove entries).</value>
-  </data>
-  <data name="Gui_JmapPartialFoundStatus" xml:space="preserve">
-    <value>Found {0} .jmap file(s), but some directories were unreadable ({1}); click "Add .jmap..." to add more.</value>
-  </data>
-  <data name="Gui_JmapScanErrorStatus" xml:space="preserve">
-    <value>Automatic .jmap search failed ({0}); check permissions or click "Add .jmap..." to select manually.</value>
-  </data>
-  <data name="Gui_JmapNotFoundStatus" xml:space="preserve">
-    <value>No .jmap files found in ue4ss / Win64. Click "Add .jmap..." to select manually, or uncheck to export without .jmap.</value>
-  </data>
-  <data name="Gui_OpenJmapDialogTitle" xml:space="preserve">
-    <value>Select .jmap Reflection Dump Files (multi-select supported)</value>
-  </data>
-  <data name="Gui_OpenJmapDialogFilter" xml:space="preserve">
-    <value>UE Reflection Dumps (*.jmap)|*.jmap|All Files (*.*)|*.*</value>
-  </data>
-  <data name="Gui_JmapSelectedCountStatus" xml:space="preserve">
-    <value>{0} .jmap file(s) currently selected.</value>
-  </data>
-  <data name="Gui_JmapEmptyListStatus" xml:space="preserve">
-    <value>The .jmap list is empty. Click "Add .jmap..." to add files, or uncheck to continue without .jmap.</value>
-  </data>
   <data name="Gui_BrowseOutputDialogDesc" xml:space="preserve">
     <value>Choose export output directory</value>
   </data>
@@ -2083,21 +1981,6 @@ Start fetching .usmap now?</value>
   </data>
   <data name="Gui_MissingUsmapTitle" xml:space="preserve">
     <value>Missing .usmap Mapping File</value>
-  </data>
-  <data name="Gui_MissingJmapFileBody" xml:space="preserve">
-    <value>Reflection dump file does not exist: {0}
-Please remove this entry or select another file.</value>
-  </data>
-  <data name="Gui_MissingJmapFileTitle" xml:space="preserve">
-    <value>.jmap File Not Found</value>
-  </data>
-  <data name="Gui_NoJmapConfirmBody" xml:space="preserve">
-    <value>"Include reflection data (.jmap, optional)" is checked, but no .jmap files are listed.
-
-Continue exporting with .usmap only?</value>
-  </data>
-  <data name="Gui_NoJmapConfirmTitle" xml:space="preserve">
-    <value>No .jmap Files Selected</value>
   </data>
   <data name="Gui_OutputDirInvalidFallback" xml:space="preserve">
     <value>The output directory is invalid; please choose another.</value>
@@ -2239,7 +2122,7 @@ Clear this directory and continue? (Click "No" to keep existing files and pick a
     <value>Contains output\ (default exports), usmap\ (mapping files), downloads\ (download cache), logs\, tmp\, ue4ss-backup\, and settings.json.</value>
   </data>
   <data name="Settings_Ue4ssTip" xml:space="preserve">
-    <value>Tip: UE4SS cleanup is located in section "2. Mapping &amp; Reflection Files" via the "Clean up UE4SS..." button on the main window.</value>
+    <value>Tip: UE4SS cleanup is located in section "2. Mapping File (.usmap)" via the "Clean up UE4SS..." button on the main window.</value>
   </data>
   <data name="Settings_BtnClose" xml:space="preserve">
     <value>Close</value>

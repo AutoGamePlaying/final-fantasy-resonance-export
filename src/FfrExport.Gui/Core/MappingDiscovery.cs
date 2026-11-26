@@ -14,12 +14,8 @@ internal sealed record UsmapDiscoveryResult(
     string? NotFoundGuidance,
     string? ScanError = null);
 
-internal sealed record JmapDiscoveryResult(
-    IReadOnlyList<DiscoveredMappingFile> Files,
-    string? ScanError);
-
 /// <summary>
-/// Auto-discovers UE4SS .usmap and optional .jmap files inside a FINAL FANTASY RESONANCE game directory.
+/// Auto-discovers UE4SS .usmap files inside a FINAL FANTASY RESONANCE game directory and unified data directory.
 /// </summary>
 internal static class MappingDiscovery
 {
@@ -115,83 +111,11 @@ internal static class MappingDiscovery
         return new UsmapDiscoveryResult(null, [], UsmapNotFoundGuidance);
     }
 
-    /// <summary>
-    /// Searches FFRS\Binaries\Win64\ue4ss\*.jmap and FFRS\Binaries\Win64\*.jmap and lists all discovered files.
-    /// </summary>
-    internal static IReadOnlyList<DiscoveredMappingFile> DiscoverJmaps(string? gameDirectory)
-    {
-        return DiscoverJmapsWithDiagnostics(gameDirectory).Files;
-    }
-
-    /// <summary>
-    /// Searches FFRS\Binaries\Win64\ue4ss\*.jmap and FFRS\Binaries\Win64\*.jmap while preserving any
-    /// directory permission or I/O errors for UI reporting.
-    /// </summary>
-    internal static JmapDiscoveryResult DiscoverJmapsWithDiagnostics(
-        string? gameDirectory,
-        Func<string, IEnumerable<string>>? fileEnumeratorOverride = null)
-    {
-        if (string.IsNullOrWhiteSpace(gameDirectory))
-        {
-            return new JmapDiscoveryResult([], null);
-        }
-
-        var ue4ssDir = SteamLocator.CombineRelativeSubpath(gameDirectory, RelativeUe4ssSubpath);
-        var win64Dir = SteamLocator.CombineRelativeSubpath(gameDirectory, RelativeWin64Subpath);
-
-        var results = new List<DiscoveredMappingFile>();
-        var errors = new List<string>();
-        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-        var seen = new HashSet<string>(comparer);
-
-        var ue4ssScan = ScanDirectory(ue4ssDir, ".jmap", "ue4ss", fileEnumeratorOverride);
-        if (!string.IsNullOrWhiteSpace(ue4ssScan.ErrorMessage))
-        {
-            errors.Add(ue4ssScan.ErrorMessage);
-        }
-
-        foreach (var item in OrderOldestFirst(ue4ssScan.Files))
-        {
-            if (seen.Add(item.FullPath))
-            {
-                results.Add(item);
-            }
-        }
-
-        var win64Scan = ScanDirectory(win64Dir, ".jmap", "Win64", fileEnumeratorOverride);
-        if (!string.IsNullOrWhiteSpace(win64Scan.ErrorMessage))
-        {
-            errors.Add(win64Scan.ErrorMessage);
-        }
-
-        foreach (var item in OrderOldestFirst(win64Scan.Files))
-        {
-            if (seen.Add(item.FullPath))
-            {
-                results.Add(item);
-            }
-        }
-
-        var combinedError = errors.Count > 0 ? string.Join(L.Get("Common_SemicolonSeparator"), errors) : null;
-        return new JmapDiscoveryResult(results, combinedError);
-    }
-
     internal static DiscoveredMappingFile CreateFromExistingFile(string filePath, string sourceLabel = "manual")
     {
         var fullPath = Path.GetFullPath(filePath);
         var modifiedUtc = TryReadLastWriteTimeUtc(fullPath);
         return new DiscoveredMappingFile(fullPath, Path.GetFileName(fullPath), modifiedUtc, sourceLabel);
-    }
-
-    internal static string FormatSourceLabel(string sourceLabel)
-    {
-        return sourceLabel switch
-        {
-            "manual" => L.Get("GuiCore_SourceManualSelect"),
-            "manual-add" => L.Get("GuiCore_SourceManualAdd"),
-            "fetched" => L.Get("GuiCore_SourceFetched"),
-            _ => sourceLabel,
-        };
     }
 
     internal static string FormatUsmapDisplay(
@@ -206,14 +130,6 @@ internal static class MappingDiscovery
         }
 
         return L.Format("GuiCore_UsmapDisplaySingle", file.FileName, formattedDate);
-    }
-
-    internal static string FormatJmapDisplay(
-        DiscoveredMappingFile file,
-        TimeZoneInfo? displayTimeZone = null)
-    {
-        var formattedDate = FormatModifiedDate(file.LastWriteTimeUtc, displayTimeZone);
-        return L.Format("GuiCore_JmapDisplay", file.FileName, formattedDate, FormatSourceLabel(file.SourceLabel), file.FullPath);
     }
 
     internal static string FormatModifiedDate(
@@ -325,15 +241,6 @@ internal static class MappingDiscovery
             .OrderByDescending(file => file.LastWriteTimeUtc)
             .ThenBy(file => string.Equals(file.SourceLabel, "agp/usmap", StringComparison.Ordinal) ? 0 : 1)
             .ThenByDescending(file => file.FileName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(file => file.FullPath, StringComparer.Ordinal)
-            .ToList();
-    }
-
-    private static List<DiscoveredMappingFile> OrderOldestFirst(List<DiscoveredMappingFile> items)
-    {
-        return items
-            .OrderBy(file => file.LastWriteTimeUtc)
-            .ThenBy(file => file.FileName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(file => file.FullPath, StringComparer.Ordinal)
             .ToList();
     }

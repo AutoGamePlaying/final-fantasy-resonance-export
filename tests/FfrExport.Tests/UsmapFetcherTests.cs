@@ -442,7 +442,6 @@ public sealed class UsmapFetcherTests
                             type_count = expectedHashes.TypeCount,
                             enum_count = expectedHashes.EnumCount,
                         },
-                        jmaps = Array.Empty<object>(),
                     },
                     database = new
                     {
@@ -724,7 +723,7 @@ public sealed class UsmapFetcherTests
         Assert.Equal("agp/usmap", discovered.Value.SourceLabel);
 
         string[]? wizardBuildArgs = null;
-        var wizardStdin = string.Join(Environment.NewLine, ["1", "", "", "", "", ""]) + Environment.NewLine;
+        var wizardStdin = string.Join(Environment.NewLine, ["1", "", "", "", ""]) + Environment.NewLine;
         var wizardExit = await InteractiveWizard.RunAsync(
             new StringReader(wizardStdin),
             new StringWriter(),

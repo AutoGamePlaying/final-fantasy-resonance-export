@@ -150,22 +150,13 @@ internal static class InteractiveWizard
             return 2;
         }
 
-        // Step 2: Auto-discover or prompt for .usmap (required) and .jmap (optional, multiple).
+        // Step 2: Auto-discover or prompt for .usmap (required).
         output.WriteLine();
         output.WriteLine(L.Get("Wizard_Step2Header"));
         output.WriteLine(L.Get("Wizard_UsmapNote"));
         var discoveredUsmap = TryDiscoverLatestUsmap(gameSelection.GameDirectory, effectiveAgpHome);
         var usmapPath = PromptUsmapFile(input, output, discoveredUsmap);
         if (usmapPath is null)
-        {
-            output.WriteLine(L.Get("Wizard_InputClosedCancelled"));
-            return 2;
-        }
-
-        output.WriteLine();
-        output.WriteLine(L.Get("Wizard_JmapNote"));
-        var jmapPaths = PromptOptionalFiles(input, output, isWindows);
-        if (jmapPaths is null)
         {
             output.WriteLine(L.Get("Wizard_InputClosedCancelled"));
             return 2;
@@ -192,18 +183,6 @@ internal static class InteractiveWizard
         output.WriteLine(L.Format("Wizard_SummaryGameDir", gameSelection.GameDirectory));
         output.WriteLine(L.Format("Wizard_SummarySteamBuild", gameSelection.SteamBuildId ?? L.Get("Common_NotDetected")));
         output.WriteLine(L.Format("Wizard_SummaryUsmap", usmapPath));
-        if (jmapPaths.Count == 0)
-        {
-            output.WriteLine(L.Get("Wizard_SummaryJmapNone"));
-        }
-        else
-        {
-            output.WriteLine(L.Format("Wizard_SummaryJmapCount", jmapPaths.Count));
-            for (var i = 0; i < jmapPaths.Count; i++)
-            {
-                output.WriteLine($"    [{i + 1}] {jmapPaths[i]}");
-            }
-        }
 
         output.WriteLine(outputSelection.Force
             ? L.Format("Wizard_SummaryOutputForce", outputSelection.OutputDirectory)
@@ -226,7 +205,6 @@ internal static class InteractiveWizard
         var buildDbArgs = BuildCliArguments(
             gameSelection.GameDirectory,
             usmapPath,
-            jmapPaths,
             outputSelection.OutputDirectory,
             gameSelection.SteamBuildId,
             resolvedFfrDb,
@@ -270,7 +248,6 @@ internal static class InteractiveWizard
     internal static string[] BuildCliArguments(
         string gameDirectory,
         string usmapPath,
-        IReadOnlyList<string> jmapPaths,
         string outputDirectory,
         string? steamBuildId,
         string? resolvedFfrDbPath,
@@ -282,16 +259,9 @@ internal static class InteractiveWizard
             gameDirectory,
             "--usmap",
             usmapPath,
+            "--out",
+            outputDirectory,
         };
-
-        foreach (var jmap in jmapPaths)
-        {
-            args.Add("--jmap");
-            args.Add(jmap);
-        }
-
-        args.Add("--out");
-        args.Add(outputDirectory);
 
         if (!string.IsNullOrWhiteSpace(steamBuildId))
         {
@@ -576,73 +546,6 @@ internal static class InteractiveWizard
             }
 
             return fullPath;
-        }
-    }
-
-    private static List<string>? PromptOptionalFiles(
-        TextReader input,
-        TextWriter output,
-        bool isWindows)
-    {
-        var files = new List<string>();
-        var comparer = isWindows ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-        var seen = new HashSet<string>(comparer);
-
-        while (true)
-        {
-            var prompt = files.Count == 0
-                ? L.Get("Wizard_JmapFirstPrompt")
-                : L.Format("Wizard_JmapNextPrompt", files.Count + 1);
-            output.Write(prompt);
-            output.Flush();
-            var raw = input.ReadLine();
-            if (raw is null)
-            {
-                return null;
-            }
-
-            var cleaned = CleanUserPathInput(raw);
-            if (string.IsNullOrEmpty(cleaned))
-            {
-                if (files.Count == 0)
-                {
-                    output.WriteLine(L.Get("Wizard_JmapSkipped"));
-                }
-                else
-                {
-                    output.WriteLine(L.Format("Wizard_JmapAddedCount", files.Count));
-                }
-
-                return files;
-            }
-
-            if (!TryNormalizeFullPath(cleaned, out var fullPath, out var pathError))
-            {
-                output.WriteLine(L.Format("Wizard_InvalidPathOrSkip", pathError));
-                continue;
-            }
-
-            var ioPath = PathSupport.ToIoPath(fullPath);
-            if (Directory.Exists(ioPath))
-            {
-                output.WriteLine(L.Format("Wizard_JmapIsDirOrSkip", cleaned));
-                continue;
-            }
-
-            if (!File.Exists(ioPath))
-            {
-                output.WriteLine(L.Format("Wizard_FileNotFoundOrSkip", cleaned));
-                continue;
-            }
-
-            if (!seen.Add(fullPath))
-            {
-                output.WriteLine(L.Format("Wizard_JmapDuplicate", fullPath));
-                continue;
-            }
-
-            files.Add(fullPath);
-            output.WriteLine(L.Format("Wizard_JmapAddedItem", fullPath));
         }
     }
 

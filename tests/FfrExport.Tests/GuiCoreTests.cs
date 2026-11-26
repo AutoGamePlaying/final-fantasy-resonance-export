@@ -66,7 +66,7 @@ public sealed class GuiCoreTests
     }
 
     [Fact]
-    public void MappingDiscovery_FollowsUe4ssThenWin64PriorityPicksNewestUsmapAndListsJmaps()
+    public void MappingDiscovery_FollowsUe4ssThenWin64PriorityAndPicksNewestUsmap()
     {
         using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-gui-mappings");
@@ -132,22 +132,6 @@ public sealed class GuiCoreTests
         Assert.Contains("dump-latest.usmap", formattedUsmap, StringComparison.Ordinal);
         Assert.Contains("2026-11-25 16:45", formattedUsmap, StringComparison.Ordinal);
         Assert.Contains("共找到 2 份", formattedUsmap, StringComparison.Ordinal);
-
-        // 4. Optional .jmap discovery lists files from both ue4ss/ and Win64/.
-        var jmapTitle = Path.Combine(ue4ssDir, "title.jmap");
-        var jmapBattle = Path.Combine(ue4ssDir, "battle.jmap");
-        var jmapWin64 = Path.Combine(win64Dir, "extra.jmap");
-        File.WriteAllText(jmapTitle, "{}", Encoding.UTF8);
-        File.WriteAllText(jmapBattle, "{}", Encoding.UTF8);
-        File.WriteAllText(jmapWin64, "{}", Encoding.UTF8);
-        File.SetLastWriteTimeUtc(jmapTitle, new DateTime(2026, 11, 25, 10, 0, 0, DateTimeKind.Utc));
-        File.SetLastWriteTimeUtc(jmapBattle, new DateTime(2026, 11, 25, 11, 0, 0, DateTimeKind.Utc));
-        File.SetLastWriteTimeUtc(jmapWin64, new DateTime(2026, 11, 25, 12, 0, 0, DateTimeKind.Utc));
-
-        var jmaps = MappingDiscovery.DiscoverJmaps(gameDir);
-        Assert.Equal(3, jmaps.Count);
-        Assert.Equal(["title.jmap", "battle.jmap", "extra.jmap"], jmaps.Select(j => j.FileName).ToArray());
-        Assert.Contains("title.jmap", MappingDiscovery.FormatJmapDisplay(jmaps[0], TimeZoneInfo.Utc), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -236,10 +220,9 @@ public sealed class GuiCoreTests
     [Fact]
     public void BuildCliCommand_AssemblesArgumentsParsesStepProgressAndUsesUtf8Pipes()
     {
-        var argsNoJmap = BuildCliCommand.BuildArguments(new BuildCommandRequest(
+        var argsDefault = BuildCliCommand.BuildArguments(new BuildCommandRequest(
             GameDirectory: "/games/FINAL FANTASY RESONANCE",
             UsmapPath: "/games/ue4ss/FFRS.usmap",
-            JmapPaths: [],
             OutputDirectory: "/out/ffr-24250053",
             SteamBuildId: "24250053",
             Force: false));
@@ -253,35 +236,33 @@ public sealed class GuiCoreTests
                 "--steam-buildid", "24250053",
                 "--progress-json",
             ],
-            argsNoJmap);
+            argsDefault);
 
         // Verify the assembled args after "build-db" parse identically through FfrExport's real CLI parser.
-        var parsedNoJmap = Program.ParseBuildDbArgs(argsNoJmap.Skip(1).ToArray());
-        Assert.Equal("/games/FINAL FANTASY RESONANCE", parsedNoJmap.GameDirectory);
-        Assert.Equal("/games/ue4ss/FFRS.usmap", parsedNoJmap.UsmapPath);
-        Assert.Empty(parsedNoJmap.JmapPaths);
-        Assert.Equal("/out/ffr-24250053", parsedNoJmap.OutputArgument);
-        Assert.Equal("24250053", parsedNoJmap.SteamBuildId);
-        Assert.False(parsedNoJmap.Force);
-        Assert.True(parsedNoJmap.ProgressJson);
+        var parsedDefault = Program.ParseBuildDbArgs(argsDefault.Skip(1).ToArray());
+        Assert.Equal("/games/FINAL FANTASY RESONANCE", parsedDefault.GameDirectory);
+        Assert.Equal("/games/ue4ss/FFRS.usmap", parsedDefault.UsmapPath);
+        Assert.Equal("/out/ffr-24250053", parsedDefault.OutputArgument);
+        Assert.Equal("24250053", parsedDefault.SteamBuildId);
+        Assert.False(parsedDefault.Force);
+        Assert.True(parsedDefault.ProgressJson);
 
-        var argsWithJmaps = BuildCliCommand.BuildArguments(new BuildCommandRequest(
+        var argsWithOptions = BuildCliCommand.BuildArguments(new BuildCommandRequest(
             GameDirectory: "/games/FFRS",
             UsmapPath: "/dumps/Mappings.usmap",
-            JmapPaths: ["/dumps/title.jmap", "/dumps/battle.jmap"],
             OutputDirectory: "/out/ffr-unknown",
             SteamBuildId: null,
             Force: true,
             Language: "ja",
             ProgressJson: true));
-        Assert.Contains("--lang", argsWithJmaps);
-        Assert.Contains("ja", argsWithJmaps);
-        Assert.Contains("--progress-json", argsWithJmaps);
-        var parsedWithJmaps = Program.ParseBuildDbArgs(argsWithJmaps.Skip(1).ToArray());
-        Assert.Equal(["/dumps/title.jmap", "/dumps/battle.jmap"], parsedWithJmaps.JmapPaths);
-        Assert.Null(parsedWithJmaps.SteamBuildId);
-        Assert.True(parsedWithJmaps.Force);
-        Assert.True(parsedWithJmaps.ProgressJson);
+        Assert.Contains("--lang", argsWithOptions);
+        Assert.Contains("ja", argsWithOptions);
+        Assert.Contains("--progress-json", argsWithOptions);
+        Assert.DoesNotContain("--jmap", argsWithOptions);
+        var parsedWithOptions = Program.ParseBuildDbArgs(argsWithOptions.Skip(1).ToArray());
+        Assert.Null(parsedWithOptions.SteamBuildId);
+        Assert.True(parsedWithOptions.Force);
+        Assert.True(parsedWithOptions.ProgressJson);
 
         // Progress parser tracks language-independent "@@progress {...}" lines monotonically.
         var previousPercent = 0;
@@ -304,7 +285,7 @@ public sealed class GuiCoreTests
         Assert.False(BuildCliCommand.TryParseStepProgress(ProgressProtocol.FormatProgressLine(6, 5, "oob"), out _));
 
         // ProcessStartInfo forces UTF-8 for stdout and stderr with no console window, and forwards AGP_HOME.
-        var startInfo = BuildCliCommand.CreateStartInfo("/app/ffr-export", argsNoJmap, agpHomeOverride: "/data/agp-active");
+        var startInfo = BuildCliCommand.CreateStartInfo("/app/ffr-export", argsDefault, agpHomeOverride: "/data/agp-active");
         Assert.True(startInfo.RedirectStandardOutput);
         Assert.True(startInfo.RedirectStandardError);
         Assert.Equal(Encoding.UTF8.WebName, startInfo.StandardOutputEncoding?.WebName);
@@ -315,12 +296,12 @@ public sealed class GuiCoreTests
     }
 
     [Fact]
-    public void BuildReportReader_ParsesStructuredBuildJsonAndExplainsBothInputCombinations()
+    public void BuildReportReader_ParsesStructuredBuildJsonAndExplainsUsmapOnlyVerdicts()
     {
         using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-gui-report");
 
-        // 1. Matched (usmap only, 0 jmaps)
+        // 1. Matched (game files + .usmap)
         var matchedDir = Path.Combine(workspace.Root, "matched-usmap-only");
         Directory.CreateDirectory(matchedDir);
         File.WriteAllText(
@@ -330,7 +311,7 @@ public sealed class GuiCoreTests
                 format = 1,
                 command = "build-db",
                 status = "completed",
-                inputs = new { jmaps = Array.Empty<object>() },
+                inputs = new { },
                 database = new
                 {
                     file_name = "ffr.sqlite",
@@ -359,8 +340,8 @@ public sealed class GuiCoreTests
         Assert.Equal(Path.Combine(matchedDir, "ffr.sqlite"), matched.DatabasePath);
         Assert.Equal("aaaa000000000000000000000000000000000000000000000000000000000001", matched.FileSha256);
         Assert.Equal("bbbb000000000000000000000000000000000000000000000000000000000002", matched.ContentSha256);
-        Assert.Contains("只有 .usmap", matched.VerdictExplanation, StringComparison.Ordinal);
-        Assert.Contains(".usmap 加两份 .jmap", matched.VerdictExplanation, StringComparison.Ordinal);
+        Assert.Contains("游戏文件 + .usmap", matched.VerdictExplanation, StringComparison.Ordinal);
+        Assert.DoesNotContain(".jmap", matched.VerdictExplanation, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("2026-11-26", matched.VerdictExplanation, StringComparison.Ordinal);
         Assert.False(matched.HasPartialExportFailure);
 
@@ -377,7 +358,6 @@ public sealed class GuiCoreTests
             JsonSerializer.Serialize(new
             {
                 status = "completed",
-                inputs = new { jmaps = new object[] { new { file_name = "a.jmap" }, new { file_name = "b.jmap" } } },
                 database = new
                 {
                     file_name = "custom.sqlite",
@@ -396,11 +376,11 @@ public sealed class GuiCoreTests
         Assert.Equal(BuildComparisonVerdict.NewVersion, newVersion.Verdict);
         Assert.Equal("✗", newVersion.VerdictSymbol);
         Assert.Equal("新版本，未登记", newVersion.VerdictTitle);
-        Assert.Equal(2, newVersion.JmapCount);
         Assert.Equal(Path.Combine(newVerDir, "custom.sqlite"), newVersion.DatabasePath);
-        Assert.Contains("2 份 .jmap", newVersion.VerdictExplanation, StringComparison.Ordinal);
+        Assert.Contains("游戏文件 + .usmap", newVersion.VerdictExplanation, StringComparison.Ordinal);
+        Assert.DoesNotContain(".jmap", newVersion.VerdictExplanation, StringComparison.OrdinalIgnoreCase);
 
-        // 3. Hash mismatch with 1 jmap and table diffs + partial export failure
+        // 3. Hash mismatch with table diffs + partial export failure
         var mismatchDir = Path.Combine(workspace.Root, "hash-mismatch");
         Directory.CreateDirectory(mismatchDir);
         File.WriteAllText(
@@ -408,7 +388,6 @@ public sealed class GuiCoreTests
             JsonSerializer.Serialize(new
             {
                 status = "completed",
-                inputs = new { jmaps = new object[] { new { file_name = "only-one.jmap" } } },
                 database = new
                 {
                     file_name = "ffr.sqlite",
@@ -419,7 +398,7 @@ public sealed class GuiCoreTests
                 {
                     status = "hash_mismatch",
                     file_sha256_mismatch_only = false,
-                    table_diffs = new object[] { new { name = "ue_class", kind = "changed" } },
+                    table_diffs = new object[] { new { name = "text", kind = "changed" } },
                 },
                 export_exit_codes = new { datatable = 0, assets = 1, maps = 0 },
             }),
@@ -432,27 +411,36 @@ public sealed class GuiCoreTests
         Assert.Equal(1, mismatch.TableDiffCount);
         Assert.True(mismatch.HasPartialExportFailure);
         Assert.Contains("1 张表", mismatch.VerdictExplanation, StringComparison.Ordinal);
-        Assert.Contains("当前提供了 1 份 .jmap", mismatch.VerdictExplanation, StringComparison.Ordinal);
+        Assert.DoesNotContain(".jmap", mismatch.VerdictExplanation, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void GuiSettingsStore_PersistsToUnifiedAgpPathMigratesLegacyAndHandlesCorruptFiles()
+    public void GuiSettingsStore_PersistsToUnifiedAgpPathMigratesLegacyIgnoresObsoleteFieldsAndHandlesCorruptFiles()
     {
         using var workspace = new TempWorkspace("ffr-gui-settings");
 
         var settingsPath = GuiSettingsStore.GetDefaultSettingsPath(agpHomeOverride: workspace.AgpHomeDir);
         Assert.Equal(Path.Combine(workspace.AgpHomeDir, "ffr-export", "settings.json"), settingsPath);
 
-        // Missing file returns defaults (IncludeJmap == false).
+        // Missing file returns defaults.
         var initial = GuiSettingsStore.Load(settingsPath);
         Assert.Null(initial.OutputRootDirectory);
-        Assert.False(initial.IncludeJmap);
+        Assert.Null(initial.Language);
 
-        // Legacy %APPDATA%\ffr-export\settings.json is migrated to the new path and renamed to .migrated (not deleted).
+        // Legacy %APPDATA%\ffr-export\settings.json containing obsolete include_jmap is migrated cleanly without error.
         var legacyAppData = Path.Combine(workspace.Root, "LegacyAppData");
         var legacyPath = GuiSettingsStore.GetLegacySettingsPath(legacyAppData)!;
         var legacyRoot = Path.Combine(workspace.Root, "Legacy Exports");
-        GuiSettingsStore.Save(new GuiSettings(legacyRoot, true), legacyPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(legacyPath)!);
+        File.WriteAllText(
+            legacyPath,
+            JsonSerializer.Serialize(new
+            {
+                output_root_directory = legacyRoot,
+                include_jmap = true,
+                language = "zh-Hans",
+            }),
+            Encoding.UTF8);
         Assert.True(File.Exists(legacyPath));
 
         var migratedResult = GuiSettingsStore.LoadWithDiagnostics(
@@ -461,23 +449,43 @@ public sealed class GuiCoreTests
         Assert.Equal(legacyPath, migratedResult.MigratedFromPath);
         Assert.Null(migratedResult.WarningMessage);
         Assert.Equal(legacyRoot, migratedResult.Settings.OutputRootDirectory);
-        Assert.True(migratedResult.Settings.IncludeJmap);
+        Assert.Equal("zh-Hans", migratedResult.Settings.Language);
         Assert.True(File.Exists(settingsPath));
         Assert.False(File.Exists(legacyPath));
         Assert.True(File.Exists(legacyPath + ".migrated"));
+        Assert.DoesNotContain("jmap", File.ReadAllText(settingsPath, Encoding.UTF8), StringComparison.OrdinalIgnoreCase);
+
+        // Reading an existing settings.json with legacy IncludeJmap / include_jmap fields succeeds without warning.
+        var legacyFieldsPath = Path.Combine(workspace.Root, "old-include-jmap-settings.json");
+        var oldOutRoot = Path.Combine(workspace.Root, "Old Output");
+        File.WriteAllText(
+            legacyFieldsPath,
+            JsonSerializer.Serialize(new
+            {
+                output_root_directory = oldOutRoot,
+                include_jmap = true,
+                IncludeJmap = true,
+                jmap_paths = new[] { "/old/title.jmap" },
+                language = "ja",
+            }),
+            Encoding.UTF8);
+        var loadedOldFields = GuiSettingsStore.LoadWithDiagnostics(legacyFieldsPath, allowLegacyMigration: false);
+        Assert.Null(loadedOldFields.WarningMessage);
+        Assert.Equal(oldOutRoot, loadedOldFields.Settings.OutputRootDirectory);
+        Assert.Equal("ja", loadedOldFields.Settings.Language);
 
         // Save and reload roundtrip (including Language setting).
         var customRoot = Path.Combine(workspace.Root, "My Exports");
-        GuiSettingsStore.Save(new GuiSettings(customRoot, true, "ja"), settingsPath);
+        GuiSettingsStore.Save(new GuiSettings(customRoot, "ja"), settingsPath);
         Assert.True(File.Exists(settingsPath));
+        Assert.DoesNotContain("jmap", File.ReadAllText(settingsPath, Encoding.UTF8), StringComparison.OrdinalIgnoreCase);
 
         var reloaded = GuiSettingsStore.Load(settingsPath);
         Assert.Equal(customRoot, reloaded.OutputRootDirectory);
-        Assert.True(reloaded.IncludeJmap);
         Assert.Equal("ja", reloaded.Language);
 
         // Existing new settings file is NOT overwritten by a newly placed legacy file.
-        GuiSettingsStore.Save(new GuiSettings(Path.Combine(workspace.Root, "IgnoredLegacy"), false), legacyPath);
+        GuiSettingsStore.Save(new GuiSettings(Path.Combine(workspace.Root, "IgnoredLegacy"), "en"), legacyPath);
         var noOverwrite = GuiSettingsStore.LoadWithDiagnostics(
             settingsPath,
             legacySettingsPathOverride: legacyPath);
@@ -489,7 +497,7 @@ public sealed class GuiCoreTests
         File.WriteAllText(settingsPath, "{ invalid json", Encoding.UTF8);
         var fallback = GuiSettingsStore.Load(settingsPath);
         Assert.Null(fallback.OutputRootDirectory);
-        Assert.False(fallback.IncludeJmap);
+        Assert.Null(fallback.Language);
     }
 
     [Fact]
@@ -900,7 +908,7 @@ public sealed class GuiCoreTests
         Assert.Contains("无权访问", dirDenied.ErrorMessage, StringComparison.Ordinal);
         Assert.Contains("手动选择游戏目录", dirDenied.ErrorMessage, StringComparison.Ordinal);
 
-        // 5. .usmap / .jmap discovery reports permission errors (e.g. Program Files) without throwing.
+        // 5. .usmap discovery reports permission errors (e.g. Program Files) without throwing.
         var protectedGameDir = Path.Combine(workspace.Root, "ProtectedGame");
         var usmapDenied = MappingDiscovery.DiscoverUsmap(
             protectedGameDir,
@@ -908,12 +916,6 @@ public sealed class GuiCoreTests
         Assert.Null(usmapDenied.Selected);
         Assert.Contains("无权读取目录", usmapDenied.ScanError, StringComparison.Ordinal);
         Assert.Contains("选择 .usmap", usmapDenied.NotFoundGuidance, StringComparison.Ordinal);
-
-        var jmapDenied = MappingDiscovery.DiscoverJmapsWithDiagnostics(
-            protectedGameDir,
-            fileEnumeratorOverride: _ => throw new UnauthorizedAccessException("Program Files 拒绝读取"));
-        Assert.Empty(jmapDenied.Files);
-        Assert.Contains("无权读取目录", jmapDenied.ScanError, StringComparison.Ordinal);
 
         // Partial permission failure: ue4ss denied, Win64 readable -> still selects Win64 .usmap and preserves warning.
         var partialGameDir = Path.Combine(workspace.Root, "PartialGame");
@@ -1185,8 +1187,33 @@ public sealed class GuiCoreTests
                 Assert.False(content.Contains(token, StringComparison.Ordinal), $"{file} 不得包含 {token}");
             }
 
+            Assert.False(
+                content.Contains("jmap", StringComparison.OrdinalIgnoreCase),
+                $"{file} 不得再包含 .jmap / jmap 相关逻辑");
+
             Assert.DoesNotMatch(linuxRootRegex, content);
             Assert.DoesNotMatch(windowsDriveRegex, content);
+        }
+
+        // Verify GUI core public/internal API surface no longer exposes any jmap members.
+        Type[] guiCoreTypes =
+        [
+            typeof(BuildCommandRequest),
+            typeof(BuildCliCommand),
+            typeof(BuildReportSummary),
+            typeof(BuildReportReader),
+            typeof(GuiSettings),
+            typeof(GuiSettingsStore),
+            typeof(MappingDiscovery),
+        ];
+        foreach (var type in guiCoreTypes)
+        {
+            var members = type.GetMembers(
+                System.Reflection.BindingFlags.Public
+                | System.Reflection.BindingFlags.NonPublic
+                | System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.Static);
+            Assert.DoesNotContain(members, m => m.Name.Contains("jmap", StringComparison.OrdinalIgnoreCase));
         }
     }
 

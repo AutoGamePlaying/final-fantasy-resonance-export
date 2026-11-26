@@ -53,11 +53,6 @@ internal sealed record UsmapHashInfo(
     [property: JsonProperty("type_count")] int TypeCount,
     [property: JsonProperty("enum_count")] int EnumCount);
 
-internal sealed record JmapHashInfo(
-    [property: JsonProperty("file_name")] string FileName,
-    [property: JsonProperty("size")] long Size,
-    [property: JsonProperty("sha256")] string Sha256);
-
 internal sealed record PeParsedVersion(
     string? FileVersion,
     string? ProductVersion,
@@ -532,19 +527,6 @@ internal static class GameVersionDetector
             ")|val=(",
             CanonicalizePropertyType(propertyType.ValueType),
             ")");
-    }
-
-    internal static JmapHashInfo ComputeJmapHash(string jmapPath)
-    {
-        var ioPath = PathSupport.ToIoPath(jmapPath);
-        if (!File.Exists(ioPath))
-        {
-            throw new FileNotFoundException(L.Format("Version_JmapFileNotFound", jmapPath));
-        }
-
-        var size = new FileInfo(ioPath).Length;
-        var sha256 = ComputeFileSha256Lower(ioPath);
-        return new JmapHashInfo(Path.GetFileName(jmapPath), size, sha256);
     }
 
     internal static string ComputeFileSha256Lower(string path)
