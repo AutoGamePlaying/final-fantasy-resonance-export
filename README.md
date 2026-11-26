@@ -12,12 +12,13 @@
    - **正式版本**：前往仓库的 **Releases** 页面下载最新 `ffr-export-<版本>-win-x64.zip`；
    - **最新开发构建**：前往仓库的 **Actions** 页面，打开最新一次 `main` 分支通过的 **CI** 记录，在底部的 **Artifacts** 中下载 `ffr-export-<版本>-<提交短号>-win-x64`（保留 30 天）。
 2. **解压到同一目录**：将压缩包完整解压到一个文件夹，确保 `ffr-export-gui.exe`、`ffr-export.exe`、`ffr-db.exe` 与 `known-builds.json` 位于同一目录（不要只单独移动 `ffr-export-gui.exe`；压缩包内另附简短中文 `使用说明.txt`）。
-3. **准备 `.usmap` 映射文件**：`.usmap` 无法随工具分发，需要先用 UE4SS 在《FINAL FANTASY RESONANCE》运行时转储（默认保存在游戏目录的 `FFRS\Binaries\Win64\ue4ss\` 下）。
+3. **准备 `.usmap` 映射文件**：`.usmap` 无法随工具分发，需要从运行中的游戏内存转储。若游戏目录和本地缓存里还没有 `.usmap`，可以直接在窗口程序里点 **一键获取 .usmap（会启动一次游戏）**（或运行 `ffr-export.exe fetch-usmap`），也可以手动用 UE4SS 转储；详见下文 [获取 `.usmap`](#获取-usmap) 与 [docs/usmap.md](docs/usmap.md)。
 4. **双击打开 `ffr-export-gui.exe`**，按界面顺序确认并点击 **开始导出**：
    - **自动扫描游戏**：启动时自动扫描 Steam 全部游戏库并列出名称、Steam 构建号和安装目录；若未找到可点 **手动选择游戏目录…**；
-   - **自动查找 `.usmap` / 可选 `.jmap`**：依次查找 `FFRS\Binaries\Win64\ue4ss\*.usmap` 与 `FFRS\Binaries\Win64\*.usmap` 并选中最新一份；勾选 **包含反射数据（.jmap，可选）** 后会在同样位置自动列出 `.jmap`（默认不勾选）；
-   - **输出位置**：默认保存到 `%USERPROFILE%\Documents\FF-Export\ffr-<Steam 构建号>\`，下次启动会自动记住上次的输出根目录与勾选状态（保存在 `%APPDATA%\ffr-export\settings.json`，不写注册表）；
-   - **完成与核对**：导出时界面实时显示进度条与日志，可随时点 **取消** 结束后台进程树；完成后直接显示数据库路径、文件哈希、内容哈希与 `✓` / `✗` 比对结论，并提供 **打开输出文件夹** 与 **复制哈希** 按钮。
+   - **自动查找 / 一键获取 `.usmap`（及可选 `.jmap`）**：依次查找 `%LOCALAPPDATA%\agp\ffr-export\usmap\*.usmap`、`FFRS\Binaries\Win64\ue4ss\*.usmap` 与 `FFRS\Binaries\Win64\*.usmap` 并选中最新一份；未找到时会显示 **一键获取 .usmap（会启动一次游戏）** 按钮；勾选 **包含反射数据（.jmap，可选）** 后会在 `ue4ss\` / `Win64\` 下自动列出 `.jmap`（默认不勾选）；
+   - **输出位置与统一数据目录**：默认导出、`.usmap` 归档、下载缓存、日志与设置统一保存在 `%LOCALAPPDATA%\agp\ffr-export\`（详见下方 [统一数据目录与 `AGP_HOME`](#统一数据目录与-agp_home)），下次启动会自动记住上次的输出根目录与勾选状态（不写注册表）；
+   - **设置与卸载 UE4SS**：点击 **设置…** 可查看数据目录，并在本工具曾安装过 UE4SS 时点击 **卸载 UE4SS**（只删本工具标记清单里的文件，不碰用户原有 UE4SS）；
+   - **完成与核对**：导出时界面实时显示进度条与日志，可随时点 **取消** 结束后台进程树；完成后直接显示数据库路径、文件哈希、内容哈希与 `✓` / `✗` 比对结论，并提供 **打开输出文件夹**（打开本次实际使用的目录）与 **复制哈希** 按钮。
 
 > 已知版本表（`known-builds.json`）同时登记了两种输入组合：“只有 `.usmap`”和“`.usmap` 加两份 `.jmap`”，因此勾选或不勾选 `.jmap` 都可能与登记版本一致。
 
@@ -37,7 +38,7 @@
 |       (勾选后自动扫描 ue4ss / Win64 下的 *.jmap，支持添加/移除)              |
 +------------------------------------------------------------------------------+
 | [3. 输出位置]                                                                |
-|   输出目录：[ %USERPROFILE%\Documents\FF-Export\ffr-24250053    ] [ 浏览… ]  |
+|   输出目录：[ %LOCALAPPDATA%\agp\ffr-export\output\ffr-24250053   ] [ 浏览… ]  |
 +------------------------------------------------------------------------------+
 | [                  开 始 导 出                  ]                [ 取 消 ]   |
 | 状态：步骤 3/5 — 调用 ffr-db build 构建 SQLite 数据库   [=========>      ]   |
@@ -54,15 +55,59 @@
 +------------------------------------------------------------------------------+
 ```
 
+### 统一数据目录与 `AGP_HOME`
+
+窗口程序与 `build-db` / 交互式向导 / `fetch-usmap` 的默认文件全部集中在统一目录下（避免文件分散在文档、桌面和程序目录各处）：
+
+```text
+%LOCALAPPDATA%\agp\ffr-export\
+  output\ffr-<Steam 构建号>\   默认导出位置（ffr.sqlite、ffr.sqlite.build.json、--keep-json 时的 json\）
+  usmap\                       一键获取或手动复制来的 .usmap（自动查找优先覆盖此目录）
+  downloads\                   UE4SS 官方安装包下载缓存（复用前会校验 SHA-256）
+  logs\                        窗口程序与命令行的运行日志（仅保留最近 10 个）
+  settings.json                窗口程序的设置
+```
+
+- **根目录优先级**：环境变量 `AGP_HOME`（直接作为 `agp` 这一层目录）→ Windows 的 `%LOCALAPPDATA%\agp` → Linux/macOS 的 `$XDG_DATA_HOME/agp`（未设置时为 `~/.local/share/agp`）；
+- **显式路径优先**：命令行传入的 `--out` 或窗口程序里通过 **浏览…** 选定的目录照旧优先使用；**打开输出文件夹** 打开的是本次实际导出的目录；
+- **旧版位置说明与设置迁移**：
+  - 旧版窗口程序的设置位于 `%APPDATA%\ffr-export\settings.json`。新版首次启动时若旧文件存在且新位置不存在，会自动迁移到 `%LOCALAPPDATA%\agp\ffr-export\settings.json`，并将旧文件改名为 `settings.json.migrated`（不删除）；
+  - 旧版默认导出结果（此前位于 `%USERPROFILE%\Documents\FF-Export\` 或程序旁的 `output\`）与旧版日志（`%LOCALAPPDATA%\ffr-export\logs\`）不会自动迁移，您可按需自行保留或清理。
+
+### 获取 `.usmap`
+
+详细原理、改动文件列表与排查建议见 [docs/usmap.md](docs/usmap.md)。
+
+#### 方式一：一键获取（推荐，Windows）
+
+- **图形界面**：打开 `ffr-export-gui.exe`，当 `.usmap` 缺失时点击 **一键获取 .usmap（会启动一次游戏）**，确认弹窗说明后等待自动完成并自动选中新的 `.usmap`（支持随时取消，取消时同样停用模组并关闭游戏）；
+- **命令行**：
+
+```powershell
+ffr-export.exe fetch-usmap --game "<Steam 游戏目录>" [--timeout 300] [--yes]
+```
+
+一键获取仅在您确认后按固定版本下载官方 `UE4SS v4.0.0`（校验大小与 SHA-256，若游戏目录已自行安装 UE4SS 则完全不动原有配置），部署临时只读模组（使用 `enabled.txt`，不改 `mods.txt`），经 Steam 启动游戏并在标题画面转储 `.usmap`，归档到 `%LOCALAPPDATA%\agp\ffr-export\usmap\` 并与 `known-builds.json` 核对，最后移除临时模组并安全关闭游戏（停在标题画面，不触碰存档）。UE4SS 本体保留供下次复用，随时可卸载：
+
+```powershell
+ffr-export.exe uninstall-ue4ss --game "<Steam 游戏目录>"
+```
+
+或在窗口程序点击 **设置… → 卸载 UE4SS**（仅在存在本工具标记文件时可用，绝不卸载用户自行安装的 UE4SS）。
+
+#### 方式二：手动获取
+
+自行从 [RE-UE4SS v4.0.0](https://github.com/UE4SS-RE/RE-UE4SS/releases/tag/v4.0.0) 下载解压到 `<游戏目录>\FFRS\Binaries\Win64\`，运行游戏通过 UE4SS 转储 `.usmap` 后，留在 `FFRS\Binaries\Win64\ue4ss\` 或复制到 `%LOCALAPPDATA%\agp\ffr-export\usmap\` 即可被工具自动发现。
+
 ### 控制台向导与命令行（Windows 可选）
 
 如果偏好终端操作或在脚本中自动化运行，也可以直接使用同目录下的 `ffr-export.exe`：
 
-- **交互式控制台向导**：双击运行不带参数的 `ffr-export.exe`，按中文提示选择游戏、粘贴 `.usmap`/`.jmap` 与输出目录（默认 `output/ffr-<Steam 构建号>/`）即可完成导出与建库。
-- **命令行一键建库**：直接带参数调用 `build-db` 子命令（窗口程序后台调用的也是同一条命令）：
+- **交互式控制台向导**：双击运行不带参数的 `ffr-export.exe`，按中文提示选择游戏、确认自动发现或粘贴的 `.usmap`/`.jmap` 与输出目录（默认 `%LOCALAPPDATA%\agp\ffr-export\output\ffr-<Steam 构建号>\`）即可完成导出与建库。
+- **命令行一键建库**：直接带参数调用 `build-db` 子命令（窗口程序后台调用的也是同一条命令；不传 `--out` 时默认输出到 `%LOCALAPPDATA%\agp\ffr-export\output\ffr-<Steam 构建号>\`）：
 
 ```powershell
-ffr-export.exe build-db --game "<Steam 游戏目录>" --usmap "<Mappings.usmap>" --out "<输出目录>"
+ffr-export.exe build-db --game "<Steam 游戏目录>" --usmap "<Mappings.usmap>" [--out "<输出目录>"]
 ```
 
 ## 命令行与开发用法
@@ -277,7 +322,10 @@ git push origin v0.1.0
 
 ## Oodle 与联网说明
 
-Oodle 解压完全使用 CUE4Parse 自带的开源纯 C# 实现 `OodleSharp`。工具绝不调用 `OodleHelper.Initialize` 或 `DownloadOodleDll` 下载专有 Oodle 动态库，在资源读取、解码和导出过程中不发起任何网络请求。
+- **Oodle 解压**：完全使用 CUE4Parse 自带的开源纯 C# 实现 `OodleSharp`。工具绝不调用 `OodleHelper.Initialize` 或 `DownloadOodleDll` 下载专有 Oodle 动态库。
+- **联网范围**：
+  - **资源导出与建库完全离线**：`list`、`raw`、`export`、`locres`、`inventory`、`export-assets`、`export-maps`、`build-db` 以及 `ffr-db` 建库过程中绝不发起任何网络请求；
+  - **仅「一键获取 `.usmap`」会联网**：只有用户明确触发 `fetch-usmap` 或点击窗口程序 **一键获取 .usmap** 并二次确认，且游戏目录尚未安装 UE4SS 且本地下载缓存未命中时，才会通过 HTTPS 访问唯一写死的官方发布包地址 `https://github.com/UE4SS-RE/RE-UE4SS/releases/download/v4.0.0/UE4SS_v4.0.0.zip`，并对字节数与 SHA-256 做强校验（安装包内不携带任何注入用 DLL）。
 
 ## 许可
 
