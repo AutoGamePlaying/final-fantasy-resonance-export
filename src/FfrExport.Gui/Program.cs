@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using FfrExport.Gui.Core;
@@ -9,50 +10,221 @@ namespace FfrExport.Gui;
 
 internal static class Program
 {
+    private const uint MbOk = 0x00000000;
+    private const uint MbYesNo = 0x00000004;
+    private const uint MbIconError = 0x00000010;
+    private const uint MbIconWarning = 0x00000030;
+    private const uint MbDefButton1 = 0x00000000;
+    private const int IdYes = 6;
+
     [STAThread]
     public static int Main(string[] args)
     {
         var isSelfTest = args.Any(arg => string.Equals(arg, "--self-test", StringComparison.OrdinalIgnoreCase));
         var mode = isSelfTest ? "self-test" : "gui";
 
-        // Configure DPI awareness before collecting startup metadata, isolated in a non-inlined helper
-        // so Main can still create a startup log even if WinForms initialization throws.
-        var dpiSetting = ConfigureHighDpiSafely(out var dpiError);
-        var startupInfo = GuiStartupLog.CollectStartupInfo(typeof(Program).Assembly, dpiSetting, mode);
-        var startupLog = GuiStartupLog.StartSession(startupInfo);
+        // 1. Detect process integrity level and resolve a writable data root BEFORE initializing
+        //    any WinForms API (including SetHighDpiMode / EnableVisualStyles).
+        var integrity = ProcessIntegritySupport.DetectCurrent();
+        var agpResolution = AgpPaths.ResolveWritableAgpRoot(integrityOverride: integrity);
+        if (!agpResolution.Success)
+        {
+            if (isSelfTest)
+            {
+                TryConfigureUtf8Console();
+                Console.Error.WriteLine($"窗口程序自检失败：{agpResolution.ErrorMessage}");
+                Environment.ExitCode = 1;
+                return 1;
+            }
+
+            if (agpResolution.Source == AgpRootSource.AgpHomeEnv)
+            {
+                // Explicit AGP_HOME must never silently fall back; use native Win32 MessageBoxW
+                // which requires neither WinForms visual styles nor a writable %TEMP%.
+                ShowNativeMessageBoxSafely(
+                    agpResolution.ErrorMessage ?? "环境变量 AGP_HOME 指定的目录不可写。",
+                    "数据目录不可写",
+                    MbOk | MbIconError);
+                Environment.ExitCode = 1;
+                return 1;
+            }
+
+            var selectedResolution = PromptUserForWritableAgpRoot(agpResolution);
+            if (selectedResolution is null || !selectedResolution.Success)
+            {
+                Environment.ExitCode = 1;
+                return 1;
+            }
+
+            agpResolution = selectedResolution;
+        }
+
+        // 2. Redirect process-local TEMP/TMP into <agpRoot>\ffr-export\tmp on Windows BEFORE
+        //    calling SetHighDpiMode / EnableVisualStyles or any WinForms control creation, so
+        //    single-file WinForms visual-styles activation context never touches system %TEMP%.
+        var tempConfigured = AgpPaths.TryConfigureProcessTempDirectory(
+            agpResolution,
+            out var configuredTempDir,
+            out var tempConfigError);
+
+        // 3. Configure WinForms DPI awareness and visual styles for both normal GUI and --self-test.
+        var dpiSetting = ConfigureWinFormsSafely(
+            out var dpiError,
+            out var visualStylesException);
+
+        var startupInfo = GuiStartupLog.CollectStartupInfo(
+            typeof(Program).Assembly,
+            dpiSetting,
+            mode,
+            integrity,
+            agpResolution.ToolRoot);
+        var startupLog = GuiStartupLog.StartSession(startupInfo, agpRootResolution: agpResolution);
+
+        if (tempConfigured && !string.IsNullOrWhiteSpace(configuredTempDir))
+        {
+            startupLog.WriteInfo($"进程临时目录已指向数据根目录子目录：{configuredTempDir}");
+        }
+        else if (!string.IsNullOrWhiteSpace(tempConfigError))
+        {
+            startupLog.WriteWarning($"配置数据根目录 tmp 子目录失败：{tempConfigError}");
+        }
 
         if (!string.IsNullOrWhiteSpace(dpiError))
         {
             startupLog.WriteWarning($"高 DPI 初始化失败：{dpiError}");
         }
 
-        if (isSelfTest)
+        if (visualStylesException is not null)
         {
-            return RunSelfTest(startupLog);
+            startupLog.WriteWarning(
+                $"视觉样式初始化失败（将沿用应用清单中的视觉样式）：{visualStylesException.GetType().FullName}: {visualStylesException.Message}");
         }
 
-        return RunGui(startupLog);
+        if (isSelfTest)
+        {
+            return RunSelfTest(startupLog, agpResolution, visualStylesException);
+        }
+
+        return RunGui(startupLog, agpResolution);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static string ConfigureHighDpiSafely(out string? error)
+    private static string ConfigureWinFormsSafely(
+        out string? dpiError,
+        out Exception? visualStylesException)
     {
-        error = null;
+        dpiError = null;
+        visualStylesException = null;
+
+        string dpiSetting;
         try
         {
             var applied = Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
             var actual = Application.HighDpiMode;
-            return $"{actual} (SetPerMonitorV2={applied})";
+            dpiSetting = $"{actual} (SetPerMonitorV2={applied})";
         }
         catch (Exception exception)
         {
-            error = $"{exception.GetType().FullName}: {exception.Message}";
-            return "unavailable";
+            dpiError = $"{exception.GetType().FullName}: {exception.Message}";
+            dpiSetting = "unavailable";
+        }
+
+        try
+        {
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        }
+        catch
+        {
+            // Continue even if unhandled exception mode was already set.
+        }
+
+        try
+        {
+            Application.SetCompatibleTextRenderingDefault(false);
+        }
+        catch
+        {
+            // Continue if text rendering default was already locked by an earlier dialog.
+        }
+
+        // Single-file WinForms EnableVisualStyles creates a temporary activation-context manifest
+        // in TEMP; TEMP/TMP have already been redirected into <agpRoot>\ffr-export\tmp above.
+        try
+        {
+            Application.EnableVisualStyles();
+        }
+        catch (Exception exception)
+        {
+            visualStylesException = exception;
+        }
+
+        return dpiSetting;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static AgpRootResolution? PromptUserForWritableAgpRoot(AgpRootResolution initialFailure)
+    {
+        var currentFailure = initialFailure;
+        while (true)
+        {
+            // Show the initial guidance via native Win32 MessageBoxW so the message is guaranteed
+            // to appear even when no writable directory exists and visual styles are not initialized.
+            var promptText = AgpPaths.FormatAllCandidatesFailedGuiMessage(currentFailure);
+            var answer = ShowNativeMessageBoxSafely(
+                promptText,
+                "请选择可写的数据目录",
+                MbYesNo | MbIconWarning | MbDefButton1);
+            if (answer != IdYes)
+            {
+                return null;
+            }
+
+            string? selectedPath;
+            try
+            {
+                using var dialog = new FolderBrowserDialog
+                {
+                    Description = "选择一个可写文件夹作为本工具的数据根目录（用于保存日志、设置和导出文件）",
+                    UseDescriptionForTitle = true,
+                    ShowNewFolderButton = true,
+                };
+                if (dialog.ShowDialog() != DialogResult.OK || string.IsNullOrWhiteSpace(dialog.SelectedPath))
+                {
+                    continue;
+                }
+
+                selectedPath = dialog.SelectedPath;
+            }
+            catch (Exception exception)
+            {
+                ShowNativeMessageBoxSafely(
+                    $"无法打开「选择文件夹」对话框（{exception.GetType().Name}: {exception.Message}）。\n\n"
+                    + $"请设置环境变量 {AgpPaths.AgpHomeEnvVar} 指向一个可写文件夹后重新启动本工具，"
+                    + "或右键压缩包 -> 属性 -> 解除锁定后重新解压。",
+                    "无法打开文件夹选择器",
+                    MbOk | MbIconError);
+                return null;
+            }
+
+            var accepted = AgpPaths.TryAcceptUserSelectedAgpRoot(
+                selectedPath,
+                currentFailure.Integrity,
+                currentFailure.Failures);
+            if (accepted.Success)
+            {
+                return accepted;
+            }
+
+            ShowNativeMessageBoxSafely(
+                accepted.ErrorMessage ?? "所选文件夹不可写，请重新选择其他目录。",
+                "所选目录不可写",
+                MbOk | MbIconError);
+            currentFailure = accepted;
         }
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static int RunGui(GuiStartupLogSession startupLog)
+    private static int RunGui(GuiStartupLogSession startupLog, AgpRootResolution agpResolution)
     {
         var fatalDialogShown = 0;
         var exitCode = 0;
@@ -75,15 +247,6 @@ internal static class Program
                 startupLog.LastWriteError,
                 headline);
             ShowCrashMessageBoxSafely(message, headline, startupLog);
-        }
-
-        try
-        {
-            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
-        }
-        catch (Exception exception)
-        {
-            startupLog.WriteException("SetUnhandledExceptionMode", exception);
         }
 
         Application.ThreadException += (_, eventArgs) =>
@@ -131,11 +294,8 @@ internal static class Program
 
         try
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-
             startupLog.WriteInfo("正在构造主窗口 MainForm...");
-            using var mainForm = new MainForm(startupLog);
+            using var mainForm = new MainForm(startupLog, agpResolution);
             mainForm.Shown += (_, _) =>
             {
                 mainFormShown = true;
@@ -163,16 +323,27 @@ internal static class Program
     }
 
     /// <summary>
-    /// Headless Windows CI self-test: verifies WinForms assemblies, shared SteamLocator, JSON serialization,
-    /// GUI core helpers, and constructs MainForm with real Win32 control handles (without showing the window).
+    /// Headless Windows CI self-test: verifies process TEMP/TMP redirection, WinForms visual styles
+    /// &amp; assemblies, shared SteamLocator, JSON serialization, writable agp tmp/ directory (never
+    /// touching system %TEMP%), and constructs MainForm with real Win32 control handles.
     /// </summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static int RunSelfTest(GuiStartupLogSession startupLog)
+    private static int RunSelfTest(
+        GuiStartupLogSession startupLog,
+        AgpRootResolution agpResolution,
+        Exception? visualStylesException)
     {
         TryConfigureUtf8Console();
         try
         {
             startupLog.WriteInfo("开始执行窗口程序自检（--self-test）...");
+
+            if (visualStylesException is not null)
+            {
+                throw new InvalidOperationException(
+                    $"Application.EnableVisualStyles 初始化失败（可能误触不可写的系统 TEMP）：{visualStylesException.Message}",
+                    visualStylesException);
+            }
 
             var winFormsAssembly = typeof(Form).Assembly.GetName().Name;
             var listViewType = typeof(ListView).FullName;
@@ -197,8 +368,30 @@ internal static class Program
                 throw new InvalidOperationException("进度解析自检失败。");
             }
 
+            var activeAgpRoot = agpResolution.AgpRoot
+                ?? throw new InvalidOperationException("数据根目录解析结果为空。");
+            var expectedTmpDir = AgpPaths.GetTempDirectoryForAgpRoot(activeAgpRoot);
+            if (OperatingSystem.IsWindows())
+            {
+                var currentTemp = Environment.GetEnvironmentVariable("TEMP");
+                var currentTmp = Environment.GetEnvironmentVariable("TMP");
+                if (!string.Equals(currentTemp, expectedTmpDir, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(currentTmp, expectedTmpDir, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"进程 TEMP/TMP 未重定向到数据根目录 tmp 子目录：expected={expectedTmpDir}, TEMP={currentTemp}, TMP={currentTmp}");
+                }
+            }
+
+            var probeResult = AgpPaths.ProbeDirectoryWritable(activeAgpRoot);
+            if (!probeResult.IsWritable)
+            {
+                throw new InvalidOperationException($"数据根目录试写自检失败：{probeResult.ErrorMessage}");
+            }
+
+            var sampleOutputRoot = AgpPaths.GetDefaultOutputRootForAgpRoot(activeAgpRoot);
             var sampleOutput = GuiPaths.BuildDefaultOutputDirectory(
-                Path.GetTempPath(),
+                sampleOutputRoot,
                 SteamLocator.ResonanceGame.Code,
                 "24250053");
             if (string.IsNullOrWhiteSpace(sampleOutput))
@@ -206,20 +399,15 @@ internal static class Program
                 throw new InvalidOperationException("默认输出路径计算自检失败。");
             }
 
-            var serialized = TextOutput.SerializeSystemJson(new GuiSettings(Path.GetTempPath(), true));
+            var serialized = TextOutput.SerializeSystemJson(new GuiSettings(sampleOutputRoot, true));
             var deserialized = JsonSerializer.Deserialize<GuiSettings>(serialized);
             if (deserialized is null || !deserialized.IncludeJmap)
             {
                 throw new InvalidOperationException("配置 JSON 序列化自检失败。");
             }
 
-            // Exercise the exact same WinForms startup sequence and MainForm construction without showing the form.
-            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-
             startupLog.WriteInfo("自检：正在构造 MainForm 并调用 CreateControl()（不显示窗口）...");
-            using (var form = new MainForm(startupLog))
+            using (var form = new MainForm(startupLog, agpResolution))
             {
                 form.CreateControl();
                 var handle = form.Handle;
@@ -240,7 +428,7 @@ internal static class Program
                     CultureInfo.InvariantCulture,
                     $"自检：MainForm 创建成功（handle=0x{handle.ToInt64():X}, topControls={form.Controls.Count}），正在校验 SettingsDialog。"));
 
-                using var settingsDialog = new SettingsDialog(null, form.Font, form.Font);
+                using var settingsDialog = new SettingsDialog(agpResolution, form.Font, form.Font);
                 settingsDialog.CreateControl();
                 if (settingsDialog.Handle == IntPtr.Zero || !settingsDialog.IsHandleCreated)
                 {
@@ -253,10 +441,10 @@ internal static class Program
 
             startupLog.WriteInfo(string.Create(
                 CultureInfo.InvariantCulture,
-                $"自检通过：assembly={winFormsAssembly}, dpi={highDpiMode}, appid={SteamLocator.ResonanceGame.AppId}"));
+                $"自检通过：assembly={winFormsAssembly}, dpi={highDpiMode}, integrity={agpResolution.Integrity.Label}, data_root={agpResolution.ToolRoot}, appid={SteamLocator.ResonanceGame.AppId}"));
             Debug.WriteLine(string.Create(
                 CultureInfo.InvariantCulture,
-                $"self-test ok: {winFormsAssembly}, dpi={highDpiMode}, appid={SteamLocator.ResonanceGame.AppId}"));
+                $"self-test ok: {winFormsAssembly}, dpi={highDpiMode}, integrity={agpResolution.Integrity.Label}, appid={SteamLocator.ResonanceGame.AppId}"));
             return 0;
         }
         catch (Exception exception)
@@ -307,8 +495,29 @@ internal static class Program
         catch (Exception dialogException)
         {
             startupLog.WriteException("MessageBox.Show 失败", dialogException);
+            ShowNativeMessageBoxSafely(message, caption, MbOk | MbIconError);
         }
     }
+
+    private static int ShowNativeMessageBoxSafely(string message, string caption, uint flags)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return 0;
+        }
+
+        try
+        {
+            return NativeMessageBoxW(IntPtr.Zero, message, caption, flags);
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "MessageBoxW", ExactSpelling = true)]
+    private static extern int NativeMessageBoxW(IntPtr hWnd, string text, string caption, uint type);
 
     private static void TryConfigureUtf8Console()
     {

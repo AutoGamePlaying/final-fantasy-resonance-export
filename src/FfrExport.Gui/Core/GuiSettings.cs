@@ -39,6 +39,12 @@ internal static class GuiSettingsStore
         string? xdgDataHomeOverride = null,
         string? userProfileOverride = null)
     {
+        if (!string.IsNullOrWhiteSpace(agpHomeOverride)
+            && AgpPaths.TryNormalizePath(agpHomeOverride, out var normalizedAgp))
+        {
+            return AgpPaths.GetSettingsFilePathForAgpRoot(normalizedAgp);
+        }
+
         return AgpPaths.GetSettingsFilePath(
             agpHomeEnvOverride: agpHomeOverride,
             isWindowsOverride: isWindowsOverride,

@@ -16,7 +16,9 @@ internal sealed record GuiStartupInfo(
     string CurrentDirectory,
     string ExecutablePath,
     string DpiSetting,
-    string Mode);
+    string Mode,
+    string IntegrityLevel = "Unknown",
+    string? DataRoot = null);
 
 /// <summary>
 /// Active startup diagnostic log session for the GUI process.
@@ -114,8 +116,9 @@ internal sealed class GuiStartupLogSession
 }
 
 /// <summary>
-/// Manages GUI startup log files under %LOCALAPPDATA%\agp\ffr-export\logs\gui-&lt;yyyyMMdd-HHmmss&gt;.log
-/// (falling back to %TEMP%), retains only the latest 10 log files, and formats fatal crash diagnostics.
+/// Manages GUI startup log files under &lt;selectedAgpRoot&gt;\ffr-export\logs\gui-&lt;yyyyMMdd-HHmmss&gt;.log,
+/// retains only the latest 10 log files, and formats fatal crash diagnostics.
+/// Never writes to %TEMP%; if no selected data root is writable, logs stay in-memory/dialog only.
 /// </summary>
 internal static class GuiStartupLog
 {
@@ -127,8 +130,7 @@ internal static class GuiStartupLog
 
     private const int MaxInnerExceptionDepth = 16;
 
-    // Restrict pruning strictly to files matching our timestamped gui-*.log / cli-*.log naming scheme so fallback to %TEMP%
-    // never touches unrelated files.
+    // Restrict pruning strictly to files matching our timestamped gui-*.log / cli-*.log naming scheme.
     private static readonly Regex ManagedLogFileRegex = new(
         @"^(?:gui|cli)-\d{8}-\d{6}(?:-[0-9A-Za-z-]+)?\.log$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
@@ -136,7 +138,9 @@ internal static class GuiStartupLog
     internal static GuiStartupInfo CollectStartupInfo(
         Assembly? entryAssembly,
         string? dpiSetting,
-        string mode = "gui")
+        string mode = "gui",
+        ProcessIntegrityInfo? integrityInfo = null,
+        string? dataRoot = null)
     {
         var (version, gitCommit) = ReadBuildMetadata(entryAssembly);
 
@@ -184,6 +188,7 @@ internal static class GuiStartupLog
         var executablePath = ResolveExecutablePath();
         var normalizedDpi = string.IsNullOrWhiteSpace(dpiSetting) ? "unknown" : dpiSetting.Trim();
         var normalizedMode = string.IsNullOrWhiteSpace(mode) ? "gui" : mode.Trim();
+        var integrity = integrityInfo ?? ProcessIntegritySupport.DetectCurrent();
 
         return new GuiStartupInfo(
             version,
@@ -194,7 +199,9 @@ internal static class GuiStartupLog
             currentDirectory,
             executablePath,
             normalizedDpi,
-            normalizedMode);
+            normalizedMode,
+            integrity.FormatForLog(),
+            dataRoot);
     }
 
     internal static string GetPrimaryLogDirectory(
@@ -206,64 +213,30 @@ internal static class GuiStartupLog
         {
             if (agpHomeOverride is not null)
             {
-                if (string.IsNullOrWhiteSpace(agpHomeOverride))
+                if (string.IsNullOrWhiteSpace(agpHomeOverride)
+                    || !AgpPaths.TryNormalizePath(agpHomeOverride, out var normalizedAgp))
                 {
                     return string.Empty;
                 }
 
-                return AgpPaths.GetLogsDirectory(agpHomeEnvOverride: agpHomeOverride);
+                return AgpPaths.GetLogsDirectoryForAgpRoot(normalizedAgp);
             }
 
             if (localAppDataOverride is not null)
             {
-                if (string.IsNullOrWhiteSpace(localAppDataOverride))
+                if (string.IsNullOrWhiteSpace(localAppDataOverride)
+                    || !AgpPaths.TryNormalizePath(Path.Combine(localAppDataOverride.Trim(), AgpPaths.AgpFolderName), out var winAgp))
                 {
                     return string.Empty;
                 }
 
-                return AgpPaths.GetLogsDirectory(
-                    agpHomeEnvOverride: string.Empty,
-                    isWindowsOverride: true,
-                    localAppDataOverride: localAppDataOverride);
+                return AgpPaths.GetLogsDirectoryForAgpRoot(winAgp);
             }
 
-            return AgpPaths.GetLogsDirectory(isWindowsOverride: isWindowsOverride);
-        }
-        catch
-        {
-            return string.Empty;
-        }
-    }
-
-    internal static string GetFallbackLogDirectory(string? tempDirectoryOverride = null)
-    {
-        string? tempDir;
-        if (tempDirectoryOverride is not null)
-        {
-            tempDir = tempDirectoryOverride;
-        }
-        else
-        {
-            tempDir = SafeGetTempPath();
-            if (string.IsNullOrWhiteSpace(tempDir))
-            {
-                tempDir = SafeGetEnvironmentVariable("TEMP") ?? SafeGetEnvironmentVariable("TMP");
-            }
-
-            if (string.IsNullOrWhiteSpace(tempDir))
-            {
-                tempDir = AppContext.BaseDirectory;
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(tempDir))
-        {
-            return string.Empty;
-        }
-
-        try
-        {
-            return PathSupport.TrimTrailingSeparators(Path.GetFullPath(tempDir.Trim()));
+            var resolved = AgpPaths.ResolveWritableAgpRoot(isWindowsOverride: isWindowsOverride);
+            return resolved.Success && !string.IsNullOrWhiteSpace(resolved.AgpRoot)
+                ? AgpPaths.GetLogsDirectoryForAgpRoot(resolved.AgpRoot)
+                : string.Empty;
         }
         catch
         {
@@ -282,98 +255,107 @@ internal static class GuiStartupLog
     internal static string FormatStartupLine(GuiStartupInfo info, DateTimeOffset? timestamp = null)
     {
         var ts = (timestamp ?? DateTimeOffset.Now).ToString("yyyy-MM-dd HH:mm:ss.fff zzz", CultureInfo.InvariantCulture);
+        var dataRootPart = string.IsNullOrWhiteSpace(info.DataRoot)
+            ? string.Empty
+            : $" data_root=\"{SanitizeQuoted(info.DataRoot)}\"";
         return string.Create(
             CultureInfo.InvariantCulture,
             $"[{ts}] [START] mode={SanitizeSingleLine(info.Mode)} "
             + $"version={SanitizeSingleLine(info.Version)} "
             + $"git={SanitizeSingleLine(info.GitCommit)} "
+            + $"integrity=\"{SanitizeQuoted(info.IntegrityLevel)}\" "
             + $"os=\"{SanitizeQuoted(info.OsVersion)}\" "
             + $"dotnet=\"{SanitizeQuoted(info.DotNetVersion)}\" "
             + $"bits=\"{SanitizeQuoted(info.ProcessBitness)}\" "
             + $"dpi=\"{SanitizeQuoted(info.DpiSetting)}\" "
             + $"cwd=\"{SanitizeQuoted(info.CurrentDirectory)}\" "
-            + $"exe=\"{SanitizeQuoted(info.ExecutablePath)}\"");
+            + $"exe=\"{SanitizeQuoted(info.ExecutablePath)}\""
+            + $"{dataRootPart}");
     }
 
     internal static GuiStartupLogSession StartSession(
         GuiStartupInfo startupInfo,
         DateTimeOffset? nowOverride = null,
-        string? localAppDataOverride = null,
-        string? tempDirectoryOverride = null,
+        AgpRootResolution? agpRootResolution = null,
+        string? logsDirectoryOverride = null,
         int maxRetainedLogs = DefaultMaxRetainedLogs,
         Action<string>? directoryCreatorOverride = null)
     {
         var now = nowOverride ?? DateTimeOffset.Now;
-        var startupLine = FormatStartupLine(startupInfo, now);
-        var primaryDir = GetPrimaryLogDirectory(localAppDataOverride);
-        var fallbackDir = GetFallbackLogDirectory(tempDirectoryOverride);
-
+        var effectiveResolution = agpRootResolution;
+        string? targetDir;
         string? primaryError = null;
-        if (!string.IsNullOrWhiteSpace(primaryDir))
+        var usedFallback = false;
+
+        if (logsDirectoryOverride is not null)
         {
-            if (TryCreateLogFile(
-                primaryDir,
-                now,
-                startupLine,
-                extraWarningLine: null,
-                directoryCreatorOverride,
-                out var primaryLogPath,
-                out primaryError))
+            targetDir = string.IsNullOrWhiteSpace(logsDirectoryOverride)
+                ? null
+                : PathSupport.TrimTrailingSeparators(Path.GetFullPath(logsDirectoryOverride));
+            if (targetDir is null)
             {
-                PruneOldLogs(primaryDir, primaryLogPath, maxRetainedLogs);
-                return new GuiStartupLogSession(
-                    primaryLogPath,
-                    primaryDir,
-                    usedFallbackDirectory: false,
-                    primaryDirectoryError: null,
-                    isWritable: true,
-                    lastWriteError: null);
+                primaryError = "未指定可写的日志目录";
             }
         }
         else
         {
-            primaryError = "无法解析 %LOCALAPPDATA% 日志目录";
-        }
-
-        string? fallbackError = null;
-        if (!string.IsNullOrWhiteSpace(fallbackDir)
-            && !PathsEqual(primaryDir, fallbackDir))
-        {
-            var warningTimestamp = now.ToString("yyyy-MM-dd HH:mm:ss.fff zzz", CultureInfo.InvariantCulture);
-            var fallbackWarning =
-                $"[{warningTimestamp}] [WARN] 主日志目录不可用（{SanitizeSingleLine(primaryError ?? "未知原因")}），已退回临时目录：{SanitizeSingleLine(fallbackDir)}";
-
-            if (TryCreateLogFile(
-                fallbackDir,
-                now,
-                startupLine,
-                extraWarningLine: fallbackWarning,
-                directoryCreatorOverride,
-                out var fallbackLogPath,
-                out fallbackError))
+            effectiveResolution ??= AgpPaths.ResolveWritableAgpRoot();
+            usedFallback = effectiveResolution.UsedFallback;
+            primaryError = effectiveResolution.PrimaryFailureReason;
+            if (effectiveResolution.Success && !string.IsNullOrWhiteSpace(effectiveResolution.AgpRoot))
             {
-                PruneOldLogs(fallbackDir, fallbackLogPath, maxRetainedLogs);
-                return new GuiStartupLogSession(
-                    fallbackLogPath,
-                    fallbackDir,
-                    usedFallbackDirectory: true,
-                    primaryDirectoryError: primaryError,
-                    isWritable: true,
-                    lastWriteError: null);
+                targetDir = AgpPaths.GetLogsDirectoryForAgpRoot(effectiveResolution.AgpRoot);
+            }
+            else
+            {
+                targetDir = null;
+                primaryError = effectiveResolution.ErrorMessage ?? "没有可写的数据目录";
             }
         }
-        else if (string.IsNullOrWhiteSpace(fallbackDir))
+
+        if (string.IsNullOrWhiteSpace(targetDir))
         {
-            fallbackError = "无法解析 %TEMP% 备选日志目录";
+            return new GuiStartupLogSession(
+                logFilePath: null,
+                logDirectory: null,
+                usedFallbackDirectory: usedFallback,
+                primaryDirectoryError: primaryError,
+                isWritable: false,
+                lastWriteError: primaryError ?? "没有可写的数据目录，未写入日志文件");
+        }
+
+        var enrichedInfo = string.IsNullOrWhiteSpace(startupInfo.DataRoot) && effectiveResolution?.ToolRoot is not null
+            ? startupInfo with { DataRoot = effectiveResolution.ToolRoot }
+            : startupInfo;
+        var startupLine = FormatStartupLine(enrichedInfo, now);
+        var extraLines = BuildStartupResolutionDiagnosticLines(effectiveResolution, now);
+
+        if (TryCreateLogFile(
+            targetDir,
+            now,
+            startupLine,
+            extraLines,
+            directoryCreatorOverride,
+            out var logPath,
+            out var writeError))
+        {
+            PruneOldLogs(targetDir, logPath, maxRetainedLogs);
+            return new GuiStartupLogSession(
+                logPath,
+                targetDir,
+                usedFallbackDirectory: usedFallback,
+                primaryDirectoryError: primaryError,
+                isWritable: true,
+                lastWriteError: null);
         }
 
         return new GuiStartupLogSession(
             logFilePath: null,
             logDirectory: null,
-            usedFallbackDirectory: true,
-            primaryDirectoryError: primaryError,
+            usedFallbackDirectory: usedFallback,
+            primaryDirectoryError: primaryError ?? writeError,
             isWritable: false,
-            lastWriteError: fallbackError ?? primaryError ?? "无法创建启动日志文件");
+            lastWriteError: writeError ?? "无法创建启动日志文件");
     }
 
     /// <summary>
@@ -549,6 +531,41 @@ internal static class GuiStartupLog
         return value.Replace('\r', ' ').Replace('\n', ' ').Trim();
     }
 
+    private static List<string> BuildStartupResolutionDiagnosticLines(
+        AgpRootResolution? resolution,
+        DateTimeOffset timestamp)
+    {
+        var lines = new List<string>();
+        if (resolution is null)
+        {
+            return lines;
+        }
+
+        var ts = timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff zzz", CultureInfo.InvariantCulture);
+        lines.Add(
+            $"[{ts}] [INFO] 进程完整性级别：{SanitizeSingleLine(resolution.Integrity.DisplayTextZh)} " +
+            $"({SanitizeSingleLine(resolution.Integrity.FormatForLog())})；数据目录来源={resolution.Source}；路径={SanitizeSingleLine(resolution.ToolRoot)}");
+
+        if (resolution.Failures.Count > 0)
+        {
+            foreach (var failure in resolution.Failures)
+            {
+                lines.Add(
+                    $"[{ts}] [WARN] 跳过不可写候选目录：{SanitizeSingleLine(failure.Label)} " +
+                    $"({SanitizeSingleLine(failure.Path)})：{SanitizeSingleLine(failure.Reason)}");
+            }
+        }
+
+        if (resolution.Source == AgpRootSource.UserSelected && !resolution.LocationFileSaved)
+        {
+            lines.Add(
+                $"[{ts}] [WARN] 未能保存 {AgpPaths.SavedLocationFileName}（下次启动时需重新选择数据目录）：" +
+                $"{SanitizeSingleLine(resolution.LocationFileSaveError ?? "程序目录不可写")}");
+        }
+
+        return lines;
+    }
+
     private static string SanitizeQuoted(string? value)
     {
         return SanitizeSingleLine(value).Replace('"', '\'');
@@ -598,7 +615,7 @@ internal static class GuiStartupLog
         string directory,
         DateTimeOffset now,
         string startupLine,
-        string? extraWarningLine,
+        IReadOnlyList<string> extraLines,
         Action<string>? directoryCreatorOverride,
         out string? createdFilePath,
         out string? errorMessage)
@@ -617,9 +634,17 @@ internal static class GuiStartupLog
                 Directory.CreateDirectory(PathSupport.ToIoPath(directory));
             }
 
-            var content = string.IsNullOrWhiteSpace(extraWarningLine)
-                ? startupLine + TextOutput.LineEnding
-                : startupLine + TextOutput.LineEnding + extraWarningLine + TextOutput.LineEnding;
+            var sb = new StringBuilder();
+            sb.Append(startupLine).Append(TextOutput.LineEnding);
+            foreach (var extra in extraLines)
+            {
+                if (!string.IsNullOrWhiteSpace(extra))
+                {
+                    sb.Append(extra).Append(TextOutput.LineEnding);
+                }
+            }
+
+            var content = sb.ToString();
 
             for (var attempt = 0; attempt < 100; attempt++)
             {
@@ -706,30 +731,6 @@ internal static class GuiStartupLog
             : AppContext.BaseDirectory;
     }
 
-    private static string? SafeGetEnvironmentVariable(string name)
-    {
-        try
-        {
-            return Environment.GetEnvironmentVariable(name);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static string? SafeGetTempPath()
-    {
-        try
-        {
-            return Path.GetTempPath();
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
     private static string? NormalizePathForComparison(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -746,12 +747,5 @@ internal static class GuiStartupLog
         {
             return OperatingSystem.IsWindows() ? path.ToUpperInvariant() : path;
         }
-    }
-
-    private static bool PathsEqual(string? left, string? right)
-    {
-        var a = NormalizePathForComparison(left);
-        var b = NormalizePathForComparison(right);
-        return a is not null && b is not null && string.Equals(a, b, StringComparison.Ordinal);
     }
 }

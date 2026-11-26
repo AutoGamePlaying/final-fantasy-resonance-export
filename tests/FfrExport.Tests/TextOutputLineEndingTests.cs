@@ -130,8 +130,7 @@ public sealed class TextOutputLineEndingTests
 
         var guiLogSession = GuiStartupLog.StartSession(
             GuiStartupLog.CollectStartupInfo(typeof(TextOutputLineEndingTests).Assembly, "PerMonitorV2", "test"),
-            localAppDataOverride: Path.Combine(workspace.Root, "LocalAppData"),
-            tempDirectoryOverride: workspace.Root);
+            logsDirectoryOverride: Path.Combine(workspace.Root, "LocalAppData", "agp", "ffr-export", "logs"));
         guiLogSession.WriteInfo("line-with-info");
         guiLogSession.WriteException("test-stage", new InvalidOperationException("line1\r\nline2"));
         Assert.NotNull(guiLogSession.LogFilePath);

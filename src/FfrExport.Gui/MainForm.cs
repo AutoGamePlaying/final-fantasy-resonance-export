@@ -10,20 +10,22 @@ namespace FfrExport.Gui;
 /// </summary>
 internal sealed class MainForm : Form
 {
-    private const int MinimumWindowWidth = 720;
-    private const int MinimumWindowHeight = 700;
+    private const int MinimumWindowWidth = 760;
+    private const int MinimumWindowHeight = 740;
     private const int MaxLogCharacters = 400_000;
-    private const string DefaultOutputHintText =
-        "默认位置：%LOCALAPPDATA%\\agp\\ffr-export\\output\\ffr-<Steam 构建号>\\（导出只读游戏文件，不会修改游戏目录）";
 
     private enum ActiveOperation
     {
         None,
         Exporting,
         FetchingUsmap,
+        CleaningUe4ss,
     }
 
     private readonly GuiStartupLogSession? _startupLog;
+    private readonly AgpRootResolution _agpResolution;
+    private readonly string _activeAgpRoot;
+    private readonly string _defaultOutputHintText;
     private readonly List<Font> _ownedFonts = [];
     private readonly HashSet<string> _recordedFontWarnings = new(StringComparer.Ordinal);
 
@@ -36,6 +38,9 @@ internal sealed class MainForm : Form
     private readonly List<GameEntry> _games = [];
     private readonly List<DiscoveredMappingFile> _jmapFiles = [];
 
+    private readonly Panel _dataRootBannerPanel;
+    private readonly Label _dataRootBannerLabel;
+
     private readonly ListView _gameListView;
     private readonly Button _manualGameButton;
     private readonly Button _rescanGameButton;
@@ -45,6 +50,7 @@ internal sealed class MainForm : Form
     private readonly Label _usmapStatusLabel;
     private readonly TextBox _usmapPathTextBox;
     private readonly Button _browseUsmapButton;
+    private readonly Button _cleanupUe4ssButton;
     private readonly Button _fetchUsmapButton;
     private readonly CheckBox _includeJmapCheckBox;
     private readonly ListBox _jmapListBox;
@@ -71,6 +77,10 @@ internal sealed class MainForm : Form
     private readonly Button _copyHashButton;
     private readonly Label _copyFeedbackLabel;
 
+    private readonly StatusStrip _statusStrip;
+    private readonly ToolStripStatusLabel _integrityStatusLabel;
+    private readonly ToolStripStatusLabel _dataRootStatusLabel;
+
     private readonly string _settingsPath;
     private string _outputRootDirectory;
     private GameEntry? _selectedGame;
@@ -86,13 +96,32 @@ internal sealed class MainForm : Form
     private BuildReportSummary? _lastReport;
     private string? _lastCompletedOutputDir;
 
-    internal MainForm(GuiStartupLogSession? startupLog = null)
+    internal MainForm(GuiStartupLogSession? startupLog = null, AgpRootResolution? agpResolution = null)
     {
         _startupLog = startupLog;
         var startupWarnings = new List<string>();
 
-        _settingsPath = GuiSettingsStore.GetDefaultSettingsPath();
-        var settingsResult = GuiSettingsStore.LoadWithDiagnostics();
+        _agpResolution = agpResolution ?? AgpPaths.ResolveWritableAgpRoot();
+        _activeAgpRoot = _agpResolution.AgpRoot ?? AppContext.BaseDirectory;
+        var activeToolRoot = AgpPaths.ResolveToolRootForAgpRoot(_activeAgpRoot);
+        var defaultOutputRoot = AgpPaths.GetDefaultOutputRootForAgpRoot(_activeAgpRoot);
+        _defaultOutputHintText =
+            $"默认位置：{defaultOutputRoot}\\ffr-<Steam 构建号>\\（导出只读游戏文件，不会修改游戏目录）";
+
+        var bannerMessage = AgpPaths.FormatGuiBannerMessage(_agpResolution);
+        if (!string.IsNullOrWhiteSpace(bannerMessage))
+        {
+            startupWarnings.Add(bannerMessage);
+        }
+
+        _settingsPath = GuiSettingsStore.GetDefaultSettingsPath(agpHomeOverride: _activeAgpRoot);
+        var legacyPath = _agpResolution.Source == AgpRootSource.LocalAppData
+            && !AgpPaths.IsAgpHomeEnvironmentOverrideActive()
+            ? GuiSettingsStore.GetLegacySettingsPath()
+            : null;
+        var settingsResult = GuiSettingsStore.LoadWithDiagnostics(
+            _settingsPath,
+            legacySettingsPathOverride: legacyPath);
         if (!string.IsNullOrWhiteSpace(settingsResult.MigratedFromPath))
         {
             var migratedNote =
@@ -120,17 +149,14 @@ internal sealed class MainForm : Form
             }
             else
             {
-                var fallbackRoot = GuiPaths.ResolveDefaultOutputRootSafe();
-                _outputRootDirectory = fallbackRoot.Path;
+                _outputRootDirectory = defaultOutputRoot;
                 initialOutputWarning =
                     $"上次保存的输出目录无效（{loadedSettings.OutputRootDirectory}：{savedRootError}），已改用默认目录：{_outputRootDirectory}（可点击「浏览…」重新选择）。";
             }
         }
         else
         {
-            var resolvedRoot = GuiPaths.ResolveDefaultOutputRootSafe();
-            _outputRootDirectory = resolvedRoot.Path;
-            initialOutputWarning = resolvedRoot.WarningMessage;
+            _outputRootDirectory = defaultOutputRoot;
         }
 
         if (!string.IsNullOrWhiteSpace(initialOutputWarning))
@@ -152,21 +178,45 @@ internal sealed class MainForm : Form
         AutoScaleMode = AutoScaleMode.Dpi;
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(MinimumWindowWidth, MinimumWindowHeight);
-        ClientSize = new Size(840, 820);
+        ClientSize = new Size(880, 850);
 
         var rootLayout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 5,
-            Padding = new Padding(12),
+            RowCount = 6,
+            Padding = new Padding(12, 10, 12, 8),
         };
         rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        // Optional prominent banner for Low IL or fallback data root
+        _dataRootBannerPanel = new Panel
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            BackColor = Color.FromArgb(255, 248, 225),
+            BorderStyle = BorderStyle.FixedSingle,
+            Padding = new Padding(10, 6, 10, 6),
+            Margin = new Padding(0, 0, 0, 8),
+            Visible = !string.IsNullOrWhiteSpace(bannerMessage),
+        };
+        _dataRootBannerLabel = new Label
+        {
+            Text = bannerMessage ?? string.Empty,
+            Font = _boldUiFont,
+            ForeColor = Color.FromArgb(146, 64, 14),
+            AutoSize = true,
+            MaximumSize = new Size(830, 0),
+            Dock = DockStyle.Fill,
+        };
+        _dataRootBannerPanel.Controls.Add(_dataRootBannerLabel);
 
         // Section 1: Game selection
         var gameGroup = new GroupBox
@@ -296,12 +346,31 @@ internal sealed class MainForm : Form
         _browseUsmapButton = new Button
         {
             Text = "选择 .usmap…",
-            Width = 122,
+            Width = 112,
             Height = 30,
+            Margin = new Padding(0, 0, 6, 0),
+        };
+        _browseUsmapButton.Click += OnBrowseUsmapClick;
+
+        _cleanupUe4ssButton = new Button
+        {
+            Text = "清理 UE4SS…",
+            Width = 112,
+            Height = 30,
+            Margin = new Padding(0),
+        };
+        _cleanupUe4ssButton.Click += OnCleanupUe4ssClick;
+
+        var usmapActionButtons = new FlowLayoutPanel
+        {
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            AutoSize = true,
             Anchor = AnchorStyles.Right,
             Margin = new Padding(0, 2, 0, 4),
         };
-        _browseUsmapButton.Click += OnBrowseUsmapClick;
+        usmapActionButtons.Controls.Add(_browseUsmapButton);
+        usmapActionButtons.Controls.Add(_cleanupUe4ssButton);
 
         _fetchUsmapButton = new Button
         {
@@ -393,7 +462,7 @@ internal sealed class MainForm : Form
 
         mappingLayout.Controls.Add(usmapCaption, 0, 0);
         mappingLayout.Controls.Add(_usmapStatusLabel, 1, 0);
-        mappingLayout.Controls.Add(_browseUsmapButton, 2, 0);
+        mappingLayout.Controls.Add(usmapActionButtons, 2, 0);
 
         mappingLayout.Controls.Add(_fetchUsmapButton, 1, 1);
         mappingLayout.SetColumnSpan(_fetchUsmapButton, 2);
@@ -468,7 +537,7 @@ internal sealed class MainForm : Form
         _outputHintLabel = new Label
         {
             Text = string.IsNullOrWhiteSpace(initialOutputWarning)
-                ? DefaultOutputHintText
+                ? _defaultOutputHintText
                 : initialOutputWarning,
             AutoSize = true,
             ForeColor = string.IsNullOrWhiteSpace(initialOutputWarning)
@@ -690,12 +759,39 @@ internal sealed class MainForm : Form
 
         resultGroup.Controls.Add(resultLayout);
 
-        rootLayout.Controls.Add(gameGroup, 0, 0);
-        rootLayout.Controls.Add(mappingGroup, 0, 1);
-        rootLayout.Controls.Add(outputGroup, 0, 2);
-        rootLayout.Controls.Add(runPanel, 0, 3);
-        rootLayout.Controls.Add(resultGroup, 0, 4);
+        rootLayout.Controls.Add(_dataRootBannerPanel, 0, 0);
+        rootLayout.Controls.Add(gameGroup, 0, 1);
+        rootLayout.Controls.Add(mappingGroup, 0, 2);
+        rootLayout.Controls.Add(outputGroup, 0, 3);
+        rootLayout.Controls.Add(runPanel, 0, 4);
+        rootLayout.Controls.Add(resultGroup, 0, 5);
+
+        _statusStrip = new StatusStrip
+        {
+            Dock = DockStyle.Bottom,
+            SizingGrip = true,
+        };
+        _integrityStatusLabel = new ToolStripStatusLabel
+        {
+            Text = $"完整性级别：{_agpResolution.Integrity.DisplayTextZh}",
+            BorderSides = ToolStripStatusLabelBorderSides.Right,
+            BorderStyle = Border3DStyle.Etched,
+            ForeColor = _agpResolution.Integrity.IsLowOrUntrusted
+                ? Color.FromArgb(180, 100, 0)
+                : SystemColors.ControlText,
+        };
+        _dataRootStatusLabel = new ToolStripStatusLabel
+        {
+            Text = $"数据目录：{activeToolRoot}",
+            Spring = true,
+            TextAlign = ContentAlignment.MiddleLeft,
+        };
+        _statusStrip.Items.Add(_integrityStatusLabel);
+        _statusStrip.Items.Add(_dataRootStatusLabel);
+
+        // Add Dock.Fill before Dock.Bottom so WinForms reserves StatusStrip height first.
         Controls.Add(rootLayout);
+        Controls.Add(_statusStrip);
 
         // Apply persisted .jmap checkbox state without firing redundant scans before initial game discovery.
         _suppressJmapToggle = true;
@@ -749,7 +845,12 @@ internal sealed class MainForm : Form
     {
         if (_isExporting)
         {
-            var opName = _activeOperation == ActiveOperation.FetchingUsmap ? "获取 .usmap" : "导出";
+            var opName = _activeOperation switch
+            {
+                ActiveOperation.FetchingUsmap => "获取 .usmap",
+                ActiveOperation.CleaningUe4ss => "清理 UE4SS",
+                _ => "导出",
+            };
             var answer = MessageBox.Show(
                 this,
                 $"{opName}仍在进行中。关闭窗口会取消{opName}并清理后台进程，确定要退出吗？",
@@ -984,7 +1085,9 @@ internal sealed class MainForm : Form
             _usmapManuallySelected = false;
             try
             {
-                var usmapResult = MappingDiscovery.DiscoverUsmap(_selectedGame?.GameDirectory);
+                var usmapResult = MappingDiscovery.DiscoverUsmap(
+                    _selectedGame?.GameDirectory,
+                    agpUsmapDirectoryOverride: AgpPaths.GetUsmapDirectoryForAgpRoot(_activeAgpRoot));
                 _selectedUsmap = usmapResult.Selected;
                 if (!string.IsNullOrWhiteSpace(usmapResult.ScanError))
                 {
@@ -1055,7 +1158,7 @@ internal sealed class MainForm : Form
         }
         else if (_selectedGame is not null)
         {
-            var agpUsmapDir = AgpPaths.GetUsmapDirectory();
+            var agpUsmapDir = AgpPaths.GetUsmapDirectoryForAgpRoot(_activeAgpRoot);
             var ue4ssDir = SteamLocator.CombineRelativeSubpath(
                 _selectedGame.GameDirectory,
                 MappingDiscovery.RelativeUe4ssSubpath);
@@ -1098,26 +1201,207 @@ internal sealed class MainForm : Form
         }
 
         using var dialog = new SettingsDialog(
-            _selectedGame?.GameDirectory,
+            _agpResolution,
             _uiFont,
-            _boldUiFont,
-            line =>
-            {
-                if (!IsDisposed && IsHandleCreated)
-                {
-                    BeginInvoke(() =>
-                    {
-                        if (!IsDisposed)
-                        {
-                            AppendLogLine(line);
-                        }
-                    });
-                }
-            });
+            _boldUiFont);
         dialog.ShowDialog(this);
-        if (dialog.Ue4ssUninstalled)
+    }
+
+    private async void OnCleanupUe4ssClick(object? sender, EventArgs e)
+    {
+        if (_isExporting)
         {
-            RefreshMappingsForSelectedGame(resetManualUsmap: false);
+            return;
+        }
+
+        try
+        {
+            await StartCleanupUe4ssWorkflowAsync();
+        }
+        catch (Exception exception)
+        {
+            AppendLogLine($"[错误] 清理 UE4SS 时发生未预期异常：{exception.Message}");
+            _startupLog?.WriteException("OnCleanupUe4ssClick", exception);
+            MessageBox.Show(
+                this,
+                $"清理 UE4SS 失败：{exception.Message}",
+                "清理 UE4SS 失败",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+    }
+
+    private async Task StartCleanupUe4ssWorkflowAsync()
+    {
+        var cliLookup = GuiPaths.ResolveCliExecutable();
+        if (!cliLookup.Found)
+        {
+            MessageBox.Show(
+                this,
+                cliLookup.ErrorMessage ?? "找不到命令行程序 ffr-export.exe。",
+                "缺少命令行程序",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            return;
+        }
+
+        if (_selectedGame is null)
+        {
+            MessageBox.Show(
+                this,
+                "请先选择一个游戏，或点击「手动选择游戏目录…」指定《FINAL FANTASY RESONANCE》安装目录。",
+                "未选择游戏",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        var gameCheck = GameScanner.ValidateManualGameDirectory(_selectedGame.GameDirectory);
+        if (!gameCheck.IsValid)
+        {
+            MessageBox.Show(
+                this,
+                gameCheck.ErrorMessage ?? "所选游戏目录无效，请重新选择。",
+                "游戏目录无效",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (Ue4ssRuntimeSupport.IsGameProcessRunning())
+        {
+            MessageBox.Show(
+                this,
+                $"检测到游戏（{Ue4ssRuntimeSupport.GameExeFileName}）正在运行，请先关闭游戏后再清理 UE4SS。",
+                "游戏正在运行",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        var gameDir = _selectedGame.GameDirectory;
+        var plan = Ue4ssRuntimeSupport.InspectCleanupPlan(gameDir);
+        if (!plan.HasAnythingDetected)
+        {
+            MessageBox.Show(
+                this,
+                "未发现 UE4SS（当前游戏目录未安装 UE4SS，也未发现本工具残留文件）。",
+                "未发现 UE4SS",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+            return;
+        }
+
+        using var cleanupDialog = new Ue4ssCleanupDialog(
+            gameDir,
+            plan,
+            _activeAgpRoot,
+            _uiFont,
+            _boldUiFont);
+        if (cleanupDialog.ShowDialog(this) != DialogResult.OK || !cleanupDialog.Confirmed)
+        {
+            return;
+        }
+
+        if (Ue4ssRuntimeSupport.IsGameProcessRunning())
+        {
+            MessageBox.Show(
+                this,
+                $"检测到游戏（{Ue4ssRuntimeSupport.GameExeFileName}）正在运行，请先关闭游戏后再清理 UE4SS。",
+                "游戏正在运行",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        var cliArgs = BuildCliCommand.BuildUninstallUe4ssArguments(
+            gameDir,
+            includeForeign: cleanupDialog.IncludeForeign,
+            yes: true);
+        AppendLogLine($"启动命令：{cliLookup.FileName} {string.Join(" ", cliArgs.Select(QuoteForLog))}");
+        _startupLog?.WriteInfo($"开始清理 UE4SS：game={gameDir}, includeForeign={cleanupDialog.IncludeForeign}");
+        _progressBar.Value = 20;
+        _progressLabel.Text = "状态：正在清理 UE4SS……";
+
+        var stdoutLines = new List<string>();
+        var stderrLines = new List<string>();
+
+        _exportCts?.Dispose();
+        _exportCts = new CancellationTokenSource();
+        var token = _exportCts.Token;
+
+        SetOperationState(ActiveOperation.CleaningUe4ss);
+        try
+        {
+            var exitCode = await BuildCliCommand.RunAsync(
+                cliLookup.ExpectedPath,
+                cliArgs,
+                line =>
+                {
+                    lock (stdoutLines)
+                    {
+                        stdoutLines.Add(line);
+                    }
+
+                    OnChildStdoutLine(line);
+                },
+                line =>
+                {
+                    lock (stderrLines)
+                    {
+                        stderrLines.Add(line);
+                    }
+
+                    OnChildStderrLine(line);
+                },
+                token,
+                agpHomeOverride: _activeAgpRoot);
+
+            if (exitCode == 0)
+            {
+                _progressBar.Value = 100;
+                _progressLabel.Text = "状态：UE4SS 清理完成";
+                var summary = stdoutLines.Count > 0
+                    ? string.Join(Environment.NewLine, stdoutLines)
+                    : "UE4SS 清理已完成。";
+                _startupLog?.WriteInfo($"UE4SS 清理完成：{GuiStartupLog.SanitizeSingleLine(summary)}");
+                MessageBox.Show(
+                    this,
+                    summary,
+                    "清理 UE4SS 完成",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            else
+            {
+                _progressBar.Value = 0;
+                _progressLabel.Text = string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"状态：清理 UE4SS 失败（退出码：{exitCode}）");
+                var errDetail = stderrLines.Count > 0
+                    ? string.Join(Environment.NewLine, stderrLines)
+                    : $"清理 UE4SS 失败（退出码：{exitCode}）。";
+                _startupLog?.WriteWarning($"UE4SS 清理失败（exit={exitCode}）：{errDetail}");
+                MessageBox.Show(
+                    this,
+                    errDetail,
+                    "清理 UE4SS 失败",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _progressBar.Value = 0;
+            _progressLabel.Text = "状态：已取消清理 UE4SS";
+            AppendLogLine("[已取消] 已取消清理 UE4SS。");
+        }
+        finally
+        {
+            SetOperationState(ActiveOperation.None);
+            var selectedUsmapMissing = _selectedUsmap is null
+                || !File.Exists(PathSupport.ToIoPath(_selectedUsmap.FullPath));
+            RefreshMappingsForSelectedGame(resetManualUsmap: selectedUsmapMissing);
         }
     }
 
@@ -1196,7 +1480,7 @@ internal sealed class MainForm : Form
             "即将一键获取 .usmap 映射文件，执行前请知悉：\n\n"
             + "1. 若游戏目录尚未安装 UE4SS，将从 UE4SS 官方 GitHub（RE-UE4SS v4.0.0）下载约 8.4 MB 压缩包并严格校验 SHA-256，安装进游戏目录；若您原本已安装 UE4SS，则完全不动原有配置。\n"
             + "2. 会放入临时转储模组并通过 Steam 启动一次游戏，等待引擎初始化后在标题画面转储 .usmap，随后自动移除临时模组并关闭游戏。\n"
-            + "3. 转储完成后会保留 UE4SS 供下次复用，您可以随时点击主窗口「设置…」中的「卸载 UE4SS」仅删除本工具安装的文件。\n"
+            + "3. 转储完成后会保留 UE4SS 供下次复用，您可以随时点击主窗口「清理 UE4SS…」按钮清理本工具安装的文件。\n"
             + "4. 全程只读取类型映射，停留在标题画面，不会触碰或修改任何游戏存档。\n\n"
             + "确定要开始获取 .usmap 吗？";
 
@@ -1233,7 +1517,8 @@ internal sealed class MainForm : Form
                 cliArgs,
                 OnChildStdoutLine,
                 OnChildStderrLine,
-                token);
+                token,
+                agpHomeOverride: _activeAgpRoot);
 
             if (exitCode == 0)
             {
@@ -1485,7 +1770,7 @@ internal sealed class MainForm : Form
 
         SetOutputDirectoryText(dialog.SelectedPath, userCustomized: true);
         _outputHintLabel.ForeColor = SystemColors.GrayText;
-        _outputHintLabel.Text = DefaultOutputHintText;
+        _outputHintLabel.Text = _defaultOutputHintText;
         var gameCode = _selectedGame?.GameCode ?? SteamLocator.ResonanceGame.Code;
         var extractedRoot = GuiPaths.ExtractOutputRootDirectory(dialog.SelectedPath, gameCode);
         if (!string.IsNullOrWhiteSpace(extractedRoot))
@@ -1724,7 +2009,8 @@ internal sealed class MainForm : Form
                 cliArgs,
                 OnChildStdoutLine,
                 OnChildStderrLine,
-                token);
+                token,
+                agpHomeOverride: _activeAgpRoot);
 
             if (exitCode is 0 or 1)
             {
@@ -1992,6 +2278,7 @@ internal sealed class MainForm : Form
         _rescanGameButton.Enabled = !busy;
         _settingsButton.Enabled = !busy;
         _browseUsmapButton.Enabled = !busy;
+        _cleanupUe4ssButton.Enabled = !busy;
         _fetchUsmapButton.Enabled = !busy;
         _includeJmapCheckBox.Enabled = !busy;
         _outputDirTextBox.Enabled = !busy;
@@ -2041,7 +2328,11 @@ internal sealed class MainForm : Form
     {
         try
         {
-            var result = GuiPaths.BuildDefaultOutputDirectorySafe(_outputRootDirectory, gameCode, steamBuildId);
+            var result = GuiPaths.BuildDefaultOutputDirectorySafe(
+                _outputRootDirectory,
+                gameCode,
+                steamBuildId,
+                agpHomeOverride: _activeAgpRoot);
             SetOutputDirectoryText(result.Path, userCustomized: false);
             if (!string.IsNullOrWhiteSpace(result.WarningMessage))
             {
