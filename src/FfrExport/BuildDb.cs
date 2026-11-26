@@ -127,13 +127,15 @@ internal static partial class Program
         var effectiveOutputArgument = options.OutputArgument;
         if (!options.HasExplicitOutput)
         {
+            var agpResolution = AgpPaths.ResolveWritableAgpRootOrThrow(Console.Out);
             var detectedSteam = GameVersionDetector.ReadSteamBuildInfo(
                 gamePaths.GameRoot,
                 options.SteamBuildId,
                 TextWriter.Null);
             effectiveOutputArgument = AgpPaths.GetDefaultOutputDirectory(
                 SteamLocator.ResonanceGame.Code,
-                detectedSteam.BuildId);
+                detectedSteam.BuildId,
+                agpHomeEnvOverride: agpResolution.AgpRoot);
         }
 
         var outputPath = PathSupport.TrimTrailingSeparators(Path.GetFullPath(effectiveOutputArgument));
@@ -452,7 +454,7 @@ internal static partial class Program
         var hasExplicitOutput = !string.IsNullOrWhiteSpace(explicitOutputArgument);
         var resolvedOutputArgument = hasExplicitOutput
             ? explicitOutputArgument!
-            : AgpPaths.GetDefaultOutputDirectory(SteamLocator.ResonanceGame.Code, steamBuildId);
+            : string.Empty;
 
         return new BuildDbOptions(
             gameDirectory,

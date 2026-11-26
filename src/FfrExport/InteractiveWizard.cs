@@ -110,6 +110,16 @@ internal static class InteractiveWizard
             ? Directory.GetCurrentDirectory()
             : PathSupport.TrimTrailingSeparators(Path.GetFullPath(executableDirectory));
 
+        var effectiveAgpHome = agpHomeOverride;
+        if (string.IsNullOrWhiteSpace(effectiveAgpHome))
+        {
+            var agpResolution = AgpPaths.ResolveWritableAgpRootOrThrow(
+                noticeOutput: output,
+                isWindowsOverride: isWindows,
+                executableDirectoryOverride: exeDir);
+            effectiveAgpHome = agpResolution.AgpRoot;
+        }
+
         output.WriteLine("============================================================");
         output.WriteLine("《FINAL FANTASY RESONANCE》资源导出与建库向导");
         output.WriteLine("============================================================");
@@ -144,7 +154,7 @@ internal static class InteractiveWizard
         output.WriteLine();
         output.WriteLine("【步骤 2/4】指定映射文件（.usmap / .jmap）");
         output.WriteLine("说明：.usmap 为必填项；可用「ffr-export fetch-usmap --game <目录>」一键获取，或用 UE4SS 在游戏运行时转储。");
-        var discoveredUsmap = TryDiscoverLatestUsmap(gameSelection.GameDirectory, agpHomeOverride);
+        var discoveredUsmap = TryDiscoverLatestUsmap(gameSelection.GameDirectory, effectiveAgpHome);
         var usmapPath = PromptUsmapFile(input, output, discoveredUsmap);
         if (usmapPath is null)
         {
@@ -167,7 +177,7 @@ internal static class InteractiveWizard
         var defaultOutputDir = BuildDefaultOutputDirectory(
             gameSelection.GameCode,
             gameSelection.SteamBuildId,
-            agpHomeOverride);
+            effectiveAgpHome);
         var outputSelection = PromptOutputDirectory(input, output, gameSelection.GameDirectory, defaultOutputDir);
         if (outputSelection is null)
         {

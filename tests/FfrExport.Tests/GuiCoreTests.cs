@@ -291,14 +291,15 @@ public sealed class GuiCoreTests
         Assert.False(BuildCliCommand.TryParseStepProgress("==> 步骤 0/5：非法", out _));
         Assert.False(BuildCliCommand.TryParseStepProgress("==> 步骤 6/5：越界", out _));
 
-        // ProcessStartInfo forces UTF-8 for stdout and stderr with no console window.
-        var startInfo = BuildCliCommand.CreateStartInfo("/app/ffr-export", argsNoJmap);
+        // ProcessStartInfo forces UTF-8 for stdout and stderr with no console window, and forwards AGP_HOME.
+        var startInfo = BuildCliCommand.CreateStartInfo("/app/ffr-export", argsNoJmap, agpHomeOverride: "/data/agp-active");
         Assert.True(startInfo.RedirectStandardOutput);
         Assert.True(startInfo.RedirectStandardError);
         Assert.Equal(Encoding.UTF8.WebName, startInfo.StandardOutputEncoding?.WebName);
         Assert.Equal(Encoding.UTF8.WebName, startInfo.StandardErrorEncoding?.WebName);
         Assert.False(startInfo.UseShellExecute);
         Assert.True(startInfo.CreateNoWindow);
+        Assert.Equal("/data/agp-active", startInfo.Environment[AgpPaths.AgpHomeEnvVar]);
     }
 
     [Fact]
@@ -478,16 +479,25 @@ public sealed class GuiCoreTests
     }
 
     [Fact]
-    public void GuiStartupLog_WritesStartupBannerToLocalAppDataAndFallsBackToTemp()
+    public void GuiStartupLog_WritesStartupBannerToSelectedRootWithIntegrityAndNeverFallsBackToTemp()
     {
         using var workspace = new TempWorkspace("ffr-gui-startup-log");
 
         var localAppData = Path.Combine(workspace.Root, "LocalAppData");
-        var tempDir = Path.Combine(workspace.Root, "Temp");
-        Directory.CreateDirectory(tempDir);
-
+        var localLow = Path.Combine(workspace.Root, "LocalLow");
         var expectedPrimaryDir = Path.Combine(localAppData, "agp", "ffr-export", "logs");
         Assert.Equal(expectedPrimaryDir, GuiStartupLog.GetPrimaryLogDirectory(localAppData));
+
+        var lowIntegrity = ProcessIntegritySupport.ClassifyRid(ProcessIntegritySupport.SecurityMandatoryLowRid);
+        var primaryAgp = AgpPaths.ResolveWritableAgpRoot(
+            agpHomeEnvOverride: string.Empty,
+            isWindowsOverride: true,
+            localAppDataOverride: localAppData,
+            localAppDataLowOverride: localLow,
+            userProfileOverride: workspace.Root,
+            executableDirectoryOverride: workspace.Root,
+            integrityOverride: ProcessIntegritySupport.FromLevel(ProcessIntegrityLevel.Medium));
+        Assert.True(primaryAgp.Success);
 
         var info = new GuiStartupInfo(
             Version: "0.2.0",
@@ -498,14 +508,15 @@ public sealed class GuiCoreTests
             CurrentDirectory: workspace.Root,
             ExecutablePath: Path.Combine(workspace.Root, "ffr-export-gui.exe"),
             DpiSetting: "PerMonitorV2 (SetPerMonitorV2=True)",
-            Mode: "gui");
+            Mode: "gui",
+            IntegrityLevel: primaryAgp.Integrity.FormatForLog(),
+            DataRoot: primaryAgp.ToolRoot);
 
         var fixedTime = new DateTimeOffset(2026, 11, 26, 10, 15, 30, TimeSpan.FromHours(9));
         var session = GuiStartupLog.StartSession(
             info,
             nowOverride: fixedTime,
-            localAppDataOverride: localAppData,
-            tempDirectoryOverride: tempDir);
+            agpRootResolution: primaryAgp);
 
         Assert.True(session.IsWritable);
         Assert.False(session.UsedFallbackDirectory);
@@ -514,72 +525,87 @@ public sealed class GuiCoreTests
         Assert.True(File.Exists(session.LogFilePath));
 
         var lines = File.ReadAllLines(session.LogFilePath!, Encoding.UTF8);
-        var banner = Assert.Single(lines);
+        Assert.True(lines.Length >= 2);
+        var banner = lines[0];
         Assert.Contains("mode=gui", banner, StringComparison.Ordinal);
         Assert.Contains("version=0.2.0", banner, StringComparison.Ordinal);
         Assert.Contains("git=abc123def456", banner, StringComparison.Ordinal);
+        Assert.Contains("integrity=\"Medium (0x2000)\"", banner, StringComparison.Ordinal);
         Assert.Contains("os=\"TestOS 10.0\"", banner, StringComparison.Ordinal);
         Assert.Contains("dotnet=\".NET 10.0.0\"", banner, StringComparison.Ordinal);
         Assert.Contains("bits=\"64-bit (X64)\"", banner, StringComparison.Ordinal);
         Assert.Contains("dpi=\"PerMonitorV2 (SetPerMonitorV2=True)\"", banner, StringComparison.Ordinal);
         Assert.Contains($"cwd=\"{workspace.Root}\"", banner, StringComparison.Ordinal);
         Assert.Contains("ffr-export-gui.exe", banner, StringComparison.Ordinal);
+        Assert.Contains($"data_root=\"{primaryAgp.ToolRoot}\"", banner, StringComparison.Ordinal);
+        Assert.Contains("进程完整性级别：中完整性（Medium IL）", lines[1], StringComparison.Ordinal);
 
         // Same-second launch avoids overwriting the existing log file.
         var secondSession = GuiStartupLog.StartSession(
             info,
             nowOverride: fixedTime,
-            localAppDataOverride: localAppData,
-            tempDirectoryOverride: tempDir);
+            agpRootResolution: primaryAgp);
         Assert.True(secondSession.IsWritable);
         Assert.NotEqual(session.LogFilePath, secondSession.LogFilePath);
         Assert.Equal(Path.Combine(expectedPrimaryDir, "gui-20261126-101530-2.log"), secondSession.LogFilePath);
 
-        // Blocked primary directory (regular file occupying LocalAppData path) falls back to %TEMP%.
+        // Low IL + blocked LocalAppData writes logs to LocalLow/agp/ffr-export/logs and records integrity + skipped candidate.
         var blockingFile = Path.Combine(workspace.Root, "blocked-local-appdata");
         File.WriteAllText(blockingFile, "not a directory", Encoding.UTF8);
-        var fallbackSession = GuiStartupLog.StartSession(
-            info,
-            nowOverride: fixedTime,
+        var lowFallbackAgp = AgpPaths.ResolveWritableAgpRoot(
+            agpHomeEnvOverride: string.Empty,
+            isWindowsOverride: true,
             localAppDataOverride: blockingFile,
-            tempDirectoryOverride: tempDir);
+            localAppDataLowOverride: localLow,
+            userProfileOverride: workspace.Root,
+            executableDirectoryOverride: workspace.Root,
+            integrityOverride: lowIntegrity);
+        Assert.True(lowFallbackAgp.Success);
+        Assert.Equal(AgpRootSource.LocalAppDataLow, lowFallbackAgp.Source);
+
+        var lowInfo = info with
+        {
+            IntegrityLevel = lowIntegrity.FormatForLog(),
+            DataRoot = lowFallbackAgp.ToolRoot,
+        };
+        var fallbackSession = GuiStartupLog.StartSession(
+            lowInfo,
+            nowOverride: fixedTime,
+            agpRootResolution: lowFallbackAgp);
 
         Assert.True(fallbackSession.IsWritable);
         Assert.True(fallbackSession.UsedFallbackDirectory);
-        Assert.Equal(tempDir, fallbackSession.LogDirectory);
+        Assert.Equal(Path.Combine(localLow, "agp", "ffr-export", "logs"), fallbackSession.LogDirectory);
         Assert.NotNull(fallbackSession.LogFilePath);
-        Assert.True(File.Exists(fallbackSession.LogFilePath));
         var fallbackText = File.ReadAllText(fallbackSession.LogFilePath!, Encoding.UTF8);
-        Assert.Contains("[START]", fallbackText, StringComparison.Ordinal);
-        Assert.Contains("[WARN]", fallbackText, StringComparison.Ordinal);
+        Assert.Contains("integrity=\"Low (0x1000)\"", fallbackText, StringComparison.Ordinal);
+        Assert.Contains("低完整性（Low IL）", fallbackText, StringComparison.Ordinal);
+        Assert.Contains("[WARN] 跳过不可写候选目录", fallbackText, StringComparison.Ordinal);
 
-        // Permission failure in directory creator falls back to %TEMP% cleanly.
-        var permTemp = Path.Combine(workspace.Root, "PermTemp");
+        // When log creation fails or all AGP roots failed, StartSession degrades safely WITHOUT writing to %TEMP%.
         var deniedSession = GuiStartupLog.StartSession(
             info,
             nowOverride: fixedTime.AddSeconds(5),
-            localAppDataOverride: Path.Combine(workspace.Root, "DeniedLocalAppData"),
-            tempDirectoryOverride: permTemp,
-            directoryCreatorOverride: dir =>
-            {
-                if (dir.Contains("DeniedLocalAppData", StringComparison.Ordinal))
-                {
-                    throw new UnauthorizedAccessException("模拟无权创建日志目录");
-                }
+            logsDirectoryOverride: Path.Combine(workspace.Root, "DeniedLogs"),
+            directoryCreatorOverride: _ => throw new UnauthorizedAccessException("模拟无权创建日志目录"));
+        Assert.False(deniedSession.IsWritable);
+        Assert.Null(deniedSession.LogFilePath);
+        Assert.Contains("模拟无权创建日志目录", deniedSession.LastWriteError, StringComparison.Ordinal);
 
-                Directory.CreateDirectory(dir);
-            });
-        Assert.True(deniedSession.IsWritable);
-        Assert.True(deniedSession.UsedFallbackDirectory);
-        Assert.Equal(permTemp, deniedSession.LogDirectory);
-        Assert.Contains("模拟无权创建日志目录", deniedSession.PrimaryDirectoryError, StringComparison.Ordinal);
+        var allFailedAgp = AgpPaths.ResolveWritableAgpRoot(
+            agpHomeEnvOverride: string.Empty,
+            isWindowsOverride: true,
+            localAppDataOverride: Path.Combine(workspace.Root, "C1"),
+            localAppDataLowOverride: Path.Combine(workspace.Root, "C2"),
+            userProfileOverride: Path.Combine(workspace.Root, "C3"),
+            executableDirectoryOverride: Path.Combine(workspace.Root, "C4"),
+            writeProbeOverride: _ => new AgpWriteProbeResult(false, "拒绝访问"));
+        Assert.False(allFailedAgp.Success);
 
-        // If both primary and temp fail, StartSession degrades safely without throwing.
         var totalFailure = GuiStartupLog.StartSession(
             info,
             nowOverride: fixedTime,
-            localAppDataOverride: blockingFile,
-            tempDirectoryOverride: blockingFile);
+            agpRootResolution: allFailedAgp);
         Assert.False(totalFailure.IsWritable);
         Assert.Null(totalFailure.LogFilePath);
         Assert.NotNull(totalFailure.LastWriteError);
@@ -603,7 +629,7 @@ public sealed class GuiCoreTests
             File.SetLastWriteTimeUtc(filePath, stamp.UtcDateTime);
         }
 
-        // Unrelated files in the directory (critical when falling back to %TEMP%) must never be pruned.
+        // Unrelated files in the directory must never be pruned.
         var unrelatedFile = Path.Combine(logsDir, "other-tool.log");
         File.WriteAllText(unrelatedFile, "keep me", Encoding.UTF8);
 
@@ -612,8 +638,7 @@ public sealed class GuiCoreTests
         var session = GuiStartupLog.StartSession(
             info,
             nowOverride: newestTime,
-            localAppDataOverride: localAppData,
-            tempDirectoryOverride: workspace.Root,
+            logsDirectoryOverride: logsDir,
             maxRetainedLogs: GuiStartupLog.DefaultMaxRetainedLogs);
 
         Assert.True(session.IsWritable);
@@ -641,8 +666,7 @@ public sealed class GuiCoreTests
         var skewedSession = GuiStartupLog.StartSession(
             info,
             nowOverride: baseTime.AddHours(-1),
-            localAppDataOverride: localAppData,
-            tempDirectoryOverride: workspace.Root,
+            logsDirectoryOverride: logsDir,
             maxRetainedLogs: GuiStartupLog.DefaultMaxRetainedLogs);
         Assert.NotNull(skewedSession.LogFilePath);
         Assert.True(File.Exists(skewedSession.LogFilePath));
@@ -719,8 +743,7 @@ public sealed class GuiCoreTests
         // Session WriteException persists the full formatted trace to disk.
         var session = GuiStartupLog.StartSession(
             GuiStartupLog.CollectStartupInfo(typeof(GuiCoreTests).Assembly, "PerMonitorV2", "self-test"),
-            localAppDataOverride: Path.Combine(workspace.Root, "LocalAppData"),
-            tempDirectoryOverride: workspace.Root);
+            logsDirectoryOverride: Path.Combine(workspace.Root, "LocalAppData", "agp", "ffr-export", "logs"));
         session.WriteException("self-test", captured);
         var diskLog = File.ReadAllText(session.LogFilePath!, Encoding.UTF8);
         Assert.Contains("顶层窗口初始化失败", diskLog, StringComparison.Ordinal);
@@ -809,25 +832,33 @@ public sealed class GuiCoreTests
         Assert.Equal("MsgBox-MonoFallback", monoFallback.Font);
         Assert.True(monoFallback.UsedFallback);
 
-        // 3. Default output directory fallback when primary AGP root is unusable or saved root is invalid.
-        var blockedAgp = Path.Combine(workspace.Root, "BlockedAgp");
-        var fakeTemp = Path.Combine(workspace.Root, "TempOut");
-        Directory.CreateDirectory(fakeTemp);
+        // 3. Default output directory fallback when LocalAppData is unwritable falls back to LocalLow (never TEMP).
+        var blockedLocal = Path.Combine(workspace.Root, "BlockedLocal");
+        var writableLocalLow = Path.Combine(workspace.Root, "WritableLocalLow");
+        var exeDir = Path.Combine(workspace.Root, "PortableExe");
 
         var primaryFallback = GuiPaths.ResolveDefaultOutputRootSafe(
-            agpHomeOverride: blockedAgp,
-            tempDirectoryOverride: fakeTemp,
-            directoryUsableCheck: path => !path.StartsWith(blockedAgp, StringComparison.Ordinal));
+            agpHomeOverride: string.Empty,
+            isWindowsOverride: true,
+            localAppDataOverride: blockedLocal,
+            localAppDataLowOverride: writableLocalLow,
+            userProfileOverride: workspace.Root,
+            executableDirectoryOverride: exeDir,
+            writeProbeOverride: path => path.StartsWith(blockedLocal, StringComparison.Ordinal)
+                ? new AgpWriteProbeResult(false, "拒绝访问")
+                : new AgpWriteProbeResult(true),
+            integrityOverride: ProcessIntegritySupport.FromLevel(ProcessIntegrityLevel.Low));
         Assert.True(primaryFallback.UsedFallback);
-        Assert.Equal(Path.Combine(fakeTemp, "agp", "ffr-export", "output"), primaryFallback.Path);
-        Assert.Contains("默认数据目录不可用", primaryFallback.WarningMessage, StringComparison.Ordinal);
+        Assert.Equal(Path.Combine(writableLocalLow, "agp", "ffr-export", "output"), primaryFallback.Path);
+        Assert.Contains("LocalLow", primaryFallback.WarningMessage, StringComparison.Ordinal);
+        Assert.Contains("解除锁定", primaryFallback.WarningMessage, StringComparison.Ordinal);
 
         var badSavedRoot = GuiPaths.BuildDefaultOutputDirectorySafe(
             outputRootOverride: "bad\0saved-root",
             gameCode: "ffr",
             steamBuildId: "24250053",
             agpHomeOverride: workspace.AgpHomeDir,
-            directoryUsableCheck: _ => true);
+            writeProbeOverride: _ => new AgpWriteProbeResult(true));
         Assert.True(badSavedRoot.UsedFallback);
         Assert.Equal(Path.Combine(workspace.AgpHomeDir, "ffr-export", "output", "ffr-24250053"), badSavedRoot.Path);
         Assert.Contains("上次保存的输出目录无效", badSavedRoot.WarningMessage, StringComparison.Ordinal);
@@ -1110,6 +1141,12 @@ public sealed class GuiCoreTests
         Assert.Contains("Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException)", programCs, StringComparison.Ordinal);
         Assert.Contains("new MainForm(", programCs, StringComparison.Ordinal);
         Assert.Contains("form.CreateControl()", programCs, StringComparison.Ordinal);
+        Assert.Contains("ProcessIntegritySupport.DetectCurrent()", programCs, StringComparison.Ordinal);
+
+        var mainFormCs = File.ReadAllText(Path.Combine(guiDir, "MainForm.cs"), Encoding.UTF8);
+        Assert.Contains("清理 UE4SS…", mainFormCs, StringComparison.Ordinal);
+        Assert.Contains("agpHomeOverride: _activeAgpRoot", mainFormCs, StringComparison.Ordinal);
+        Assert.Contains("StatusStrip", mainFormCs, StringComparison.Ordinal);
 
         string[] forbiddenTokens = ["OodleHelper", "DownloadOodle", "HttpClient", "WebClient"];
         var linuxRootRegex = new Regex(@"/root/", RegexOptions.CultureInvariant);
@@ -1131,6 +1168,244 @@ public sealed class GuiCoreTests
 
             Assert.DoesNotMatch(linuxRootRegex, content);
             Assert.DoesNotMatch(windowsDriveRegex, content);
+        }
+    }
+
+    [Fact]
+    public void AgpPaths_CandidateOrderLowIntegrityExplicitAgpHomeAndAllUnwritableHandling()
+    {
+        using var workspace = new TempWorkspace("ffr-agp-candidates");
+
+        var envAgp = Path.Combine(workspace.Root, "EnvAgp");
+        var localAppData = Path.Combine(workspace.Root, "LocalAppData");
+        var localLow = Path.Combine(workspace.Root, "LocalLow");
+        var exeDir = Path.Combine(workspace.Root, "AppExe");
+        var userProfile = Path.Combine(workspace.Root, "UserHome");
+        var savedCustom = Path.Combine(workspace.Root, "SavedCustom");
+        Directory.CreateDirectory(exeDir);
+
+        var expectedLocal = Path.Combine(localAppData, "agp");
+        var expectedLocalLow = Path.Combine(localLow, "agp");
+        var expectedPortable = Path.Combine(exeDir, "agp-data");
+        var expectedUserProfile = Path.Combine(userProfile, "agp");
+
+        // 1. Integrity level RID classification & injection
+        Assert.Equal(ProcessIntegrityLevel.Untrusted, ProcessIntegritySupport.ClassifyRid(0x0000).Level);
+        Assert.Equal(ProcessIntegrityLevel.Low, ProcessIntegritySupport.ClassifyRid(0x1000).Level);
+        Assert.True(ProcessIntegritySupport.ClassifyRid(0x1000).IsLowOrUntrusted);
+        Assert.Equal(ProcessIntegrityLevel.Medium, ProcessIntegritySupport.ClassifyRid(0x2000).Level);
+        Assert.Equal(ProcessIntegrityLevel.Medium, ProcessIntegritySupport.ClassifyRid(0x2100).Level);
+        Assert.Equal(ProcessIntegrityLevel.High, ProcessIntegritySupport.ClassifyRid(0x3000).Level);
+        Assert.Equal(ProcessIntegrityLevel.System, ProcessIntegritySupport.ClassifyRid(0x4000).Level);
+        var injectedLow = ProcessIntegritySupport.DetectCurrent(
+            () => ProcessIntegritySupport.FromLevel(ProcessIntegrityLevel.Low));
+        Assert.Equal(ProcessIntegrityLevel.Low, injectedLow.Level);
+        Assert.Equal("低完整性（Low IL）", injectedLow.DisplayTextZh);
+
+        // 2. Explicit AGP_HOME fails immediately without falling back when unwritable.
+        var envProbed = new List<string>();
+        var envFail = AgpPaths.ResolveWritableAgpRoot(
+            agpHomeEnvOverride: envAgp,
+            isWindowsOverride: true,
+            localAppDataOverride: localAppData,
+            localAppDataLowOverride: localLow,
+            userProfileOverride: userProfile,
+            executableDirectoryOverride: exeDir,
+            writeProbeOverride: path =>
+            {
+                envProbed.Add(path);
+                return new AgpWriteProbeResult(false, "拒绝写入 AGP_HOME");
+            });
+        Assert.False(envFail.Success);
+        Assert.Equal(AgpRootSource.AgpHomeEnv, envFail.Source);
+        Assert.Equal([envAgp], envProbed);
+        Assert.Contains("AGP_HOME", envFail.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("不会自动回退", envFail.ErrorMessage, StringComparison.Ordinal);
+
+        // 3. Exact candidate probe order under Low IL when all fail:
+        //    %LOCALAPPDATA%\agp -> %USERPROFILE%\AppData\LocalLow\agp -> <exeDir>\agp-data -> %USERPROFILE%\agp -> agp-location.txt
+        AgpPaths.TrySaveLocationFile(exeDir, savedCustom, out _);
+        var probedOrder = new List<string>();
+        var allFailed = AgpPaths.ResolveWritableAgpRoot(
+            agpHomeEnvOverride: string.Empty,
+            isWindowsOverride: true,
+            localAppDataOverride: localAppData,
+            localAppDataLowOverride: localLow,
+            userProfileOverride: userProfile,
+            executableDirectoryOverride: exeDir,
+            writeProbeOverride: path =>
+            {
+                probedOrder.Add(path);
+                return new AgpWriteProbeResult(false, "权限不足");
+            },
+            integrityOverride: injectedLow);
+        Assert.False(allFailed.Success);
+        Assert.Equal(
+            [expectedLocal, expectedLocalLow, expectedPortable, expectedUserProfile, savedCustom],
+            probedOrder);
+        Assert.Contains("AGP_HOME", allFailed.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("解除锁定", allFailed.ErrorMessage, StringComparison.Ordinal);
+
+        // GUI all-failed message mentions security software / Low IL, choosing folder, and admin only as last resort.
+        var guiAllFailedMedium = AgpPaths.FormatAllCandidatesFailedGuiMessage(
+            allFailed with { Integrity = ProcessIntegritySupport.FromLevel(ProcessIntegrityLevel.Medium) });
+        Assert.Contains("安全软件", guiAllFailedMedium, StringComparison.Ordinal);
+        Assert.Contains("白名单", guiAllFailedMedium, StringComparison.Ordinal);
+        Assert.Contains("选择文件夹", guiAllFailedMedium, StringComparison.Ordinal);
+        Assert.Contains("最后手段", guiAllFailedMedium, StringComparison.Ordinal);
+
+        // 4. Low IL with LocalAppData blocked picks LocalLow and formats Low IL unblock guidance.
+        var lowLocalLowWin = AgpPaths.ResolveWritableAgpRoot(
+            agpHomeEnvOverride: string.Empty,
+            isWindowsOverride: true,
+            localAppDataOverride: localAppData,
+            localAppDataLowOverride: localLow,
+            userProfileOverride: userProfile,
+            executableDirectoryOverride: exeDir,
+            writeProbeOverride: path => path == expectedLocalLow
+                ? new AgpWriteProbeResult(true)
+                : new AgpWriteProbeResult(false, "拒绝访问"),
+            integrityOverride: injectedLow);
+        Assert.True(lowLocalLowWin.Success);
+        Assert.Equal(expectedLocalLow, lowLocalLowWin.AgpRoot);
+        Assert.Equal(AgpRootSource.LocalAppDataLow, lowLocalLowWin.Source);
+        Assert.True(lowLocalLowWin.UsedFallback);
+
+        var lowBanner = AgpPaths.FormatGuiBannerMessage(lowLocalLowWin);
+        Assert.NotNull(lowBanner);
+        Assert.Contains("低完整性级别", lowBanner, StringComparison.Ordinal);
+        Assert.Contains("解除锁定", lowBanner, StringComparison.Ordinal);
+        Assert.Contains("资源管理器重新解压", lowBanner, StringComparison.Ordinal);
+        Assert.Contains("LocalLow", lowBanner, StringComparison.Ordinal);
+
+        // 5. Fallback to portable <exeDir>\agp-data or %USERPROFILE%\agp displays "数据目录：...（原因：%LOCALAPPDATA% 不可写）".
+        var mediumIntegrity = ProcessIntegritySupport.FromLevel(ProcessIntegrityLevel.Medium);
+        var portableWin = AgpPaths.ResolveWritableAgpRoot(
+            agpHomeEnvOverride: string.Empty,
+            isWindowsOverride: true,
+            localAppDataOverride: localAppData,
+            localAppDataLowOverride: localLow,
+            userProfileOverride: userProfile,
+            executableDirectoryOverride: exeDir,
+            writeProbeOverride: path => path == expectedPortable
+                ? new AgpWriteProbeResult(true)
+                : new AgpWriteProbeResult(false, "拒绝访问"),
+            integrityOverride: mediumIntegrity);
+        Assert.True(portableWin.Success);
+        Assert.Equal(expectedPortable, portableWin.AgpRoot);
+        Assert.Equal(AgpRootSource.PortableExeDir, portableWin.Source);
+        Assert.Contains("数据目录：", AgpPaths.FormatGuiBannerMessage(portableWin), StringComparison.Ordinal);
+        Assert.Contains("%LOCALAPPDATA% 不可写", AgpPaths.FormatGuiBannerMessage(portableWin), StringComparison.Ordinal);
+        Assert.Contains("数据目录：", AgpPaths.FormatCliFallbackNotice(portableWin), StringComparison.Ordinal);
+        Assert.Contains("%LOCALAPPDATA% 不可写", AgpPaths.FormatCliFallbackNotice(portableWin), StringComparison.Ordinal);
+
+        var userProfileWin = AgpPaths.ResolveWritableAgpRoot(
+            agpHomeEnvOverride: string.Empty,
+            isWindowsOverride: true,
+            localAppDataOverride: localAppData,
+            localAppDataLowOverride: localLow,
+            userProfileOverride: userProfile,
+            executableDirectoryOverride: exeDir,
+            writeProbeOverride: path => path == expectedUserProfile
+                ? new AgpWriteProbeResult(true)
+                : new AgpWriteProbeResult(false, "拒绝访问"),
+            integrityOverride: mediumIntegrity);
+        Assert.True(userProfileWin.Success);
+        Assert.Equal(expectedUserProfile, userProfileWin.AgpRoot);
+        Assert.Equal(AgpRootSource.UserProfile, userProfileWin.Source);
+
+        // 6. Real write probe creates <agpRoot>/ffr-export/tmp and cleans up the probe file afterwards.
+        var realProbeRoot = Path.Combine(workspace.Root, "RealProbe");
+        var probeRes = AgpPaths.ProbeDirectoryWritable(realProbeRoot);
+        Assert.True(probeRes.IsWritable);
+        var realTmpDir = AgpPaths.GetTempDirectoryForAgpRoot(realProbeRoot);
+        Assert.True(Directory.Exists(realTmpDir));
+        Assert.Empty(Directory.EnumerateFiles(realTmpDir));
+
+        // 7. User-selected directory saves agp-location.txt when exeDir is writable, and still succeeds if exeDir is blocked.
+        var manualDir = Path.Combine(workspace.Root, "ManualChosen");
+        var accepted = AgpPaths.TryAcceptUserSelectedAgpRoot(manualDir, mediumIntegrity, executableDirectoryOverride: exeDir);
+        Assert.True(accepted.Success);
+        Assert.True(accepted.LocationFileSaved);
+        Assert.Equal(manualDir, AgpPaths.TryReadLocationFile(exeDir));
+
+        var blockingExePath = Path.Combine(workspace.Root, "blocked-exe-dir-file");
+        File.WriteAllText(blockingExePath, "occupy path", Encoding.UTF8);
+        var acceptedReadOnlyExe = AgpPaths.TryAcceptUserSelectedAgpRoot(
+            manualDir,
+            mediumIntegrity,
+            executableDirectoryOverride: blockingExePath);
+        Assert.True(acceptedReadOnlyExe.Success);
+        Assert.False(acceptedReadOnlyExe.LocationFileSaved);
+        Assert.NotNull(acceptedReadOnlyExe.LocationFileSaveError);
+    }
+
+    [Fact]
+    public void AgpPaths_TryConfigureProcessTempDirectory_RedirectsTempAndTmpToDataRootTmpOnWindowsOnly()
+    {
+        using var workspace = new TempWorkspace("ffr-agp-process-temp");
+        var previousTemp = Environment.GetEnvironmentVariable("TEMP");
+        var previousTmp = Environment.GetEnvironmentVariable("TMP");
+
+        try
+        {
+            var resolution = AgpPaths.ResolveWritableAgpRoot(
+                agpHomeEnvOverride: workspace.AgpHomeDir,
+                isWindowsOverride: true);
+            Assert.True(resolution.Success);
+
+            var expectedTmpDir = AgpPaths.GetTempDirectoryForAgpRoot(workspace.AgpHomeDir);
+
+            // Windows: creates <dataRoot>\tmp and redirects both TEMP and TMP to it.
+            var winConfigured = AgpPaths.TryConfigureProcessTempDirectory(
+                resolution,
+                out var configuredDir,
+                out var winError,
+                isWindowsOverride: true);
+            Assert.True(winConfigured);
+            Assert.Null(winError);
+            Assert.Equal(expectedTmpDir, configuredDir);
+            Assert.True(Directory.Exists(expectedTmpDir));
+            Assert.Equal(expectedTmpDir, Environment.GetEnvironmentVariable("TEMP"));
+            Assert.Equal(expectedTmpDir, Environment.GetEnvironmentVariable("TMP"));
+
+            // Non-Windows: creates tmp directory but leaves TEMP/TMP untouched.
+            var sentinelTemp = Path.Combine(workspace.Root, "non-windows-sentinel");
+            Environment.SetEnvironmentVariable("TEMP", sentinelTemp);
+            Environment.SetEnvironmentVariable("TMP", sentinelTemp);
+            var unixConfigured = AgpPaths.TryConfigureProcessTempDirectory(
+                resolution,
+                out var unixDir,
+                out var unixError,
+                isWindowsOverride: false);
+            Assert.True(unixConfigured);
+            Assert.Null(unixError);
+            Assert.Equal(expectedTmpDir, unixDir);
+            Assert.Equal(sentinelTemp, Environment.GetEnvironmentVariable("TEMP"));
+            Assert.Equal(sentinelTemp, Environment.GetEnvironmentVariable("TMP"));
+
+            // Failed resolution returns false without touching TEMP/TMP.
+            var failedResolution = AgpPaths.ResolveWritableAgpRoot(
+                agpHomeEnvOverride: Path.Combine(workspace.Root, "UnwritableEnv"),
+                isWindowsOverride: true,
+                writeProbeOverride: _ => new AgpWriteProbeResult(false, "拒绝访问"));
+            Assert.False(failedResolution.Success);
+
+            var failedConfigured = AgpPaths.TryConfigureProcessTempDirectory(
+                failedResolution,
+                out var failedDir,
+                out var failedError,
+                isWindowsOverride: true);
+            Assert.False(failedConfigured);
+            Assert.Null(failedDir);
+            Assert.False(string.IsNullOrWhiteSpace(failedError));
+            Assert.Equal(sentinelTemp, Environment.GetEnvironmentVariable("TEMP"));
+            Assert.Equal(sentinelTemp, Environment.GetEnvironmentVariable("TMP"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TEMP", previousTemp);
+            Environment.SetEnvironmentVariable("TMP", previousTmp);
         }
     }
 
