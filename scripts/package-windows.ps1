@@ -179,6 +179,10 @@ try {
 
     Write-Host "==> 自检 ffr-export-gui.exe --self-test（单文件窗口构造自检）"
     $selfTestStderr = Join-Path $stageDir "gui-selftest-stderr.log"
+    $previousAgpHome = $env:AGP_HOME
+    $hadAgpHome = Test-Path Env:AGP_HOME
+    $env:AGP_HOME = Join-Path $stageDir "agp-home"
+    New-Item -ItemType Directory -Path $env:AGP_HOME -Force | Out-Null
     try {
         # WinExe (GUI subsystem): `& exe` does not wait and leaves $LASTEXITCODE unset, so wait explicitly.
         $selfTest = Start-Process -FilePath $ffrExportGuiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow -RedirectStandardError $selfTestStderr
@@ -193,6 +197,11 @@ try {
             throw "错误：ffr-export-gui.exe --self-test 自检失败（退出码 $selfTestExit）"
         }
     } finally {
+        if ($hadAgpHome) {
+            $env:AGP_HOME = $previousAgpHome
+        } else {
+            Remove-Item Env:AGP_HOME -ErrorAction SilentlyContinue
+        }
         if (Test-Path -LiteralPath $selfTestStderr) {
             Remove-Item -LiteralPath $selfTestStderr -Force -ErrorAction SilentlyContinue
         }

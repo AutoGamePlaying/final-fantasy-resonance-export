@@ -33,6 +33,7 @@ jobs:
             echo "DOTNET_CLI_HOME=${RUNNER_TEMP}/dotnet-home"
             echo "NUGET_PACKAGES=${RUNNER_TEMP}/nuget"
             echo "NUGET_HTTP_CACHE_PATH=${RUNNER_TEMP}/nuget-http"
+            echo "AGP_HOME=${RUNNER_TEMP}/agp-home"
           } >> "${GITHUB_ENV}"
 
       - name: Checkout repository
@@ -244,6 +245,7 @@ jobs:
             echo "DOTNET_CLI_HOME=${RUNNER_TEMP}/dotnet-home"
             echo "NUGET_PACKAGES=${RUNNER_TEMP}/nuget"
             echo "NUGET_HTTP_CACHE_PATH=${RUNNER_TEMP}/nuget-http"
+            echo "AGP_HOME=${RUNNER_TEMP}/agp-home"
           } >> "${GITHUB_ENV}"
 
       - name: Checkout repository

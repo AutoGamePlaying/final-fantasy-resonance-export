@@ -8,14 +8,20 @@ PHYS_ROOT="$(pwd -P)"
 HOST_ROOT="$(pwd -W 2>/dev/null || pwd)"
 
 CI_LOG_FILE=""
-cleanup_ci_log() {
+TEMP_AGP_HOME=""
+cleanup_temp_state() {
   if [[ -n "$CI_LOG_FILE" && -f "$CI_LOG_FILE" ]]; then
     rm -f "$CI_LOG_FILE"
   fi
+  if [[ -n "$TEMP_AGP_HOME" && -d "$TEMP_AGP_HOME" ]]; then
+    rm -rf "$TEMP_AGP_HOME"
+  fi
 }
+trap cleanup_temp_state EXIT
 
-if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
-  trap cleanup_ci_log EXIT
+if [[ -z "${AGP_HOME:-}" ]]; then
+  TEMP_AGP_HOME="$(mktemp -d "${TMPDIR:-/tmp}/ffr-check-agp.XXXXXX")"
+  export AGP_HOME="$TEMP_AGP_HOME"
 fi
 
 emit_ci_annotations() {

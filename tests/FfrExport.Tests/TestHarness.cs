@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace FfrExport.Tests;
@@ -9,12 +10,15 @@ internal sealed class TempWorkspace : IDisposable
 {
     public string Root { get; }
     public string DepsDir { get; }
+    public string AgpHomeDir { get; }
 
     public TempWorkspace(string prefix)
     {
         Root = Path.Combine(Path.GetTempPath(), $"{prefix}-{Environment.ProcessId}-{Guid.NewGuid():N}");
         DepsDir = Path.Combine(Root, ".deps");
+        AgpHomeDir = Path.Combine(Root, "agp-home");
         Directory.CreateDirectory(DepsDir);
+        Directory.CreateDirectory(AgpHomeDir);
     }
 
     public void Dispose()
@@ -35,6 +39,23 @@ internal sealed class TempWorkspace : IDisposable
 
 internal static class TestHarness
 {
+    private static readonly string ProcessTempAgpHome = Path.Combine(
+        Path.GetTempPath(),
+        $"ffr-export-test-agp-{Environment.ProcessId}-{Guid.NewGuid():N}");
+
+    /// <summary>
+    /// Guarantees that tests never read from or write to the host machine's real %LOCALAPPDATA% / ~/.local/share.
+    /// </summary>
+    [ModuleInitializer]
+    internal static void InitializeIsolatedAgpHome()
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(AgpPaths.AgpHomeEnvVar)))
+        {
+            Directory.CreateDirectory(ProcessTempAgpHome);
+            Environment.SetEnvironmentVariable(AgpPaths.AgpHomeEnvVar, ProcessTempAgpHome);
+        }
+    }
+
     public static string FindRepoRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
@@ -83,7 +104,8 @@ internal static class TestHarness
         string? ffrDeps = null,
         string? workingDirectory = null,
         string? pathEnvOverride = null,
-        string? stdinInput = null)
+        string? stdinInput = null,
+        string? agpHome = null)
     {
         var cliHostDll = Path.Combine(AppContext.BaseDirectory, "cli-host", "FfrExport.TestCliHost.dll");
         if (!File.Exists(cliHostDll))
@@ -126,6 +148,13 @@ internal static class TestHarness
                 startInfo.Environment["DOTNET_ROOT"] = dotnetDir;
             }
         }
+
+        // Always isolate AGP_HOME to a temporary directory for child CLI processes.
+        var effectiveAgpHome = !string.IsNullOrWhiteSpace(agpHome)
+            ? agpHome
+            : Environment.GetEnvironmentVariable(AgpPaths.AgpHomeEnvVar) ?? ProcessTempAgpHome;
+        Directory.CreateDirectory(effectiveAgpHome);
+        startInfo.Environment[AgpPaths.AgpHomeEnvVar] = effectiveAgpHome;
 
         if (ffrDeps is null)
         {
