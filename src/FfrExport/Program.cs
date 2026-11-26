@@ -37,11 +37,12 @@ internal static partial class Program
 
         try
         {
+            args = Localization.InitializeFromCli(args);
             return await RunAsync(args);
         }
         catch (Exception exception)
         {
-            Console.Error.WriteLine($"错误：{exception.Message}");
+            Console.Error.WriteLine(L.Format("Common_ErrorPrefix", exception.Message));
             return 2;
         }
     }
@@ -130,28 +131,16 @@ internal static partial class Program
             case "uninstall-ue4ss":
                 return await RunUninstallUe4ssAsync(args[1..]);
             default:
-                throw new ArgumentException(
-                    $"未知子命令：{args[0]}；可用命令：list、raw、export、locres、inventory、export-assets、export-maps、build-db、fetch-usmap、uninstall-ue4ss（运行 --help 查看说明）");
+                throw new ArgumentException(L.Format("Cli_UnknownSubcommand", args[0]));
         }
     }
 
     internal static void PrintHelp(TextWriter output)
     {
-        output.WriteLine("《FINAL FANTASY RESONANCE》资源导出与建库工具（ffr-export）");
-        output.WriteLine();
-        output.WriteLine("用法：");
-        output.WriteLine("  ffr-export                                              启动中文交互式建库向导");
-        output.WriteLine("  ffr-export build-db --game <目录> --usmap <文件> [选项]  一键导出并调用 ffr-db 建库");
-        output.WriteLine("  ffr-export fetch-usmap --game <目录> [--timeout <秒>] [--yes]");
-        output.WriteLine("                                                          自动获取当前游戏版本的 .usmap");
-        output.WriteLine("  ffr-export uninstall-ue4ss --game <目录> [--include-foreign] [--yes]");
-        output.WriteLine("                                                          清理本工具安装的 UE4SS 与临时残留");
-        output.WriteLine("  ffr-export list | raw | export | locres | inventory | export-assets | export-maps");
-        output.WriteLine("                                                          分阶段导出与诊断子命令");
-        output.WriteLine("  ffr-export --help | -h | help                           显示本帮助信息");
-        output.WriteLine();
-        output.WriteLine("环境变量：");
-        output.WriteLine("  AGP_HOME   显式指定数据根目录（覆盖默认自动选择顺序；不可写时直接报错）");
+        foreach (var line in L.Get("Cli_HelpText").Split('\n'))
+        {
+            output.WriteLine(line);
+        }
     }
 
     private static void ListAssets(string[] args)
@@ -169,7 +158,7 @@ internal static partial class Program
                     prefixes.Add(RequireValue(args, ref index, "--prefix"));
                     break;
                 default:
-                    throw new ArgumentException($"list 收到未知参数：{args[index]}");
+                    throw new ArgumentException(L.Format("Cli_UnknownArg", "list", args[index]));
             }
         }
 
@@ -178,11 +167,11 @@ internal static partial class Program
         var count = 0;
         foreach (var file in MatchingFiles(provider, prefixes, false))
         {
-            Console.WriteLine($"{file.Path}\t{file.Size} 字节");
+            Console.WriteLine(L.Format("Cli_ListItemLine", file.Path, file.Size));
             count++;
         }
 
-        Console.WriteLine($"总数：{count}");
+        Console.WriteLine(L.Format("Cli_ListTotal", count));
     }
 
     private static async Task SaveRawAssetAsync(string[] args)
@@ -203,7 +192,7 @@ internal static partial class Program
                 default:
                     if (args[index].StartsWith("-", StringComparison.Ordinal) || packagePath is not null)
                     {
-                        throw new ArgumentException($"raw 收到未知或重复参数：{args[index]}");
+                        throw new ArgumentException(L.Format("Cli_RawUnknownOrDuplicateArg", args[index]));
                     }
 
                     packagePath = args[index];
@@ -213,19 +202,19 @@ internal static partial class Program
 
         if (packagePath is null)
         {
-            throw new ArgumentException("raw 需要一个包路径");
+            throw new ArgumentException(L.Get("Cli_RawRequiresPackagePath"));
         }
 
         if (outputArgument is null)
         {
-            throw new ArgumentException("raw 需要 --out <文件>");
+            throw new ArgumentException(L.Get("Cli_RawRequiresOut"));
         }
 
         var outputPath = RequireDepsPath(outputArgument, "--out");
         using var provider = CreateProvider(paks, null);
         if (!provider.TrySaveAsset(packagePath, out var bytes) || bytes is null)
         {
-            throw new InvalidDataException($"找不到或无法读取包：{packagePath}");
+            throw new InvalidDataException(L.Format("Cli_PackageNotFoundOrUnreadable", packagePath));
         }
 
         var parent = Path.GetDirectoryName(outputPath);
@@ -235,8 +224,8 @@ internal static partial class Program
         }
 
         await File.WriteAllBytesAsync(outputPath, bytes);
-        Console.WriteLine($"长度：{bytes.Length} 字节");
-        Console.WriteLine($"SHA-256：{Convert.ToHexString(SHA256.HashData(bytes))}");
+        Console.WriteLine(L.Format("Cli_RawLength", bytes.Length));
+        Console.WriteLine(L.Format("Cli_RawSha256", Convert.ToHexString(SHA256.HashData(bytes))));
     }
 
     private static async Task<int> ExportAssetsAsync(string[] args)
@@ -266,18 +255,18 @@ internal static partial class Program
                     force = true;
                     break;
                 default:
-                    throw new ArgumentException($"export 收到未知参数：{args[index]}");
+                    throw new ArgumentException(L.Format("Cli_UnknownArg", "export", args[index]));
             }
         }
 
         if (usmapPath is null)
         {
-            throw new ArgumentException("export 需要 --usmap <文件>（在游戏机上用 UE4SS 导出的 .usmap，见 README.md）");
+            throw new ArgumentException(L.Format("Cli_CommandRequiresUsmap", "export"));
         }
 
         if (!File.Exists(usmapPath))
         {
-            throw new FileNotFoundException($"映射文件不存在：{usmapPath}");
+            throw new FileNotFoundException(L.Format("Cli_MappingFileNotFound", usmapPath));
         }
 
         AddDefaultPrefixes(prefixes);
@@ -321,7 +310,7 @@ internal static partial class Program
             catch (Exception exception)
             {
                 failures.Add((file.Path, TruncateError(exception.Message)));
-                Console.Error.WriteLine($"导出失败：{file.Path}：{exception.Message}");
+                Console.Error.WriteLine(L.Format("Cli_ExportFailedLine", file.Path, exception.Message));
             }
         }
 
@@ -336,7 +325,7 @@ internal static partial class Program
             failures = failures.Select(failure => new { path = failure.Path, error = failure.Error }).ToArray(),
         };
         await TextOutput.WriteJsonAsync(Path.Combine(outputPath, "manifest.json"), manifest);
-        Console.WriteLine($"成功：{successCount}，失败：{failures.Count}");
+        Console.WriteLine(L.Format("Cli_ExportSummary", successCount, failures.Count));
         return failures.Count == 0 ? 0 : 1;
     }
 
@@ -363,7 +352,7 @@ internal static partial class Program
                     force = true;
                     break;
                 default:
-                    throw new ArgumentException($"locres 收到未知参数：{args[index]}");
+                    throw new ArgumentException(L.Format("Cli_UnknownArg", "locres", args[index]));
             }
         }
 
@@ -405,9 +394,9 @@ internal static partial class Program
             if (!provider.TrySaveAsset(sourcePath, out var bytes) || bytes is null)
             {
                 var available = availableLanguages.Count > 0
-                    ? string.Join("、", availableLanguages)
-                    : "无";
-                throw new InvalidDataException($"找不到语言 {language} 的本地化文件（{sourcePath}）；包内可用语言：{available}");
+                    ? string.Join(L.Get("Common_ListSeparator"), availableLanguages)
+                    : L.Get("Common_None");
+                throw new InvalidDataException(L.Format("Cli_LocresNotFound", language, sourcePath, available));
             }
 
             var sourceSha256 = Convert.ToHexString(SHA256.HashData(bytes));
@@ -430,8 +419,12 @@ internal static partial class Program
         {
             var jsonPath = Path.Combine(outputPath, $"{entry.Language}.json");
             await TextOutput.WriteJsonAsync(jsonPath, entry.Data);
-            Console.WriteLine(
-                $"{entry.Language}：{entry.NamespaceCount} 个命名空间，{entry.EntryCount} 条，SHA-256：{entry.SourceSha256}");
+            Console.WriteLine(L.Format(
+                "Cli_LocresLanguageLine",
+                entry.Language,
+                entry.NamespaceCount,
+                entry.EntryCount,
+                entry.SourceSha256));
         }
 
         var manifest = new
@@ -450,7 +443,7 @@ internal static partial class Program
             }).ToArray(),
         };
         await TextOutput.WriteJsonAsync(Path.Combine(outputPath, "manifest.json"), manifest);
-        Console.WriteLine($"已导出 {parsedEntries.Count} 种语言到 {outputDisplay}");
+        Console.WriteLine(L.Format("Cli_LocresSummary", parsedEntries.Count, outputDisplay));
     }
 
     private static void AddLanguages(List<string> target, string rawValue)
@@ -458,14 +451,14 @@ internal static partial class Program
         var parts = rawValue.Split(',', StringSplitOptions.TrimEntries);
         if (parts.Length == 0 || parts.Any(string.IsNullOrEmpty))
         {
-            throw new ArgumentException($"--lang 不能为空或包含空语言代码：{rawValue}");
+            throw new ArgumentException(L.Format("Cli_LocresLangEmpty", rawValue));
         }
 
         foreach (var part in parts)
         {
             if (!SafeLanguageTag.IsMatch(part))
             {
-                throw new ArgumentException($"--lang 包含不合法的语言代码：{part}");
+                throw new ArgumentException(L.Format("Cli_LocresLangInvalid", part));
             }
 
             if (!target.Contains(part, StringComparer.Ordinal))
@@ -516,7 +509,7 @@ internal static partial class Program
                 var key = textKey.Str ?? string.Empty;
                 if (bucket.ContainsKey(key))
                 {
-                    throw new InvalidDataException($"语言 {language} 的 locres 存在重复键：{ns}/{key}");
+                    throw new InvalidDataException(L.Format("Cli_LocresDuplicateKey", language, ns, key));
                 }
 
                 bucket[key] = entry.LocalizedString ?? string.Empty;
@@ -532,7 +525,7 @@ internal static partial class Program
         var ioPaks = PathSupport.ToIoPath(paks);
         if (!Directory.Exists(ioPaks))
         {
-            throw new DirectoryNotFoundException($"资源目录不存在：{paks}");
+            throw new DirectoryNotFoundException(L.Format("Cli_PaksDirNotFound", paks));
         }
 
         var provider = new DefaultFileProvider(
@@ -564,7 +557,7 @@ internal static partial class Program
     {
         if (index + 1 >= args.Length)
         {
-            throw new ArgumentException($"选项 {option} 需要一个值");
+            throw new ArgumentException(L.Format("Common_OptionRequiresValue", option));
         }
 
         index++;
@@ -590,8 +583,8 @@ internal static partial class Program
             || Path.IsPathRooted(relativePath);
         if (relativePath == "." || outside)
         {
-            var label = fromEnv ? $"FFR_DEPS（{depsDisplay}）" : ".deps/";
-            throw new ArgumentException($"{option} 必须是 {label} 下的路径：{path}");
+            var label = fromEnv ? L.Format("Cli_DepsEnvLabel", depsDisplay) : ".deps/";
+            throw new ArgumentException(L.Format("Cli_OutMustBeUnderDeps", option, label, path));
         }
 
         string[] protectedSubpaths = [
@@ -608,7 +601,7 @@ internal static partial class Program
             if (IsSameOrDescendant(protectedFull, fullPath))
             {
                 var protectedDisplay = Path.Combine(depsDisplay, subpath).Replace('\\', '/');
-                throw new ArgumentException($"{option} 不能指向受保护目录 {protectedDisplay} 或其内部：{path}");
+                throw new ArgumentException(L.Format("Cli_OutCannotBeProtectedDescendant", option, protectedDisplay, path));
             }
         }
 
@@ -616,7 +609,7 @@ internal static partial class Program
         if (Path.GetRelativePath(ffrRoot, fullPath) == ".")
         {
             var ffrDisplay = Path.Combine(depsDisplay, "ffr").Replace('\\', '/');
-            throw new ArgumentException($"{option} 不能指向受保护目录 {ffrDisplay} 本身：{path}");
+            throw new ArgumentException(L.Format("Cli_OutCannotBeProtectedSelf", option, ffrDisplay, path));
         }
 
         return fullPath;
@@ -642,13 +635,13 @@ internal static partial class Program
         {
             if (!force)
             {
-                throw new IOException("输出目录非空；如需清空并重新导出，请加 --force");
+                throw new IOException(L.Get("Cli_OutputDirNonEmpty"));
             }
 
             var manifest = RequireExportManifest(outputPath, outputArgument);
             EnsureManifestMatchesCommand(manifest, outputArgument, expectedCommand);
             var fileCount = Directory.EnumerateFiles(outputPath, "*", SearchOption.AllDirectories).LongCount();
-            Console.WriteLine($"即将清空输出目录：{outputArgument}；文件数：{fileCount}");
+            Console.WriteLine(L.Format("Cli_ClearingOutputDir", outputArgument, fileCount));
             Directory.Delete(outputPath, true);
         }
 
@@ -657,7 +650,7 @@ internal static partial class Program
 
     private static JObject RequireExportManifest(string outputPath, string outputArgument)
     {
-        var message = $"{outputArgument} 不是 ffr-export 的输出目录，不清空；换一个空目录或删掉后重试";
+        var message = L.Format("Cli_NotFfrExportOutputDir", outputArgument);
         var manifestPath = Path.Combine(outputPath, "manifest.json");
         if (!File.Exists(manifestPath))
         {
@@ -690,8 +683,7 @@ internal static partial class Program
             ?? (manifest.Property("languages") is not null ? "locres" : "export");
         if (!string.Equals(actualCommand, expectedCommand, StringComparison.Ordinal))
         {
-            throw new IOException(
-                $"{outputArgument} 是 ffr-export {actualCommand} 的输出目录，不能由 {expectedCommand} --force 清空");
+            throw new IOException(L.Format("Cli_ManifestCommandMismatch", outputArgument, actualCommand, expectedCommand));
         }
     }
 

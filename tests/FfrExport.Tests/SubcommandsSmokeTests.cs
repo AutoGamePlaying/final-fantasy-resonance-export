@@ -28,7 +28,7 @@ public sealed class SubcommandsSmokeTests
 
         // 1. `list` with default prefixes (Datatable + L10N)
         var listDefault = await TestHarness.RunCliAsync(
-            ["list", "--paks", paksDir],
+            ["--lang", "zh-Hans", "list", "--paks", paksDir],
             ffrDeps: workspace.DepsDir);
         Assert.Equal(0, listDefault.ExitCode);
         Assert.Contains("FFRS/Content/Datatable/DT_Demo.uasset\t5 字节", listDefault.Stdout, StringComparison.Ordinal);
@@ -38,7 +38,7 @@ public sealed class SubcommandsSmokeTests
 
         // 2. `list` with custom prefix
         var listCustom = await TestHarness.RunCliAsync(
-            ["list", "--paks", paksDir, "--prefix", "FFRS/Config/"],
+            ["--lang", "zh-Hans", "list", "--paks", paksDir, "--prefix", "FFRS/Config/"],
             ffrDeps: workspace.DepsDir);
         Assert.Equal(0, listCustom.ExitCode);
         Assert.Contains("FFRS/Config/DefaultGame.ini", listCustom.Stdout, StringComparison.Ordinal);
@@ -47,7 +47,7 @@ public sealed class SubcommandsSmokeTests
         // 3. `raw` extracts exact bytes and reports length + SHA-256
         var rawOut = Path.Combine(workspace.DepsDir, "tmp", "DT_Demo.bin");
         var rawResult = await TestHarness.RunCliAsync(
-            ["raw", "FFRS/Content/Datatable/DT_Demo.uasset", "--paks", paksDir, "--out", rawOut],
+            ["--lang", "zh-Hans", "raw", "FFRS/Content/Datatable/DT_Demo.uasset", "--paks", paksDir, "--out", rawOut],
             ffrDeps: workspace.DepsDir);
         Assert.Equal(0, rawResult.ExitCode);
         Assert.Equal(dtBytes, await File.ReadAllBytesAsync(rawOut));
@@ -56,7 +56,7 @@ public sealed class SubcommandsSmokeTests
 
         // 4. `raw` rejects missing package and out-of-deps output path
         var missingResult = await TestHarness.RunCliAsync(
-            ["raw", "FFRS/Content/Missing.uasset", "--paks", paksDir, "--out", rawOut],
+            ["--lang", "zh-Hans", "raw", "FFRS/Content/Missing.uasset", "--paks", paksDir, "--out", rawOut],
             ffrDeps: workspace.DepsDir);
         Assert.Equal(2, missingResult.ExitCode);
         Assert.Contains("找不到或无法读取包", missingResult.Stderr, StringComparison.Ordinal);
@@ -137,13 +137,13 @@ public sealed class SubcommandsSmokeTests
         Assert.Equal(2, languages[0]["entryCount"]?.Value<int>());
 
         // 2. Non-empty output directory refused without --force
-        var refuseNonEmpty = await TestHarness.RunCliAsync(["locres"], ffrDeps: workspace.DepsDir);
+        var refuseNonEmpty = await TestHarness.RunCliAsync(["--lang", "zh-Hans", "locres"], ffrDeps: workspace.DepsDir);
         Assert.Equal(2, refuseNonEmpty.ExitCode);
         Assert.Contains("输出目录非空", refuseNonEmpty.Stderr, StringComparison.Ordinal);
 
         // 3. --force succeeds on own locres manifest with custom comma-separated --lang
         var forceRun = await TestHarness.RunCliAsync(
-            ["locres", "--lang", "zh-Hans,fr", "--force"],
+            ["--lang", "zh-Hans", "locres", "--lang", "zh-Hans,fr", "--force"],
             ffrDeps: workspace.DepsDir);
         Assert.Equal(0, forceRun.ExitCode);
         Assert.True(File.Exists(Path.Combine(defaultOutDir, "fr.json")));
@@ -151,7 +151,7 @@ public sealed class SubcommandsSmokeTests
 
         // 4. Missing language reports available languages
         var missingLang = await TestHarness.RunCliAsync(
-            ["locres", "--lang", "de", "--out", Path.Combine(workspace.DepsDir, "tmp", "locres-de")],
+            ["--lang", "zh-Hans", "locres", "--lang", "de", "--out", Path.Combine(workspace.DepsDir, "tmp", "locres-de")],
             ffrDeps: workspace.DepsDir);
         Assert.Equal(2, missingLang.ExitCode);
         Assert.Contains("包内可用语言", missingLang.Stderr, StringComparison.Ordinal);
@@ -164,7 +164,7 @@ public sealed class SubcommandsSmokeTests
             Path.Combine(exportDir, "manifest.json"),
             JsonConvert.SerializeObject(new { cue4ParseVersion = "1.2.2.202611", successCount = 1 }));
         var wrongCommand = await TestHarness.RunCliAsync(
-            ["locres", "--out", exportDir, "--force"],
+            ["--lang", "zh-Hans", "locres", "--out", exportDir, "--force"],
             ffrDeps: workspace.DepsDir);
         Assert.Equal(2, wrongCommand.ExitCode);
         Assert.Contains("不能由 locres --force 清空", wrongCommand.Stderr, StringComparison.Ordinal);
@@ -214,14 +214,14 @@ public sealed class SubcommandsSmokeTests
 
         // 3. Re-running without --force fails because directory is non-empty
         var nonEmpty = await TestHarness.RunCliAsync(
-            ["export", "--paks", paksDir, "--usmap", usmapPath, "--prefix", "FFRS/Content/Datatable/"],
+            ["--lang", "zh-Hans", "export", "--paks", paksDir, "--usmap", usmapPath, "--prefix", "FFRS/Content/Datatable/"],
             ffrDeps: workspace.DepsDir);
         Assert.Equal(2, nonEmpty.ExitCode);
         Assert.Contains("输出目录非空", nonEmpty.Stderr, StringComparison.Ordinal);
 
         // 4. --force clears own export directory and re-runs
         var forced = await TestHarness.RunCliAsync(
-            ["export", "--paks", paksDir, "--usmap", usmapPath, "--prefix", "FFRS/Content/Datatable/", "--force"],
+            ["--lang", "zh-Hans", "export", "--paks", paksDir, "--usmap", usmapPath, "--prefix", "FFRS/Content/Datatable/", "--force"],
             ffrDeps: workspace.DepsDir);
         Assert.Equal(1, forced.ExitCode);
         Assert.Contains("即将清空输出目录", forced.Stdout, StringComparison.Ordinal);
@@ -231,7 +231,7 @@ public sealed class SubcommandsSmokeTests
         Directory.CreateDirectory(foreignDir);
         await File.WriteAllTextAsync(Path.Combine(foreignDir, "keep.txt"), "safe");
         var refuseForeign = await TestHarness.RunCliAsync(
-            ["export", "--paks", paksDir, "--usmap", usmapPath, "--out", foreignDir, "--force"],
+            ["--lang", "zh-Hans", "export", "--paks", paksDir, "--usmap", usmapPath, "--out", foreignDir, "--force"],
             ffrDeps: workspace.DepsDir);
         Assert.Equal(2, refuseForeign.ExitCode);
         Assert.Contains("不是 ffr-export 的输出目录", refuseForeign.Stderr, StringComparison.Ordinal);
@@ -446,7 +446,7 @@ public sealed class SubcommandsSmokeTests
         {
             var target = Path.Combine(workspace.DepsDir, subpath.Replace('/', Path.DirectorySeparatorChar));
             var result = await TestHarness.RunCliAsync(
-                ["inventory", "--out", target],
+                ["--lang", "zh-Hans", "inventory", "--out", target],
                 ffrDeps: workspace.DepsDir);
             Assert.Equal(2, result.ExitCode);
             Assert.Contains("受保护目录", result.Stderr, StringComparison.Ordinal);
@@ -463,12 +463,12 @@ public sealed class SubcommandsSmokeTests
     [Fact]
     public async Task CliArguments_NoArgsEntersWizardAndUnknownSubcommandReturnsExitCode2()
     {
-        var wizardEof = await TestHarness.RunCliAsync([], stdinInput: string.Empty);
+        var wizardEof = await TestHarness.RunCliAsync(["--lang", "zh-Hans"], stdinInput: string.Empty);
         Assert.Equal(2, wizardEof.ExitCode);
         Assert.Contains("资源导出与建库向导", wizardEof.Stdout, StringComparison.Ordinal);
         Assert.DoesNotContain("缺少子命令", wizardEof.Stderr, StringComparison.Ordinal);
 
-        var unknown = await TestHarness.RunCliAsync(["unknown-cmd"]);
+        var unknown = await TestHarness.RunCliAsync(["--lang", "zh-Hans", "unknown-cmd"]);
         Assert.Equal(2, unknown.ExitCode);
         Assert.Contains("未知子命令", unknown.Stderr, StringComparison.Ordinal);
     }
@@ -504,7 +504,7 @@ public sealed class SubcommandsSmokeTests
         var stderr = await stderrTask;
 
         Assert.Equal(2, process.ExitCode);
-        Assert.Contains("找不到 dotnet 可执行文件", stderr, StringComparison.Ordinal);
+        Assert.Contains("dotnet executable not found", stderr, StringComparison.Ordinal);
     }
 
     private static string ResolveBashExecutable()

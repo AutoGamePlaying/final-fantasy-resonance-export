@@ -121,12 +121,12 @@ internal static class InteractiveWizard
         }
 
         output.WriteLine("============================================================");
-        output.WriteLine("《FINAL FANTASY RESONANCE》资源导出与建库向导");
+        output.WriteLine(L.Get("Wizard_Title"));
         output.WriteLine("============================================================");
-        output.WriteLine("说明：本工具仅以只读方式读取游戏文件，不会修改游戏安装目录。");
-        output.WriteLine("提示：粘贴路径时可直接保留两端的引号，也支持包含空格的路径。");
+        output.WriteLine(L.Get("Wizard_ReadOnlyNotice"));
+        output.WriteLine(L.Get("Wizard_QuoteTip"));
 
-        // Pre-check ffr-db binary so double-click users get an immediate Chinese message if it is missing.
+        // Pre-check ffr-db binary so double-click users get an immediate localized message if it is missing.
         string resolvedFfrDb;
         try
         {
@@ -142,38 +142,38 @@ internal static class InteractiveWizard
 
         // Step 1: Locate Steam games or prompt for manual game directory.
         output.WriteLine();
-        output.WriteLine("【步骤 1/4】定位游戏目录");
+        output.WriteLine(L.Get("Wizard_Step1Header"));
         var gameSelection = SelectGameDirectory(input, output, discoverGames);
         if (gameSelection is null)
         {
-            output.WriteLine("输入流已结束，向导已取消。");
+            output.WriteLine(L.Get("Wizard_InputClosedCancelled"));
             return 2;
         }
 
         // Step 2: Auto-discover or prompt for .usmap (required) and .jmap (optional, multiple).
         output.WriteLine();
-        output.WriteLine("【步骤 2/4】指定映射文件（.usmap / .jmap）");
-        output.WriteLine("说明：.usmap 为必填项；可用「ffr-export fetch-usmap --game <目录>」一键获取，或用 UE4SS 在游戏运行时转储。");
+        output.WriteLine(L.Get("Wizard_Step2Header"));
+        output.WriteLine(L.Get("Wizard_UsmapNote"));
         var discoveredUsmap = TryDiscoverLatestUsmap(gameSelection.GameDirectory, effectiveAgpHome);
         var usmapPath = PromptUsmapFile(input, output, discoveredUsmap);
         if (usmapPath is null)
         {
-            output.WriteLine("输入流已结束，向导已取消。");
+            output.WriteLine(L.Get("Wizard_InputClosedCancelled"));
             return 2;
         }
 
         output.WriteLine();
-        output.WriteLine("可选：.jmap 反射转储文件（可添加多个，不提供请直接回车跳过）。");
+        output.WriteLine(L.Get("Wizard_JmapNote"));
         var jmapPaths = PromptOptionalFiles(input, output, isWindows);
         if (jmapPaths is null)
         {
-            output.WriteLine("输入流已结束，向导已取消。");
+            output.WriteLine(L.Get("Wizard_InputClosedCancelled"));
             return 2;
         }
 
         // Step 3: Output directory (defaults to <agp>/ffr-export/output/<gameCode>-<buildId>).
         output.WriteLine();
-        output.WriteLine("【步骤 3/4】选择输出目录");
+        output.WriteLine(L.Get("Wizard_Step3Header"));
         var defaultOutputDir = BuildDefaultOutputDirectory(
             gameSelection.GameCode,
             gameSelection.SteamBuildId,
@@ -181,24 +181,24 @@ internal static class InteractiveWizard
         var outputSelection = PromptOutputDirectory(input, output, gameSelection.GameDirectory, defaultOutputDir);
         if (outputSelection is null)
         {
-            output.WriteLine("输入流已结束，向导已取消。");
+            output.WriteLine(L.Get("Wizard_InputClosedCancelled"));
             return 2;
         }
 
         // Step 4: Summary, confirmation, and invoke the exact build-db entry point.
         output.WriteLine();
-        output.WriteLine("【步骤 4/4】确认信息并开始建库");
-        output.WriteLine($"  游戏名称：{gameSelection.DisplayName}");
-        output.WriteLine($"  游戏目录：{gameSelection.GameDirectory}");
-        output.WriteLine($"  Steam 构建号：{gameSelection.SteamBuildId ?? "未检测到"}");
-        output.WriteLine($"  .usmap 文件：{usmapPath}");
+        output.WriteLine(L.Get("Wizard_Step4Header"));
+        output.WriteLine(L.Format("Wizard_SummaryGameName", gameSelection.DisplayName));
+        output.WriteLine(L.Format("Wizard_SummaryGameDir", gameSelection.GameDirectory));
+        output.WriteLine(L.Format("Wizard_SummarySteamBuild", gameSelection.SteamBuildId ?? L.Get("Common_NotDetected")));
+        output.WriteLine(L.Format("Wizard_SummaryUsmap", usmapPath));
         if (jmapPaths.Count == 0)
         {
-            output.WriteLine("  .jmap 文件：无（已跳过）");
+            output.WriteLine(L.Get("Wizard_SummaryJmapNone"));
         }
         else
         {
-            output.WriteLine($"  .jmap 文件：共 {jmapPaths.Count} 个");
+            output.WriteLine(L.Format("Wizard_SummaryJmapCount", jmapPaths.Count));
             for (var i = 0; i < jmapPaths.Count; i++)
             {
                 output.WriteLine($"    [{i + 1}] {jmapPaths[i]}");
@@ -206,19 +206,19 @@ internal static class InteractiveWizard
         }
 
         output.WriteLine(outputSelection.Force
-            ? $"  输出目录：{outputSelection.OutputDirectory}（将清空并重新建库）"
-            : $"  输出目录：{outputSelection.OutputDirectory}");
+            ? L.Format("Wizard_SummaryOutputForce", outputSelection.OutputDirectory)
+            : L.Format("Wizard_SummaryOutput", outputSelection.OutputDirectory));
 
         var confirmed = PromptConfirmation(input, output);
         if (confirmed is null)
         {
-            output.WriteLine("输入流已结束，向导已取消。");
+            output.WriteLine(L.Get("Wizard_InputClosedCancelled"));
             return 2;
         }
 
         if (!confirmed.Value)
         {
-            output.WriteLine("已取消建库，未修改任何文件。");
+            output.WriteLine(L.Get("Wizard_CancelledNoChanges"));
             WaitForExit(input, output);
             return 0;
         }
@@ -233,7 +233,7 @@ internal static class InteractiveWizard
             outputSelection.Force);
 
         output.WriteLine();
-        output.WriteLine("开始执行建库流程（与命令行 build-db 相同），请耐心等待……");
+        output.WriteLine(L.Get("Wizard_StartingBuild"));
         output.Flush();
 
         var stopwatch = Stopwatch.StartNew();
@@ -249,7 +249,7 @@ internal static class InteractiveWizard
             else
             {
                 error.WriteLine();
-                error.WriteLine($"错误：建库流程未成功完成（退出码：{exitCode}）。");
+                error.WriteLine(L.Format("Wizard_BuildFailedExitCode", exitCode));
                 PrintFailureAdvice(error, null, exeDir, isWindows);
             }
 
@@ -260,7 +260,7 @@ internal static class InteractiveWizard
         {
             stopwatch.Stop();
             error.WriteLine();
-            error.WriteLine($"错误：建库失败：{exception.Message}");
+            error.WriteLine(L.Format("Wizard_BuildFailedException", exception.Message));
             PrintFailureAdvice(error, exception, exeDir, isWindows);
             WaitForExit(input, output);
             return 2;
@@ -335,26 +335,26 @@ internal static class InteractiveWizard
         }
         catch (Exception exception)
         {
-            output.WriteLine($"提示：自动扫描 Steam 游戏库时出错（{exception.Message}），改为手动输入目录。");
+            output.WriteLine(L.Format("Wizard_SteamScanError", exception.Message));
             discovered = [];
         }
 
         if (discovered.Count > 0)
         {
-            output.WriteLine("已在 Steam 游戏库中找到以下游戏：");
+            output.WriteLine(L.Get("Wizard_SteamGamesFound"));
             for (var i = 0; i < discovered.Count; i++)
             {
                 var game = discovered[i];
                 output.WriteLine($"  [{i + 1}] {game.DisplayName}");
-                output.WriteLine($"      目录：{game.GameDirectory}");
-                output.WriteLine($"      Steam 构建号：{game.SteamBuildId ?? "未知"}");
+                output.WriteLine(L.Format("Wizard_SteamGameDirLine", game.GameDirectory));
+                output.WriteLine(L.Format("Wizard_SteamGameBuildLine", game.SteamBuildId ?? L.Get("Common_Unknown")));
             }
 
-            output.WriteLine("  [0] 手动粘贴其他游戏目录");
+            output.WriteLine(L.Get("Wizard_ManualGameOption"));
 
             while (true)
             {
-                output.Write($"请输入编号（1-{discovered.Count}，直接回车默认选 1，输入 0 手动输入）：");
+                output.Write(L.Format("Wizard_SelectGamePrompt", discovered.Count));
                 output.Flush();
                 var raw = input.ReadLine();
                 if (raw is null)
@@ -383,19 +383,20 @@ internal static class InteractiveWizard
                     }
                 }
 
-                output.WriteLine($"输入无效，请输入 0 到 {discovered.Count} 之间的整数。");
+                output.WriteLine(L.Format("Wizard_InvalidNumberRange", discovered.Count));
             }
         }
         else
         {
-            output.WriteLine(
-                $"未在 Steam 游戏库中自动找到《{SteamLocator.ResonanceGame.DefaultDisplayName}》" +
-                $"（AppID: {SteamLocator.ResonanceGame.AppId}）。");
+            output.WriteLine(L.Format(
+                "Wizard_SteamGameNotFound",
+                SteamLocator.ResonanceGame.DefaultDisplayName,
+                SteamLocator.ResonanceGame.AppId));
         }
 
         while (true)
         {
-            output.Write($"请粘贴游戏安装根目录（须包含 {GameVersionDetector.RelativePaksSubpath}）：");
+            output.Write(L.Format("Wizard_PasteGameDirPrompt", GameVersionDetector.RelativePaksSubpath));
             output.Flush();
             var raw = input.ReadLine();
             if (raw is null)
@@ -406,28 +407,26 @@ internal static class InteractiveWizard
             var cleaned = CleanUserPathInput(raw);
             if (string.IsNullOrEmpty(cleaned))
             {
-                output.WriteLine("游戏目录不能为空，请重新输入。");
+                output.WriteLine(L.Get("Wizard_GameDirEmpty"));
                 continue;
             }
 
             if (!TryNormalizeFullPath(cleaned, out var fullDir, out var pathError))
             {
-                output.WriteLine($"路径格式无效：{pathError}，请重新输入。");
+                output.WriteLine(L.Format("Wizard_InvalidPathRetry", pathError));
                 continue;
             }
 
             if (!Directory.Exists(PathSupport.ToIoPath(fullDir)))
             {
-                output.WriteLine($"找不到目录：{cleaned}，请检查路径后重新输入。");
+                output.WriteLine(L.Format("Wizard_DirNotFoundRetry", cleaned));
                 continue;
             }
 
             var paksDir = SteamLocator.CombineRelativeSubpath(fullDir, GameVersionDetector.RelativePaksSubpath);
             if (!Directory.Exists(PathSupport.ToIoPath(paksDir)))
             {
-                output.WriteLine(
-                    $"该目录下缺少 {GameVersionDetector.RelativePaksSubpath}：{fullDir}。" +
-                    "请确认粘贴的是游戏安装根目录后重新输入。");
+                output.WriteLine(L.Format("Wizard_GameDirMissingPaksRetry", GameVersionDetector.RelativePaksSubpath, fullDir));
                 continue;
             }
 
@@ -491,13 +490,13 @@ internal static class InteractiveWizard
     {
         if (discoveredUsmap is null)
         {
-            return PromptRequiredFile(input, output, ".usmap 文件路径", ".usmap");
+            return PromptRequiredFile(input, output, L.Get("Wizard_UsmapLabel"), ".usmap");
         }
 
-        output.WriteLine($"已自动找到 .usmap（{discoveredUsmap.Value.SourceLabel}）：{discoveredUsmap.Value.FullPath}");
+        output.WriteLine(L.Format("Wizard_UsmapAutoFound", discoveredUsmap.Value.SourceLabel, discoveredUsmap.Value.FullPath));
         while (true)
         {
-            output.Write(".usmap 文件路径（直接回车使用自动找到的文件，或粘贴其他 .usmap 路径）：");
+            output.Write(L.Get("Wizard_UsmapAutoPrompt"));
             output.Flush();
             var raw = input.ReadLine();
             if (raw is null)
@@ -513,20 +512,20 @@ internal static class InteractiveWizard
 
             if (!TryNormalizeFullPath(cleaned, out var fullPath, out var pathError))
             {
-                output.WriteLine($"路径格式无效：{pathError}，请重新输入。");
+                output.WriteLine(L.Format("Wizard_InvalidPathRetry", pathError));
                 continue;
             }
 
             var ioPath = PathSupport.ToIoPath(fullPath);
             if (Directory.Exists(ioPath))
             {
-                output.WriteLine($"输入的是目录而不是文件：{cleaned}，请粘贴具体的 .usmap 文件路径。");
+                output.WriteLine(L.Format("Wizard_PathIsDirNotFile", cleaned, ".usmap"));
                 continue;
             }
 
             if (!File.Exists(ioPath))
             {
-                output.WriteLine($"找不到文件：{cleaned}，请检查路径后重新输入。");
+                output.WriteLine(L.Format("Wizard_FileNotFoundRetry", cleaned));
                 continue;
             }
 
@@ -542,7 +541,7 @@ internal static class InteractiveWizard
     {
         while (true)
         {
-            output.Write($"请粘贴 {promptLabel}：");
+            output.Write(L.Format("Wizard_PasteRequiredFilePrompt", promptLabel));
             output.Flush();
             var raw = input.ReadLine();
             if (raw is null)
@@ -553,26 +552,26 @@ internal static class InteractiveWizard
             var cleaned = CleanUserPathInput(raw);
             if (string.IsNullOrEmpty(cleaned))
             {
-                output.WriteLine($"{promptLabel} 为必填项，不能为空，请重新输入。");
+                output.WriteLine(L.Format("Wizard_RequiredFieldEmpty", promptLabel));
                 continue;
             }
 
             if (!TryNormalizeFullPath(cleaned, out var fullPath, out var pathError))
             {
-                output.WriteLine($"路径格式无效：{pathError}，请重新输入。");
+                output.WriteLine(L.Format("Wizard_InvalidPathRetry", pathError));
                 continue;
             }
 
             var ioPath = PathSupport.ToIoPath(fullPath);
             if (Directory.Exists(ioPath))
             {
-                output.WriteLine($"输入的是目录而不是文件：{cleaned}，请粘贴具体的 {expectedExtension} 文件路径。");
+                output.WriteLine(L.Format("Wizard_PathIsDirNotFile", cleaned, expectedExtension));
                 continue;
             }
 
             if (!File.Exists(ioPath))
             {
-                output.WriteLine($"找不到文件：{cleaned}，请检查路径后重新输入。");
+                output.WriteLine(L.Format("Wizard_FileNotFoundRetry", cleaned));
                 continue;
             }
 
@@ -592,8 +591,8 @@ internal static class InteractiveWizard
         while (true)
         {
             var prompt = files.Count == 0
-                ? "第 1 个 .jmap 文件路径（直接回车跳过）："
-                : $"第 {files.Count + 1} 个 .jmap 文件路径（继续粘贴或直接回车结束）：";
+                ? L.Get("Wizard_JmapFirstPrompt")
+                : L.Format("Wizard_JmapNextPrompt", files.Count + 1);
             output.Write(prompt);
             output.Flush();
             var raw = input.ReadLine();
@@ -607,11 +606,11 @@ internal static class InteractiveWizard
             {
                 if (files.Count == 0)
                 {
-                    output.WriteLine("已跳过 .jmap 文件。");
+                    output.WriteLine(L.Get("Wizard_JmapSkipped"));
                 }
                 else
                 {
-                    output.WriteLine($"共添加 {files.Count} 个 .jmap 文件。");
+                    output.WriteLine(L.Format("Wizard_JmapAddedCount", files.Count));
                 }
 
                 return files;
@@ -619,31 +618,31 @@ internal static class InteractiveWizard
 
             if (!TryNormalizeFullPath(cleaned, out var fullPath, out var pathError))
             {
-                output.WriteLine($"路径格式无效：{pathError}，请重新输入或直接回车跳过。");
+                output.WriteLine(L.Format("Wizard_InvalidPathOrSkip", pathError));
                 continue;
             }
 
             var ioPath = PathSupport.ToIoPath(fullPath);
             if (Directory.Exists(ioPath))
             {
-                output.WriteLine($"输入的是目录而不是文件：{cleaned}，请粘贴具体的 .jmap 文件路径或直接回车跳过。");
+                output.WriteLine(L.Format("Wizard_JmapIsDirOrSkip", cleaned));
                 continue;
             }
 
             if (!File.Exists(ioPath))
             {
-                output.WriteLine($"找不到文件：{cleaned}，请检查路径后重新输入或直接回车跳过。");
+                output.WriteLine(L.Format("Wizard_FileNotFoundOrSkip", cleaned));
                 continue;
             }
 
             if (!seen.Add(fullPath))
             {
-                output.WriteLine($"提示：该 .jmap 文件已添加，已跳过重复项：{fullPath}");
+                output.WriteLine(L.Format("Wizard_JmapDuplicate", fullPath));
                 continue;
             }
 
             files.Add(fullPath);
-            output.WriteLine($"  已添加：{fullPath}");
+            output.WriteLine(L.Format("Wizard_JmapAddedItem", fullPath));
         }
     }
 
@@ -653,11 +652,11 @@ internal static class InteractiveWizard
         string gameDirectory,
         string defaultOutputDir)
     {
-        output.WriteLine($"默认输出目录：{defaultOutputDir}");
+        output.WriteLine(L.Format("Wizard_DefaultOutputDir", defaultOutputDir));
 
         while (true)
         {
-            output.Write("输出目录（直接回车使用默认目录，或粘贴其他目录路径）：");
+            output.Write(L.Get("Wizard_OutputDirPrompt"));
             output.Flush();
             var raw = input.ReadLine();
             if (raw is null)
@@ -673,21 +672,21 @@ internal static class InteractiveWizard
             }
             else if (!TryNormalizeFullPath(cleaned, out candidateDir, out var pathError))
             {
-                output.WriteLine($"路径格式无效：{pathError}，请重新输入。");
+                output.WriteLine(L.Format("Wizard_InvalidPathRetry", pathError));
                 continue;
             }
 
             if (PathSupport.IsSameOrDescendantPath(gameDirectory, candidateDir)
                 || PathSupport.IsSameOrDescendantPath(candidateDir, gameDirectory))
             {
-                output.WriteLine($"输出目录不能与游戏目录重叠：{candidateDir}，请换一个目录。");
+                output.WriteLine(L.Format("Wizard_OutputOverlapsGame", candidateDir));
                 continue;
             }
 
             var ioCandidate = PathSupport.ToIoPath(candidateDir);
             if (File.Exists(ioCandidate))
             {
-                output.WriteLine($"目标路径是一个已存在的文件而非目录：{candidateDir}，请换一个路径。");
+                output.WriteLine(L.Format("Wizard_OutputIsExistingFile", candidateDir));
                 continue;
             }
 
@@ -695,14 +694,12 @@ internal static class InteractiveWizard
             {
                 if (!HasOwnBuildDbMetadata(ioCandidate))
                 {
-                    output.WriteLine(
-                        $"目标目录非空且不是 ffr-export build-db 的输出目录：{candidateDir}。" +
-                        "为避免误删文件，请换一个空目录。");
+                    output.WriteLine(L.Format("Wizard_OutputForeignNonEmpty", candidateDir));
                     continue;
                 }
 
-                output.WriteLine($"提示：目标目录已存在之前的建库结果：{candidateDir}");
-                output.Write("是否清空该目录并重新建库？（输入 y 覆盖重建，直接回车或输入 n 重新选择目录）：");
+                output.WriteLine(L.Format("Wizard_OutputPreviousBuildExists", candidateDir));
+                output.Write(L.Get("Wizard_OutputOverwritePrompt"));
                 output.Flush();
                 var overwriteRaw = input.ReadLine();
                 if (overwriteRaw is null)
@@ -727,7 +724,7 @@ internal static class InteractiveWizard
     {
         while (true)
         {
-            output.Write("确认开始建库吗？（直接回车开始，输入 n 取消）：");
+            output.Write(L.Get("Wizard_ConfirmStartPrompt"));
             output.Flush();
             var raw = input.ReadLine();
             if (raw is null)
@@ -746,7 +743,7 @@ internal static class InteractiveWizard
                 return false;
             }
 
-            output.WriteLine("输入无效，请直接回车开始，或输入 n 取消。");
+            output.WriteLine(L.Get("Wizard_ConfirmStartInvalid"));
         }
     }
 
@@ -761,9 +758,9 @@ internal static class InteractiveWizard
 
         output.WriteLine();
         output.WriteLine("============================================================");
-        output.WriteLine("建库结果汇总");
+        output.WriteLine(L.Get("Wizard_CompletionTitle"));
         output.WriteLine("============================================================");
-        output.WriteLine($"数据库路径：{sqlitePath}");
+        output.WriteLine(L.Format("Wizard_CompletionDbPath", sqlitePath));
 
         var ioMetaPath = PathSupport.ToIoPath(metadataPath);
         if (File.Exists(ioMetaPath))
@@ -775,35 +772,36 @@ internal static class InteractiveWizard
                 var comparison = report["known_build_check"] as JObject;
                 var timings = report["timings_ms"] as JObject;
 
-                var fileSha = db?["file_sha256"]?.Value<string>() ?? "无";
-                var contentSha = db?["content_sha256"]?.Value<string>() ?? "无";
-                var cmpMessage = comparison?["message"]?.Value<string>() ?? "无";
+                var none = L.Get("Common_None");
+                var fileSha = db?["file_sha256"]?.Value<string>() ?? none;
+                var contentSha = db?["content_sha256"]?.Value<string>() ?? none;
+                var cmpMessage = comparison?["message"]?.Value<string>() ?? none;
                 var cmpSource = comparison?["source"]?.Value<string>();
                 var cmpStatus = comparison?["status"]?.Value<string>();
                 var matchedDate = comparison?["matched_registered_at"]?.Value<string>();
                 var fileShaOnly = comparison?["file_sha256_mismatch_only"]?.Value<bool>() ?? false;
                 var tableDiffs = comparison?["table_diffs"] as JArray;
 
-                output.WriteLine($"文件哈希（file_sha256）：{fileSha}");
-                output.WriteLine($"内容哈希（content_sha256）：{contentSha}");
+                output.WriteLine(L.Format("Wizard_CompletionFileSha", fileSha));
+                output.WriteLine(L.Format("Wizard_CompletionContentSha", contentSha));
                 output.WriteLine(string.IsNullOrWhiteSpace(cmpSource)
-                    ? $"known-builds.json 比对结论：{cmpMessage}"
-                    : $"known-builds.json 比对结论：{cmpMessage}（来源：{cmpSource}）");
+                    ? L.Format("Wizard_CompletionKnownBuilds", cmpMessage)
+                    : L.Format("Wizard_CompletionKnownBuildsWithSource", cmpMessage, cmpSource));
 
                 if (string.Equals(cmpStatus, "matched", StringComparison.Ordinal)
                     && !string.IsNullOrWhiteSpace(matchedDate))
                 {
-                    output.WriteLine($"  匹配登记日期：{matchedDate}");
+                    output.WriteLine(L.Format("Wizard_CompletionMatchedDate", matchedDate));
                 }
                 else if (string.Equals(cmpStatus, "hash_mismatch", StringComparison.Ordinal))
                 {
                     if (fileShaOnly)
                     {
-                        output.WriteLine("  说明：所有表内容一致（content_sha256 相同），仅文件哈希不同。");
+                        output.WriteLine(L.Get("Wizard_CompletionFileShaOnly"));
                     }
                     else if (tableDiffs is not null && tableDiffs.Count > 0)
                     {
-                        output.WriteLine($"  差异表数：{tableDiffs.Count} 张（详情见上方输出与构建报告）。");
+                        output.WriteLine(L.Format("Wizard_CompletionTableDiffCount", tableDiffs.Count));
                     }
                 }
 
@@ -820,31 +818,34 @@ internal static class InteractiveWizard
                     var displayTotalSec = totalMs.HasValue
                         ? totalMs.Value / 1000.0
                         : wallElapsed.TotalSeconds;
-                    output.WriteLine(string.Create(
-                        CultureInfo.InvariantCulture,
-                        $"耗时统计：导出 JSON {exportMs / 1000.0:F2}s | 建库 {dbBuildMs / 1000.0:F2}s | 计算哈希 {dbHashMs / 1000.0:F2}s | 总计 {displayTotalSec:F2}s"));
+                    output.WriteLine(L.Format(
+                        "Wizard_CompletionTimings",
+                        (exportMs / 1000.0).ToString("F2", CultureInfo.InvariantCulture),
+                        (dbBuildMs / 1000.0).ToString("F2", CultureInfo.InvariantCulture),
+                        (dbHashMs / 1000.0).ToString("F2", CultureInfo.InvariantCulture),
+                        displayTotalSec.ToString("F2", CultureInfo.InvariantCulture)));
                 }
                 else
                 {
-                    output.WriteLine(string.Create(CultureInfo.InvariantCulture, $"总耗时：{wallElapsed.TotalSeconds:F2}s"));
+                    output.WriteLine(L.Format("Wizard_CompletionTotalTime", wallElapsed.TotalSeconds.ToString("F2", CultureInfo.InvariantCulture)));
                 }
 
-                output.WriteLine($"构建报告：{metadataPath}");
+                output.WriteLine(L.Format("Wizard_CompletionReportPath", metadataPath));
             }
             catch (Exception exception)
             {
-                output.WriteLine($"提示：读取构建报告 {metadataPath} 失败（{exception.Message}）。");
-                output.WriteLine(string.Create(CultureInfo.InvariantCulture, $"总耗时：{wallElapsed.TotalSeconds:F2}s"));
+                output.WriteLine(L.Format("Wizard_CompletionReadReportFailed", metadataPath, exception.Message));
+                output.WriteLine(L.Format("Wizard_CompletionTotalTime", wallElapsed.TotalSeconds.ToString("F2", CultureInfo.InvariantCulture)));
             }
         }
         else
         {
-            output.WriteLine(string.Create(CultureInfo.InvariantCulture, $"总耗时：{wallElapsed.TotalSeconds:F2}s"));
+            output.WriteLine(L.Format("Wizard_CompletionTotalTime", wallElapsed.TotalSeconds.ToString("F2", CultureInfo.InvariantCulture)));
         }
 
         if (exitCode == 1)
         {
-            output.WriteLine("提示：数据库已生成，但有少量资源包导出失败，详情请查看构建报告或日志输出。");
+            output.WriteLine(L.Get("Wizard_CompletionPartialFailure"));
         }
     }
 
@@ -857,12 +858,12 @@ internal static class InteractiveWizard
         var dbExeName = isWindows ? "ffr-db.exe" : "ffr-db";
         var exportExeName = isWindows ? "ffr-export.exe" : "ffr-export";
 
-        error.WriteLine($"错误：找不到 {dbExeName}，无法执行建库。");
-        error.WriteLine($"详情：{exception.Message}");
-        error.WriteLine("下一步建议：");
-        error.WriteLine($"  1. 请将下载的压缩包完整解压到同一目录，确保 {dbExeName} 与 {exportExeName} 位于同一文件夹（当前目录：{executableDirectory}）；");
-        error.WriteLine($"  2. 不要单独移动 {exportExeName} 到桌面或其他目录运行；");
-        error.WriteLine($"  3. 如使用自编译版本，可将 {dbExeName} 复制到程序同目录或加入环境变量 PATH 后重试。");
+        error.WriteLine(L.Format("Wizard_MissingFfrDbHeadline", dbExeName));
+        error.WriteLine(L.Format("Wizard_ErrorDetails", exception.Message));
+        error.WriteLine(L.Get("Wizard_NextStepsHeader"));
+        error.WriteLine(L.Format("Wizard_MissingFfrDbStep1", dbExeName, exportExeName, executableDirectory));
+        error.WriteLine(L.Format("Wizard_MissingFfrDbStep2", exportExeName));
+        error.WriteLine(L.Format("Wizard_MissingFfrDbStep3", dbExeName));
     }
 
     private static void PrintFailureAdvice(
@@ -874,40 +875,44 @@ internal static class InteractiveWizard
         var dbExeName = isWindows ? "ffr-db.exe" : "ffr-db";
         var message = exception?.Message ?? string.Empty;
 
-        error.WriteLine("下一步建议：");
+        error.WriteLine(L.Get("Wizard_NextStepsHeader"));
         if (message.Contains("ffr-db", StringComparison.OrdinalIgnoreCase))
         {
-            error.WriteLine($"  1. 确认 {dbExeName} 与本程序在同一目录（{executableDirectory}）且未被安全软件拦截；");
-            error.WriteLine("  2. 确认输出磁盘有足够可用空间，然后重新运行本向导。");
+            error.WriteLine(L.Format("Wizard_AdviceFfrDb1", dbExeName, executableDirectory));
+            error.WriteLine(L.Get("Wizard_AdviceFfrDb2"));
             return;
         }
 
         if (message.Contains(".usmap", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("映射文件", StringComparison.Ordinal))
+            || message.Contains("mapping", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("映射文件", StringComparison.Ordinal)
+            || message.Contains("マッピング", StringComparison.Ordinal))
         {
-            error.WriteLine("  1. 确认所选 .usmap 文件是从当前版本运行中的游戏通过 UE4SS 转储得到的完整文件；");
-            error.WriteLine("  2. 如果游戏刚更新过版本，请重新转储一份最新的 .usmap 后再运行。");
+            error.WriteLine(L.Get("Wizard_AdviceUsmap1"));
+            error.WriteLine(L.Get("Wizard_AdviceUsmap2"));
             return;
         }
 
-        if (message.Contains("游戏目录", StringComparison.Ordinal)
+        if (message.Contains("game directory", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("游戏目录", StringComparison.Ordinal)
+            || message.Contains("ゲームディレクトリ", StringComparison.Ordinal)
             || message.Contains("FFRS/", StringComparison.Ordinal)
             || message.Contains("FFRS-Win64-Shipping.exe", StringComparison.OrdinalIgnoreCase))
         {
-            error.WriteLine("  1. 确认所选目录是《FINAL FANTASY RESONANCE》的游戏安装根目录；");
-            error.WriteLine("  2. 如文件缺失，请在 Steam 中右键游戏 -> 属性 -> 已安装文件 -> 验证游戏文件的完整性。");
+            error.WriteLine(L.Get("Wizard_AdviceGameDir1"));
+            error.WriteLine(L.Get("Wizard_AdviceGameDir2"));
             return;
         }
 
-        error.WriteLine("  1. 根据上方错误信息检查游戏目录、.usmap/.jmap 文件以及输出目录权限；");
-        error.WriteLine("  2. 确认输出磁盘留有充足可用空间（建库过程需要数 GB 临时空间）；");
-        error.WriteLine("  3. 排查完成后重新双击运行本程序。");
+        error.WriteLine(L.Get("Wizard_AdviceGeneric1"));
+        error.WriteLine(L.Get("Wizard_AdviceGeneric2"));
+        error.WriteLine(L.Get("Wizard_AdviceGeneric3"));
     }
 
     private static void WaitForExit(TextReader input, TextWriter output)
     {
         output.WriteLine();
-        output.Write("按回车退出...");
+        output.Write(L.Get("Wizard_PressEnterToExit"));
         output.Flush();
         _ = input.ReadLine();
     }
@@ -953,7 +958,8 @@ internal static class InteractiveWizard
     {
         return value.Equals("y", StringComparison.OrdinalIgnoreCase)
             || value.Equals("yes", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("是", StringComparison.Ordinal);
+            || value.Equals("是", StringComparison.Ordinal)
+            || value.Equals("はい", StringComparison.Ordinal);
     }
 
     private static bool IsNo(string value)
@@ -961,7 +967,8 @@ internal static class InteractiveWizard
         return value.Equals("n", StringComparison.OrdinalIgnoreCase)
             || value.Equals("no", StringComparison.OrdinalIgnoreCase)
             || value.Equals("q", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("否", StringComparison.Ordinal);
+            || value.Equals("否", StringComparison.Ordinal)
+            || value.Equals("いいえ", StringComparison.Ordinal);
     }
 }
 

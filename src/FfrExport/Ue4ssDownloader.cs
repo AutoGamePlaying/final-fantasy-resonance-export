@@ -64,28 +64,28 @@ internal sealed class HttpsUe4ssPackageDownloader : IUe4ssPackageDownloader
         {
             if (TryVerifyArchiveFile(cachePath, _expectedSize, _expectedSha256, out var mismatchReason))
             {
-                output.WriteLine($"已命中本地下载缓存并通过 SHA-256 校验：{cachePath}");
+                output.WriteLine(L.Format("Ue4ss_CacheHit", cachePath));
                 return cachePath;
             }
 
-            output.WriteLine($"警告：本地缓存文件未通过校验（{mismatchReason}），将重新下载：{cachePath}");
+            output.WriteLine(L.Format("Ue4ss_CacheCorruptRedownload", mismatchReason, cachePath));
             try
             {
                 File.Delete(ioCachePath);
             }
             catch (Exception exception)
             {
-                throw new IOException($"删除损坏的下载缓存失败（{cachePath}）：{exception.Message}", exception);
+                throw new IOException(L.Format("Ue4ss_CacheDeleteFailed", cachePath, exception.Message), exception);
             }
         }
 
         if (!Uri.TryCreate(_downloadUrl, UriKind.Absolute, out var initialUri)
             || !string.Equals(initialUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException($"拒绝使用非 HTTPS 地址下载 UE4SS：{_downloadUrl}");
+            throw new InvalidOperationException(L.Format("Ue4ss_RefuseNonHttps", _downloadUrl));
         }
 
-        output.WriteLine($"正在从官方 GitHub 发布页下载 UE4SS {Ue4ssVersion}（约 8.4 MB）：{_downloadUrl}");
+        output.WriteLine(L.Format("Ue4ss_Downloading", Ue4ssVersion, _downloadUrl));
 
         var tempPath = Path.Combine(
             fullDownloadsDir,
@@ -95,7 +95,7 @@ internal sealed class HttpsUe4ssPackageDownloader : IUe4ssPackageDownloader
             await DownloadToFileAsync(initialUri, tempPath, cancellationToken).ConfigureAwait(false);
             VerifyArchiveFileOrThrow(tempPath, _expectedSize, _expectedSha256, _downloadUrl);
             File.Move(PathSupport.ToIoPath(tempPath), ioCachePath, overwrite: true);
-            output.WriteLine($"下载并校验通过（大小 {_expectedSize} 字节，SHA-256 匹配）：{cachePath}");
+            output.WriteLine(L.Format("Ue4ss_DownloadVerified", _expectedSize, cachePath));
             return cachePath;
         }
         catch
@@ -115,23 +115,21 @@ internal sealed class HttpsUe4ssPackageDownloader : IUe4ssPackageDownloader
         var ioPath = PathSupport.ToIoPath(archivePath);
         if (!File.Exists(ioPath))
         {
-            failureReason = $"文件不存在：{archivePath}";
+            failureReason = L.Format("Ue4ss_VerifyFileNotFound", archivePath);
             return false;
         }
 
         var actualSize = new FileInfo(ioPath).Length;
         if (actualSize != expectedSize)
         {
-            failureReason = string.Create(
-                CultureInfo.InvariantCulture,
-                $"文件大小不匹配（期望 {expectedSize} 字节，实际 {actualSize} 字节）");
+            failureReason = L.Format("Ue4ss_VerifySizeMismatch", expectedSize, actualSize);
             return false;
         }
 
         var actualSha256 = GameVersionDetector.ComputeFileSha256Lower(archivePath);
         if (!string.Equals(actualSha256, expectedSha256Lower, StringComparison.OrdinalIgnoreCase))
         {
-            failureReason = $"SHA-256 校验不一致（期望 {expectedSha256Lower}，实际 {actualSha256}）";
+            failureReason = L.Format("Ue4ss_VerifyShaMismatch", expectedSha256Lower, actualSha256);
             return false;
         }
 
@@ -146,8 +144,7 @@ internal sealed class HttpsUe4ssPackageDownloader : IUe4ssPackageDownloader
     {
         if (!TryVerifyArchiveFile(archivePath, expectedSize, expectedSha256Lower, out var reason))
         {
-            throw new InvalidDataException(
-                $"校验 UE4SS 安装包失败（来源：{sourceDescription}，文件：{archivePath}）：{reason}；已拒绝安装。");
+            throw new InvalidDataException(L.Format("Ue4ss_VerifyArchiveFailed", sourceDescription, archivePath, reason));
         }
     }
 
@@ -174,7 +171,7 @@ internal sealed class HttpsUe4ssPackageDownloader : IUe4ssPackageDownloader
             {
                 if (!string.Equals(currentUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
                 {
-                    throw new InvalidOperationException($"下载重定向到非 HTTPS 地址，已拒绝：{currentUri}");
+                    throw new InvalidOperationException(L.Format("Ue4ss_RedirectNonHttps", currentUri));
                 }
 
                 try
@@ -185,16 +182,11 @@ internal sealed class HttpsUe4ssPackageDownloader : IUe4ssPackageDownloader
                 }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
-                    throw new TimeoutException(
-                        string.Create(
-                            CultureInfo.InvariantCulture,
-                            $"下载 UE4SS 超时（超过 {(int)_timeout.TotalSeconds} 秒，地址：{currentUri}）；请检查网络或代理设置后重试。"));
+                    throw new TimeoutException(L.Format("Ue4ss_DownloadTimeout", (int)_timeout.TotalSeconds, currentUri));
                 }
                 catch (HttpRequestException exception)
                 {
-                    throw new IOException(
-                        $"下载 UE4SS 失败（地址：{currentUri}）：{exception.Message}；请检查网络连接或防火墙设置后重试。",
-                        exception);
+                    throw new IOException(L.Format("Ue4ss_DownloadHttpError", currentUri, exception.Message), exception);
                 }
 
                 if (IsRedirectStatusCode(response.StatusCode))
@@ -205,13 +197,13 @@ internal sealed class HttpsUe4ssPackageDownloader : IUe4ssPackageDownloader
 
                     if (location is null)
                     {
-                        throw new IOException($"下载 UE4SS 失败：服务器返回重定向但缺少 Location 头（地址：{currentUri}）。");
+                        throw new IOException(L.Format("Ue4ss_RedirectMissingLocation", currentUri));
                     }
 
                     currentUri = location.IsAbsoluteUri ? location : new Uri(currentUri, location);
                     if (redirect == MaxRedirects)
                     {
-                        throw new IOException($"下载 UE4SS 失败：重定向次数超过 {MaxRedirects} 次（地址：{_downloadUrl}）。");
+                        throw new IOException(L.Format("Ue4ss_TooManyRedirects", MaxRedirects, _downloadUrl));
                     }
 
                     continue;
@@ -222,23 +214,25 @@ internal sealed class HttpsUe4ssPackageDownloader : IUe4ssPackageDownloader
 
             if (response is null)
             {
-                throw new IOException($"下载 UE4SS 失败：未收到服务器响应（地址：{_downloadUrl}）。");
+                throw new IOException(L.Format("Ue4ss_NoResponse", _downloadUrl));
             }
 
             if (!response.IsSuccessStatusCode)
             {
-                throw new IOException(
-                    string.Create(
-                        CultureInfo.InvariantCulture,
-                        $"下载 UE4SS 失败：服务器返回 HTTP {(int)response.StatusCode} {response.ReasonPhrase}（地址：{currentUri}）。"));
+                throw new IOException(L.Format(
+                    "Ue4ss_HttpStatusError",
+                    (int)response.StatusCode,
+                    response.ReasonPhrase,
+                    currentUri));
             }
 
             if (response.Content.Headers.ContentLength is long contentLength && contentLength != _expectedSize)
             {
-                throw new InvalidDataException(
-                    string.Create(
-                        CultureInfo.InvariantCulture,
-                        $"下载 UE4SS 被拒绝：响应头 Content-Length 为 {contentLength} 字节，与预期 {_expectedSize} 字节不一致（地址：{currentUri}）。"));
+                throw new InvalidDataException(L.Format(
+                    "Ue4ss_ContentLengthMismatch",
+                    contentLength,
+                    _expectedSize,
+                    currentUri));
             }
 
             await using var remoteStream = await response.Content
@@ -265,10 +259,7 @@ internal sealed class HttpsUe4ssPackageDownloader : IUe4ssPackageDownloader
                 }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
-                    throw new TimeoutException(
-                        string.Create(
-                            CultureInfo.InvariantCulture,
-                            $"下载 UE4SS 传输超时（已接收 {totalRead} / {_expectedSize} 字节，地址：{currentUri}）。"));
+                    throw new TimeoutException(L.Format("Ue4ss_TransferTimeout", totalRead, _expectedSize, currentUri));
                 }
 
                 if (bytesRead == 0)
@@ -279,10 +270,7 @@ internal sealed class HttpsUe4ssPackageDownloader : IUe4ssPackageDownloader
                 totalRead += bytesRead;
                 if (totalRead > _expectedSize)
                 {
-                    throw new InvalidDataException(
-                        string.Create(
-                            CultureInfo.InvariantCulture,
-                            $"下载 UE4SS 被拒绝：实际接收字节数超过预期 {_expectedSize} 字节（地址：{currentUri}）。"));
+                    throw new InvalidDataException(L.Format("Ue4ss_TransferExceededSize", _expectedSize, currentUri));
                 }
 
                 await localStream

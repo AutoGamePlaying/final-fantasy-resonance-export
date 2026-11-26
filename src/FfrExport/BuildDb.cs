@@ -15,7 +15,8 @@ internal sealed record BuildDbOptions(
     bool KeepJson,
     int? Jobs,
     bool Force,
-    bool HasExplicitOutput = true);
+    bool HasExplicitOutput = true,
+    bool ProgressJson = false);
 
 internal sealed record ProcessExecutionResult(
     int ExitCode,
@@ -40,7 +41,7 @@ internal static class FfrDbLocator
             var fullExplicit = Path.GetFullPath(trimmed);
             if (!File.Exists(PathSupport.ToIoPath(fullExplicit)))
             {
-                throw new FileNotFoundException($"指定的 --ffr-db 可执行文件不存在：{explicitPath}");
+                throw new FileNotFoundException(L.Format("BuildDb_ExplicitFfrDbNotFound", explicitPath));
             }
 
             return fullExplicit;
@@ -85,9 +86,7 @@ internal static class FfrDbLocator
             }
         }
 
-        throw new FileNotFoundException(
-            $"找不到 ffr-db 可执行文件（已依次检查：--ffr-db 参数、程序同目录 {baseDir}、环境变量 PATH）。" +
-            "请通过 --ffr-db <路径> 指定，或将 ffr-db 放到程序同目录 / PATH 中。");
+        throw new FileNotFoundException(L.Format("BuildDb_FfrDbNotFound", baseDir));
     }
 }
 
@@ -95,6 +94,16 @@ internal static partial class Program
 {
     private const string BuildMetadataFileName = "ffr.sqlite.build.json";
     private static readonly string[] BuildDbDatatablePrefixes = ["FFRS/Content/Datatable/"];
+
+    private static void WriteBuildDbStep(int step, int total, string title, bool progressJson)
+    {
+        if (progressJson)
+        {
+            Console.WriteLine(ProgressProtocol.FormatProgressLine(step, total, title));
+        }
+
+        Console.WriteLine(L.Format("BuildDb_StepLine", step, total, title));
+    }
 
     private static async Task<int> RunBuildDbAsync(string[] args)
     {
@@ -107,7 +116,7 @@ internal static partial class Program
         var usmapFullPath = Path.GetFullPath(options.UsmapPath);
         if (!File.Exists(PathSupport.ToIoPath(usmapFullPath)))
         {
-            throw new FileNotFoundException($"映射文件不存在：{options.UsmapPath}");
+            throw new FileNotFoundException(L.Format("Cli_MappingFileNotFound", options.UsmapPath));
         }
 
         var jmapFullPaths = new List<string>(options.JmapPaths.Count);
@@ -116,7 +125,7 @@ internal static partial class Program
             var fullJmap = Path.GetFullPath(jmap);
             if (!File.Exists(PathSupport.ToIoPath(fullJmap)))
             {
-                throw new FileNotFoundException($"反射转储文件（--jmap）不存在：{jmap}");
+                throw new FileNotFoundException(L.Format("BuildDb_JmapNotFound", jmap));
             }
 
             jmapFullPaths.Add(fullJmap);
@@ -147,7 +156,7 @@ internal static partial class Program
         await WriteBuildDbSentinelAsync(metadataPath, startedAt);
 
         // 2. Identify game version (Steam buildid, PE FileVersion/ProductVersion, pak fingerprint) and input hashes.
-        Console.WriteLine("==> 步骤 1/5：识别游戏版本与输入哈希");
+        WriteBuildDbStep(1, 5, L.Get("BuildDb_Step1Title"), options.ProgressJson);
         var versionStopwatch = Stopwatch.StartNew();
 
         var steamInfo = GameVersionDetector.ReadSteamBuildInfo(gamePaths.GameRoot, options.SteamBuildId, Console.Error);
@@ -155,25 +164,36 @@ internal static partial class Program
         var pakResult = GameVersionDetector.ComputePakFingerprint(gamePaths.PaksDir);
 
         versionStopwatch.Stop();
-        Console.WriteLine(
-            $"Steam 构建号：{steamInfo.BuildId ?? "null"}（来源：{steamInfo.Source ?? "无"}）" +
-            $"；exe 版本：FileVersion={exeInfo.FileVersion ?? "null"}，ProductVersion={exeInfo.ProductVersion ?? "null"}");
-        Console.WriteLine(
-            $"游戏包指纹：{pakResult.Fingerprint}（共 {pakResult.Files.Length} 个文件，哈希 {pakResult.HashedBytes} 字节，耗时 {pakResult.ElapsedMs} ms）");
+        Console.WriteLine(L.Format(
+            "BuildDb_SteamAndExeLine",
+            steamInfo.BuildId ?? "null",
+            steamInfo.Source ?? L.Get("Common_None"),
+            exeInfo.FileVersion ?? "null",
+            exeInfo.ProductVersion ?? "null"));
+        Console.WriteLine(L.Format(
+            "BuildDb_PakFingerprintLine",
+            pakResult.Fingerprint,
+            pakResult.Files.Length,
+            pakResult.HashedBytes,
+            pakResult.ElapsedMs));
 
         var usmapStopwatch = Stopwatch.StartNew();
         var usmapInfo = GameVersionDetector.ComputeUsmapHashes(usmapFullPath);
         var jmapInfos = jmapFullPaths.Select(GameVersionDetector.ComputeJmapHash).ToArray();
         usmapStopwatch.Stop();
 
-        Console.WriteLine(
-            $".usmap 哈希：file={usmapInfo.FileSha256}，content={usmapInfo.ContentSha256}（{usmapInfo.TypeCount} 类，{usmapInfo.EnumCount} 枚举）");
+        Console.WriteLine(L.Format(
+            "BuildDb_UsmapHashLine",
+            usmapInfo.FileSha256,
+            usmapInfo.ContentSha256,
+            usmapInfo.TypeCount,
+            usmapInfo.EnumCount));
 
         var ffrDbVersion = await ReadFfrDbVersionAsync(ffrDbExecutable);
         var (toolVersion, gitCommit) = KnownBuildsRegistry.ReadBuildMetadata();
 
         // 3. Export all 5 JSON stages in-process into <out>/json/ matching .deps/ffr/ layout.
-        Console.WriteLine("==> 步骤 2/5：导出游戏数据为 JSON");
+        WriteBuildDbStep(2, 5, L.Get("BuildDb_Step2Title"), options.ProgressJson);
         var jsonRoot = Path.Combine(outputPath, "json");
         var exportDir = Path.Combine(jsonRoot, "export");
         var locresDir = Path.Combine(exportDir, "Localization");
@@ -258,7 +278,7 @@ internal static partial class Program
         }
 
         // 4. Invoke ffr-db build and ffr-db hash --json.
-        Console.WriteLine("==> 步骤 3/5：调用 ffr-db build 构建 SQLite 数据库");
+        WriteBuildDbStep(3, 5, L.Get("BuildDb_Step3Title"), options.ProgressJson);
         var sqlitePath = Path.Combine(outputPath, "ffr.sqlite");
         var dbBuildStopwatch = Stopwatch.StartNew();
         var buildArgs = new List<string>
@@ -295,25 +315,31 @@ internal static partial class Program
 
         if (buildResult.ExitCode != 0)
         {
-            throw new InvalidOperationException(
-                $"调用 ffr-db build 失败（可执行文件：{ffrDbExecutable}，退出码：{buildResult.ExitCode}）：{buildResult.Stderr.Trim()}");
+            throw new InvalidOperationException(L.Format(
+                "BuildDb_FfrDbBuildFailed",
+                ffrDbExecutable,
+                buildResult.ExitCode,
+                buildResult.Stderr.Trim()));
         }
 
         if (!File.Exists(PathSupport.ToIoPath(sqlitePath)))
         {
-            throw new FileNotFoundException($"ffr-db build 执行完成但未生成数据库文件：{sqlitePath}");
+            throw new FileNotFoundException(L.Format("BuildDb_SqliteMissingAfterBuild", sqlitePath));
         }
 
-        Console.WriteLine("==> 步骤 4/5：调用 ffr-db hash 计算数据库哈希");
+        WriteBuildDbStep(4, 5, L.Get("BuildDb_Step4Title"), options.ProgressJson);
         var dbHashStopwatch = Stopwatch.StartNew();
         var dbInfo = await ComputeDatabaseHashInfoAsync(ffrDbExecutable, sqlitePath);
         dbHashStopwatch.Stop();
 
-        Console.WriteLine(
-            $"数据库哈希：file_sha256={dbInfo.FileSha256}，content_sha256={dbInfo.ContentSha256 ?? "null"}（{dbInfo.Tables.Length} 张表）");
+        Console.WriteLine(L.Format(
+            "BuildDb_DbHashLine",
+            dbInfo.FileSha256,
+            dbInfo.ContentSha256 ?? "null",
+            dbInfo.Tables.Length));
 
         // 5. Compare against known-builds.json.
-        Console.WriteLine("==> 步骤 5/5：比对已知版本登记表并写出构建报告");
+        WriteBuildDbStep(5, 5, L.Get("BuildDb_Step5Title"), options.ProgressJson);
         var (knownEntries, knownSource) = KnownBuildsRegistry.Load();
         var comparison = KnownBuildsRegistry.Compare(
             knownEntries,
@@ -329,7 +355,7 @@ internal static partial class Program
             Directory.Delete(PathSupport.ToIoPath(jsonRoot), recursive: true);
             cleanupWatch.Stop();
             cleanupJsonMs = cleanupWatch.ElapsedMilliseconds;
-            Console.WriteLine($"已清理临时导出目录：{jsonRoot}（耗时 {cleanupJsonMs} ms）");
+            Console.WriteLine(L.Format("BuildDb_TempJsonCleaned", jsonRoot, cleanupJsonMs));
         }
 
         totalStopwatch.Stop();
@@ -379,8 +405,11 @@ internal static partial class Program
         };
 
         WriteJsonAtomically(metadataPath, buildReport);
-        Console.WriteLine(
-            $"建库完成：{sqlitePath}（报告：{metadataPath}，总耗时 {totalStopwatch.Elapsed.TotalSeconds:F2}s）");
+        Console.WriteLine(L.Format(
+            "BuildDb_Completed",
+            sqlitePath,
+            metadataPath,
+            totalStopwatch.Elapsed.TotalSeconds.ToString("F2", CultureInfo.InvariantCulture)));
 
         var hadPartialExportFailure = exportDatatableExit != 0 || exportAssetsExit != 0 || exportMapsExit != 0;
         return hadPartialExportFailure ? 1 : 0;
@@ -397,10 +426,23 @@ internal static partial class Program
         var keepJson = false;
         int? jobs = null;
         var force = false;
+        var progressJson = false;
 
         for (var index = 0; index < args.Length; index++)
         {
-            switch (args[index])
+            var token = args[index];
+            if (token.StartsWith("--lang=", StringComparison.Ordinal))
+            {
+                var langValue = token["--lang=".Length..];
+                if (!Localization.TryNormalizeLanguageCode(langValue, out _))
+                {
+                    throw new ArgumentException(L.Format("Common_UnsupportedLanguage", langValue));
+                }
+
+                continue;
+            }
+
+            switch (token)
             {
                 case "--game":
                     gameDirectory = RequireValue(args, ref index, "--game");
@@ -428,7 +470,7 @@ internal static partial class Program
                     if (!int.TryParse(rawJobs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedJobs)
                         || parsedJobs < 1)
                     {
-                        throw new ArgumentException($"--jobs 必须是正整数：{rawJobs}");
+                        throw new ArgumentException(L.Format("ExportAssets_JobsMustBePositive", rawJobs));
                     }
 
                     jobs = parsedJobs;
@@ -436,19 +478,30 @@ internal static partial class Program
                 case "--force":
                     force = true;
                     break;
+                case "--progress-json":
+                    progressJson = true;
+                    break;
+                case "--lang":
+                    var rawLang = RequireValue(args, ref index, "--lang");
+                    if (!Localization.TryNormalizeLanguageCode(rawLang, out _))
+                    {
+                        throw new ArgumentException(L.Format("Common_UnsupportedLanguage", rawLang));
+                    }
+
+                    break;
                 default:
-                    throw new ArgumentException($"build-db 收到未知参数：{args[index]}");
+                    throw new ArgumentException(L.Format("Cli_UnknownArg", "build-db", token));
             }
         }
 
         if (string.IsNullOrWhiteSpace(gameDirectory))
         {
-            throw new ArgumentException("build-db 需要 --game <游戏目录>");
+            throw new ArgumentException(L.Get("BuildDb_RequiresGame"));
         }
 
         if (string.IsNullOrWhiteSpace(usmapPath))
         {
-            throw new ArgumentException("build-db 需要 --usmap <文件>");
+            throw new ArgumentException(L.Get("BuildDb_RequiresUsmap"));
         }
 
         var hasExplicitOutput = !string.IsNullOrWhiteSpace(explicitOutputArgument);
@@ -466,7 +519,8 @@ internal static partial class Program
             keepJson,
             jobs,
             force,
-            hasExplicitOutput);
+            hasExplicitOutput,
+            progressJson);
     }
 
     private static void ValidateBuildDbOutputNotOverlappingGame(
@@ -477,7 +531,7 @@ internal static partial class Program
         if (PathSupport.IsSameOrDescendantPath(gameRootFullPath, outputFullPath)
             || PathSupport.IsSameOrDescendantPath(outputFullPath, gameRootFullPath))
         {
-            throw new ArgumentException($"--out 不能与游戏目录重叠：{outputDisplay}");
+            throw new ArgumentException(L.Format("BuildDb_OutOverlapsGame", outputDisplay));
         }
     }
 
@@ -491,18 +545,16 @@ internal static partial class Program
         {
             if (!IsBuildDbOutputDirectory(ioOutputPath))
             {
-                throw new IOException(
-                    $"{outputArgument} 已存在且不是 ffr-export build-db 的输出目录，拒绝写入；换一个空目录或手动清理后重试");
+                throw new IOException(L.Format("BuildDb_ForeignOutputDir", outputArgument));
             }
 
             if (!force)
             {
-                throw new IOException(
-                    $"输出目录非空（{outputArgument}）；如需清空并重新建库，请加 --force");
+                throw new IOException(L.Format("BuildDb_OutputDirNonEmpty", outputArgument));
             }
 
             var fileCount = Directory.EnumerateFiles(ioOutputPath, "*", SearchOption.AllDirectories).LongCount();
-            Console.WriteLine($"即将清空输出目录：{outputArgument}；文件数：{fileCount}");
+            Console.WriteLine(L.Format("Cli_ClearingOutputDir", outputArgument, fileCount));
             Directory.Delete(ioOutputPath, recursive: true);
         }
 
@@ -573,8 +625,7 @@ internal static partial class Program
         {
             if (IsUnsupportedHashSubcommand(hashResult.Stderr))
             {
-                Console.Error.WriteLine(
-                    $"警告：当前 ffr-db（{ffrDbExecutable}）不支持 hash 子命令，仅计算 file_sha256；content_sha256 与各表哈希记为 null");
+                Console.Error.WriteLine(L.Format("BuildDb_FfrDbNoHashSubcommandWarning", ffrDbExecutable));
                 var fallbackFileSha = GameVersionDetector.ComputeFileSha256Lower(sqlitePath);
                 return new BuildDatabaseInfo(
                     fileName,
@@ -587,8 +638,12 @@ internal static partial class Program
                     Tables: []);
             }
 
-            throw new InvalidOperationException(
-                $"调用 ffr-db hash 失败（可执行文件：{ffrDbExecutable}，数据库：{sqlitePath}，退出码：{hashResult.ExitCode}）：{hashResult.Stderr.Trim()}");
+            throw new InvalidOperationException(L.Format(
+                "BuildDb_FfrDbHashFailed",
+                ffrDbExecutable,
+                sqlitePath,
+                hashResult.ExitCode,
+                hashResult.Stderr.Trim()));
         }
 
         FfrDbHashReport? parsed;
@@ -599,7 +654,7 @@ internal static partial class Program
         catch (JsonException exception)
         {
             throw new InvalidDataException(
-                $"解析 ffr-db hash 输出的 JSON 失败（数据库：{sqlitePath}）：{exception.Message}",
+                L.Format("BuildDb_FfrDbHashInvalidJson", sqlitePath, exception.Message),
                 exception);
         }
 
@@ -608,8 +663,7 @@ internal static partial class Program
             || string.IsNullOrWhiteSpace(parsed.ContentSha256)
             || parsed.Tables is null)
         {
-            throw new InvalidDataException(
-                $"ffr-db hash 返回的 JSON 缺少必需字段（file_sha256/content_sha256/tables）：{sqlitePath}");
+            throw new InvalidDataException(L.Format("BuildDb_FfrDbHashMissingFields", sqlitePath));
         }
 
         return new BuildDatabaseInfo(
@@ -654,7 +708,7 @@ internal static partial class Program
         }
 
         using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException($"无法启动子进程：{fileName}");
+            ?? throw new InvalidOperationException(L.Format("BuildDb_StartSubprocessFailed", fileName));
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();

@@ -52,12 +52,12 @@ internal static partial class Program
 
         if (options.UsmapPath is null)
         {
-            throw new ArgumentException("export-maps 需要 --usmap <文件>（在游戏机上用 UE4SS 导出的 .usmap，见 README.md）");
+            throw new ArgumentException(L.Format("Cli_CommandRequiresUsmap", "export-maps"));
         }
 
         if (!File.Exists(options.UsmapPath))
         {
-            throw new FileNotFoundException($"映射文件不存在：{options.UsmapPath}");
+            throw new FileNotFoundException(L.Format("Cli_MappingFileNotFound", options.UsmapPath));
         }
 
         PrepareMapExportDirectory(outputPath, options.OutputArgument, options.Force);
@@ -199,7 +199,7 @@ internal static partial class Program
                 catch (Exception exception)
                 {
                     failures.Add((file.Path, TruncateError(exception.Message)));
-                    Console.Error.WriteLine($"关卡导出失败：{file.Path}：{exception.Message}");
+                    Console.Error.WriteLine(L.Format("MapExport_LevelFailedLine", file.Path, exception.Message));
                 }
             });
 
@@ -226,9 +226,14 @@ internal static partial class Program
             sortedFailures,
             stopwatch.ElapsedMilliseconds);
 
-        Console.WriteLine(
-            $"关卡导出完成：总计 {umaps.Length}，新导出 {exportedCount}，跳过 {skippedCount}，失败 {sortedFailures.Length}，" +
-            $"映射地图 {graph.Stats.MappedMapCount} 张，耗时 {stopwatch.Elapsed.TotalSeconds:F2}s");
+        Console.WriteLine(L.Format(
+            "MapExport_Summary",
+            umaps.Length,
+            exportedCount,
+            skippedCount,
+            sortedFailures.Length,
+            graph.Stats.MappedMapCount,
+            stopwatch.Elapsed.TotalSeconds.ToString("F2", CultureInfo.InvariantCulture)));
         return sortedFailures.Length == 0 ? 0 : 1;
     }
 
@@ -241,7 +246,7 @@ internal static partial class Program
         var fixtureDir = options.FromJsonDirectory!;
         if (!Directory.Exists(fixtureDir))
         {
-            throw new DirectoryNotFoundException($"夹具目录不存在：{fixtureDir}");
+            throw new DirectoryNotFoundException(L.Format("MapExport_FixtureDirNotFound", fixtureDir));
         }
 
         PrepareMapExportDirectory(outputPath, options.OutputArgument, options.Force);
@@ -275,7 +280,7 @@ internal static partial class Program
                 var input = JsonConvert.DeserializeObject<MapFixtureInput>(await File.ReadAllTextAsync(file, Utf8WithoutBom));
                 if (input is null || string.IsNullOrWhiteSpace(input.Path))
                 {
-                    throw new InvalidDataException("夹具缺少 path 字段");
+                    throw new InvalidDataException(L.Get("MapExport_FixtureMissingPath"));
                 }
 
                 loadedFixtures.Add((file, input));
@@ -380,9 +385,13 @@ internal static partial class Program
             failures,
             stopwatch.ElapsedMilliseconds);
 
-        Console.WriteLine(
-            $"关卡夹具汇总完成：总计 {fixtureFiles.Length}，新导出 {exportedCount}，跳过 {skippedCount}，失败 {failures.Count}，" +
-            $"映射地图 {graph.Stats.MappedMapCount} 张");
+        Console.WriteLine(L.Format(
+            "MapExport_FixtureSummary",
+            fixtureFiles.Length,
+            exportedCount,
+            skippedCount,
+            failures.Count,
+            graph.Stats.MappedMapCount));
         return failures.Count == 0 ? 0 : 1;
     }
 
@@ -424,14 +433,14 @@ internal static partial class Program
                     var rawJobs = RequireValue(args, ref index, args[index]);
                     if (!int.TryParse(rawJobs, NumberStyles.Integer, CultureInfo.InvariantCulture, out maxParallelism) || maxParallelism < 1)
                     {
-                        throw new ArgumentException($"并行度必须是正整数：{rawJobs}");
+                        throw new ArgumentException(L.Format("MapExport_ParallelMustBePositive", rawJobs));
                     }
                     break;
                 case "--force":
                     force = true;
                     break;
                 default:
-                    throw new ArgumentException($"export-maps 收到未知参数：{args[index]}");
+                    throw new ArgumentException(L.Format("Cli_UnknownArg", "export-maps", args[index]));
             }
         }
 
@@ -501,7 +510,7 @@ internal static partial class Program
         var ioPath = PathSupport.ToIoPath(path);
         if (!File.Exists(ioPath))
         {
-            throw new FileNotFoundException($"地图数据表文件不存在：{path}");
+            throw new FileNotFoundException(L.Format("MapExport_MapDataNotFound", path));
         }
 
         var token = JToken.Parse(File.ReadAllText(ioPath, Utf8WithoutBom));
@@ -509,7 +518,7 @@ internal static partial class Program
         {
             JArray arr when arr.FirstOrDefault() is JObject first => first,
             JObject obj => obj,
-            _ => throw new InvalidDataException($"地图数据表 JSON 格式不正确：{path}"),
+            _ => throw new InvalidDataException(L.Format("MapExport_MapDataInvalidFormat", path)),
         };
         return ParseMapDataTableObject(tableObj);
     }

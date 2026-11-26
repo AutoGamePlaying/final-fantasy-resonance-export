@@ -244,41 +244,41 @@ internal static class Ue4ssRuntimeSupport
         ArgumentNullException.ThrowIfNull(plan);
 
         var sb = new StringBuilder();
-        sb.AppendLine($"游戏 Win64 目录：{plan.Inspection.Win64Directory}");
+        sb.AppendLine(L.Format("Ue4ss_PreviewWin64Dir", plan.Inspection.Win64Directory));
         sb.AppendLine();
 
         if (plan.HasOurManagedInstall)
         {
-            sb.AppendLine("【将删除本工具安装的 UE4SS 文件】");
+            sb.AppendLine(L.Get("Ue4ss_PreviewOwnHeader"));
             if (plan.MarkerFilesToDelete.Length == 0)
             {
-                sb.AppendLine("  （清单中记录的文件已不存在）");
+                sb.AppendLine(L.Get("Ue4ss_PreviewOwnNoneLeft"));
             }
             else
             {
                 foreach (var file in plan.MarkerFilesToDelete)
                 {
-                    sb.AppendLine($"  [删除] {file}");
+                    sb.AppendLine(L.Format("Ue4ss_PreviewTagDelete", file));
                 }
             }
 
             if (plan.MarkerDirectoriesToClean.Length > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine("【若变空将清理的目录】");
+                sb.AppendLine(L.Get("Ue4ss_PreviewEmptyDirsHeader"));
                 foreach (var dir in plan.MarkerDirectoriesToClean)
                 {
-                    sb.AppendLine($"  [空目录清理] {dir}");
+                    sb.AppendLine(L.Format("Ue4ss_PreviewTagCleanDir", dir));
                 }
             }
 
             if (plan.HasRemnants)
             {
                 sb.AppendLine();
-                sb.AppendLine("【将同时清理本工具残留】");
+                sb.AppendLine(L.Get("Ue4ss_PreviewAlsoRemnantsHeader"));
                 foreach (var remnant in plan.RemnantPathsToDelete)
                 {
-                    sb.AppendLine($"  [删除残留] {remnant}");
+                    sb.AppendLine(L.Format("Ue4ss_PreviewTagDeleteRemnant", remnant));
                 }
             }
 
@@ -287,37 +287,37 @@ internal static class Ue4ssRuntimeSupport
 
         if (plan.IsForeignUe4ss)
         {
-            sb.AppendLine("【本工具残留文件（将删除）】");
+            sb.AppendLine(L.Get("Ue4ss_PreviewForeignRemnantsHeader"));
             if (plan.HasRemnants)
             {
                 foreach (var remnant in plan.RemnantPathsToDelete)
                 {
-                    sb.AppendLine($"  [删除残留] {remnant}");
+                    sb.AppendLine(L.Format("Ue4ss_PreviewTagDeleteRemnant", remnant));
                 }
             }
             else
             {
-                sb.AppendLine("  （未发现本工具残留文件）");
+                sb.AppendLine(L.Get("Ue4ss_PreviewNoRemnants"));
             }
 
             sb.AppendLine();
             if (includeForeign)
             {
-                sb.AppendLine($"【非本工具安装的 UE4SS（不删除，将移动到备份目录：{backupRootPreview}）】");
+                sb.AppendLine(L.Format("Ue4ss_PreviewForeignMoveHeader", backupRootPreview));
                 foreach (var item in plan.ForeignPathsToMove)
                 {
-                    sb.AppendLine($"  [移动到备份] {item}");
+                    sb.AppendLine(L.Format("Ue4ss_PreviewTagMoveToBackup", item));
                 }
 
                 sb.AppendLine();
-                sb.AppendLine("恢复方法：只需将备份目录内的 dwmapi.dll 和 ue4ss 文件夹复制回上述 Win64 目录即可恢复。");
+                sb.AppendLine(L.Get("Ue4ss_PreviewRestoreNote"));
             }
             else
             {
-                sb.AppendLine("【非本工具安装的 UE4SS（默认保持不动）】");
+                sb.AppendLine(L.Get("Ue4ss_PreviewForeignKeepHeader"));
                 foreach (var item in plan.ForeignPathsToMove)
                 {
-                    sb.AppendLine($"  [保留] {item}");
+                    sb.AppendLine(L.Format("Ue4ss_PreviewTagKeep", item));
                 }
             }
 
@@ -326,16 +326,16 @@ internal static class Ue4ssRuntimeSupport
 
         if (plan.HasRemnants)
         {
-            sb.AppendLine("【将清理本工具残留文件】");
+            sb.AppendLine(L.Get("Ue4ss_PreviewRemnantsOnlyHeader"));
             foreach (var remnant in plan.RemnantPathsToDelete)
             {
-                sb.AppendLine($"  [删除残留] {remnant}");
+                sb.AppendLine(L.Format("Ue4ss_PreviewTagDeleteRemnant", remnant));
             }
 
             return sb.ToString().TrimEnd();
         }
 
-        return "未发现 UE4SS 或本工具残留文件。";
+        return L.Get("Ue4ss_PreviewNothingFound");
     }
 
     internal static string[] CollectOurRemnantRelativePaths(string win64Dir, string ue4ssDir)
@@ -410,7 +410,7 @@ internal static class Ue4ssRuntimeSupport
             }
             catch (Exception exception)
             {
-                log?.Invoke($"警告：清理临时转储模组目录失败（{dumpModDir}）：{exception.Message}");
+                log?.Invoke(L.Format("Ue4ss_WarnRemoveDumpModDir", dumpModDir, exception.Message));
             }
         }
 
@@ -435,7 +435,7 @@ internal static class Ue4ssRuntimeSupport
             }
             catch (Exception exception)
             {
-                log?.Invoke($"警告：扫描临时 .tmp 文件失败（{ue4ssDir}）：{exception.Message}");
+                log?.Invoke(L.Format("Ue4ss_WarnScanTmpFiles", ue4ssDir, exception.Message));
             }
         }
 
@@ -524,7 +524,7 @@ internal static class Ue4ssRuntimeSupport
                 }
                 catch (Exception exception)
                 {
-                    log?.Invoke($"警告：删除 {enabledTxt} 失败：{exception.Message}");
+                    log?.Invoke(L.Format("Ue4ss_WarnDeleteEnabledTxt", enabledTxt, exception.Message));
                 }
             }
 
@@ -537,7 +537,7 @@ internal static class Ue4ssRuntimeSupport
                 }
                 catch (Exception exception)
                 {
-                    log?.Invoke($"警告：清理临时转储模组目录失败（{modDir}）：{exception.Message}");
+                    log?.Invoke(L.Format("Ue4ss_WarnRemoveDumpModDir", modDir, exception.Message));
                 }
             }
 
@@ -547,7 +547,7 @@ internal static class Ue4ssRuntimeSupport
         }
         catch (Exception exception)
         {
-            log?.Invoke($"警告：停用临时转储模组时出错：{exception.Message}");
+            log?.Invoke(L.Format("Ue4ss_WarnDisableDumpMod", exception.Message));
         }
     }
 
@@ -584,7 +584,7 @@ internal static class Ue4ssRuntimeSupport
 
         try
         {
-            log?.Invoke($"正在请求关闭游戏进程（{GameExeFileName}，共 {processes.Length} 个）……");
+            log?.Invoke(L.Format("Ue4ss_ClosingGameProcesses", GameExeFileName, processes.Length));
             foreach (var process in processes)
             {
                 try
@@ -605,7 +605,7 @@ internal static class Ue4ssRuntimeSupport
             {
                 if (AllExited(processes))
                 {
-                    log?.Invoke("游戏窗口已正常退出。");
+                    log?.Invoke(L.Get("Ue4ss_GameClosedGracefully"));
                     return;
                 }
 
@@ -625,7 +625,7 @@ internal static class Ue4ssRuntimeSupport
                 {
                     if (!process.HasExited)
                     {
-                        log?.Invoke($"游戏在 {Math.Ceiling(gracefulWait.TotalSeconds)} 秒内未退出，正在强制结束进程（PID {process.Id}）……");
+                        log?.Invoke(L.Format("Ue4ss_GameForceKill", (int)Math.Ceiling(gracefulWait.TotalSeconds), process.Id));
                         process.Kill(entireProcessTree: true);
                         process.WaitForExit(5000);
                     }
@@ -756,7 +756,7 @@ internal static class Ue4ssRuntimeSupport
         }
         catch (Exception exception)
         {
-            log?.Invoke($"警告：删除残留文件失败（{path}）：{exception.Message}");
+            log?.Invoke(L.Format("Ue4ss_WarnDeleteRemnantFile", path, exception.Message));
             return false;
         }
     }

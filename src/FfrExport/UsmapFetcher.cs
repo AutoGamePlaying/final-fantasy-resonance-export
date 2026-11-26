@@ -11,7 +11,8 @@ namespace FfrExport;
 internal sealed record FetchUsmapOptions(
     string GameDirectory,
     int TimeoutSeconds,
-    bool Yes);
+    bool Yes,
+    bool ProgressJson = false);
 
 internal sealed record UninstallUe4ssOptions(
     string GameDirectory,
@@ -80,7 +81,7 @@ internal sealed class WindowsSteamGameLauncher : IGameLauncher
         catch (Exception exception)
         {
             throw new InvalidOperationException(
-                $"通过 Steam 启动游戏失败（URI：{steamUri}）：{exception.Message}；请确认本机已安装并登录 Steam。",
+                L.Format("Ue4ss_SteamLaunchFailed", steamUri, exception.Message),
                 exception);
         }
     }
@@ -331,7 +332,7 @@ internal static class Ue4ssModManager
         using var stream = assembly.GetManifestResourceStream(EmbeddedMainLuaResourceName);
         if (stream is null)
         {
-            throw new InvalidOperationException($"程序内缺少嵌入的转储模组脚本资源：{EmbeddedMainLuaResourceName}");
+            throw new InvalidOperationException(L.Format("Ue4ss_MissingEmbeddedLua", EmbeddedMainLuaResourceName));
         }
 
         using var reader = new StreamReader(stream, Encoding.UTF8);
@@ -366,7 +367,7 @@ internal static class Ue4ssModManager
         }
         catch (Exception exception)
         {
-            throw new IOException($"清理旧的转储完成标记失败（{donePath}）：{exception.Message}", exception);
+            throw new IOException(L.Format("Ue4ss_CleanOldDoneMarkerFailed", donePath, exception.Message), exception);
         }
 
         var luaContent = LoadEmbeddedMainLua();
@@ -386,7 +387,7 @@ internal static class Ue4ssModManager
         ArgumentNullException.ThrowIfNull(existingContent);
         if (string.IsNullOrWhiteSpace(modName))
         {
-            throw new ArgumentException("模组名不能为空", nameof(modName));
+            throw new ArgumentException(L.Get("Ue4ss_ModNameEmpty"), nameof(modName));
         }
 
         var trimmedName = modName.Trim();
@@ -454,7 +455,7 @@ internal static class Ue4ssArchiveInstaller
         var win64Dir = Ue4ssRuntimeSupport.GetWin64Directory(gameDirectory);
         if (!Directory.Exists(PathSupport.ToIoPath(win64Dir)))
         {
-            throw new DirectoryNotFoundException($"安装 UE4SS 失败：Win64 目录不存在：{win64Dir}");
+            throw new DirectoryNotFoundException(L.Format("Ue4ss_InstallWin64Missing", win64Dir));
         }
 
         using var archive = ZipFile.OpenRead(PathSupport.ToIoPath(zipPath));
@@ -466,9 +467,7 @@ internal static class Ue4ssArchiveInstaller
             var destination = CombineUnderWin64(win64Dir, entry.RelativePath);
             if (File.Exists(PathSupport.ToIoPath(destination)))
             {
-                throw new IOException(
-                    $"安装 UE4SS 失败：目标位置已存在同名文件（{destination}），拒绝覆盖；" +
-                    "如已自行安装其他模组或代理 DLL，请先手动备份或清理后重试。");
+                throw new IOException(L.Format("Ue4ss_InstallRefuseOverwrite", destination));
             }
         }
 
@@ -615,7 +614,7 @@ internal static class Ue4ssArchiveInstaller
         if (launcher.IsGameRunning())
         {
             throw new InvalidOperationException(
-                $"清理 UE4SS 被拒绝：游戏进程（{Ue4ssRuntimeSupport.GameExeFileName}）正在运行，请先关闭游戏后重试。");
+                L.Format("Ue4ss_UninstallGameRunning", Ue4ssRuntimeSupport.GameExeFileName));
         }
 
         var inspection = Ue4ssRuntimeSupport.InspectUe4ssState(gamePaths.GameRoot);
@@ -670,14 +669,13 @@ internal static class Ue4ssArchiveInstaller
             }
 
             var remaining = CountFilesInDirectory(inspection.Ue4ssDirectory);
-            output.WriteLine($"已按安装标记卸载 UE4SS：删除 {removedFiles} 个文件，清理 {removedDirs} 个空目录。");
+            output.WriteLine(L.Format("Ue4ss_UninstallOwnDone", removedFiles, removedDirs));
             if (remaining > 0)
             {
-                output.WriteLine(
-                    $"提示：{inspection.Ue4ssDirectory} 下仍保留 {remaining} 个非安装清单文件（如 UE4SS.log、用户模组或转储文件），未予删除。");
+                output.WriteLine(L.Format("Ue4ss_UninstallOwnRemaining", remaining, inspection.Ue4ssDirectory));
             }
 
-            output.WriteLine("说明：已复制到 agp\\ffr-export\\usmap\\ 的 .usmap 文件不受影响，仍可继续使用。");
+            output.WriteLine(L.Get("Ue4ss_UninstallUsmapSafeNote"));
             return new Ue4ssUninstallResult(
                 Ue4ssUninstallOutcome.RemovedOwnInstall,
                 removedFiles,
@@ -699,19 +697,20 @@ internal static class Ue4ssArchiveInstaller
 
                 if (remnantFiles > 0 || remnantDirs > 0)
                 {
-                    output.WriteLine(
-                        $"检测到游戏目录中的 UE4SS 不是本工具安装的（未找到 {Ue4ssRuntimeSupport.MarkerFileName}），" +
-                        $"已仅清理本工具残留（删除 {remnantFiles} 个文件，{remnantDirs} 个目录），原有 UE4SS 保持不动。");
+                    output.WriteLine(L.Format(
+                        "Ue4ss_UninstallForeignCleanedRemnants",
+                        Ue4ssRuntimeSupport.MarkerFileName,
+                        remnantFiles,
+                        remnantDirs));
                 }
                 else
                 {
-                    output.WriteLine(
-                        $"检测到游戏目录中的 UE4SS 不是本工具安装的（未找到 {Ue4ssRuntimeSupport.MarkerFileName}），" +
-                        "未发现本工具残留文件，原有 UE4SS 保持不动。");
+                    output.WriteLine(L.Format(
+                        "Ue4ss_UninstallForeignNoRemnants",
+                        Ue4ssRuntimeSupport.MarkerFileName));
                 }
 
-                output.WriteLine(
-                    "提示：如需连同非本工具安装的 UE4SS 一起移出游戏目录（移动至备份目录，不直接删除），请加上 --include-foreign。");
+                output.WriteLine(L.Get("Ue4ss_UninstallForeignHint"));
                 return new Ue4ssUninstallResult(
                     Ue4ssUninstallOutcome.RemovedRemnantsOnly,
                     remnantFiles,
@@ -727,14 +726,14 @@ internal static class Ue4ssArchiveInstaller
             if (!yes)
             {
                 var plan = Ue4ssRuntimeSupport.InspectCleanupPlan(gamePaths.GameRoot);
-                output.WriteLine("警告：当前游戏目录中的 UE4SS 不是本工具安装的，里面可能包含您自行安装的其他模组！");
+                output.WriteLine(L.Get("Ue4ss_UninstallForeignWarning"));
                 output.WriteLine(Ue4ssRuntimeSupport.FormatCleanupPreviewText(plan, includeForeign: true, backupDir));
                 output.WriteLine();
 
                 var confirmed = PromptYesNoForCleanup(input ?? TextReader.Null, output);
                 if (confirmed is not true)
                 {
-                    output.WriteLine("已取消清理，未对游戏目录做任何修改。");
+                    output.WriteLine(L.Get("Ue4ss_UninstallCancelled"));
                     return new Ue4ssUninstallResult(
                         Ue4ssUninstallOutcome.Cancelled,
                         0,
@@ -751,15 +750,14 @@ internal static class Ue4ssArchiveInstaller
 
             MoveForeignUe4ssToBackup(inspection, backupDir);
 
-            output.WriteLine($"已将非本工具安装的 UE4SS 移出游戏目录并完整备份到：{backupDir}");
+            output.WriteLine(L.Format("Ue4ss_UninstallForeignBackedUp", backupDir));
             if (cleanedFiles > 0 || cleanedDirs > 0)
             {
-                output.WriteLine($"同时已清理本工具残留：{cleanedFiles} 个文件，{cleanedDirs} 个目录。");
+                output.WriteLine(L.Format("Ue4ss_UninstallForeignAlsoCleaned", cleanedFiles, cleanedDirs));
             }
 
-            output.WriteLine(
-                $"恢复方法：如需恢复原有的 UE4SS 与模组，将 {backupDir} 内的 dwmapi.dll 和 ue4ss 文件夹复制回 {inspection.Win64Directory} 即可。");
-            output.WriteLine("说明：已复制到 agp\\ffr-export\\usmap\\ 的 .usmap 文件不受影响，仍可继续使用。");
+            output.WriteLine(L.Format("Ue4ss_UninstallForeignRestoreNote", backupDir, inspection.Win64Directory));
+            output.WriteLine(L.Get("Ue4ss_UninstallUsmapSafeNote"));
 
             return new Ue4ssUninstallResult(
                 Ue4ssUninstallOutcome.BackedUpForeignInstall,
@@ -769,14 +767,14 @@ internal static class Ue4ssArchiveInstaller
                 BackupDirectory: backupDir);
         }
 
-        // Case 3: No UE4SS installed; clean any stray remnants of ours if present, otherwise report "未发现 UE4SS".
+        // Case 3: No UE4SS installed; clean any stray remnants of ours if present, otherwise report not found.
         var (strayFiles, strayDirs) = Ue4ssRuntimeSupport.CleanOurRemnants(
             gamePaths.GameRoot,
             removeEmptyParentDirs: true,
             log: message => output.WriteLine(message));
         if (strayFiles > 0 || strayDirs > 0)
         {
-            output.WriteLine($"未发现完整 UE4SS 安装，已清理本工具残留（删除 {strayFiles} 个文件，{strayDirs} 个目录）。");
+            output.WriteLine(L.Format("Ue4ss_UninstallRemnantsOnly", strayFiles, strayDirs));
             return new Ue4ssUninstallResult(
                 Ue4ssUninstallOutcome.RemovedRemnantsOnly,
                 strayFiles,
@@ -785,7 +783,7 @@ internal static class Ue4ssArchiveInstaller
                 BackupDirectory: null);
         }
 
-        output.WriteLine("未发现 UE4SS（当前游戏目录未安装 UE4SS，也未发现本工具残留文件）。");
+        output.WriteLine(L.Get("Ue4ss_UninstallNotFound"));
         return new Ue4ssUninstallResult(
             Ue4ssUninstallOutcome.NotFound,
             0,
@@ -868,9 +866,7 @@ internal static class Ue4ssArchiveInstaller
                 // Ignore cleanup failures of incomplete backup directory.
             }
 
-            throw new IOException(
-                $"备份非本工具安装的 UE4SS 失败（目标备份目录：{backupDir}）：{exception.Message}；游戏目录保持未修改。",
-                exception);
+            throw new IOException(L.Format("Ue4ss_BackupCopyFailed", backupDir, exception.Message), exception);
         }
 
         if (!copyCompleted)
@@ -892,10 +888,7 @@ internal static class Ue4ssArchiveInstaller
         }
         catch (Exception exception)
         {
-            throw new IOException(
-                $"已完成 UE4SS 备份（{backupDir}），但移出原目录文件失败：{exception.Message}；" +
-                "请确认游戏及相关工具已关闭后重试，备份目录已完整保留。",
-                exception);
+            throw new IOException(L.Format("Ue4ss_BackupRemoveOrigFailed", backupDir, exception.Message), exception);
         }
     }
 
@@ -928,7 +921,7 @@ internal static class Ue4ssArchiveInstaller
     {
         while (true)
         {
-            output.Write("确认将上述非本工具安装的 UE4SS 移动到备份目录吗？（输入 y 确认，直接回车或输入 n 取消）：");
+            output.Write(L.Get("Ue4ss_CleanupConfirmPrompt"));
             output.Flush();
             var raw = input.ReadLine();
             if (raw is null)
@@ -939,7 +932,8 @@ internal static class Ue4ssArchiveInstaller
             var trimmed = raw.Trim();
             if (trimmed.Equals("y", StringComparison.OrdinalIgnoreCase)
                 || trimmed.Equals("yes", StringComparison.OrdinalIgnoreCase)
-                || trimmed.Equals("是", StringComparison.Ordinal))
+                || trimmed.Equals("是", StringComparison.Ordinal)
+                || trimmed.Equals("はい", StringComparison.Ordinal))
             {
                 return true;
             }
@@ -947,12 +941,13 @@ internal static class Ue4ssArchiveInstaller
             if (string.IsNullOrEmpty(trimmed)
                 || trimmed.Equals("n", StringComparison.OrdinalIgnoreCase)
                 || trimmed.Equals("no", StringComparison.OrdinalIgnoreCase)
-                || trimmed.Equals("否", StringComparison.Ordinal))
+                || trimmed.Equals("否", StringComparison.Ordinal)
+                || trimmed.Equals("いいえ", StringComparison.Ordinal))
             {
                 return false;
             }
 
-            output.WriteLine("输入无效，请输入 y 确认或 n 取消。");
+            output.WriteLine(L.Get("Ue4ss_YesNoInvalid"));
         }
     }
 
@@ -965,7 +960,7 @@ internal static class Ue4ssArchiveInstaller
         }
         catch (Exception exception)
         {
-            throw new IOException($"读取 UE4SS 安装标记文件失败（{markerPath}）：{exception.Message}", exception);
+            throw new IOException(L.Format("Ue4ss_MarkerReadFailed", markerPath, exception.Message), exception);
         }
 
         Ue4ssInstallMarker? marker;
@@ -975,7 +970,7 @@ internal static class Ue4ssArchiveInstaller
         }
         catch (JsonException exception)
         {
-            throw new InvalidDataException($"UE4SS 安装标记文件格式损坏（{markerPath}）：{exception.Message}", exception);
+            throw new InvalidDataException(L.Format("Ue4ss_MarkerCorrupt", markerPath, exception.Message), exception);
         }
 
         if (marker is null
@@ -984,20 +979,20 @@ internal static class Ue4ssArchiveInstaller
             || marker.Files is null
             || marker.Directories is null)
         {
-            throw new InvalidDataException($"UE4SS 安装标记文件无效或不受支持（{markerPath}），拒绝卸载。");
+            throw new InvalidDataException(L.Format("Ue4ss_MarkerInvalid", markerPath));
         }
 
         var validatedFiles = new string[marker.Files.Length];
         for (var i = 0; i < marker.Files.Length; i++)
         {
-            validatedFiles[i] = ValidateSafeRelativePath(marker.Files[i], "文件", markerPath);
+            validatedFiles[i] = ValidateSafeRelativePath(marker.Files[i], L.Get("Ue4ss_LabelFile"), markerPath);
             _ = CombineUnderWin64(win64Dir, validatedFiles[i]);
         }
 
         var validatedDirs = new string[marker.Directories.Length];
         for (var i = 0; i < marker.Directories.Length; i++)
         {
-            validatedDirs[i] = ValidateSafeRelativePath(marker.Directories[i], "目录", markerPath);
+            validatedDirs[i] = ValidateSafeRelativePath(marker.Directories[i], L.Get("Ue4ss_LabelDirectory"), markerPath);
             _ = CombineUnderWin64(win64Dir, validatedDirs[i]);
         }
 
@@ -1016,13 +1011,13 @@ internal static class Ue4ssArchiveInstaller
                 continue;
             }
 
-            var normalized = ValidateSafeRelativePath(entry.FullName, "压缩包条目", zipPath);
+            var normalized = ValidateSafeRelativePath(entry.FullName, L.Get("Ue4ss_LabelZipEntry"), zipPath);
             rawFileEntries.Add((normalized, entry));
         }
 
         if (rawFileEntries.Count == 0)
         {
-            throw new InvalidDataException($"UE4SS 压缩包为空：{zipPath}");
+            throw new InvalidDataException(L.Format("Ue4ss_ZipEmpty", zipPath));
         }
 
         // Official UE4SS_v4.0.0.zip places dwmapi.dll and ue4ss/ directly at the root.
@@ -1057,10 +1052,10 @@ internal static class Ue4ssArchiveInstaller
             var relative = stripPrefix.Length > 0
                 ? normalizedPath[stripPrefix.Length..]
                 : normalizedPath;
-            relative = ValidateSafeRelativePath(relative, "解压路径", zipPath);
+            relative = ValidateSafeRelativePath(relative, L.Get("Ue4ss_LabelExtractPath"), zipPath);
             if (!seen.Add(relative))
             {
-                throw new InvalidDataException($"UE4SS 压缩包包含重复条目（{relative}）：{zipPath}");
+                throw new InvalidDataException(L.Format("Ue4ss_ZipDuplicateEntry", relative, zipPath));
             }
 
             planned.Add(new PlannedZipEntry(relative, entry));
@@ -1072,8 +1067,7 @@ internal static class Ue4ssArchiveInstaller
             string.Equals(e.RelativePath, "ue4ss/UE4SS.dll", StringComparison.OrdinalIgnoreCase));
         if (!hasDwmapi || !hasUe4ssDll)
         {
-            throw new InvalidDataException(
-                $"UE4SS 压缩包结构不符合预期（缺少 dwmapi.dll 或 ue4ss/UE4SS.dll）：{zipPath}");
+            throw new InvalidDataException(L.Format("Ue4ss_ZipUnexpectedLayout", zipPath));
         }
 
         return planned;
@@ -1083,7 +1077,7 @@ internal static class Ue4ssArchiveInstaller
     {
         if (string.IsNullOrWhiteSpace(rawPath))
         {
-            throw new InvalidDataException($"解析 {label} 失败（{source}）：路径为空");
+            throw new InvalidDataException(L.Format("Ue4ss_PathEmpty", label, source));
         }
 
         var normalized = rawPath.Replace('\\', '/');
@@ -1091,7 +1085,7 @@ internal static class Ue4ssArchiveInstaller
             || normalized.Contains('\0', StringComparison.Ordinal)
             || (normalized.Length >= 2 && normalized[1] == ':'))
         {
-            throw new InvalidDataException($"检测到不安全的绝对路径 {label}（{rawPath}，来源：{source}），已拒绝操作。");
+            throw new InvalidDataException(L.Format("Ue4ss_UnsafeAbsolutePath", label, rawPath, source));
         }
 
         var segments = normalized.Split('/');
@@ -1099,7 +1093,7 @@ internal static class Ue4ssArchiveInstaller
         {
             if (string.IsNullOrEmpty(segment) || segment == "." || segment == "..")
             {
-                throw new InvalidDataException($"检测到不安全的相对路径 {label}（{rawPath}，来源：{source}），已拒绝操作。");
+                throw new InvalidDataException(L.Format("Ue4ss_UnsafeRelativePath", label, rawPath, source));
             }
         }
 
@@ -1117,7 +1111,7 @@ internal static class Ue4ssArchiveInstaller
                 PathSupport.TrimTrailingSeparators(fullTarget),
                 OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
         {
-            throw new InvalidDataException($"路径越界（{safeRelativePath}），目标不在 Win64 目录内。");
+            throw new InvalidDataException(L.Format("Ue4ss_PathEscapesWin64", safeRelativePath));
         }
 
         return fullTarget;
@@ -1293,22 +1287,44 @@ internal static class Ue4ssArchiveInstaller
 internal static class UsmapFetcher
 {
     internal const int DefaultTimeoutSeconds = 300;
-    internal const string SavedUsmapLinePrefix = "已保存 .usmap：";
 
     private static readonly TimeSpan DefaultGracefulCloseWait = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan DefaultProgressInterval = TimeSpan.FromSeconds(5);
     private static readonly UTF8Encoding Utf8WithoutBom = new(false);
 
+    private static void WriteStep(TextWriter output, int step, int total, string title, bool progressJson)
+    {
+        if (progressJson)
+        {
+            output.WriteLine(ProgressProtocol.FormatProgressLine(step, total, title));
+        }
+
+        output.WriteLine(L.Format("BuildDb_StepLine", step, total, title));
+    }
+
     internal static FetchUsmapOptions ParseFetchUsmapArgs(string[] args)
     {
         string? gameDirectory = null;
         var timeoutSeconds = DefaultTimeoutSeconds;
         var yes = false;
+        var progressJson = false;
 
         for (var index = 0; index < args.Length; index++)
         {
-            switch (args[index])
+            var token = args[index];
+            if (token.StartsWith("--lang=", StringComparison.Ordinal))
+            {
+                var langValue = token["--lang=".Length..];
+                if (!Localization.TryNormalizeLanguageCode(langValue, out _))
+                {
+                    throw new ArgumentException(L.Format("Common_UnsupportedLanguage", langValue));
+                }
+
+                continue;
+            }
+
+            switch (token)
             {
                 case "--game":
                     gameDirectory = RequireValue(args, ref index, "--game");
@@ -1318,7 +1334,7 @@ internal static class UsmapFetcher
                     if (!int.TryParse(rawTimeout, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
                         || parsed < 1)
                     {
-                        throw new ArgumentException($"--timeout 必须是正整数（单位：秒）：{rawTimeout}");
+                        throw new ArgumentException(L.Format("FetchUsmap_TimeoutInvalid", rawTimeout));
                     }
 
                     timeoutSeconds = parsed;
@@ -1326,17 +1342,28 @@ internal static class UsmapFetcher
                 case "--yes":
                     yes = true;
                     break;
+                case "--progress-json":
+                    progressJson = true;
+                    break;
+                case "--lang":
+                    var rawLang = RequireValue(args, ref index, "--lang");
+                    if (!Localization.TryNormalizeLanguageCode(rawLang, out _))
+                    {
+                        throw new ArgumentException(L.Format("Common_UnsupportedLanguage", rawLang));
+                    }
+
+                    break;
                 default:
-                    throw new ArgumentException($"fetch-usmap 收到未知参数：{args[index]}");
+                    throw new ArgumentException(L.Format("Cli_UnknownArg", "fetch-usmap", token));
             }
         }
 
         if (string.IsNullOrWhiteSpace(gameDirectory))
         {
-            throw new ArgumentException("fetch-usmap 需要 --game <游戏目录>");
+            throw new ArgumentException(L.Get("FetchUsmap_RequiresGame"));
         }
 
-        return new FetchUsmapOptions(gameDirectory, timeoutSeconds, yes);
+        return new FetchUsmapOptions(gameDirectory, timeoutSeconds, yes, progressJson);
     }
 
     internal static UninstallUe4ssOptions ParseUninstallUe4ssArgs(string[] args)
@@ -1346,7 +1373,19 @@ internal static class UsmapFetcher
         var yes = false;
         for (var index = 0; index < args.Length; index++)
         {
-            switch (args[index])
+            var token = args[index];
+            if (token.StartsWith("--lang=", StringComparison.Ordinal))
+            {
+                var langValue = token["--lang=".Length..];
+                if (!Localization.TryNormalizeLanguageCode(langValue, out _))
+                {
+                    throw new ArgumentException(L.Format("Common_UnsupportedLanguage", langValue));
+                }
+
+                continue;
+            }
+
+            switch (token)
             {
                 case "--game":
                     gameDirectory = RequireValue(args, ref index, "--game");
@@ -1357,14 +1396,22 @@ internal static class UsmapFetcher
                 case "--yes":
                     yes = true;
                     break;
+                case "--lang":
+                    var rawLang = RequireValue(args, ref index, "--lang");
+                    if (!Localization.TryNormalizeLanguageCode(rawLang, out _))
+                    {
+                        throw new ArgumentException(L.Format("Common_UnsupportedLanguage", rawLang));
+                    }
+
+                    break;
                 default:
-                    throw new ArgumentException($"uninstall-ue4ss 收到未知参数：{args[index]}");
+                    throw new ArgumentException(L.Format("Cli_UnknownArg", "uninstall-ue4ss", token));
             }
         }
 
         if (string.IsNullOrWhiteSpace(gameDirectory))
         {
-            throw new ArgumentException("uninstall-ue4ss 需要 --game <游戏目录>");
+            throw new ArgumentException(L.Get("UninstallUe4ss_RequiresGame"));
         }
 
         return new UninstallUe4ssOptions(gameDirectory, includeForeign, yes);
@@ -1426,27 +1473,26 @@ internal static class UsmapFetcher
         var progressInterval = progressIntervalOverride ?? DefaultProgressInterval;
         var gracefulCloseWait = gracefulCloseWaitOverride ?? DefaultGracefulCloseWait;
 
-        output.WriteLine("==> 步骤 1/6：检查运行环境、游戏目录与游戏进程");
+        WriteStep(output, 1, 6, L.Get("FetchUsmap_Step1Title"), options.ProgressJson);
         if (!isWindows)
         {
-            throw new PlatformNotSupportedException(
-                "fetch-usmap 仅支持 Windows 系统（需要通过 Steam 启动 Windows 版游戏，并由 UE4SS 从运行中的内存转储 .usmap）。");
+            throw new PlatformNotSupportedException(L.Get("FetchUsmap_WindowsOnly"));
         }
 
         var gamePaths = GameVersionDetector.ValidateGameDirectory(options.GameDirectory);
         if (launcher.IsGameRunning())
         {
-            throw new InvalidOperationException(
-                $"检测到游戏正在运行（{Ue4ssRuntimeSupport.GameExeFileName}），请先关闭游戏后再执行 fetch-usmap。");
+            throw new InvalidOperationException(L.Format("FetchUsmap_GameAlreadyRunning", Ue4ssRuntimeSupport.GameExeFileName));
         }
 
         var inspection = Ue4ssRuntimeSupport.InspectUe4ssState(gamePaths.GameRoot);
         if (inspection.State == Ue4ssInstallState.PartialUnknown)
         {
-            throw new InvalidOperationException(
-                $"检查 UE4SS 状态失败：游戏目录 {inspection.Win64Directory} 下仅存在部分文件" +
-                $"（dwmapi.dll={(inspection.HasDwmapiDll ? "存在" : "缺失")}，ue4ss/UE4SS.dll={(inspection.HasUe4ssDll ? "存在" : "缺失")}），" +
-                "且没有本工具的安装标记文件。为避免覆盖您已有的代理 DLL 或模组文件，已中止操作。");
+            throw new InvalidOperationException(L.Format(
+                "FetchUsmap_PartialUnknownUe4ss",
+                inspection.Win64Directory,
+                inspection.HasDwmapiDll ? L.Get("Common_Present") : L.Get("Common_Missing"),
+                inspection.HasUe4ssDll ? L.Get("Common_Present") : L.Get("Common_Missing")));
         }
 
         var downloadsDir = AgpPaths.GetDownloadsDirectory(agpHomeEnvOverride: agpHomeOverride, isWindowsOverride: isWindows);
@@ -1458,37 +1504,35 @@ internal static class UsmapFetcher
             var confirmed = PromptYesNo(input, output);
             if (confirmed is null)
             {
-                output.WriteLine("输入流已结束，已取消获取 .usmap。");
+                output.WriteLine(L.Get("FetchUsmap_InputClosedCancelled"));
                 return (2, null);
             }
 
             if (!confirmed.Value)
             {
-                output.WriteLine("已取消获取 .usmap，未对游戏目录做任何修改。");
+                output.WriteLine(L.Get("FetchUsmap_CancelledNoChanges"));
                 return (0, null);
             }
         }
 
-        output.WriteLine("==> 步骤 2/6：准备 UE4SS 运行环境");
+        WriteStep(output, 2, 6, L.Get("FetchUsmap_Step2Title"), options.ProgressJson);
         var installedUe4ss = false;
         switch (inspection.State)
         {
             case Ue4ssInstallState.InstalledByUser:
-                output.WriteLine(
-                    $"检测到游戏目录已存在您自行安装的 UE4SS（{inspection.Ue4ssDirectory}）；将完全保留原有设置，仅临时加入转储模组。");
+                output.WriteLine(L.Format("FetchUsmap_ReuseUserUe4ss", inspection.Ue4ssDirectory));
                 break;
 
             case Ue4ssInstallState.InstalledByFfrExport:
                 if (inspection.HasDwmapiDll && inspection.HasUe4ssDll)
                 {
-                    output.WriteLine(
-                        $"检测到本工具先前安装的 UE4SS（版本：{inspection.InstalledVersion ?? HttpsUe4ssPackageDownloader.Ue4ssVersion}），直接复用。");
+                    output.WriteLine(L.Format(
+                        "FetchUsmap_ReuseOwnUe4ss",
+                        inspection.InstalledVersion ?? HttpsUe4ssPackageDownloader.Ue4ssVersion));
                 }
                 else
                 {
-                    throw new InvalidOperationException(
-                        $"检测到本工具的安装标记文件（{inspection.MarkerPath}），但核心文件不完整（dwmapi.dll 或 UE4SS.dll 缺失）。" +
-                        "请先运行 ffr-export uninstall-ue4ss 清理后再重试。");
+                    throw new InvalidOperationException(L.Format("FetchUsmap_CorruptOwnUe4ss", inspection.MarkerPath));
                 }
 
                 break;
@@ -1504,8 +1548,11 @@ internal static class UsmapFetcher
                     archiveSha,
                     installedAtUtc: utcNow());
                 installedUe4ss = true;
-                output.WriteLine(
-                    $"已安装 UE4SS {marker.Ue4ssVersion} 到 {inspection.Win64Directory}（共写入 {marker.Files.Length} 个文件，已关闭控制台与调试窗口，已保留 LICENSE）。");
+                output.WriteLine(L.Format(
+                    "FetchUsmap_InstalledUe4ss",
+                    marker.Ue4ssVersion,
+                    inspection.Win64Directory,
+                    marker.Files.Length));
                 break;
         }
 
@@ -1514,14 +1561,17 @@ internal static class UsmapFetcher
 
         try
         {
-            output.WriteLine("==> 步骤 3/6：部署临时 .usmap 转储模组");
+            WriteStep(output, 3, 6, L.Get("FetchUsmap_Step3Title"), options.ProgressJson);
             var modDir = Ue4ssModManager.DeployTemporaryDumpMod(gamePaths.GameRoot);
             modDeployed = true;
-            output.WriteLine($"已部署临时转储模组：{modDir}（通过 enabled.txt 启用，未修改 mods.txt）。");
+            output.WriteLine(L.Format("FetchUsmap_DeployedMod", modDir));
 
-            output.WriteLine("==> 步骤 4/6：通过 Steam 启动游戏并等待 .usmap 转储完成");
+            WriteStep(output, 4, 6, L.Get("FetchUsmap_Step4Title"), options.ProgressJson);
             var launchTimeUtc = utcNow();
-            output.WriteLine($"正在通过 Steam 启动游戏：{Ue4ssRuntimeSupport.SteamRunGameUri}（超时时间：{options.TimeoutSeconds} 秒）");
+            output.WriteLine(L.Format(
+                "FetchUsmap_LaunchingSteam",
+                Ue4ssRuntimeSupport.SteamRunGameUri,
+                options.TimeoutSeconds));
             launcher.LaunchGameViaSteam(Ue4ssRuntimeSupport.SteamRunGameUri);
             gameLaunched = true;
 
@@ -1538,7 +1588,7 @@ internal static class UsmapFetcher
                 output,
                 cancellationToken).ConfigureAwait(false);
 
-            output.WriteLine("==> 步骤 5/6：归档 .usmap、计算哈希并比对已知版本");
+            WriteStep(output, 5, 6, L.Get("FetchUsmap_Step5Title"), options.ProgressJson);
             var usmapInfo = GameVersionDetector.ComputeUsmapHashes(dumpedUsmapPath);
             var steamInfo = GameVersionDetector.ReadSteamBuildInfo(gamePaths.GameRoot, null, error);
             var buildSegment = AgpPaths.SanitizePathSegment(steamInfo.BuildId) ?? "unknown";
@@ -1551,12 +1601,19 @@ internal static class UsmapFetcher
             var archivedPath = Path.Combine(usmapArchiveDir, archivedFileName);
             CopyFileAtomically(dumpedUsmapPath, archivedPath);
 
-            output.WriteLine($"{SavedUsmapLinePrefix}{archivedPath}");
-            output.WriteLine($"原始转储位置：{dumpedUsmapPath}");
-            output.WriteLine(
-                $"文件哈希（file_sha256）：{usmapInfo.FileSha256}（大小：{usmapInfo.Size} 字节）");
-            output.WriteLine(
-                $"内容哈希（content_sha256）：{usmapInfo.ContentSha256}（{usmapInfo.TypeCount} 类，{usmapInfo.EnumCount} 枚举）");
+            if (options.ProgressJson)
+            {
+                output.WriteLine(ProgressProtocol.FormatUsmapLine(archivedPath));
+            }
+
+            output.WriteLine(L.Format("FetchUsmap_SavedUsmapLine", archivedPath));
+            output.WriteLine(L.Format("FetchUsmap_SourceDumpPath", dumpedUsmapPath));
+            output.WriteLine(L.Format("FetchUsmap_FileShaLine", usmapInfo.FileSha256, usmapInfo.Size));
+            output.WriteLine(L.Format(
+                "FetchUsmap_ContentShaLine",
+                usmapInfo.ContentSha256,
+                usmapInfo.TypeCount,
+                usmapInfo.EnumCount));
 
             var (knownEntries, knownSource) = KnownBuildsRegistry.Load(knownBuildsBaseDirOverride);
             var comparison = KnownBuildsRegistry.CompareUsmap(knownEntries, knownSource, usmapInfo);
@@ -1574,13 +1631,13 @@ internal static class UsmapFetcher
         {
             if (modDeployed || gameLaunched)
             {
-                output.WriteLine("==> 步骤 6/6：停用转储模组并关闭游戏");
+                WriteStep(output, 6, 6, L.Get("FetchUsmap_Step6Title"), options.ProgressJson);
             }
 
             if (modDeployed)
             {
                 Ue4ssRuntimeSupport.DisableAndRemoveDumpMod(gamePaths.GameRoot, message => output.WriteLine(message));
-                output.WriteLine("已移除临时转储模组（ue4ss/Mods/FfrUsmapDump）。");
+                output.WriteLine(L.Get("FetchUsmap_RemovedTempMod"));
             }
 
             if (gameLaunched)
@@ -1593,8 +1650,8 @@ internal static class UsmapFetcher
             if (modDeployed || gameLaunched)
             {
                 var retainMessage = inspection.State == Ue4ssInstallState.InstalledByUser
-                    ? "已保留您原有的 UE4SS 环境不动。"
-                    : "UE4SS 已保留在游戏目录中供下次复用（随时可运行 ffr-export uninstall-ue4ss 或在主窗口点击「清理 UE4SS…」清理）。";
+                    ? L.Get("FetchUsmap_RetainUserUe4ss")
+                    : L.Get("FetchUsmap_RetainOwnUe4ss");
                 output.WriteLine(retainMessage);
             }
         }
@@ -1632,14 +1689,16 @@ internal static class UsmapFetcher
             {
                 if (!doneOk)
                 {
-                    throw new InvalidOperationException(
-                        $"UE4SS 转储模组执行失败：{doneError ?? "未知错误"}。请检查日志：{ue4ssLogPath}");
+                    throw new InvalidOperationException(L.Format(
+                        "FetchUsmap_ModFailed",
+                        doneError ?? L.Get("Common_UnknownError"),
+                        ue4ssLogPath));
                 }
 
                 var candidateUsmap = ResolveDumpedUsmapPath(win64Dir, ue4ssDir, doneUsmapFile, launchTimeUtc);
                 if (candidateUsmap is not null && IsReadableNonEmptyFile(candidateUsmap))
                 {
-                    output.WriteLine($"检测到转储完成标记，已找到最新 .usmap：{candidateUsmap}");
+                    output.WriteLine(L.Format("FetchUsmap_DoneMarkerFound", candidateUsmap));
                     return candidateUsmap;
                 }
             }
@@ -1647,22 +1706,21 @@ internal static class UsmapFetcher
             var elapsed = wallWatch.Elapsed;
             if (elapsed >= timeout)
             {
+                var timeoutSeconds = (int)Math.Ceiling(timeout.TotalSeconds);
                 var advice = sawGameRunning
-                    ? $"游戏已启动，但等待 {Math.Ceiling(timeout.TotalSeconds)} 秒仍未生成新的 .usmap；" +
-                      $"可能是 UE4SS 未正常加载或游戏初始化耗时较长，请查看日志：{ue4ssLogPath}（也可尝试增大 --timeout 后重试）。"
-                    : $"等待 {Math.Ceiling(timeout.TotalSeconds)} 秒仍未检测到游戏进程（{Ue4ssRuntimeSupport.GameExeFileName}）；" +
-                      "游戏可能未能通过 Steam 启动，请确认 Steam 已登录、游戏可正常启动且没有被更新弹窗阻塞后重试。";
-                throw new TimeoutException($"等待 .usmap 转储超时：{advice}");
+                    ? L.Format("FetchUsmap_TimeoutGameRunning", timeoutSeconds, ue4ssLogPath)
+                    : L.Format("FetchUsmap_TimeoutGameNotSeen", timeoutSeconds, Ue4ssRuntimeSupport.GameExeFileName);
+                throw new TimeoutException(L.Format("FetchUsmap_TimeoutError", advice));
             }
 
             if (elapsed >= nextProgressAt)
             {
                 var elapsedSec = (int)Math.Floor(elapsed.TotalSeconds);
                 var totalSec = (int)Math.Ceiling(timeout.TotalSeconds);
-                var stateText = sawGameRunning ? "游戏运行中，等待引擎初始化与转储" : "等待 Steam 启动游戏";
-                output.WriteLine(string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"等待 .usmap 转储……已等待 {elapsedSec}/{totalSec} 秒（{stateText}）"));
+                var stateText = sawGameRunning
+                    ? L.Get("FetchUsmap_StateGameRunning")
+                    : L.Get("FetchUsmap_StateWaitingSteam");
+                output.WriteLine(L.Format("FetchUsmap_WaitingProgress", elapsedSec, totalSec, stateText));
                 while (nextProgressAt <= elapsed)
                 {
                     nextProgressAt += progressInterval;
@@ -1854,28 +1912,29 @@ internal static class UsmapFetcher
         int timeoutSeconds)
     {
         output.WriteLine();
-        output.WriteLine("即将执行以下操作：");
-        output.WriteLine($"  1. 目标游戏目录：{gameRoot}");
+        output.WriteLine(L.Get("FetchUsmap_PlanHeader"));
+        output.WriteLine(L.Format("FetchUsmap_PlanStep1", gameRoot));
         if (inspection.State == Ue4ssInstallState.NotInstalled)
         {
-            output.WriteLine(
-                $"  2. 从官方 GitHub 下载 UE4SS {HttpsUe4ssPackageDownloader.Ue4ssVersion}（约 8.4 MB，缓存于 {downloadsDir}，校验 SHA-256），并安装到 {inspection.Win64Directory}（关闭控制台与调试窗口）；");
+            output.WriteLine(L.Format(
+                "FetchUsmap_PlanStep2Install",
+                HttpsUe4ssPackageDownloader.Ue4ssVersion,
+                downloadsDir,
+                inspection.Win64Directory));
         }
         else if (inspection.State == Ue4ssInstallState.InstalledByUser)
         {
-            output.WriteLine("  2. 检测到您已自行安装 UE4SS，保持原有配置不变；");
+            output.WriteLine(L.Get("FetchUsmap_PlanStep2User"));
         }
         else
         {
-            output.WriteLine("  2. 复用本工具先前安装的 UE4SS；");
+            output.WriteLine(L.Get("FetchUsmap_PlanStep2Reuse"));
         }
 
-        output.WriteLine($"  3. 部署临时只读模组 ue4ss/Mods/{Ue4ssRuntimeSupport.DumpModName}（通过 enabled.txt 启用，不修改 mods.txt）；");
-        output.WriteLine(string.Create(
-            CultureInfo.InvariantCulture,
-            $"  4. 通过 Steam 启动游戏一次（最长等待 {timeoutSeconds} 秒），在标题画面自动转储 .usmap，不触碰游戏存档；"));
-        output.WriteLine($"  5. 将 .usmap 复制归档到 {usmapArchiveDir} 并与 known-builds.json 核对；");
-        output.WriteLine("  6. 移除临时模组并自动关闭游戏；UE4SS 将保留供下次使用（随时可用 uninstall-ue4ss 卸载）。");
+        output.WriteLine(L.Format("FetchUsmap_PlanStep3", Ue4ssRuntimeSupport.DumpModName));
+        output.WriteLine(L.Format("FetchUsmap_PlanStep4", timeoutSeconds));
+        output.WriteLine(L.Format("FetchUsmap_PlanStep5", usmapArchiveDir));
+        output.WriteLine(L.Get("FetchUsmap_PlanStep6"));
         output.WriteLine();
     }
 
@@ -1883,7 +1942,7 @@ internal static class UsmapFetcher
     {
         while (true)
         {
-            output.Write("确认继续吗？（输入 y 确认，直接回车或输入 n 取消）：");
+            output.Write(L.Get("FetchUsmap_ConfirmPrompt"));
             output.Flush();
             var raw = input.ReadLine();
             if (raw is null)
@@ -1894,7 +1953,8 @@ internal static class UsmapFetcher
             var trimmed = raw.Trim();
             if (trimmed.Equals("y", StringComparison.OrdinalIgnoreCase)
                 || trimmed.Equals("yes", StringComparison.OrdinalIgnoreCase)
-                || trimmed.Equals("是", StringComparison.Ordinal))
+                || trimmed.Equals("是", StringComparison.Ordinal)
+                || trimmed.Equals("はい", StringComparison.Ordinal))
             {
                 return true;
             }
@@ -1902,12 +1962,13 @@ internal static class UsmapFetcher
             if (string.IsNullOrEmpty(trimmed)
                 || trimmed.Equals("n", StringComparison.OrdinalIgnoreCase)
                 || trimmed.Equals("no", StringComparison.OrdinalIgnoreCase)
-                || trimmed.Equals("否", StringComparison.Ordinal))
+                || trimmed.Equals("否", StringComparison.Ordinal)
+                || trimmed.Equals("いいえ", StringComparison.Ordinal))
             {
                 return false;
             }
 
-            output.WriteLine("输入无效，请输入 y 确认或 n 取消。");
+            output.WriteLine(L.Get("Ue4ss_YesNoInvalid"));
         }
     }
 
@@ -1915,7 +1976,7 @@ internal static class UsmapFetcher
     {
         if (index + 1 >= args.Length)
         {
-            throw new ArgumentException($"选项 {option} 需要一个值");
+            throw new ArgumentException(L.Format("Common_OptionRequiresValue", option));
         }
 
         index++;
@@ -1937,7 +1998,7 @@ internal static partial class Program
         ConsoleCancelEventHandler cancelHandler = (_, eventArgs) =>
         {
             eventArgs.Cancel = true;
-            logOut.WriteLine("收到中断信号，正在取消并清理临时模组与游戏进程……");
+            logOut.WriteLine(L.Get("FetchUsmap_CtrlCInterrupt"));
             try
             {
                 cts.Cancel();
@@ -1965,7 +2026,7 @@ internal static partial class Program
         }
         catch (OperationCanceledException)
         {
-            Console.Error.WriteLine("已取消获取 .usmap，临时模组已停用。");
+            Console.Error.WriteLine(L.Get("FetchUsmap_CancelledAfterInterrupt"));
             return 2;
         }
         finally

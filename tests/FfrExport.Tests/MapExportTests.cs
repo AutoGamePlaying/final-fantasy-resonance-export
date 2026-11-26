@@ -617,7 +617,7 @@ public sealed class MapExportTests
 
         // Protected ffr/files directory
         var protectedDir = await TestHarness.RunCliAsync(
-            ["export-maps", "--out", Path.Combine(workspace.DepsDir, "ffr", "files")],
+            ["--lang", "zh-Hans", "export-maps", "--out", Path.Combine(workspace.DepsDir, "ffr", "files")],
             ffrDeps: workspace.DepsDir);
         Assert.Equal(2, protectedDir.ExitCode);
         Assert.Contains("受保护目录", protectedDir.Stderr, StringComparison.Ordinal);
@@ -630,7 +630,7 @@ public sealed class MapExportTests
         await File.WriteAllTextAsync(Path.Combine(foreignDir, "other.txt"), "not ffr-export");
 
         var refused = await TestHarness.RunCliAsync(
-            ["export-maps", "--from-json", emptyFixture, "--out", foreignDir, "--force"],
+            ["--lang", "zh-Hans", "export-maps", "--from-json", emptyFixture, "--out", foreignDir, "--force"],
             ffrDeps: workspace.DepsDir);
         Assert.Equal(2, refused.ExitCode);
         Assert.Contains("不是 ffr-export 的输出目录", refused.Stderr, StringComparison.Ordinal);
@@ -643,7 +643,7 @@ public sealed class MapExportTests
             Path.Combine(inventoryDir, "manifest.json"),
             JsonConvert.SerializeObject(new { cue4ParseVersion = "1.2.2.202611", command = "inventory" }));
         var wrongCmd = await TestHarness.RunCliAsync(
-            ["export-maps", "--from-json", emptyFixture, "--out", inventoryDir, "--force"],
+            ["--lang", "zh-Hans", "export-maps", "--from-json", emptyFixture, "--out", inventoryDir, "--force"],
             ffrDeps: workspace.DepsDir);
         Assert.Equal(2, wrongCmd.ExitCode);
         Assert.Contains("不能由 export-maps --force 清空", wrongCmd.Stderr, StringComparison.Ordinal);

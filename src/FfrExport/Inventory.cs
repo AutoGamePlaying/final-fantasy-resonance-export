@@ -70,7 +70,7 @@ internal static partial class Program
                     force = true;
                     break;
                 default:
-                    throw new ArgumentException($"inventory 收到未知参数：{args[index]}");
+                    throw new ArgumentException(L.Format("Cli_UnknownArg", "inventory", args[index]));
             }
         }
 
@@ -262,11 +262,15 @@ internal static partial class Program
         };
         await TextOutput.WriteJsonAsync(Path.Combine(outputPath, "manifest.json"), manifest);
 
-        Console.WriteLine(
-            $"已索引 {snapshot.Packages.Count} 个包（{byClass.Length} 个主类，{snapshot.AssetDataCount} 条 AssetData），写到 {outputArgument}");
+        Console.WriteLine(L.Format(
+            "Inventory_Summary",
+            snapshot.Packages.Count,
+            byClass.Length,
+            snapshot.AssetDataCount,
+            outputArgument));
         foreach (var note in snapshot.Notes)
         {
-            Console.WriteLine($"说明：{note}");
+            Console.WriteLine(L.Format("Inventory_NoteLine", note));
         }
     }
 
@@ -278,7 +282,7 @@ internal static partial class Program
         var arFile = FindAssetRegistryFile(provider, vfsByPathCI);
         if (arFile is null)
         {
-            throw new InvalidDataException($"找不到资源注册表文件（期望 {PrimaryAssetRegistryPath}）");
+            throw new InvalidDataException(L.Format("Inventory_AssetRegistryNotFound", PrimaryAssetRegistryPath));
         }
 
         string headerVersion;

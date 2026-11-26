@@ -82,27 +82,25 @@ internal static class GameVersionDetector
     {
         if (string.IsNullOrWhiteSpace(gameDirectory))
         {
-            throw new ArgumentException("检查游戏目录失败：--game 不能为空");
+            throw new ArgumentException(L.Get("Version_GameDirEmpty"));
         }
 
         var fullRoot = PathSupport.TrimTrailingSeparators(Path.GetFullPath(gameDirectory));
         if (!Directory.Exists(PathSupport.ToIoPath(fullRoot)))
         {
-            throw new DirectoryNotFoundException($"检查游戏目录失败：游戏目录不存在：{gameDirectory}");
+            throw new DirectoryNotFoundException(L.Format("Version_GameDirNotFound", gameDirectory));
         }
 
         var paksDir = Path.Combine(fullRoot, "FFRS", "Content", "Paks");
         if (!Directory.Exists(PathSupport.ToIoPath(paksDir)))
         {
-            throw new DirectoryNotFoundException(
-                $"检查游戏目录失败：缺少资源目录 {RelativePaksSubpath}（检查路径：{paksDir}）");
+            throw new DirectoryNotFoundException(L.Format("Version_MissingPaksDir", RelativePaksSubpath, paksDir));
         }
 
         var exePath = Path.Combine(fullRoot, "FFRS", "Binaries", "Win64", "FFRS-Win64-Shipping.exe");
         if (!File.Exists(PathSupport.ToIoPath(exePath)))
         {
-            throw new FileNotFoundException(
-                $"检查游戏目录失败：缺少游戏可执行文件 {RelativeExeSubpath}（检查路径：{exePath}）");
+            throw new FileNotFoundException(L.Format("Version_MissingGameExe", RelativeExeSubpath, exePath));
         }
 
         return new ValidatedGamePaths(fullRoot, paksDir, exePath);
@@ -131,7 +129,7 @@ internal static class GameVersionDetector
             }
             catch (Exception exception)
             {
-                throw new IOException($"读取 Steam 清单失败：{manifestPath}：{exception.Message}", exception);
+                throw new IOException(L.Format("Version_ReadSteamManifestFailed", manifestPath, exception.Message), exception);
             }
 
             var fields = ParseAppManifestVdf(content);
@@ -144,8 +142,7 @@ internal static class GameVersionDetector
                 if (trimmedManual is not null
                     && !string.Equals(buildId, trimmedManual, StringComparison.Ordinal))
                 {
-                    warn.WriteLine(
-                        $"提示：已从 {AppManifestFileName} 读取 buildid={buildId}，忽略 --steam-buildid {trimmedManual}");
+                    warn.WriteLine(L.Format("Version_SteamBuildIdIgnoredManual", AppManifestFileName, buildId, trimmedManual));
                 }
 
                 return new SteamBuildInfo(
@@ -166,7 +163,7 @@ internal static class GameVersionDetector
                     "manual");
             }
 
-            warn.WriteLine($"警告：{manifestPath} 中缺少 buildid 且未提供 --steam-buildid，Steam 构建号记为 null");
+            warn.WriteLine(L.Format("Version_SteamManifestMissingBuildId", manifestPath));
             return new SteamBuildInfo(
                 SteamAppId,
                 null,
@@ -180,8 +177,7 @@ internal static class GameVersionDetector
             return new SteamBuildInfo(SteamAppId, trimmedManual, null, null, "manual");
         }
 
-        warn.WriteLine(
-            $"警告：未找到 {AppManifestFileName}（已检查上两级目录）且未提供 --steam-buildid，Steam 构建号记为 null");
+        warn.WriteLine(L.Format("Version_SteamManifestNotFound", AppManifestFileName));
         return new SteamBuildInfo(SteamAppId, null, null, null, null);
     }
 
@@ -339,7 +335,7 @@ internal static class GameVersionDetector
         var ioPaksDir = PathSupport.ToIoPath(paksDir);
         if (!Directory.Exists(ioPaksDir))
         {
-            throw new DirectoryNotFoundException($"计算游戏包指纹失败：资源目录不存在：{paksDir}");
+            throw new DirectoryNotFoundException(L.Format("Version_PakFpDirNotFound", paksDir));
         }
 
         var stopwatch = Stopwatch.StartNew();
@@ -361,7 +357,7 @@ internal static class GameVersionDetector
 
         if (candidates.Count == 0)
         {
-            throw new InvalidDataException($"计算游戏包指纹失败：目录 {paksDir} 下未找到任何 .utoc/.ucas/.pak 文件");
+            throw new InvalidDataException(L.Format("Version_PakFpNoFiles", paksDir));
         }
 
         candidates.Sort((a, b) => StringComparer.Ordinal.Compare(a.RelativePath, b.RelativePath));
@@ -425,7 +421,7 @@ internal static class GameVersionDetector
         var ioPath = PathSupport.ToIoPath(usmapPath);
         if (!File.Exists(ioPath))
         {
-            throw new FileNotFoundException($"计算 .usmap 哈希失败：文件不存在：{usmapPath}");
+            throw new FileNotFoundException(L.Format("Version_UsmapFileNotFound", usmapPath));
         }
 
         var size = new FileInfo(ioPath).Length;
@@ -436,11 +432,11 @@ internal static class GameVersionDetector
         {
             var provider = new FileUsmapTypeMappingsProvider(ioPath);
             mappings = provider.MappingsForGame
-                ?? throw new InvalidDataException("CUE4Parse 返回空映射表");
+                ?? throw new InvalidDataException(L.Get("Version_UsmapEmptyMappings"));
         }
         catch (Exception exception)
         {
-            throw new InvalidDataException($"解析 .usmap 失败：{usmapPath}：{exception.Message}", exception);
+            throw new InvalidDataException(L.Format("Version_UsmapParseFailed", usmapPath, exception.Message), exception);
         }
 
         var contentSha256 = ComputeUsmapContentHash(mappings);
@@ -543,7 +539,7 @@ internal static class GameVersionDetector
         var ioPath = PathSupport.ToIoPath(jmapPath);
         if (!File.Exists(ioPath))
         {
-            throw new FileNotFoundException($"计算 .jmap 哈希失败：文件不存在：{jmapPath}");
+            throw new FileNotFoundException(L.Format("Version_JmapFileNotFound", jmapPath));
         }
 
         var size = new FileInfo(ioPath).Length;
@@ -624,30 +620,30 @@ internal static class PeVersionReader
     {
         if (!stream.CanSeek)
         {
-            throw new InvalidDataException($"解析 PE 版本资源失败：{sourceName}：不支持定位的输入流");
+            throw new InvalidDataException(L.Format("Version_PeNotSeekable", sourceName));
         }
 
         if (stream.Length < 0x40)
         {
-            throw new InvalidDataException($"解析 PE 版本资源失败：{sourceName}：文件过小，不是有效的 PE 文件");
+            throw new InvalidDataException(L.Format("Version_PeTooSmall", sourceName));
         }
 
         var dosHeader = ReadExact(stream, 0, 0x40, sourceName);
         if (BinaryPrimitives.ReadUInt16LittleEndian(dosHeader.AsSpan(0, 2)) != DosMagic)
         {
-            throw new InvalidDataException($"解析 PE 版本资源失败：{sourceName}：缺少 MZ 头");
+            throw new InvalidDataException(L.Format("Version_PeMissingMz", sourceName));
         }
 
         var peOffset = (long)BinaryPrimitives.ReadUInt32LittleEndian(dosHeader.AsSpan(0x3C, 4));
         if (peOffset < 0 || peOffset + 24 > stream.Length)
         {
-            throw new InvalidDataException($"解析 PE 版本资源失败：{sourceName}：PE 头偏移越界");
+            throw new InvalidDataException(L.Format("Version_PeHeaderOutOfRange", sourceName));
         }
 
         var peAndCoff = ReadExact(stream, peOffset, 24, sourceName);
         if (BinaryPrimitives.ReadUInt32LittleEndian(peAndCoff.AsSpan(0, 4)) != PeSignature)
         {
-            throw new InvalidDataException($"解析 PE 版本资源失败：{sourceName}：缺少 PE 签名");
+            throw new InvalidDataException(L.Format("Version_PeMissingSignature", sourceName));
         }
 
         var numberOfSections = BinaryPrimitives.ReadUInt16LittleEndian(peAndCoff.AsSpan(6, 2));
@@ -655,7 +651,7 @@ internal static class PeVersionReader
         var optionalHeaderOffset = peOffset + 24;
         if (sizeOfOptionalHeader < 96 || optionalHeaderOffset + sizeOfOptionalHeader > stream.Length)
         {
-            throw new InvalidDataException($"解析 PE 版本资源失败：{sourceName}：Optional Header 大小异常");
+            throw new InvalidDataException(L.Format("Version_PeBadOptionalHeader", sourceName));
         }
 
         var optionalHeader = ReadExact(stream, optionalHeaderOffset, sizeOfOptionalHeader, sourceName);
@@ -674,8 +670,10 @@ internal static class PeVersionReader
         }
         else
         {
-            throw new InvalidDataException(
-                $"解析 PE 版本资源失败：{sourceName}：不支持的 PE Optional Header 魔数 0x{optMagic:X4}");
+            throw new InvalidDataException(L.Format(
+                "Version_PeUnsupportedMagic",
+                sourceName,
+                optMagic.ToString("X4", CultureInfo.InvariantCulture)));
         }
 
         if (sizeOfOptionalHeader < dataDirectoriesOffset + 24)
@@ -701,7 +699,7 @@ internal static class PeVersionReader
         var sectionTableBytes = checked(numberOfSections * 40);
         if (sectionTableOffset + sectionTableBytes > stream.Length)
         {
-            throw new InvalidDataException($"解析 PE 版本资源失败：{sourceName}：节表越界");
+            throw new InvalidDataException(L.Format("Version_PeSectionTableOutOfRange", sourceName));
         }
 
         var sectionData = ReadExact(stream, sectionTableOffset, sectionTableBytes, sourceName);
@@ -718,8 +716,10 @@ internal static class PeVersionReader
 
         if (!TryRvaToFileOffset(sections, resourceRva, out var resourceBaseOffset))
         {
-            throw new InvalidDataException(
-                $"解析 PE 版本资源失败：{sourceName}：无法将资源目录 RVA 0x{resourceRva:X} 映射到文件偏移");
+            throw new InvalidDataException(L.Format(
+                "Version_PeResourceRvaUnmapped",
+                sourceName,
+                resourceRva.ToString("X", CultureInfo.InvariantCulture)));
         }
 
         var rootEntries = ReadResourceDirectory(stream, resourceBaseOffset, 0, sourceName);
@@ -792,13 +792,15 @@ internal static class PeVersionReader
         var dataSize = BinaryPrimitives.ReadUInt32LittleEndian(dataEntry.AsSpan(4, 4));
         if (dataSize == 0 || dataSize > MaxVersionResourceBytes)
         {
-            throw new InvalidDataException($"解析 PE 版本资源失败：{sourceName}：版本资源长度异常（{dataSize} 字节）");
+            throw new InvalidDataException(L.Format("Version_PeBadDataSize", sourceName, dataSize));
         }
 
         if (!TryRvaToFileOffset(sections, dataRva, out var dataFileOffset))
         {
-            throw new InvalidDataException(
-                $"解析 PE 版本资源失败：{sourceName}：无法将版本数据 RVA 0x{dataRva:X} 映射到文件偏移");
+            throw new InvalidDataException(L.Format(
+                "Version_PeDataRvaUnmapped",
+                sourceName,
+                dataRva.ToString("X", CultureInfo.InvariantCulture)));
         }
 
         var blob = ReadExact(stream, dataFileOffset, (int)dataSize, sourceName);
@@ -1056,7 +1058,11 @@ internal static class PeVersionReader
     {
         if (offset < 0 || count < 0 || offset + count > stream.Length)
         {
-            throw new InvalidDataException($"解析 PE 版本资源失败：{sourceName}：读取偏移 0x{offset:X}（长度 {count}）越界");
+            throw new InvalidDataException(L.Format(
+                "Version_PeReadOutOfRange",
+                sourceName,
+                offset.ToString("X", CultureInfo.InvariantCulture),
+                count));
         }
 
         stream.Seek(offset, SeekOrigin.Begin);
@@ -1067,7 +1073,7 @@ internal static class PeVersionReader
             var n = stream.Read(buffer, readTotal, count - readTotal);
             if (n == 0)
             {
-                throw new InvalidDataException($"解析 PE 版本资源失败：{sourceName}：文件意外截断");
+                throw new InvalidDataException(L.Format("Version_PeUnexpectedEof", sourceName));
             }
 
             readTotal += n;

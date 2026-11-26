@@ -17,10 +17,19 @@ internal sealed record ProcessIntegrityInfo(
     ProcessIntegrityLevel Level,
     uint? RawRid,
     string Label,
-    string DisplayTextZh,
     string? DiagnosticError = null)
 {
     internal bool IsLowOrUntrusted => Level is ProcessIntegrityLevel.Low or ProcessIntegrityLevel.Untrusted;
+
+    internal string DisplayText => L.Get(Level switch
+    {
+        ProcessIntegrityLevel.Untrusted => "Integrity_Untrusted",
+        ProcessIntegrityLevel.Low => "Integrity_Low",
+        ProcessIntegrityLevel.Medium => "Integrity_Medium",
+        ProcessIntegrityLevel.High => "Integrity_High",
+        ProcessIntegrityLevel.System => "Integrity_System",
+        _ => "Integrity_Unknown",
+    });
 
     internal string FormatForLog()
     {
@@ -118,37 +127,31 @@ internal static class ProcessIntegritySupport
                 level,
                 rawRid ?? SecurityMandatoryUntrustedRid,
                 "Untrusted",
-                "不可信（Untrusted IL）",
                 diagnosticError),
             ProcessIntegrityLevel.Low => new ProcessIntegrityInfo(
                 level,
                 rawRid ?? SecurityMandatoryLowRid,
                 "Low",
-                "低完整性（Low IL）",
                 diagnosticError),
             ProcessIntegrityLevel.Medium => new ProcessIntegrityInfo(
                 level,
                 rawRid ?? SecurityMandatoryMediumRid,
                 "Medium",
-                "中完整性（Medium IL）",
                 diagnosticError),
             ProcessIntegrityLevel.High => new ProcessIntegrityInfo(
                 level,
                 rawRid ?? SecurityMandatoryHighRid,
                 "High",
-                "高完整性（High IL）",
                 diagnosticError),
             ProcessIntegrityLevel.System => new ProcessIntegrityInfo(
                 level,
                 rawRid ?? SecurityMandatorySystemRid,
                 "System",
-                "系统完整性（System IL）",
                 diagnosticError),
             _ => new ProcessIntegrityInfo(
                 ProcessIntegrityLevel.Unknown,
                 rawRid,
                 "Unknown",
-                "未知",
                 diagnosticError),
         };
     }
@@ -164,7 +167,7 @@ internal static class ProcessIntegritySupport
                 var err = Marshal.GetLastWin32Error();
                 return FromLevel(
                     ProcessIntegrityLevel.Unknown,
-                    diagnosticError: string.Create(CultureInfo.InvariantCulture, $"OpenProcessToken 失败 (Win32={err})"));
+                    diagnosticError: string.Create(CultureInfo.InvariantCulture, $"OpenProcessToken failed (Win32={err})"));
             }
 
             _ = GetTokenInformation(tokenHandle, TokenIntegrityLevelClass, IntPtr.Zero, 0, out var requiredLength);
@@ -173,7 +176,7 @@ internal static class ProcessIntegritySupport
                 var err = Marshal.GetLastWin32Error();
                 return FromLevel(
                     ProcessIntegrityLevel.Unknown,
-                    diagnosticError: string.Create(CultureInfo.InvariantCulture, $"GetTokenInformation 查询长度失败 (Win32={err})"));
+                    diagnosticError: string.Create(CultureInfo.InvariantCulture, $"GetTokenInformation length query failed (Win32={err})"));
             }
 
             var buffer = Marshal.AllocHGlobal(requiredLength);
@@ -184,14 +187,14 @@ internal static class ProcessIntegritySupport
                     var err = Marshal.GetLastWin32Error();
                     return FromLevel(
                         ProcessIntegrityLevel.Unknown,
-                        diagnosticError: string.Create(CultureInfo.InvariantCulture, $"GetTokenInformation 读取失败 (Win32={err})"));
+                        diagnosticError: string.Create(CultureInfo.InvariantCulture, $"GetTokenInformation read failed (Win32={err})"));
                 }
 
                 var mandatoryLabel = Marshal.PtrToStructure<TokenMandatoryLabel>(buffer);
                 var sid = mandatoryLabel.Label.Sid;
                 if (sid == IntPtr.Zero)
                 {
-                    return FromLevel(ProcessIntegrityLevel.Unknown, diagnosticError: "TokenIntegrityLevel SID 为空");
+                    return FromLevel(ProcessIntegrityLevel.Unknown, diagnosticError: "TokenIntegrityLevel SID is null");
                 }
 
                 var countPtr = GetSidSubAuthorityCount(sid);
@@ -200,13 +203,13 @@ internal static class ProcessIntegritySupport
                     var err = Marshal.GetLastWin32Error();
                     return FromLevel(
                         ProcessIntegrityLevel.Unknown,
-                        diagnosticError: string.Create(CultureInfo.InvariantCulture, $"GetSidSubAuthorityCount 失败 (Win32={err})"));
+                        diagnosticError: string.Create(CultureInfo.InvariantCulture, $"GetSidSubAuthorityCount failed (Win32={err})"));
                 }
 
                 var subAuthorityCount = Marshal.ReadByte(countPtr);
                 if (subAuthorityCount == 0)
                 {
-                    return FromLevel(ProcessIntegrityLevel.Unknown, diagnosticError: "SID 子权限数量为 0");
+                    return FromLevel(ProcessIntegrityLevel.Unknown, diagnosticError: "SID sub-authority count is 0");
                 }
 
                 var ridPtr = GetSidSubAuthority(sid, (uint)(subAuthorityCount - 1));
@@ -215,7 +218,7 @@ internal static class ProcessIntegritySupport
                     var err = Marshal.GetLastWin32Error();
                     return FromLevel(
                         ProcessIntegrityLevel.Unknown,
-                        diagnosticError: string.Create(CultureInfo.InvariantCulture, $"GetSidSubAuthority 失败 (Win32={err})"));
+                        diagnosticError: string.Create(CultureInfo.InvariantCulture, $"GetSidSubAuthority failed (Win32={err})"));
                 }
 
                 var rid = unchecked((uint)Marshal.ReadInt32(ridPtr));

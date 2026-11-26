@@ -66,7 +66,7 @@ internal static partial class Program
                     var rawJobs = RequireValue(args, ref index, "--jobs");
                     if (!int.TryParse(rawJobs, NumberStyles.Integer, CultureInfo.InvariantCulture, out jobs) || jobs < 1)
                     {
-                        throw new ArgumentException($"--jobs 必须是正整数：{rawJobs}");
+                        throw new ArgumentException(L.Format("ExportAssets_JobsMustBePositive", rawJobs));
                     }
                     break;
                 case "--force":
@@ -76,7 +76,7 @@ internal static partial class Program
                     AddCommaValues(classifyOnly, RequireValue(args, ref index, "--classify"));
                     break;
                 default:
-                    throw new ArgumentException($"export-assets 收到未知参数：{args[index]}");
+                    throw new ArgumentException(L.Format("Cli_UnknownArg", "export-assets", args[index]));
             }
         }
 
@@ -99,12 +99,12 @@ internal static partial class Program
 
         if (usmapPath is null)
         {
-            throw new ArgumentException("export-assets 需要 --usmap <文件>（在游戏机上用 UE4SS 导出的 .usmap，见 README.md）");
+            throw new ArgumentException(L.Format("Cli_CommandRequiresUsmap", "export-assets"));
         }
 
         if (!File.Exists(usmapPath))
         {
-            throw new FileNotFoundException($"映射文件不存在：{usmapPath}");
+            throw new FileNotFoundException(L.Format("Cli_MappingFileNotFound", usmapPath));
         }
 
         if (prefixes.Count == 0)
@@ -229,7 +229,7 @@ internal static partial class Program
                 {
                     Interlocked.Increment(ref tracker.FailedCount);
                     failures.Add((pkg.Path, pkg.PrimaryClass, TruncateError(exception.Message)));
-                    Console.Error.WriteLine($"导出失败：{pkg.Path}（{pkg.PrimaryClass}）：{exception.Message}");
+                    Console.Error.WriteLine(L.Format("ExportAssets_ExportFailedLine", pkg.Path, pkg.PrimaryClass, exception.Message));
                 }
             });
 
@@ -283,7 +283,7 @@ internal static partial class Program
                 {
                     Interlocked.Increment(ref rawFailedCount);
                     failures.Add((file.Path, $"raw:{ext}", TruncateError(exception.Message)));
-                    Console.Error.WriteLine($"原文件拷贝失败：{file.Path}：{exception.Message}");
+                    Console.Error.WriteLine(L.Format("ExportAssets_RawCopyFailedLine", file.Path, exception.Message));
                 }
             });
 
@@ -423,11 +423,19 @@ internal static partial class Program
 
         await TextOutput.WriteJsonAsync(Path.Combine(outputPath, "manifest.json"), manifest);
 
-        Console.WriteLine(
-            $"导出完成：包成功 {exportedPackages}（新增 {newlyExportedPackages}，续跑跳过 {resumedPackages}），" +
-            $"原文件拷贝 {rawCopiedCount}（新增 {rawNewlyCopiedCount}，续跑跳过 {rawResumedCount}），" +
-            $"跳过 {skippedPackages}，待定 {undecidedPackages}，失败 {orderedFailures.Length}，" +
-            $"输出 {packageOutputBytes + rawOutputBytes} 字节，耗时 {stopwatch.Elapsed.TotalSeconds:F2}s");
+        Console.WriteLine(L.Format(
+            "ExportAssets_Summary",
+            exportedPackages,
+            newlyExportedPackages,
+            resumedPackages,
+            rawCopiedCount,
+            rawNewlyCopiedCount,
+            rawResumedCount,
+            skippedPackages,
+            undecidedPackages,
+            orderedFailures.Length,
+            packageOutputBytes + rawOutputBytes,
+            stopwatch.Elapsed.TotalSeconds.ToString("F2", CultureInfo.InvariantCulture)));
 
         return orderedFailures.Length == 0 ? 0 : 1;
     }
@@ -563,7 +571,7 @@ internal static partial class Program
                 {
                     if (Directory.Exists(entry) && IsOtherCommandSubdirectory(entry, expectedCommand))
                     {
-                        Console.WriteLine($"保留其他子命令的输出目录：{Path.GetFileName(entry)}/");
+                        Console.WriteLine(L.Format("ExportAssets_KeepOtherCommandDir", Path.GetFileName(entry)));
                         continue;
                     }
 
@@ -579,11 +587,11 @@ internal static partial class Program
                     }
                 }
 
-                Console.WriteLine($"已清空输出目录：{outputArgument}；删除文件数：{deletedFiles}");
+                Console.WriteLine(L.Format("ExportAssets_ClearedOutputDir", outputArgument, deletedFiles));
             }
             else
             {
-                Console.WriteLine($"续跑模式：复用已有输出目录 {outputArgument}（已导出文件将跳过）");
+                Console.WriteLine(L.Format("ExportAssets_ResumeMode", outputArgument));
             }
         }
 
@@ -668,7 +676,7 @@ internal static partial class Program
         var parts = rawValue.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length == 0)
         {
-            throw new ArgumentException($"--classify 不能为空：{rawValue}");
+            throw new ArgumentException(L.Format("ExportAssets_ClassifyEmpty", rawValue));
         }
 
         target.AddRange(parts);

@@ -47,7 +47,8 @@ public sealed class BuildDbTests
             Assert.Equal("2.4.0.1", parsed.ProductVersion);
         }
 
-        // 3. Invalid non-PE bytes throw InvalidDataException with clear Chinese message.
+        // 3. Invalid non-PE bytes throw InvalidDataException with clear localized message.
+        using (Localization.UseLanguageScope("zh-Hans"))
         using (var ms = new MemoryStream(Encoding.UTF8.GetBytes("not a pe binary at all - padding bytes to exceed 64 bytes........................")))
         {
             var ex = Assert.Throws<InvalidDataException>(() => PeVersionReader.ReadFromStream(ms, "bad.exe"));
@@ -183,6 +184,7 @@ public sealed class BuildDbTests
     [Fact]
     public void KnownBuildsComparison_CoversAllThreeOutcomesAndFileLoadingPriority()
     {
+        using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-known-builds");
 
         var registeredEntry = new KnownBuildEntry(
@@ -349,6 +351,7 @@ public sealed class BuildDbTests
         Assert.Contains("--ffr-db", missingExplicit.Message, StringComparison.Ordinal);
 
         // 6. Missing everywhere throws FileNotFoundException listing search order
+        using var langScope = Localization.UseLanguageScope("zh-Hans");
         var missingAll = Assert.Throws<FileNotFoundException>(() =>
             FfrDbLocator.Resolve(null, emptySibling, string.Empty, isWindowsOverride: false));
         Assert.Contains("找不到 ffr-db 可执行文件", missingAll.Message, StringComparison.Ordinal);
@@ -471,6 +474,7 @@ public sealed class BuildDbTests
         // 1. Run build-db without --keep-json
         var outDir1 = Path.Combine(workspace.Root, "Output With Spaces", "run1");
         var res1 = await TestHarness.RunCliAsync([
+            "--lang", "zh-Hans",
             "build-db",
             "--game", gameDir,
             "--usmap", usmapPath,
@@ -521,6 +525,7 @@ public sealed class BuildDbTests
         Directory.CreateDirectory(foreignDir);
         await File.WriteAllTextAsync(Path.Combine(foreignDir, "user-notes.txt"), "keep-me");
         var refuseForeign = await TestHarness.RunCliAsync([
+            "--lang", "zh-Hans",
             "build-db", "--game", gameDir, "--usmap", usmapPath, "--out", foreignDir, "--ffr-db", fakeDbScript, "--force",
         ]);
         Assert.Equal(2, refuseForeign.ExitCode);
@@ -530,6 +535,7 @@ public sealed class BuildDbTests
         // 4. --out inside --game is refused
         var insideGameOut = Path.Combine(gameDir, "nested-out");
         var refuseOverlap = await TestHarness.RunCliAsync([
+            "--lang", "zh-Hans",
             "build-db", "--game", gameDir, "--usmap", usmapPath, "--out", insideGameOut, "--ffr-db", fakeDbScript,
         ]);
         Assert.Equal(2, refuseOverlap.ExitCode);
@@ -566,6 +572,7 @@ public sealed class BuildDbTests
         // 6. Missing both appmanifest and --steam-buildid -> warning, build_id=null, does not abort
         var outDirNullSteam = Path.Combine(workspace.Root, "run-null-steam");
         var resNullSteam = await TestHarness.RunCliAsync([
+            "--lang", "zh-Hans",
             "build-db",
             "--game", gameDir,
             "--usmap", usmapPath,
@@ -619,9 +626,9 @@ public sealed class BuildDbTests
         Assert.Equal(2, resMissingFfrDb.ExitCode);
         Assert.Contains("--ffr-db", resMissingFfrDb.Stderr, StringComparison.Ordinal);
 
-        // 4. Missing ffr-db everywhere (no --ffr-db and empty PATH) reports Chinese error
+        // 4. Missing ffr-db everywhere (no --ffr-db and empty PATH) reports Chinese error when --lang zh-Hans is specified
         var resNoPathFfrDb = await TestHarness.RunCliAsync(
-            ["build-db", "--game", badGameNoExe, "--usmap", usmapPath],
+            ["--lang", "zh-Hans", "build-db", "--game", badGameNoExe, "--usmap", usmapPath],
             pathEnvOverride: string.Empty);
         Assert.Equal(2, resNoPathFfrDb.ExitCode);
         Assert.Contains("找不到 ffr-db 可执行文件", resNoPathFfrDb.Stderr, StringComparison.Ordinal);

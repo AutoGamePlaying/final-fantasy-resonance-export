@@ -76,6 +76,7 @@ public sealed class UsmapFetcherTests
     [Fact]
     public async Task Ue4ssArchiveVerification_RejectsWrongHashOrSizeAndReusesValidCache()
     {
+        using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-ue4ss-verify");
 
         var zipPath = CreateSyntheticUe4ssZip(Path.Combine(workspace.Root, "synthetic.zip"));
@@ -123,6 +124,7 @@ public sealed class UsmapFetcherTests
     [Fact]
     public void Ue4ssArchiveInstaller_ExtractsPatchesSettingsRollsBackAndUninstallsOnlyMarkedFiles()
     {
+        using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-ue4ss-install");
 
         var gameDir = CreateSyntheticGameDirectory(workspace.Root, "24250053");
@@ -399,6 +401,7 @@ public sealed class UsmapFetcherTests
     [Fact]
     public async Task UsmapFetcher_EndToEndFlow_FreshInstallUserUe4ssTimeoutModErrorAndGuards()
     {
+        using var langScope = Localization.UseLanguageScope("zh-Hans");
         using var workspace = new TempWorkspace("ffr-fetch-e2e");
 
         var zipPath = CreateSyntheticUe4ssZip(Path.Combine(workspace.Root, "UE4SS_v4.0.0.zip"));
@@ -481,7 +484,7 @@ public sealed class UsmapFetcherTests
         var out1 = new StringWriter();
         var err1 = new StringWriter();
         var (exit1, res1) = await UsmapFetcher.FetchCoreAsync(
-            new FetchUsmapOptions(gameDir1, TimeoutSeconds: 10, Yes: true),
+            new FetchUsmapOptions(gameDir1, TimeoutSeconds: 10, Yes: true, ProgressJson: true),
             new StringReader(string.Empty),
             out1,
             err1,
@@ -690,13 +693,19 @@ public sealed class UsmapFetcherTests
         using var workspace = new TempWorkspace("ffr-unified-cli");
 
         // 1. BuildCliCommand fetch-usmap & uninstall-ue4ss args roundtrip through CLI parsers.
-        var fetchArgs = BuildCliCommand.BuildFetchUsmapArguments("/games/FFRS", timeoutSeconds: 180, yes: true);
+        var fetchArgs = BuildCliCommand.BuildFetchUsmapArguments("/games/FFRS", timeoutSeconds: 180, yes: true, language: "ja", progressJson: true);
+        Assert.Contains("--lang", fetchArgs);
+        Assert.Contains("ja", fetchArgs);
+        Assert.Contains("--progress-json", fetchArgs);
         var parsedFetch = UsmapFetcher.ParseFetchUsmapArgs(fetchArgs.Skip(1).ToArray());
         Assert.Equal("/games/FFRS", parsedFetch.GameDirectory);
         Assert.Equal(180, parsedFetch.TimeoutSeconds);
         Assert.True(parsedFetch.Yes);
+        Assert.True(parsedFetch.ProgressJson);
 
-        var uninstallArgs = BuildCliCommand.BuildUninstallUe4ssArguments("/games/FFRS", includeForeign: true, yes: true);
+        var uninstallArgs = BuildCliCommand.BuildUninstallUe4ssArguments("/games/FFRS", includeForeign: true, yes: true, language: "zh-Hans");
+        Assert.Contains("--lang", uninstallArgs);
+        Assert.Contains("zh-Hans", uninstallArgs);
         var parsedUninstall = UsmapFetcher.ParseUninstallUe4ssArgs(uninstallArgs.Skip(1).ToArray());
         Assert.Equal("/games/FFRS", parsedUninstall.GameDirectory);
         Assert.True(parsedUninstall.IncludeForeign);
@@ -767,7 +776,7 @@ public sealed class UsmapFetcherTests
         Assert.True(Ue4ssRuntimeSupport.HasOwnInstallMarker(gameDir));
 
         var cliUninstall = await TestHarness.RunCliAsync(
-            ["uninstall-ue4ss", "--game", gameDir],
+            ["--lang", "zh-Hans", "uninstall-ue4ss", "--game", gameDir],
             agpHome: workspace.AgpHomeDir);
         Assert.Equal(0, cliUninstall.ExitCode);
         Assert.Contains("已按安装标记卸载 UE4SS", cliUninstall.Stdout, StringComparison.Ordinal);
@@ -775,7 +784,7 @@ public sealed class UsmapFetcherTests
 
         // Second uninstall (nothing installed) reports "未发现 UE4SS" cleanly.
         var cliUninstallAgain = await TestHarness.RunCliAsync(
-            ["uninstall-ue4ss", "--game", gameDir],
+            ["--lang", "zh-Hans", "uninstall-ue4ss", "--game", gameDir],
             agpHome: workspace.AgpHomeDir);
         Assert.Equal(0, cliUninstallAgain.ExitCode);
         Assert.Contains("未发现 UE4SS", cliUninstallAgain.Stdout, StringComparison.Ordinal);
@@ -789,14 +798,14 @@ public sealed class UsmapFetcherTests
         await File.WriteAllTextAsync(Path.Combine(ue4ssDir, "Mods", "CustomForeignMod", "mod.txt"), "keep");
 
         var cliForeignNoFlag = await TestHarness.RunCliAsync(
-            ["uninstall-ue4ss", "--game", gameDir],
+            ["--lang", "zh-Hans", "uninstall-ue4ss", "--game", gameDir],
             agpHome: workspace.AgpHomeDir);
         Assert.Equal(0, cliForeignNoFlag.ExitCode);
         Assert.True(File.Exists(Path.Combine(win64Dir, "dwmapi.dll")));
         Assert.True(File.Exists(Path.Combine(ue4ssDir, "UE4SS.dll")));
 
         var cliForeignBackup = await TestHarness.RunCliAsync(
-            ["uninstall-ue4ss", "--game", gameDir, "--include-foreign", "--yes"],
+            ["--lang", "zh-Hans", "uninstall-ue4ss", "--game", gameDir, "--include-foreign", "--yes"],
             agpHome: workspace.AgpHomeDir);
         Assert.Equal(0, cliForeignBackup.ExitCode);
         Assert.Contains("恢复方法", cliForeignBackup.Stdout, StringComparison.Ordinal);
@@ -824,10 +833,10 @@ public sealed class UsmapFetcherTests
         Assert.Contains("uninstall-ue4ss", helpResult.Stdout, StringComparison.Ordinal);
         Assert.Contains("AGP_HOME", helpResult.Stdout, StringComparison.Ordinal);
 
-        // Unwritable explicit AGP_HOME fails CLI immediately with clear Chinese error.
+        // Unwritable explicit AGP_HOME fails CLI immediately with clear Chinese error when --lang zh-Hans is specified.
         var unwritableAgp = Path.Combine(blockedTempFile, "agp");
         var badAgpResult = await TestHarness.RunCliAsync(
-            ["uninstall-ue4ss", "--game", gameDir],
+            ["--lang", "zh-Hans", "uninstall-ue4ss", "--game", gameDir],
             agpHome: workspace.AgpHomeDir,
             extraEnv: new Dictionary<string, string?>
             {
@@ -840,7 +849,7 @@ public sealed class UsmapFetcherTests
         if (!OperatingSystem.IsWindows())
         {
             var cliFetchLinux = await TestHarness.RunCliAsync(
-                ["fetch-usmap", "--game", gameDir, "--yes"],
+                ["--lang", "zh-Hans", "fetch-usmap", "--game", gameDir, "--yes"],
                 agpHome: workspace.AgpHomeDir);
             Assert.Equal(2, cliFetchLinux.ExitCode);
             Assert.Contains("仅支持 Windows", cliFetchLinux.Stderr, StringComparison.Ordinal);
