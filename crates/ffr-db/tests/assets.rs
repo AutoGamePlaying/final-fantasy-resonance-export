@@ -349,3 +349,145 @@ fn every_asset_query_uses_indexes() {
 fn area_export_full() -> std::path::PathBuf {
     fixture_area_dir("assets").join("export-full")
 }
+
+#[test]
+fn case_insensitive_asset_refs_and_ambiguous_package_case_are_deterministic() {
+    let make_registry_line = |path: &str, package_name: &str, asset_name: &str, decision: &str| {
+        serde_json::to_string(&serde_json::json!({
+            "path": path,
+            "packageName": package_name,
+            "primaryClass": "LevelSequence",
+            "assetClasses": ["LevelSequence"],
+            "assetName": asset_name,
+            "size": 128,
+            "packageSize": 128,
+            "bulkSize": 0,
+            "tags": {},
+            "dependencyCount": null,
+            "matchedInVfs": true,
+            "decision": decision,
+            "category": "sequence"
+        }))
+        .expect("encode registry line")
+    };
+
+    let caller_path = "FFRS/Content/Caller/BP_Caller.uasset";
+    let caller_pkg = "/Game/Caller/BP_Caller";
+    let target_path = "FFRS/Content/Sequencer/Battle/Summon/SEQ_Demo.uasset";
+    let target_pkg = "/Game/Sequencer/Battle/Summon/SEQ_Demo";
+    let dup_upper_path = "FFRS/Content/Case/DupPkg.uasset";
+    let dup_upper_pkg = "/Game/Case/DupPkg";
+    let dup_lower_path = "FFRS/Content/Case/duppkg.uasset";
+    let dup_lower_pkg = "/Game/Case/duppkg";
+
+    let build_with_order = |reverse_lines: bool| {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let inventory = temp.path().join("inventory");
+        let full = temp.path().join("export-full");
+        fs::create_dir_all(&inventory).expect("create inventory");
+        fs::create_dir_all(full.join("FFRS/Content/Caller")).expect("create export dir");
+
+        let mut lines = [
+            make_registry_line(caller_path, caller_pkg, "BP_Caller", "export_json"),
+            make_registry_line(target_path, target_pkg, "SEQ_Demo", "skip_binary"),
+            make_registry_line(dup_upper_path, dup_upper_pkg, "DupPkg", "skip_binary"),
+            make_registry_line(dup_lower_path, dup_lower_pkg, "duppkg", "skip_binary"),
+        ];
+        if reverse_lines {
+            lines.reverse();
+        }
+        fs::write(
+            inventory.join("registry.jsonl"),
+            format!("{}\n", lines.join("\n")),
+        )
+        .expect("write registry");
+
+        let caller_export = serde_json::json!([
+            {
+                "Type": "BlueprintGeneratedClass",
+                "Name": "BP_Caller_C",
+                "Properties": {
+                    "SummonSeq": {
+                        "AssetPathName": "/Game/Sequencer/Battle/summon/SEQ_Demo.SEQ_Demo"
+                    },
+                    "AmbiguousTarget": {
+                        "ObjectPath": "/Game/Case/DUPPKG.0"
+                    }
+                }
+            }
+        ]);
+        fs::write(
+            full.join("FFRS/Content/Caller/BP_Caller.json"),
+            serde_json::to_string_pretty(&caller_export).expect("encode export json"),
+        )
+        .expect("write caller export");
+
+        build_temp_db(
+            "assets-case-insensitive",
+            BuildInputs {
+                inventory: Some(inventory),
+                full: Some(full),
+                ..BuildInputs::default()
+            },
+            Some(vec![Stage::Assets]),
+        )
+        .expect("build assets case test db")
+    };
+
+    let db_fwd = build_with_order(false);
+    let db_rev = build_with_order(true);
+
+    for test_db in [&db_fwd, &db_rev] {
+        let db = test_db.db();
+        let refs = db.asset_refs(caller_pkg).expect("outgoing refs");
+        assert_eq!(refs.len(), 2);
+
+        // Case-mismatched ref resolves `to_asset_id` while preserving raw `to_package` verbatim.
+        let summon_ref = refs
+            .iter()
+            .find(|r| r.to_package == "/Game/Sequencer/Battle/summon/SEQ_Demo")
+            .expect("raw to_package casing preserved");
+        assert!(summon_ref.to_asset_id.is_some());
+        assert_eq!(summon_ref.to_path.as_deref(), Some(target_path));
+
+        // Incoming referrer query finds `BP_Caller` through resolved `to_asset_id`.
+        let referrers = db.asset_referrers(target_pkg).expect("incoming refs");
+        assert_eq!(referrers.len(), 1);
+        assert_eq!(referrers[0].from_path, caller_path);
+
+        // Case-colliding packages resolve deterministically to the lexicographically first
+        // original package name (`/Game/Case/DupPkg` < `/Game/Case/duppkg`).
+        let dup_ref = refs
+            .iter()
+            .find(|r| r.to_package == "/Game/Case/DUPPKG")
+            .expect("ambiguous ref preserved");
+        assert!(dup_ref.to_asset_id.is_some());
+        assert_eq!(dup_ref.to_path.as_deref(), Some(dup_upper_path));
+
+        // No `dangling_asset_ref` issue; exactly one `ambiguous_package_case` issue.
+        let issues = db.build_issues().expect("build issues");
+        assert!(
+            !issues.iter().any(|i| i.kind == "dangling_asset_ref"),
+            "unexpected dangling_asset_ref: {issues:?}"
+        );
+        let case_issues: Vec<_> = issues
+            .iter()
+            .filter(|i| i.kind == "ambiguous_package_case")
+            .collect();
+        assert_eq!(
+            case_issues.len(),
+            1,
+            "expected 1 ambiguous_package_case: {issues:?}"
+        );
+        assert_eq!(case_issues[0].stage, "assets");
+        assert_eq!(case_issues[0].subject, dup_upper_pkg);
+        assert!(case_issues[0].detail.contains(dup_upper_pkg));
+        assert!(case_issues[0].detail.contains(dup_lower_pkg));
+    }
+
+    assert_eq!(
+        db_fwd.report().content_sha256,
+        db_rev.report().content_sha256,
+        "case collision choice and issue recording must be order-independent"
+    );
+}

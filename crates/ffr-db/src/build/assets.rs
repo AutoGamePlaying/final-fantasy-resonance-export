@@ -15,7 +15,7 @@ use ffr_data::assets::registry::{
 use ffr_data::error::DataError;
 use rusqlite::params;
 
-use crate::build::{ImportCtx, StageStats};
+use crate::build::{ImportCtx, StageStats, UePathLookup};
 use crate::error::{DbError, Result};
 use crate::record::encode_doc;
 use crate::util::path_to_slash_string;
@@ -61,13 +61,14 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
         return Ok(StageStats::skipped("未实现"));
     }
 
-    let mut package_ids: BTreeMap<String, i64> = BTreeMap::new();
+    let mut package_ids: UePathLookup<i64> = UePathLookup::new();
+    let mut source_paths: BTreeMap<i64, usize> = BTreeMap::new();
     let mut asset_rows = 0_u64;
     let mut tag_rows = 0_u64;
     let mut excluded_tag_stats: BTreeMap<&str, (u64, u64)> =
         EXCLUDED_TAGS.iter().map(|key| (*key, (0, 0))).collect();
     let mut exported = Vec::new();
-    for entry in &mut entries {
+    for (entry_idx, entry) in entries.iter_mut().enumerate() {
         if let Some(full_dir) = full_dir {
             let relative = export_relative_path(&entry.path);
             if full_dir.join(&relative).is_file() {
@@ -106,6 +107,7 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
         let asset_id = ctx.tx().last_insert_rowid();
         drop(asset_stmt);
         package_ids.insert(entry.package_name.clone(), asset_id);
+        source_paths.insert(asset_id, entry_idx);
         asset_rows += 1;
 
         if !entry.tags.is_empty() {
@@ -173,21 +175,13 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
         }
     }
 
-    let source_paths: BTreeMap<i64, &str> = entries
-        .iter()
-        .filter_map(|entry| {
-            package_ids
-                .get(&entry.package_name)
-                .map(|id| (*id, entry.path.as_str()))
-        })
-        .collect();
+    package_ids.record_collisions(ctx)?;
+
     for (from_asset_id, reference) in &references {
-        if reference.kind != AssetRefKind::Script
-            && !package_ids.contains_key(&reference.to_package)
-        {
+        if reference.kind != AssetRefKind::Script && !package_ids.contains(&reference.to_package) {
             let subject = source_paths
                 .get(from_asset_id)
-                .copied()
+                .map(|&idx| entries[idx].path.as_str())
                 .unwrap_or("unknown");
             ctx.record_issue(
                 "dangling_asset_ref",

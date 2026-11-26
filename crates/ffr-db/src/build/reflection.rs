@@ -12,7 +12,7 @@ use ffr_data::assets::reflection::{JmapEntry, UeClass, UeFunction, UeProperty, s
 use rusqlite::params;
 use serde::Serialize;
 
-use crate::build::{ImportCtx, StageStats, jmap_display_labels, jmap_logical_paths};
+use crate::build::{ImportCtx, StageStats, UePathLookup, jmap_display_labels, jmap_logical_paths};
 use crate::error::{DbError, Result};
 use crate::record::encode_doc;
 use crate::util::sha256_file;
@@ -160,10 +160,23 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
         ctx.record_issue("merge_conflict", &conflict.subject, &conflict.detail)?;
     }
 
-    let function_paths: BTreeSet<&str> = functions
-        .values()
-        .map(|(func, _)| func.path.as_str())
-        .collect();
+    let mut class_lookup: UePathLookup<()> = UePathLookup::new();
+    for path in classes.keys() {
+        class_lookup.insert(path.clone(), ());
+    }
+    class_lookup.record_collisions(ctx)?;
+
+    let mut package_lookup: UePathLookup<()> = UePathLookup::new();
+    for pkg in &packages {
+        package_lookup.insert(pkg.clone(), ());
+    }
+    package_lookup.record_collisions(ctx)?;
+
+    let mut function_lookup: UePathLookup<()> = UePathLookup::new();
+    for (func, _) in functions.values() {
+        function_lookup.insert(func.path.clone(), ());
+    }
+    function_lookup.record_collisions(ctx)?;
 
     let mut class_rows: u64 = 0;
     let mut prop_rows: u64 = 0;
@@ -204,7 +217,7 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
         for (cls, _) in classes.values() {
             // Check dangling inheritance and interface references without aborting.
             if let Some(sup) = &cls.super_class
-                && !classes.contains_key(sup)
+                && !class_lookup.contains(sup)
             {
                 ctx.record_issue(
                     "dangling_super_class",
@@ -213,7 +226,7 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
                 )?;
             }
             for itf in &cls.interfaces {
-                if !classes.contains_key(&itf.class) {
+                if !class_lookup.contains(&itf.class) {
                     ctx.record_issue(
                         "dangling_interface",
                         &cls.path,
@@ -259,8 +272,8 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
                     ctx,
                     &prop_key,
                     prop,
-                    &classes,
-                    &function_paths,
+                    &class_lookup,
+                    &function_lookup,
                     &mut ref_classes,
                     &mut ref_funcs,
                 )?;
@@ -322,7 +335,7 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
             .map_err(|err| DbError::sqlite("准备写入 ue_function", err))?;
 
         for (func, _) in functions.values() {
-            if !classes.contains_key(&func.owner) && !packages.contains(&func.owner) {
+            if !class_lookup.contains(&func.owner) && !package_lookup.contains(&func.owner) {
                 ctx.record_issue(
                     "dangling_function_owner",
                     &func.path,
@@ -330,7 +343,7 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
                 )?;
             }
             if let Some(sup) = &func.super_function
-                && !function_paths.contains(sup.as_str())
+                && !function_lookup.contains(sup)
             {
                 ctx.record_issue(
                     "dangling_super_function",
@@ -344,8 +357,8 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
                     ctx,
                     &param_key,
                     param,
-                    &classes,
-                    &function_paths,
+                    &class_lookup,
+                    &function_lookup,
                     &mut ref_classes,
                     &mut ref_funcs,
                 )?;
@@ -356,8 +369,8 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
                     ctx,
                     &ret_key,
                     ret,
-                    &classes,
-                    &function_paths,
+                    &class_lookup,
+                    &function_lookup,
                     &mut ref_classes,
                     &mut ref_funcs,
                 )?;
@@ -399,15 +412,15 @@ fn check_property_refs<'a>(
     ctx: &ImportCtx<'_>,
     subject: &str,
     prop: &'a UeProperty,
-    classes: &BTreeMap<String, (UeClass, usize)>,
-    function_paths: &BTreeSet<&str>,
+    class_lookup: &UePathLookup<()>,
+    function_lookup: &UePathLookup<()>,
     ref_classes: &mut Vec<(&'static str, &'a str)>,
     ref_funcs: &mut Vec<&'a str>,
 ) -> Result<()> {
     ref_classes.clear();
     prop.collect_referenced_classes(ref_classes);
     for &(ref_kind, target) in ref_classes.iter() {
-        if !classes.contains_key(target) {
+        if !class_lookup.contains(target) {
             ctx.record_issue(
                 "dangling_property_type",
                 subject,
@@ -419,7 +432,7 @@ fn check_property_refs<'a>(
     ref_funcs.clear();
     prop.collect_referenced_functions(ref_funcs);
     for &sig in ref_funcs.iter() {
-        if !function_paths.contains(sig) {
+        if !function_lookup.contains(sig) {
             ctx.record_issue(
                 "dangling_signature_function",
                 subject,

@@ -19,7 +19,7 @@ use ffr_data::assets::widget::{WidgetNode, parse_widget_tree};
 use rusqlite::params;
 use serde_json::Value;
 
-use crate::build::{ImportCtx, StageStats};
+use crate::build::{ImportCtx, StageStats, UePathLookup};
 use crate::error::{DbError, Result};
 use crate::record::encode_doc;
 use crate::util::path_to_slash_string;
@@ -124,6 +124,7 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
     let mut known_context_paths: BTreeSet<String> = BTreeSet::new();
     let mut known_da_paths: BTreeSet<String> = BTreeSet::new();
     let mut known_bp_paths: BTreeSet<String> = BTreeSet::new();
+    let mut bp_path_lookup: UePathLookup<()> = UePathLookup::new();
     let mut known_bp_classes: BTreeSet<String> = BTreeSet::new();
 
     // Collect rows into BTreeMap/BTreeSet keyed by natural PRIMARY KEY before writing so
@@ -237,10 +238,13 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
                     )?;
                     continue;
                 }
+                bp_path_lookup.insert(bp.path.clone(), ());
                 known_bp_classes.insert(bp.class_name.clone());
 
                 if let (Some(parent_class), Some(parent_path)) = (&bp.parent_class, &bp.parent_path)
-                    && !parent_path.starts_with("/Script/")
+                    && !parent_path
+                        .get(..8)
+                        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("/Script/"))
                 {
                     pending_bp_parents.push(PendingBlueprintParentRef {
                         bp_path: bp.path.clone(),
@@ -263,7 +267,9 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
                                     continue;
                                 }
                                 if let Some(class_path) = &node.class_path
-                                    && !class_path.starts_with("/Script/")
+                                    && !class_path.get(..8).is_some_and(|prefix| {
+                                        prefix.eq_ignore_ascii_case("/Script/")
+                                    })
                                 {
                                     pending_widget_classes.push(PendingWidgetClassRef {
                                         bp_path: bp.path.clone(),
@@ -571,13 +577,14 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
             )?;
         }
     }
+    bp_path_lookup.record_collisions(ctx)?;
     pending_bp_parents.sort_by(|a, b| {
         a.bp_path
             .cmp(&b.bp_path)
             .then_with(|| a.parent_path.cmp(&b.parent_path))
     });
     for p in pending_bp_parents {
-        if !known_bp_paths.contains(&p.parent_path) && !known_bp_classes.contains(&p.parent_class) {
+        if !bp_path_lookup.contains(&p.parent_path) && !known_bp_classes.contains(&p.parent_class) {
             ctx.record_issue(
                 "dangling_blueprint_parent",
                 &p.bp_path,
@@ -595,7 +602,7 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
             .then_with(|| a.class_path.cmp(&b.class_path))
     });
     for w in pending_widget_classes {
-        if !known_bp_paths.contains(&w.class_path) && !known_bp_classes.contains(&w.widget_class) {
+        if !bp_path_lookup.contains(&w.class_path) && !known_bp_classes.contains(&w.widget_class) {
             ctx.record_issue(
                 "dangling_widget_class",
                 &format!("{}:{}", w.bp_path, w.widget_name),

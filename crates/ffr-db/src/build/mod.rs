@@ -616,6 +616,124 @@ pub(crate) fn relative_label_under(root: &Path, prefix: &str, path: &Path) -> St
         .unwrap_or_else(|| prefix.to_owned())
 }
 
+/// Normalize an Unreal Engine package or object path for ASCII case-insensitive lookup.
+///
+/// Uses ASCII-only lowercasing (never locale-dependent Unicode case conversion) so lookup keys are
+/// deterministic across platforms while stored data preserves original casing.
+pub(crate) fn normalize_ue_path_key(path: &str) -> String {
+    path.to_ascii_lowercase()
+}
+
+/// Case-only collision where multiple distinct Unreal Engine paths share the same
+/// [`normalize_ue_path_key`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct UePathCaseCollision {
+    pub normalized: String,
+    /// Lexicographically smallest original path chosen deterministically for lookups.
+    pub chosen: String,
+    /// Remaining distinct original paths in sorted order that collided with `chosen`.
+    pub others: Vec<String>,
+}
+
+/// Deterministic ASCII case-insensitive lookup map for Unreal Engine package and object paths.
+///
+/// Keys are normalized via [`normalize_ue_path_key`]. When multiple distinct original paths
+/// normalize to the same key, the entry with the lexicographically smallest original path always
+/// wins regardless of insertion order, and the collision is recorded for `build_issue` reporting
+/// (`kind = "ambiguous_package_case"`).
+#[derive(Debug, Clone)]
+pub(crate) struct UePathLookup<V> {
+    entries: BTreeMap<String, (String, V)>,
+    collisions: BTreeMap<String, BTreeSet<String>>,
+}
+
+impl<V> Default for UePathLookup<V> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<V> UePathLookup<V> {
+    pub(crate) fn new() -> Self {
+        Self {
+            entries: BTreeMap::new(),
+            collisions: BTreeMap::new(),
+        }
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    pub(crate) fn insert(&mut self, raw_path: String, value: V) {
+        let key = normalize_ue_path_key(&raw_path);
+        match self.entries.get_mut(&key) {
+            None => {
+                self.entries.insert(key, (raw_path, value));
+            }
+            Some((existing_raw, existing_val)) => {
+                if *existing_raw == raw_path {
+                    return;
+                }
+                let colliding = self.collisions.entry(key).or_default();
+                colliding.insert(existing_raw.clone());
+                colliding.insert(raw_path.clone());
+                if raw_path < *existing_raw {
+                    *existing_raw = raw_path;
+                    *existing_val = value;
+                }
+            }
+        }
+    }
+
+    pub(crate) fn get(&self, path: &str) -> Option<&V> {
+        self.entries
+            .get(&normalize_ue_path_key(path))
+            .map(|(_, value)| value)
+    }
+
+    pub(crate) fn get_entry(&self, path: &str) -> Option<(&str, &V)> {
+        self.entries
+            .get(&normalize_ue_path_key(path))
+            .map(|(raw, value)| (raw.as_str(), value))
+    }
+
+    pub(crate) fn contains(&self, path: &str) -> bool {
+        self.entries.contains_key(&normalize_ue_path_key(path))
+    }
+
+    pub(crate) fn collisions(&self) -> Vec<UePathCaseCollision> {
+        self.collisions
+            .iter()
+            .filter_map(|(normalized, originals)| {
+                let mut iter = originals.iter();
+                let chosen = iter.next()?.clone();
+                let others: Vec<String> = iter.cloned().collect();
+                Some(UePathCaseCollision {
+                    normalized: normalized.clone(),
+                    chosen,
+                    others,
+                })
+            })
+            .collect()
+    }
+
+    pub(crate) fn record_collisions(&self, ctx: &ImportCtx<'_>) -> Result<()> {
+        for collision in self.collisions() {
+            ctx.record_issue(
+                "ambiguous_package_case",
+                &collision.chosen,
+                &format!(
+                    "存在仅大小写不同的包路径（按原始路径排序采用 {}，其余：{}）",
+                    collision.chosen,
+                    collision.others.join("、")
+                ),
+            )?;
+        }
+        Ok(())
+    }
+}
+
 /// Format per-language untranslated row counts for one companion table deterministically for
 /// `stage_report.note`, e.g. `skill_untranslated(en=448, zh-Hans=757)`.
 pub(crate) fn format_untranslated_table_counts(
@@ -1216,5 +1334,37 @@ mod tests {
             leftover_temps.is_empty(),
             "leftover temp files found: {leftover_temps:?}"
         );
+    }
+
+    #[test]
+    fn ue_path_lookup_is_ascii_case_insensitive_and_order_independent() {
+        let mut a: UePathLookup<i64> = UePathLookup::new();
+        a.insert("/Game/Path/zeta".to_owned(), 3);
+        a.insert("/Game/Path/Zeta".to_owned(), 2);
+        a.insert("/Game/Path/ZETA".to_owned(), 1);
+        a.insert("/Game/Path/Unique".to_owned(), 99);
+
+        let mut b: UePathLookup<i64> = UePathLookup::new();
+        b.insert("/Game/Path/ZETA".to_owned(), 1);
+        b.insert("/Game/Path/Unique".to_owned(), 99);
+        b.insert("/Game/Path/zeta".to_owned(), 3);
+        b.insert("/Game/Path/Zeta".to_owned(), 2);
+
+        for lookup in [&a, &b] {
+            assert_eq!(lookup.get("/game/path/unique"), Some(&99));
+            assert_eq!(lookup.get("/game/path/zEtA"), Some(&1));
+            assert_eq!(
+                lookup.get_entry("/game/path/zeta"),
+                Some(("/Game/Path/ZETA", &1))
+            );
+            assert_eq!(
+                lookup.collisions(),
+                vec![UePathCaseCollision {
+                    normalized: "/game/path/zeta".to_owned(),
+                    chosen: "/Game/Path/ZETA".to_owned(),
+                    others: vec!["/Game/Path/Zeta".to_owned(), "/Game/Path/zeta".to_owned()],
+                }]
+            );
+        }
     }
 }
