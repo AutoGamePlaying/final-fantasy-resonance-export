@@ -80,7 +80,6 @@ internal sealed class WindowsSteamGameLauncher : IGameLauncher
 internal sealed class CliLogWriter : TextWriter
 {
     private const int DefaultMaxRetainedLogs = 10;
-    private static readonly UTF8Encoding Utf8WithoutBom = new(false);
     private static readonly Regex ManagedLogRegex = new(
         @"^(?:gui|cli)-\d{8}-\d{6}(?:-[0-9A-Za-z-]+)?\.log$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
@@ -121,12 +120,7 @@ internal sealed class CliLogWriter : TextWriter
                 var candidate = Path.Combine(logsDir, fileName);
                 try
                 {
-                    var stream = new FileStream(
-                        PathSupport.ToIoPath(candidate),
-                        FileMode.CreateNew,
-                        FileAccess.Write,
-                        FileShare.ReadWrite);
-                    fileWriter = new StreamWriter(stream, Utf8WithoutBom) { AutoFlush = true };
+                    fileWriter = TextOutput.CreateNewFileStreamWriter(candidate, FileShare.ReadWrite, autoFlush: true);
                     logPath = candidate;
                     break;
                 }
@@ -175,7 +169,7 @@ internal sealed class CliLogWriter : TextWriter
             _console.Write(value);
             try
             {
-                _fileWriter?.Write(value);
+                _fileWriter?.Write(value is null ? null : TextOutput.NormalizeLineEndings(value));
             }
             catch
             {
@@ -191,7 +185,7 @@ internal sealed class CliLogWriter : TextWriter
             _console.WriteLine(value);
             try
             {
-                _fileWriter?.WriteLine(value);
+                _fileWriter?.WriteLine(value is null ? null : TextOutput.NormalizeLineEndings(value));
             }
             catch
             {
@@ -312,7 +306,6 @@ internal sealed class CliLogWriter : TextWriter
 internal static class Ue4ssModManager
 {
     internal const string EmbeddedMainLuaResourceName = "FfrExport.FfrUsmapDump.main.lua";
-    private static readonly UTF8Encoding Utf8WithoutBom = new(false);
 
     internal static string LoadEmbeddedMainLua()
     {
@@ -360,8 +353,8 @@ internal static class Ue4ssModManager
 
         var luaContent = LoadEmbeddedMainLua();
         Directory.CreateDirectory(PathSupport.ToIoPath(scriptsDir));
-        File.WriteAllText(PathSupport.ToIoPath(mainLuaPath), luaContent, Utf8WithoutBom);
-        File.WriteAllText(PathSupport.ToIoPath(enabledTxtPath), string.Empty, Utf8WithoutBom);
+        TextOutput.WriteText(mainLuaPath, luaContent);
+        TextOutput.WriteText(enabledTxtPath, string.Empty);
         return modDir;
     }
 
@@ -429,7 +422,7 @@ internal static class Ue4ssModManager
 /// </summary>
 internal static class Ue4ssArchiveInstaller
 {
-    private static readonly UTF8Encoding Utf8WithoutBom = new(false);
+    private static readonly UTF8Encoding Utf8WithoutBom = TextOutput.Utf8WithoutBom;
 
     internal static Ue4ssInstallMarker InstallFromVerifiedZip(
         string zipPath,
@@ -496,7 +489,7 @@ internal static class Ue4ssArchiveInstaller
             {
                 var originalIni = File.ReadAllText(PathSupport.ToIoPath(settingsIniPath), Encoding.UTF8);
                 var patchedIni = PatchUe4ssSettingsIni(originalIni);
-                File.WriteAllText(PathSupport.ToIoPath(settingsIniPath), patchedIni, Utf8WithoutBom);
+                TextOutput.WriteText(settingsIniPath, patchedIni);
             }
 
             var markerRel = $"ue4ss/{Ue4ssRuntimeSupport.MarkerFileName}";
@@ -519,9 +512,9 @@ internal static class Ue4ssArchiveInstaller
                 Files: [.. recordedFiles],
                 Directories: [.. recordedDirs]);
 
-            var markerJson = JsonConvert.SerializeObject(marker, Formatting.Indented) + "\n";
+            var markerJson = TextOutput.SerializeJson(marker, trailingNewline: true);
             beforeFileWriteHook?.Invoke(markerRel);
-            File.WriteAllText(PathSupport.ToIoPath(markerPath), markerJson, Utf8WithoutBom);
+            TextOutput.WriteText(markerPath, markerJson);
             writtenFiles.Add(markerPath);
 
             return marker;

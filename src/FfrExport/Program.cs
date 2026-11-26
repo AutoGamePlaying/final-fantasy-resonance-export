@@ -26,7 +26,7 @@ internal static partial class Program
     private static readonly string[] DefaultPrefixes = ["FFRS/Content/Datatable/", "FFRS/Content/L10N/"];
     private static readonly string[] DefaultLanguages = ["zh-Hans", "en", "ja"];
     private static readonly Regex SafeLanguageTag = new("^[A-Za-z0-9-]+$", RegexOptions.CultureInvariant);
-    private static readonly UTF8Encoding Utf8WithoutBom = new(false);
+    private static readonly UTF8Encoding Utf8WithoutBom = TextOutput.Utf8WithoutBom;
 
     public static async Task<int> Main(string[] args)
     {
@@ -57,12 +57,12 @@ internal static partial class Program
             // Fall back to direct UTF-8 stream wrappers if the host console rejects code page changes.
             if (Console.IsOutputRedirected)
             {
-                Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), Utf8WithoutBom) { AutoFlush = true });
+                Console.SetOut(TextOutput.CreateConsoleStreamWriter(Console.OpenStandardOutput()));
             }
 
             if (Console.IsErrorRedirected)
             {
-                Console.SetError(new StreamWriter(Console.OpenStandardError(), Utf8WithoutBom) { AutoFlush = true });
+                Console.SetError(TextOutput.CreateConsoleStreamWriter(Console.OpenStandardError()));
             }
         }
     }
@@ -283,7 +283,6 @@ internal static partial class Program
                     throw new InvalidDataException("CUE4Parse 无法加载此包");
                 }
 
-                var json = JsonConvert.SerializeObject(package.GetExports().ToArray(), Formatting.Indented);
                 var relativePath = file.Path[..^Path.GetExtension(file.Path).Length] + ".json";
                 var jsonPath = Path.Combine(outputPath, relativePath.Replace('/', Path.DirectorySeparatorChar));
                 var parent = Path.GetDirectoryName(jsonPath);
@@ -292,7 +291,7 @@ internal static partial class Program
                     Directory.CreateDirectory(PathSupport.ToIoPath(parent));
                 }
 
-                await File.WriteAllTextAsync(PathSupport.ToIoPath(jsonPath), json, Utf8WithoutBom);
+                await TextOutput.WriteJsonAsync(jsonPath, package.GetExports().ToArray());
                 successCount++;
             }
             catch (Exception exception)
@@ -312,10 +311,7 @@ internal static partial class Program
             failureCount = failures.Count,
             failures = failures.Select(failure => new { path = failure.Path, error = failure.Error }).ToArray(),
         };
-        await File.WriteAllTextAsync(
-            PathSupport.ToIoPath(Path.Combine(outputPath, "manifest.json")),
-            JsonConvert.SerializeObject(manifest, Formatting.Indented),
-            Utf8WithoutBom);
+        await TextOutput.WriteJsonAsync(Path.Combine(outputPath, "manifest.json"), manifest);
         Console.WriteLine($"成功：{successCount}，失败：{failures.Count}");
         return failures.Count == 0 ? 0 : 1;
     }
@@ -409,8 +405,7 @@ internal static partial class Program
         foreach (var entry in parsedEntries)
         {
             var jsonPath = Path.Combine(outputPath, $"{entry.Language}.json");
-            var json = JsonConvert.SerializeObject(entry.Data, Formatting.Indented);
-            await File.WriteAllTextAsync(PathSupport.ToIoPath(jsonPath), json, Utf8WithoutBom);
+            await TextOutput.WriteJsonAsync(jsonPath, entry.Data);
             Console.WriteLine(
                 $"{entry.Language}：{entry.NamespaceCount} 个命名空间，{entry.EntryCount} 条，SHA-256：{entry.SourceSha256}");
         }
@@ -430,10 +425,7 @@ internal static partial class Program
                 entryCount = entry.EntryCount,
             }).ToArray(),
         };
-        await File.WriteAllTextAsync(
-            PathSupport.ToIoPath(Path.Combine(outputPath, "manifest.json")),
-            JsonConvert.SerializeObject(manifest, Formatting.Indented),
-            Utf8WithoutBom);
+        await TextOutput.WriteJsonAsync(Path.Combine(outputPath, "manifest.json"), manifest);
         Console.WriteLine($"已导出 {parsedEntries.Count} 种语言到 {outputDisplay}");
     }
 

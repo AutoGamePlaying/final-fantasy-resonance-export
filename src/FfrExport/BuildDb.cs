@@ -538,10 +538,7 @@ internal static partial class Program
             cue4ParseVersion = Cue4ParseVersion,
             started_at = startedAt.UtcDateTime.ToString("O", CultureInfo.InvariantCulture),
         };
-        await File.WriteAllTextAsync(
-            PathSupport.ToIoPath(metadataPath),
-            JsonConvert.SerializeObject(sentinel, Formatting.Indented) + "\n",
-            Utf8WithoutBom);
+        await TextOutput.WriteJsonAsync(metadataPath, sentinel, trailingNewline: true);
     }
 
     private static async Task<string> ReadFfrDbVersionAsync(string ffrDbExecutable)

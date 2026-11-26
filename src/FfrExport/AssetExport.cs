@@ -9,7 +9,6 @@ using CUE4Parse.UE4.Assets.Exports;
 using CUE4Parse.UE4.IO;
 using CUE4Parse.UE4.IO.Objects;
 using CUE4Parse.UE4.Readers;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace FfrExport;
@@ -94,7 +93,7 @@ internal static partial class Program
                     reason = c.Reason,
                 };
             }).ToArray();
-            Console.WriteLine(JsonConvert.SerializeObject(results, Formatting.Indented));
+            Console.WriteLine(TextOutput.SerializeJson(results));
             return 0;
         }
 
@@ -221,8 +220,7 @@ internal static partial class Program
                             fallbackContainerHeader);
                     }
 
-                    var json = JsonConvert.SerializeObject(exports, Formatting.Indented);
-                    var bytesWritten = WriteUtf8Atomic(targetPath, json);
+                    var bytesWritten = TextOutput.WriteJsonAtomic(targetPath, exports);
                     Interlocked.Increment(ref tracker.ExportedCount);
                     Interlocked.Increment(ref tracker.NewlyExportedCount);
                     Interlocked.Add(ref tracker.OutputBytes, bytesWritten);
@@ -423,10 +421,7 @@ internal static partial class Program
             failures = orderedFailures,
         };
 
-        await File.WriteAllTextAsync(
-            PathSupport.ToIoPath(Path.Combine(outputPath, "manifest.json")),
-            JsonConvert.SerializeObject(manifest, Formatting.Indented),
-            Utf8WithoutBom);
+        await TextOutput.WriteJsonAsync(Path.Combine(outputPath, "manifest.json"), manifest);
 
         Console.WriteLine(
             $"导出完成：包成功 {exportedPackages}（新增 {newlyExportedPackages}，续跑跳过 {resumedPackages}），" +
@@ -631,10 +626,7 @@ internal static partial class Program
             prefixes = prefixes.ToArray(),
             startedAt = startedAt.UtcDateTime.ToString("O", CultureInfo.InvariantCulture),
         };
-        await File.WriteAllTextAsync(
-            PathSupport.ToIoPath(Path.Combine(outputPath, "manifest.json")),
-            JsonConvert.SerializeObject(sentinel, Formatting.Indented),
-            Utf8WithoutBom);
+        await TextOutput.WriteJsonAsync(Path.Combine(outputPath, "manifest.json"), sentinel);
     }
 
     private static string BuildExportJsonPath(string outputRoot, string vfsPath)
@@ -642,13 +634,6 @@ internal static partial class Program
         var ext = Path.GetExtension(vfsPath);
         var withoutExt = string.IsNullOrEmpty(ext) ? vfsPath : vfsPath[..^ext.Length];
         return Path.Combine(outputRoot, (withoutExt + ".json").Replace('/', Path.DirectorySeparatorChar));
-    }
-
-    private static long WriteUtf8Atomic(string targetPath, string content)
-    {
-        var bytes = Utf8WithoutBom.GetBytes(content);
-        WriteBytesAtomic(targetPath, bytes);
-        return bytes.LongLength;
     }
 
     private static void WriteBytesAtomic(string targetPath, byte[] bytes)

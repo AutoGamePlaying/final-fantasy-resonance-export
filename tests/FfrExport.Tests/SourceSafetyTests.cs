@@ -14,6 +14,27 @@ public sealed class SourceSafetyTests
 
     private const string AllowedHttpClientFile = "src/FfrExport/Ue4ssDownloader.cs";
 
+    private static readonly HashSet<string> AllowedDirectTextOutputFiles = new(StringComparer.Ordinal)
+    {
+        "src/FfrExport/TextOutput.cs",
+        "src/FfrExport/TextOutput.Newtonsoft.cs",
+    };
+
+    private static readonly (string Name, Regex Pattern)[] ForbiddenDirectTextWritePatterns =
+    [
+        ("File.WriteAllText/Async", new Regex(@"\bFile\s*\.\s*WriteAllText(?:Async)?\b", RegexOptions.CultureInvariant)),
+        ("File.WriteAllLines/Async", new Regex(@"\bFile\s*\.\s*WriteAllLines(?:Async)?\b", RegexOptions.CultureInvariant)),
+        ("File.AppendAllText/Async", new Regex(@"\bFile\s*\.\s*AppendAllText(?:Async)?\b", RegexOptions.CultureInvariant)),
+        ("File.AppendAllLines/Async", new Regex(@"\bFile\s*\.\s*AppendAllLines(?:Async)?\b", RegexOptions.CultureInvariant)),
+        ("File.CreateText", new Regex(@"\bFile\s*\.\s*CreateText\b", RegexOptions.CultureInvariant)),
+        ("File.AppendText", new Regex(@"\bFile\s*\.\s*AppendText\b", RegexOptions.CultureInvariant)),
+        ("new StreamWriter", new Regex(@"\bnew\s+StreamWriter\b", RegexOptions.CultureInvariant)),
+        ("new JsonTextWriter", new Regex(@"\bnew\s+JsonTextWriter\b", RegexOptions.CultureInvariant)),
+        ("new Utf8JsonWriter", new Regex(@"\bnew\s+Utf8JsonWriter\b", RegexOptions.CultureInvariant)),
+        ("JsonConvert.SerializeObject", new Regex(@"\bJsonConvert\s*\.\s*SerializeObject\b", RegexOptions.CultureInvariant)),
+        ("JsonSerializer.Serialize", new Regex(@"\bJsonSerializer\s*\.\s*Serialize(?:Async|ToUtf8Bytes|ToDocument|ToElement|ToNode)?\b", RegexOptions.CultureInvariant)),
+    ];
+
     private static IReadOnlyList<(string RelativePath, string Content)> ReadSourceAndScriptFiles()
     {
         var root = TestHarness.FindRepoRoot();
@@ -155,5 +176,50 @@ public sealed class SourceSafetyTests
         Assert.Contains("format FfrExport.sln --verify-no-changes", checkScript, StringComparison.Ordinal);
         Assert.Contains("build FfrExport.sln -c Release", checkScript, StringComparison.Ordinal);
         Assert.Contains("test FfrExport.sln", checkScript, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AllSources_RouteTextWritesAndJsonSerializationThroughTextOutputHelper()
+    {
+        var root = TestHarness.FindRepoRoot();
+        var srcRoot = Path.Combine(root, "src");
+        var csFiles = Directory.EnumerateFiles(srcRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(path =>
+                !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+                && !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(csFiles.Length >= 15, "应扫描到 src/FfrExport 与 src/FfrExport.Gui 下的全部 C# 源码");
+
+        var seenAllowed = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var path in csFiles)
+        {
+            var relativePath = Path.GetRelativePath(root, path).Replace('\\', '/');
+            var content = File.ReadAllText(path);
+
+            if (AllowedDirectTextOutputFiles.Contains(relativePath))
+            {
+                seenAllowed.Add(relativePath);
+                continue;
+            }
+
+            foreach (var (name, pattern) in ForbiddenDirectTextWritePatterns)
+            {
+                Assert.False(
+                    pattern.IsMatch(content),
+                    $"{relativePath} 不得直接调用 {name}；请改用公共 TextOutput 辅助函数以统一 UTF-8 无 BOM 与 LF (\\n) 换行");
+            }
+        }
+
+        Assert.Equal(AllowedDirectTextOutputFiles.Count, seenAllowed.Count);
+
+        var textOutputCs = File.ReadAllText(Path.Combine(root, "src", "FfrExport", "TextOutput.cs"));
+        Assert.Contains("LineEnding = \"\\n\"", textOutputCs, StringComparison.Ordinal);
+        Assert.Contains("NewLine = LineEnding", textOutputCs, StringComparison.Ordinal);
+        Assert.Contains("encoderShouldEmitUTF8Identifier: false", textOutputCs, StringComparison.Ordinal);
+
+        var guiCsproj = File.ReadAllText(Path.Combine(root, "src", "FfrExport.Gui", "FfrExport.Gui.csproj"));
+        Assert.Contains(@"..\FfrExport\TextOutput.cs", guiCsproj, StringComparison.Ordinal);
     }
 }

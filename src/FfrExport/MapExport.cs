@@ -479,7 +479,7 @@ internal static partial class Program
             var table = package.GetExports().OfType<UDataTable>().FirstOrDefault();
             if (table is not null)
             {
-                var serialized = JObject.Parse(JsonConvert.SerializeObject(table));
+                var serialized = JObject.Parse(TextOutput.SerializeJsonCompact(table));
                 return ParseMapDataTableObject(serialized);
             }
         }
@@ -896,17 +896,7 @@ internal static partial class Program
 
     private static void WriteJsonAtomically(string targetPath, object value)
     {
-        var parent = Path.GetDirectoryName(targetPath);
-        if (parent is not null)
-        {
-            Directory.CreateDirectory(PathSupport.ToIoPath(parent));
-        }
-
-        var ioTarget = PathSupport.ToIoPath(targetPath);
-        var tempPath = PathSupport.ToIoPath($"{targetPath}.{Environment.ProcessId}.{Environment.CurrentManagedThreadId}.tmp");
-        var json = JsonConvert.SerializeObject(value, Formatting.Indented);
-        File.WriteAllText(tempPath, json + "\n", Utf8WithoutBom);
-        File.Move(tempPath, ioTarget, overwrite: true);
+        TextOutput.WriteJsonAtomic(targetPath, value, trailingNewline: true);
     }
 
     private static async Task WriteMapManifestAsync(
@@ -938,12 +928,9 @@ internal static partial class Program
             failures = failures.Select(f => new { path = f.Path, error = f.Error }).ToArray(),
         };
 
-        var targetPath = PathSupport.ToIoPath(Path.Combine(outputPath, "manifest.json"));
-        var tempPath = PathSupport.ToIoPath(Path.Combine(outputPath, "manifest.json.tmp"));
-        await File.WriteAllTextAsync(
-            tempPath,
-            JsonConvert.SerializeObject(manifest, Formatting.Indented) + "\n",
-            Utf8WithoutBom);
-        File.Move(tempPath, targetPath, overwrite: true);
+        await TextOutput.WriteJsonAtomicAsync(
+            Path.Combine(outputPath, "manifest.json"),
+            manifest,
+            trailingNewline: true);
     }
 }

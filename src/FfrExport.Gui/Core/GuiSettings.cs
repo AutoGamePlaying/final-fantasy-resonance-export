@@ -26,13 +26,11 @@ internal static class GuiSettingsStore
     internal const string SettingsFileName = AgpPaths.SettingsFileName;
     internal const string MigratedSuffix = ".migrated";
 
-    private static readonly UTF8Encoding Utf8WithoutBom = new(false);
+    private static readonly UTF8Encoding Utf8WithoutBom = TextOutput.Utf8WithoutBom;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNameCaseInsensitive = true,
-    };
+    private static readonly JsonSerializerOptions JsonOptions = TextOutput.CreateSystemJsonOptions(
+        writeIndented: true,
+        propertyNameCaseInsensitive: true);
 
     internal static string GetDefaultSettingsPath(
         string? agpHomeOverride = null,
@@ -187,35 +185,8 @@ internal static class GuiSettingsStore
             : settingsPath;
 
         var fullPath = Path.GetFullPath(path);
-        var dir = Path.GetDirectoryName(fullPath);
-        if (!string.IsNullOrWhiteSpace(dir))
-        {
-            Directory.CreateDirectory(PathSupport.ToIoPath(dir));
-        }
-
-        var json = JsonSerializer.Serialize(settings, JsonOptions) + "\n";
-        var tempPath = $"{fullPath}.{Environment.ProcessId}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            File.WriteAllText(PathSupport.ToIoPath(tempPath), json, Utf8WithoutBom);
-            File.Move(PathSupport.ToIoPath(tempPath), PathSupport.ToIoPath(fullPath), overwrite: true);
-        }
-        catch
-        {
-            try
-            {
-                if (File.Exists(PathSupport.ToIoPath(tempPath)))
-                {
-                    File.Delete(PathSupport.ToIoPath(tempPath));
-                }
-            }
-            catch
-            {
-                // Ignore temp cleanup errors.
-            }
-
-            throw;
-        }
+        var json = TextOutput.SerializeSystemJson(settings, JsonOptions, trailingNewline: true);
+        TextOutput.WriteTextAtomic(fullPath, json);
     }
 
     internal static (string? MigratedFromPath, string? WarningMessage) TryMigrateLegacySettings(

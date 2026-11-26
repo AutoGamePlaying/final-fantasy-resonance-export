@@ -24,7 +24,6 @@ internal sealed record GuiStartupInfo(
 /// </summary>
 internal sealed class GuiStartupLogSession
 {
-    private static readonly UTF8Encoding Utf8WithoutBom = new(false);
     private readonly object _writeLock = new();
 
     internal GuiStartupLogSession(
@@ -80,8 +79,8 @@ internal sealed class GuiStartupLogSession
         }
 
         var timestamp = DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss.fff zzz", CultureInfo.InvariantCulture);
-        var text = $"[{timestamp}] [ERROR] 阶段：{context}{Environment.NewLine}"
-            + $"非 Exception 未处理异常对象：{exceptionObject?.ToString() ?? "(null)"}{Environment.NewLine}";
+        var text = $"[{timestamp}] [ERROR] 阶段：{context}{TextOutput.LineEnding}"
+            + $"非 Exception 未处理异常对象：{exceptionObject?.ToString() ?? "(null)"}{TextOutput.LineEnding}";
         AppendRawText(text);
     }
 
@@ -89,7 +88,7 @@ internal sealed class GuiStartupLogSession
     {
         var timestamp = DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss.fff zzz", CultureInfo.InvariantCulture);
         var sanitized = GuiStartupLog.SanitizeSingleLine(message);
-        AppendRawText($"[{timestamp}] [{level}] {sanitized}{Environment.NewLine}");
+        AppendRawText($"[{timestamp}] [{level}] {sanitized}{TextOutput.LineEnding}");
     }
 
     private void AppendRawText(string text)
@@ -103,11 +102,7 @@ internal sealed class GuiStartupLogSession
         {
             try
             {
-                var ioPath = PathSupport.ToIoPath(LogFilePath);
-                using var stream = new FileStream(ioPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
-                using var writer = new StreamWriter(stream, Utf8WithoutBom);
-                writer.Write(text);
-                writer.Flush();
+                TextOutput.AppendText(LogFilePath, text);
             }
             catch (Exception exception)
             {
@@ -131,8 +126,6 @@ internal static class GuiStartupLog
     internal const int DefaultMaxRetainedLogs = 10;
 
     private const int MaxInnerExceptionDepth = 16;
-
-    private static readonly UTF8Encoding Utf8WithoutBom = new(false);
 
     // Restrict pruning strictly to files matching our timestamped gui-*.log / cli-*.log naming scheme so fallback to %TEMP%
     // never touches unrelated files.
@@ -625,8 +618,8 @@ internal static class GuiStartupLog
             }
 
             var content = string.IsNullOrWhiteSpace(extraWarningLine)
-                ? startupLine + Environment.NewLine
-                : startupLine + Environment.NewLine + extraWarningLine + Environment.NewLine;
+                ? startupLine + TextOutput.LineEnding
+                : startupLine + TextOutput.LineEnding + extraWarningLine + TextOutput.LineEnding;
 
             for (var attempt = 0; attempt < 100; attempt++)
             {
@@ -634,14 +627,7 @@ internal static class GuiStartupLog
                 var candidatePath = Path.Combine(directory, fileName);
                 try
                 {
-                    using var stream = new FileStream(
-                        PathSupport.ToIoPath(candidatePath),
-                        FileMode.CreateNew,
-                        FileAccess.Write,
-                        FileShare.ReadWrite);
-                    using var writer = new StreamWriter(stream, Utf8WithoutBom);
-                    writer.Write(content);
-                    writer.Flush();
+                    TextOutput.WriteNewTextFile(candidatePath, content);
                     createdFilePath = candidatePath;
                     return true;
                 }
@@ -653,16 +639,7 @@ internal static class GuiStartupLog
 
             var uniqueName = $"{LogFilePrefix}{now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture)}-{Guid.NewGuid().ToString("N")[..8]}{LogFileExtension}";
             var uniquePath = Path.Combine(directory, uniqueName);
-            using (var stream = new FileStream(
-                PathSupport.ToIoPath(uniquePath),
-                FileMode.CreateNew,
-                FileAccess.Write,
-                FileShare.ReadWrite))
-            using (var writer = new StreamWriter(stream, Utf8WithoutBom))
-            {
-                writer.Write(content);
-                writer.Flush();
-            }
+            TextOutput.WriteNewTextFile(uniquePath, content);
 
             createdFilePath = uniquePath;
             return true;

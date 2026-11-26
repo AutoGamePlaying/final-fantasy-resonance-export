@@ -206,7 +206,7 @@ internal static class Program
                 throw new InvalidOperationException("默认输出路径计算自检失败。");
             }
 
-            var serialized = JsonSerializer.Serialize(new GuiSettings(Path.GetTempPath(), true));
+            var serialized = TextOutput.SerializeSystemJson(new GuiSettings(Path.GetTempPath(), true));
             var deserialized = JsonSerializer.Deserialize<GuiSettings>(serialized);
             if (deserialized is null || !deserialized.IncludeJmap)
             {

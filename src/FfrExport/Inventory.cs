@@ -3,7 +3,6 @@ using CUE4Parse.FileProvider;
 using CUE4Parse.FileProvider.Objects;
 using CUE4Parse.UE4.AssetRegistry;
 using CUE4Parse.UE4.AssetRegistry.Objects;
-using Newtonsoft.Json;
 
 namespace FfrExport;
 
@@ -104,8 +103,8 @@ internal static partial class Program
         string outputArgument,
         DateTimeOffset startedAt)
     {
-        var registryJsonlPath = PathSupport.ToIoPath(Path.Combine(outputPath, "registry.jsonl"));
-        await using (var writer = new StreamWriter(registryJsonlPath, false, Utf8WithoutBom))
+        var registryJsonlPath = Path.Combine(outputPath, "registry.jsonl");
+        await using (var writer = TextOutput.CreateStreamWriter(registryJsonlPath))
         {
             foreach (var pkg in snapshot.Packages)
             {
@@ -125,7 +124,7 @@ internal static partial class Program
                     decision = pkg.Classification.Decision,
                     category = pkg.Classification.Category,
                 };
-                await writer.WriteLineAsync(JsonConvert.SerializeObject(record, Formatting.None));
+                await writer.WriteLineAsync(TextOutput.SerializeJsonCompact(record));
             }
         }
 
@@ -248,10 +247,7 @@ internal static partial class Program
             unparsedOrLimitations = snapshot.Notes.ToArray(),
         };
 
-        await File.WriteAllTextAsync(
-            PathSupport.ToIoPath(Path.Combine(outputPath, "summary.json")),
-            JsonConvert.SerializeObject(summary, Formatting.Indented),
-            Utf8WithoutBom);
+        await TextOutput.WriteJsonAsync(Path.Combine(outputPath, "summary.json"), summary);
 
         var manifest = new
         {
@@ -264,10 +260,7 @@ internal static partial class Program
             unmatchedRegistryPackages = snapshot.Packages.Count(pkg => !pkg.MatchedInVfs),
             unindexedVfsPackages = unindexedPackages.Length,
         };
-        await File.WriteAllTextAsync(
-            PathSupport.ToIoPath(Path.Combine(outputPath, "manifest.json")),
-            JsonConvert.SerializeObject(manifest, Formatting.Indented),
-            Utf8WithoutBom);
+        await TextOutput.WriteJsonAsync(Path.Combine(outputPath, "manifest.json"), manifest);
 
         Console.WriteLine(
             $"已索引 {snapshot.Packages.Count} 个包（{byClass.Length} 个主类，{snapshot.AssetDataCount} 条 AssetData），写到 {outputArgument}");
