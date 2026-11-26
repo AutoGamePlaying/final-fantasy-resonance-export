@@ -101,6 +101,11 @@ internal static partial class Program
 
         switch (args[0])
         {
+            case "--help":
+            case "-h":
+            case "help":
+                PrintHelp(Console.Out);
+                return 0;
             case "list":
                 ListAssets(args[1..]);
                 return 0;
@@ -126,8 +131,27 @@ internal static partial class Program
                 return await RunUninstallUe4ssAsync(args[1..]);
             default:
                 throw new ArgumentException(
-                    $"未知子命令：{args[0]}；可用命令：list、raw、export、locres、inventory、export-assets、export-maps、build-db、fetch-usmap、uninstall-ue4ss");
+                    $"未知子命令：{args[0]}；可用命令：list、raw、export、locres、inventory、export-assets、export-maps、build-db、fetch-usmap、uninstall-ue4ss（运行 --help 查看说明）");
         }
+    }
+
+    internal static void PrintHelp(TextWriter output)
+    {
+        output.WriteLine("《FINAL FANTASY RESONANCE》资源导出与建库工具（ffr-export）");
+        output.WriteLine();
+        output.WriteLine("用法：");
+        output.WriteLine("  ffr-export                                              启动中文交互式建库向导");
+        output.WriteLine("  ffr-export build-db --game <目录> --usmap <文件> [选项]  一键导出并调用 ffr-db 建库");
+        output.WriteLine("  ffr-export fetch-usmap --game <目录> [--timeout <秒>] [--yes]");
+        output.WriteLine("                                                          自动获取当前游戏版本的 .usmap");
+        output.WriteLine("  ffr-export uninstall-ue4ss --game <目录> [--include-foreign] [--yes]");
+        output.WriteLine("                                                          清理本工具安装的 UE4SS 与临时残留");
+        output.WriteLine("  ffr-export list | raw | export | locres | inventory | export-assets | export-maps");
+        output.WriteLine("                                                          分阶段导出与诊断子命令");
+        output.WriteLine("  ffr-export --help | -h | help                           显示本帮助信息");
+        output.WriteLine();
+        output.WriteLine("环境变量：");
+        output.WriteLine("  AGP_HOME   显式指定数据根目录（覆盖默认自动选择顺序；不可写时直接报错）");
     }
 
     private static void ListAssets(string[] args)
