@@ -12,7 +12,7 @@ use crate::error::{DbError, Result};
 /// `PRAGMA user_version`.
 ///
 /// Increment whenever any table or index schema changes in an incompatible way.
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 3;
 
 /// Fixed SQLite page size (bytes) applied before creating any tables for reproducible builds.
 pub const DB_PAGE_SIZE: u32 = 4096;

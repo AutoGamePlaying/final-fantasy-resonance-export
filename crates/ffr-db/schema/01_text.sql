@@ -1,4 +1,5 @@
--- 01_text: Localization text, FTS5 trigram index, and StringTable entries.
+-- 01_text: Localization text (translated + native ja), untranslated entries,
+-- FTS5 trigram index over `text`, and StringTable entries.
 
 CREATE TABLE text (
     id INTEGER NOT NULL UNIQUE,
@@ -6,6 +7,15 @@ CREATE TABLE text (
     key TEXT NOT NULL,
     lang TEXT NOT NULL,
     value TEXT NOT NULL,
+    PRIMARY KEY (ns, key, lang)
+);
+
+CREATE TABLE text_untranslated (
+    ns TEXT NOT NULL,
+    key TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    value TEXT NOT NULL,
+    reason TEXT NOT NULL,
     PRIMARY KEY (ns, key, lang)
 );
 

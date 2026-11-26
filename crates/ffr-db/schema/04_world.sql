@@ -288,3 +288,135 @@ CREATE VIRTUAL TABLE world_name_fts USING fts5(
     name,
     tokenize='trigram'
 );
+
+CREATE TABLE map_untranslated (
+    map_id INTEGER NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (map_id, field, lang)
+);
+
+CREATE TABLE island_untranslated (
+    island_type TEXT NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (island_type, field, lang)
+);
+
+CREATE TABLE save_point_command_untranslated (
+    command_type TEXT NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (command_type, field, lang)
+);
+
+CREATE TABLE item_untranslated (
+    item_id INTEGER NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (item_id, field, lang)
+);
+
+CREATE TABLE shop_untranslated (
+    shop_id INTEGER NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (shop_id, field, lang)
+);
+
+CREATE TABLE quest_untranslated (
+    quest_id INTEGER NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (quest_id, field, lang)
+);
+
+CREATE TABLE quest_prize_untranslated (
+    quest_id INTEGER NOT NULL,
+    prize_index INTEGER NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (quest_id, prize_index, field, lang)
+);
+
+CREATE TABLE quest_board_untranslated (
+    row_key TEXT NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (row_key, field, lang)
+);
+
+CREATE TABLE chapter_untranslated (
+    chapter_no INTEGER NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (chapter_no, field, lang)
+);
+
+CREATE TABLE main_scenario_untranslated (
+    row_key TEXT NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (row_key, field, lang)
+);
+
+CREATE TABLE main_quest_untranslated (
+    quest_id INTEGER NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (quest_id, field, lang)
+);
+
+CREATE TABLE playable_unit_untranslated (
+    map_unit_id INTEGER NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (map_unit_id, field, lang)
+);
+
+CREATE TABLE item_drop_untranslated (
+    unit_id INTEGER NOT NULL,
+    drop_kind TEXT NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (unit_id, drop_kind, field, lang)
+);

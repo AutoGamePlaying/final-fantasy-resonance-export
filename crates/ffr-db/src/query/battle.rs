@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::GameDb;
 use crate::error::{DbError, Result};
+use crate::query::text::{UntranslatedField, query_untranslated_single_key};
 use crate::record;
 
 /// One skill link belonging to a unit, paired with its provenance (`source`, optional `level`)
@@ -174,6 +175,18 @@ pub(crate) const SQL_ENCOUNTERS_IN_POOL: &str = "SELECT pool_path, region, row_k
      WHERE pool_path = ?1 \
      ORDER BY row_key";
 pub(crate) const SQL_BREAK_CALC: &str = "SELECT doc FROM battle_param WHERE id = 1";
+pub(crate) const SQL_UNTRANSLATED_UNITS: &str = "SELECT unit_id, field, lang, text_ns, text_key, value \
+     FROM unit_untranslated WHERE lang = ?1 ORDER BY unit_id, field";
+pub(crate) const SQL_UNIT_UNTRANSLATED_FIELDS: &str = "SELECT unit_id, field, lang, text_ns, text_key, value \
+     FROM unit_untranslated WHERE unit_id = ?1 ORDER BY field, lang";
+pub(crate) const SQL_UNTRANSLATED_SKILLS: &str = "SELECT skill_id, field, lang, text_ns, text_key, value \
+     FROM skill_untranslated WHERE lang = ?1 ORDER BY skill_id, field";
+pub(crate) const SQL_SKILL_UNTRANSLATED_FIELDS: &str = "SELECT skill_id, field, lang, text_ns, text_key, value \
+     FROM skill_untranslated WHERE skill_id = ?1 ORDER BY field, lang";
+pub(crate) const SQL_UNTRANSLATED_COMMAND_SKILLS: &str = "SELECT command_skill_id, field, lang, text_ns, text_key, value \
+     FROM command_skill_untranslated WHERE lang = ?1 ORDER BY command_skill_id, field";
+pub(crate) const SQL_COMMAND_SKILL_UNTRANSLATED_FIELDS: &str = "SELECT command_skill_id, field, lang, text_ns, text_key, value \
+     FROM command_skill_untranslated WHERE command_skill_id = ?1 ORDER BY field, lang";
 
 impl GameDb {
     /// Fetch one [`Unit`] by primary key `id`.
@@ -711,6 +724,79 @@ impl GameDb {
                 .map_err(|err| DbError::sqlite("检查敌人章节映射状态", err))?
                 .is_some();
             Ok(!missing)
+        })
+    }
+
+    // ---- Companion `<table_name>_untranslated` queries ----
+
+    /// Return all untranslated `unit` fields for `lang`, ordered by `(unit_id, field)`.
+    pub fn untranslated_units(&self, lang: &str) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(conn, "unit_untranslated", SQL_UNTRANSLATED_UNITS, [lang])
+        })
+    }
+
+    /// Return all untranslated fields of `unit_id`, ordered by `(field, lang)`.
+    pub fn unit_untranslated_fields(&self, unit_id: i64) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "unit_untranslated",
+                SQL_UNIT_UNTRANSLATED_FIELDS,
+                [unit_id],
+            )
+        })
+    }
+
+    /// Return all untranslated `skill` fields for `lang`, ordered by `(skill_id, field)`.
+    pub fn untranslated_skills(&self, lang: &str) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "skill_untranslated",
+                SQL_UNTRANSLATED_SKILLS,
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of `skill_id`, ordered by `(field, lang)`.
+    pub fn skill_untranslated_fields(&self, skill_id: i64) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "skill_untranslated",
+                SQL_SKILL_UNTRANSLATED_FIELDS,
+                [skill_id],
+            )
+        })
+    }
+
+    /// Return all untranslated `command_skill` fields for `lang`, ordered by
+    /// `(command_skill_id, field)`.
+    pub fn untranslated_command_skills(&self, lang: &str) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "command_skill_untranslated",
+                SQL_UNTRANSLATED_COMMAND_SKILLS,
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of `command_skill_id`, ordered by `(field, lang)`.
+    pub fn command_skill_untranslated_fields(
+        &self,
+        command_skill_id: i64,
+    ) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "command_skill_untranslated",
+                SQL_COMMAND_SKILL_UNTRANSLATED_FIELDS,
+                [command_skill_id],
+            )
         })
     }
 }

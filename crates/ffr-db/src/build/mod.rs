@@ -616,6 +616,30 @@ pub(crate) fn relative_label_under(root: &Path, prefix: &str, path: &Path) -> St
         .unwrap_or_else(|| prefix.to_owned())
 }
 
+/// Format per-language untranslated row counts for one companion table deterministically for
+/// `stage_report.note`, e.g. `skill_untranslated(en=448, zh-Hans=757)`.
+pub(crate) fn format_untranslated_table_counts(
+    table: &str,
+    non_native_langs: &[String],
+    counts: &BTreeMap<String, u64>,
+) -> String {
+    let mut keys: BTreeSet<&str> = non_native_langs.iter().map(String::as_str).collect();
+    for lang in counts.keys() {
+        keys.insert(lang.as_str());
+    }
+    if keys.is_empty() {
+        return format!("{table}(0)");
+    }
+    let parts: Vec<String> = keys
+        .into_iter()
+        .map(|lang| {
+            let count = counts.get(lang).copied().unwrap_or(0);
+            format!("{lang}={count}")
+        })
+        .collect();
+    format!("{table}({})", parts.join(", "))
+}
+
 fn resolve_worker_threads(explicit: Option<usize>) -> usize {
     if let Some(n) = explicit {
         return n.max(1);

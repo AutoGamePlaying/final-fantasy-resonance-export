@@ -3,8 +3,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use ffr_data::{
-    DEFAULT_LOCRES_LANGUAGES, datatable_dir, load_localization, localization_dir,
-    localization_file, parse_string_table_document,
+    DEFAULT_LOCRES_LANGUAGES, NATIVE_LANGUAGE, datatable_dir, load_localization, localization_dir,
+    localization_file, parse_string_table_document, untranslated_reason_code,
 };
 use rusqlite::params;
 
@@ -12,7 +12,8 @@ use crate::build::datatable::{export_type, json_files_under, read_export_json};
 use crate::build::{ImportCtx, StageStats};
 use crate::error::{DbError, Result};
 
-/// Import multilingual localization text and string table entries in natural primary-key order.
+/// Import multilingual localization text (translated + native `ja` into `text`, untranslated
+/// non-native entries into `text_untranslated`) and string table entries in natural PK order.
 pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
     let export_root = ctx.require_data_store()?.export_root();
     let loc_dir = localization_dir(export_root);
@@ -20,7 +21,10 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
     let table_files = json_files_under(&table_root)?;
 
     let mut languages: BTreeSet<&'static str> = BTreeSet::new();
-    let mut text_entries: BTreeMap<(String, String, &'static str), String> = BTreeMap::new();
+    // Group by `(ns, key)` -> `lang -> value` so iteration follows natural PK `(ns, key, lang)`
+    // order while giving O(1) access to the native `"ja"` string for untranslated detection.
+    let mut text_by_key: BTreeMap<(String, String), BTreeMap<&'static str, String>> =
+        BTreeMap::new();
     for language in DEFAULT_LOCRES_LANGUAGES {
         let path = localization_file(export_root, language);
         if !path.is_file() {
@@ -30,7 +34,8 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
         languages.insert(language);
         for (namespace, entries) in catalog.namespaces {
             for (key, value) in entries {
-                text_entries.insert((namespace.clone(), key, language), value);
+                let by_lang = text_by_key.entry((namespace.clone(), key)).or_default();
+                by_lang.insert(language, value);
             }
         }
     }
@@ -48,9 +53,16 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
     }
 
     let language_count = languages.len() as u64;
-    let text_count = text_entries.len() as u64;
     let string_table_count = string_tables.len() as u64;
+    let mut translated_text_count = 0_u64;
+    let mut untranslated_count = 0_u64;
     let mut string_entry_count = 0_u64;
+    let mut untranslated_by_lang: BTreeMap<&'static str, u64> = languages
+        .iter()
+        .copied()
+        .filter(|&lang| lang != NATIVE_LANGUAGE)
+        .map(|lang| (lang, 0_u64))
+        .collect();
 
     if language_count == 0 && string_table_count == 0 {
         return Ok(StageStats::skipped("未实现"));
@@ -66,6 +78,12 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
                 "INSERT INTO text (id, ns, key, lang, value) VALUES (?1, ?2, ?3, ?4, ?5)",
             )
             .map_err(|err| DbError::sqlite("准备写入 text", err))?;
+        let mut insert_untranslated = tx
+            .prepare_cached(
+                "INSERT INTO text_untranslated (ns, key, lang, value, reason) \
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+            )
+            .map_err(|err| DbError::sqlite("准备写入 text_untranslated", err))?;
         let mut insert_string_table = tx
             .prepare_cached("INSERT INTO string_table (table_id, ns) VALUES (?1, ?2)")
             .map_err(|err| DbError::sqlite("准备写入 string_table", err))?;
@@ -81,13 +99,34 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
                 .map_err(|err| DbError::sqlite(format!("写入语言 {language}"), err))?;
         }
 
-        for (idx, ((namespace, key, language), value)) in text_entries.into_iter().enumerate() {
-            let text_id = i64::try_from(idx + 1).unwrap_or(i64::MAX);
-            insert_text
-                .execute(params![text_id, namespace, key, language, value])
-                .map_err(|err| {
-                    DbError::sqlite(format!("写入文本 {namespace}/{key}（{language}）"), err)
-                })?;
+        let mut text_id = 0_i64;
+        for ((namespace, key), by_lang) in &text_by_key {
+            let ja_value = by_lang.get(NATIVE_LANGUAGE).map(String::as_str);
+            for (&language, value) in by_lang {
+                if let Some(reason) = untranslated_reason_code(language, value, ja_value) {
+                    insert_untranslated
+                        .execute(params![namespace, key, language, value, reason])
+                        .map_err(|err| {
+                            DbError::sqlite(
+                                format!("写入未翻译文本 {namespace}/{key}（{language}）"),
+                                err,
+                            )
+                        })?;
+                    *untranslated_by_lang.entry(language).or_insert(0) += 1;
+                    untranslated_count = untranslated_count.saturating_add(1);
+                } else {
+                    text_id = text_id.saturating_add(1);
+                    insert_text
+                        .execute(params![text_id, namespace, key, language, value])
+                        .map_err(|err| {
+                            DbError::sqlite(
+                                format!("写入文本 {namespace}/{key}（{language}）"),
+                                err,
+                            )
+                        })?;
+                    translated_text_count = translated_text_count.saturating_add(1);
+                }
+            }
         }
 
         for (table_id, table) in &string_tables {
@@ -120,10 +159,24 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
     if loc_dir.is_dir() {
         ctx.record_dir_source(&loc_dir, Some(language_count))?;
     }
-    Ok(StageStats::ok_with_note(
-        text_count.saturating_add(string_entry_count),
+    let untranslated_detail = if untranslated_by_lang.is_empty() {
+        format!("text_untranslated={untranslated_count}")
+    } else {
+        let parts: Vec<String> = untranslated_by_lang
+            .iter()
+            .map(|(lang, count)| format!("{lang}={count}"))
+            .collect();
         format!(
-            "text={text_count}, string_table={string_table_count}, string_table_entry={string_entry_count}"
+            "text_untranslated={untranslated_count}({})",
+            parts.join(", ")
+        )
+    };
+    Ok(StageStats::ok_with_note(
+        translated_text_count
+            .saturating_add(untranslated_count)
+            .saturating_add(string_entry_count),
+        format!(
+            "text={translated_text_count}, {untranslated_detail}, string_table={string_table_count}, string_table_entry={string_entry_count}"
         ),
     ))
 }

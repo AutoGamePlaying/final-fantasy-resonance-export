@@ -1,5 +1,10 @@
 {
   "FakeTextNamespace": {
-    "Greeting": "鋼の蝙蝠"
+    "Greeting": "鋼の蝙蝠",
+    "UntranslatedKana": "テスト未翻訳の技",
+    "SameKanjiName": "白虎"
+  },
+  "InlineNs": {
+    "UntranslatedInline": "仮の未翻訳メッセージ"
   }
 }

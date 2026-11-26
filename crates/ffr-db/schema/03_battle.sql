@@ -138,3 +138,33 @@ CREATE TABLE enemy_chapter (
     source_ref TEXT NOT NULL,
     PRIMARY KEY (unit_id, chapter_no, source, battle_group_id, source_ref)
 );
+
+CREATE TABLE unit_untranslated (
+    unit_id INTEGER NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (unit_id, field, lang)
+);
+
+CREATE TABLE skill_untranslated (
+    skill_id INTEGER NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (skill_id, field, lang)
+);
+
+CREATE TABLE command_skill_untranslated (
+    command_skill_id INTEGER NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (command_skill_id, field, lang)
+);

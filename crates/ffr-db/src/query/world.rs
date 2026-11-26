@@ -19,6 +19,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::GameDb;
 use crate::error::{DbError, Result};
+use crate::query::text::{
+    UntranslatedField, query_untranslated_pair_key, query_untranslated_single_key,
+};
 use crate::record::{decode_doc, query_doc_opt, query_docs, query_keyed_doc_opt};
 
 /// Compact catalog entry for one map, pre-joined with teleportability and treasure count.
@@ -1278,6 +1281,397 @@ impl GameDb {
                 .optional()
                 .map_err(|err| DbError::sqlite("检查旗标条件数据是否就绪", err))?
                 .is_some())
+        })
+    }
+
+    // ---- Companion `<table_name>_untranslated` queries ----
+
+    /// Return all untranslated `map` fields for `lang`, ordered by `(map_id, field)`.
+    pub fn untranslated_maps(&self, lang: &str) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "map_untranslated",
+                "SELECT map_id, field, lang, text_ns, text_key, value \
+                 FROM map_untranslated WHERE lang = ?1 ORDER BY map_id, field",
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of `map_id`, ordered by `(field, lang)`.
+    pub fn map_untranslated_fields(&self, map_id: i64) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "map_untranslated",
+                "SELECT map_id, field, lang, text_ns, text_key, value \
+                 FROM map_untranslated WHERE map_id = ?1 ORDER BY field, lang",
+                [map_id],
+            )
+        })
+    }
+
+    /// Return all untranslated `island` fields for `lang`, ordered by `(island_type, field)`.
+    pub fn untranslated_islands(&self, lang: &str) -> Result<Vec<UntranslatedField<String>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "island_untranslated",
+                "SELECT island_type, field, lang, text_ns, text_key, value \
+                 FROM island_untranslated WHERE lang = ?1 ORDER BY island_type, field",
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of `island_type`, ordered by `(field, lang)`.
+    pub fn island_untranslated_fields(
+        &self,
+        island_type: &str,
+    ) -> Result<Vec<UntranslatedField<String>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "island_untranslated",
+                "SELECT island_type, field, lang, text_ns, text_key, value \
+                 FROM island_untranslated WHERE island_type = ?1 ORDER BY field, lang",
+                [island_type],
+            )
+        })
+    }
+
+    /// Return all untranslated `save_point_command` fields for `lang`, ordered by
+    /// `(command_type, field)`.
+    pub fn untranslated_save_point_commands(
+        &self,
+        lang: &str,
+    ) -> Result<Vec<UntranslatedField<String>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "save_point_command_untranslated",
+                "SELECT command_type, field, lang, text_ns, text_key, value \
+                 FROM save_point_command_untranslated WHERE lang = ?1 ORDER BY command_type, field",
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of `command_type`, ordered by `(field, lang)`.
+    pub fn save_point_command_untranslated_fields(
+        &self,
+        command_type: &str,
+    ) -> Result<Vec<UntranslatedField<String>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "save_point_command_untranslated",
+                "SELECT command_type, field, lang, text_ns, text_key, value \
+                 FROM save_point_command_untranslated WHERE command_type = ?1 ORDER BY field, lang",
+                [command_type],
+            )
+        })
+    }
+
+    /// Return all untranslated `item` fields for `lang`, ordered by `(item_id, field)`.
+    pub fn untranslated_items(&self, lang: &str) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "item_untranslated",
+                "SELECT item_id, field, lang, text_ns, text_key, value \
+                 FROM item_untranslated WHERE lang = ?1 ORDER BY item_id, field",
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of `item_id`, ordered by `(field, lang)`.
+    pub fn item_untranslated_fields(&self, item_id: i64) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "item_untranslated",
+                "SELECT item_id, field, lang, text_ns, text_key, value \
+                 FROM item_untranslated WHERE item_id = ?1 ORDER BY field, lang",
+                [item_id],
+            )
+        })
+    }
+
+    /// Return all untranslated `shop` fields for `lang`, ordered by `(shop_id, field)`.
+    pub fn untranslated_shops(&self, lang: &str) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "shop_untranslated",
+                "SELECT shop_id, field, lang, text_ns, text_key, value \
+                 FROM shop_untranslated WHERE lang = ?1 ORDER BY shop_id, field",
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of `shop_id`, ordered by `(field, lang)`.
+    pub fn shop_untranslated_fields(&self, shop_id: i64) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "shop_untranslated",
+                "SELECT shop_id, field, lang, text_ns, text_key, value \
+                 FROM shop_untranslated WHERE shop_id = ?1 ORDER BY field, lang",
+                [shop_id],
+            )
+        })
+    }
+
+    /// Return all untranslated `quest` fields for `lang`, ordered by `(quest_id, field)`.
+    pub fn untranslated_quests(&self, lang: &str) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "quest_untranslated",
+                "SELECT quest_id, field, lang, text_ns, text_key, value \
+                 FROM quest_untranslated WHERE lang = ?1 ORDER BY quest_id, field",
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of `quest_id`, ordered by `(field, lang)`.
+    pub fn quest_untranslated_fields(&self, quest_id: i64) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "quest_untranslated",
+                "SELECT quest_id, field, lang, text_ns, text_key, value \
+                 FROM quest_untranslated WHERE quest_id = ?1 ORDER BY field, lang",
+                [quest_id],
+            )
+        })
+    }
+
+    /// Return all untranslated `quest_prize` fields for `lang`, ordered by
+    /// `(quest_id, prize_index, field)`.
+    pub fn untranslated_quest_prizes(
+        &self,
+        lang: &str,
+    ) -> Result<Vec<UntranslatedField<(i64, i64)>>> {
+        self.with_conn(|conn| {
+            query_untranslated_pair_key(
+                conn,
+                "quest_prize_untranslated",
+                "SELECT quest_id, prize_index, field, lang, text_ns, text_key, value \
+                 FROM quest_prize_untranslated WHERE lang = ?1 \
+                 ORDER BY quest_id, prize_index, field",
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of quest prize `(quest_id, prize_index)`, ordered by
+    /// `(field, lang)`.
+    pub fn quest_prize_untranslated_fields(
+        &self,
+        quest_id: i64,
+        prize_index: i64,
+    ) -> Result<Vec<UntranslatedField<(i64, i64)>>> {
+        self.with_conn(|conn| {
+            query_untranslated_pair_key(
+                conn,
+                "quest_prize_untranslated",
+                "SELECT quest_id, prize_index, field, lang, text_ns, text_key, value \
+                 FROM quest_prize_untranslated WHERE quest_id = ?1 AND prize_index = ?2 \
+                 ORDER BY field, lang",
+                params![quest_id, prize_index],
+            )
+        })
+    }
+
+    /// Return all untranslated `quest_board` fields for `lang`, ordered by `(row_key, field)`.
+    pub fn untranslated_quest_boards(&self, lang: &str) -> Result<Vec<UntranslatedField<String>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "quest_board_untranslated",
+                "SELECT row_key, field, lang, text_ns, text_key, value \
+                 FROM quest_board_untranslated WHERE lang = ?1 ORDER BY row_key, field",
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of quest board row `row_key`, ordered by `(field, lang)`.
+    pub fn quest_board_untranslated_fields(
+        &self,
+        row_key: &str,
+    ) -> Result<Vec<UntranslatedField<String>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "quest_board_untranslated",
+                "SELECT row_key, field, lang, text_ns, text_key, value \
+                 FROM quest_board_untranslated WHERE row_key = ?1 ORDER BY field, lang",
+                [row_key],
+            )
+        })
+    }
+
+    /// Return all untranslated `chapter` fields for `lang`, ordered by `(chapter_no, field)`.
+    pub fn untranslated_chapters(&self, lang: &str) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "chapter_untranslated",
+                "SELECT chapter_no, field, lang, text_ns, text_key, value \
+                 FROM chapter_untranslated WHERE lang = ?1 ORDER BY chapter_no, field",
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of `chapter_no`, ordered by `(field, lang)`.
+    pub fn chapter_untranslated_fields(
+        &self,
+        chapter_no: i64,
+    ) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "chapter_untranslated",
+                "SELECT chapter_no, field, lang, text_ns, text_key, value \
+                 FROM chapter_untranslated WHERE chapter_no = ?1 ORDER BY field, lang",
+                [chapter_no],
+            )
+        })
+    }
+
+    /// Return all untranslated `main_scenario` fields for `lang`, ordered by `(row_key, field)`.
+    pub fn untranslated_main_scenarios(
+        &self,
+        lang: &str,
+    ) -> Result<Vec<UntranslatedField<String>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "main_scenario_untranslated",
+                "SELECT row_key, field, lang, text_ns, text_key, value \
+                 FROM main_scenario_untranslated WHERE lang = ?1 ORDER BY row_key, field",
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of main-scenario row `row_key`, ordered by `(field, lang)`.
+    pub fn main_scenario_untranslated_fields(
+        &self,
+        row_key: &str,
+    ) -> Result<Vec<UntranslatedField<String>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "main_scenario_untranslated",
+                "SELECT row_key, field, lang, text_ns, text_key, value \
+                 FROM main_scenario_untranslated WHERE row_key = ?1 ORDER BY field, lang",
+                [row_key],
+            )
+        })
+    }
+
+    /// Return all untranslated `main_quest` fields for `lang`, ordered by `(quest_id, field)`.
+    pub fn untranslated_main_quests(&self, lang: &str) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "main_quest_untranslated",
+                "SELECT quest_id, field, lang, text_ns, text_key, value \
+                 FROM main_quest_untranslated WHERE lang = ?1 ORDER BY quest_id, field",
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of main quest `quest_id`, ordered by `(field, lang)`.
+    pub fn main_quest_untranslated_fields(
+        &self,
+        quest_id: i64,
+    ) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "main_quest_untranslated",
+                "SELECT quest_id, field, lang, text_ns, text_key, value \
+                 FROM main_quest_untranslated WHERE quest_id = ?1 ORDER BY field, lang",
+                [quest_id],
+            )
+        })
+    }
+
+    /// Return all untranslated `playable_unit` fields for `lang`, ordered by
+    /// `(map_unit_id, field)`.
+    pub fn untranslated_playable_units(&self, lang: &str) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "playable_unit_untranslated",
+                "SELECT map_unit_id, field, lang, text_ns, text_key, value \
+                 FROM playable_unit_untranslated WHERE lang = ?1 ORDER BY map_unit_id, field",
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of `map_unit_id`, ordered by `(field, lang)`.
+    pub fn playable_unit_untranslated_fields(
+        &self,
+        map_unit_id: i64,
+    ) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "playable_unit_untranslated",
+                "SELECT map_unit_id, field, lang, text_ns, text_key, value \
+                 FROM playable_unit_untranslated WHERE map_unit_id = ?1 ORDER BY field, lang",
+                [map_unit_id],
+            )
+        })
+    }
+
+    /// Return all untranslated `item_drop` fields for `lang`, ordered by
+    /// `(unit_id, drop_kind, field)`.
+    pub fn untranslated_item_drops(
+        &self,
+        lang: &str,
+    ) -> Result<Vec<UntranslatedField<(i64, String)>>> {
+        self.with_conn(|conn| {
+            query_untranslated_pair_key(
+                conn,
+                "item_drop_untranslated",
+                "SELECT unit_id, drop_kind, field, lang, text_ns, text_key, value \
+                 FROM item_drop_untranslated WHERE lang = ?1 \
+                 ORDER BY unit_id, drop_kind, field",
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of item drop `(unit_id, drop_kind)`, ordered by
+    /// `(field, lang)`.
+    pub fn item_drop_untranslated_fields(
+        &self,
+        unit_id: i64,
+        drop_kind: &str,
+    ) -> Result<Vec<UntranslatedField<(i64, String)>>> {
+        self.with_conn(|conn| {
+            query_untranslated_pair_key(
+                conn,
+                "item_drop_untranslated",
+                "SELECT unit_id, drop_kind, field, lang, text_ns, text_key, value \
+                 FROM item_drop_untranslated WHERE unit_id = ?1 AND drop_kind = ?2 \
+                 ORDER BY field, lang",
+                params![unit_id, drop_kind],
+            )
         })
     }
 }

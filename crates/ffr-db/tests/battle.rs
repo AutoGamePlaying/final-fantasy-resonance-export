@@ -421,6 +421,9 @@ fn synthetic_battle_queries_alignment_issues_and_indexes() {
         "unit_ai",
         "battle_param",
         "enemy_chapter",
+        "unit_untranslated",
+        "skill_untranslated",
+        "command_skill_untranslated",
     ];
     assert_db_uses_index(db, "SELECT doc FROM unit WHERE id = ?1", [9101_i64], tables);
     assert_db_uses_index(
@@ -530,6 +533,61 @@ fn synthetic_battle_queries_alignment_issues_and_indexes() {
          AND subject = 'enemy_chapter' LIMIT 1",
         [],
         &["build_issue"],
+    );
+
+    // 11. Companion `*_untranslated` queries & index verification.
+    assert!(db.untranslated_units("zh-Hans").unwrap().is_empty());
+    assert!(db.unit_untranslated_fields(9101).unwrap().is_empty());
+    assert!(db.untranslated_skills("zh-Hans").unwrap().is_empty());
+    assert!(db.skill_untranslated_fields(95001).unwrap().is_empty());
+    assert!(
+        db.untranslated_command_skills("zh-Hans")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(db.command_skill_untranslated_fields(1).unwrap().is_empty());
+
+    assert_db_uses_index(
+        db,
+        "SELECT unit_id, field, lang, text_ns, text_key, value \
+         FROM unit_untranslated WHERE lang = ?1 ORDER BY unit_id, field",
+        ["zh-Hans"],
+        tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT unit_id, field, lang, text_ns, text_key, value \
+         FROM unit_untranslated WHERE unit_id = ?1 ORDER BY field, lang",
+        [9101_i64],
+        tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT skill_id, field, lang, text_ns, text_key, value \
+         FROM skill_untranslated WHERE lang = ?1 ORDER BY skill_id, field",
+        ["zh-Hans"],
+        tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT skill_id, field, lang, text_ns, text_key, value \
+         FROM skill_untranslated WHERE skill_id = ?1 ORDER BY field, lang",
+        [95001_i64],
+        tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT command_skill_id, field, lang, text_ns, text_key, value \
+         FROM command_skill_untranslated WHERE lang = ?1 ORDER BY command_skill_id, field",
+        ["zh-Hans"],
+        tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT command_skill_id, field, lang, text_ns, text_key, value \
+         FROM command_skill_untranslated WHERE command_skill_id = ?1 ORDER BY field, lang",
+        [1_i64],
+        tables,
     );
 }
 

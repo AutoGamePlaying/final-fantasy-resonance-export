@@ -40,6 +40,8 @@ const LINK_AND_RELATED_TABLES: &[&str] = &[
     "various_shop_member",
     "ue_class",
     "blueprint",
+    "talk_line_untranslated",
+    "map_unit_untranslated",
 ];
 
 #[test]
@@ -557,6 +559,40 @@ fn all_links_queries_use_indexes_without_full_table_scans() {
         db,
         sql::BLUEPRINT_BY_CLASS_NAME,
         ["BP_MockShopNpc_C"],
+        LINK_AND_RELATED_TABLES,
+    );
+
+    assert!(db.untranslated_talk_lines("zh-Hans").unwrap().is_empty());
+    assert!(
+        db.talk_line_untranslated_fields("/Game/Datatable/Event/Text/DT_MockStory_01", "1")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(db.untranslated_map_units("zh-Hans").unwrap().is_empty());
+    assert!(db.map_unit_untranslated_fields(1060).unwrap().is_empty());
+
+    assert_db_uses_index(
+        db,
+        sql::UNTRANSLATED_TALK_LINES,
+        ["zh-Hans"],
+        LINK_AND_RELATED_TABLES,
+    );
+    assert_db_uses_index(
+        db,
+        sql::TALK_LINE_UNTRANSLATED_FIELDS,
+        params!["/Game/Datatable/Event/Text/DT_MockStory_01", "1"],
+        LINK_AND_RELATED_TABLES,
+    );
+    assert_db_uses_index(
+        db,
+        sql::UNTRANSLATED_MAP_UNITS,
+        ["zh-Hans"],
+        LINK_AND_RELATED_TABLES,
+    );
+    assert_db_uses_index(
+        db,
+        sql::MAP_UNIT_UNTRANSLATED_FIELDS,
+        [1060_i64],
         LINK_AND_RELATED_TABLES,
     );
 }

@@ -27,17 +27,17 @@
 | 区域 | 来源 | 主要的表 |
 | --- | --- | --- |
 | 构建信息 | 构建器 | `meta`（版本、游戏构建号、构建时间）、`source`（每个来源的路径和 manifest 哈希）、`stage_report`（每段的行数、耗时、状态）、`build_issue`（悬空引用等问题，照实记录，不静默丢弃） |
-| 文本 | `Localization/<lang>.json`、字符串表 | `text`（命名空间、键、语言、文本）、`text_fts`（FTS5 全文索引，trigram 分词，中日文可以按子串搜）、`string_table_entry` |
+| 文本 | `Localization/<lang>.json`、字符串表 | `text`（仅保留真正翻译过的条目和全部 `ja` 原文）、`text_untranslated`（判定为游戏官方未翻译的条目，含原样 `value` 和判定依据 `reason`）、`text_fts`（FTS5 全文索引，仅索引 `text`，trigram 分词，中日文可以按子串搜）、`string_table_entry` |
 | 原始数据表 | `FFRS/Content/Datatable/` | `dt_table`、`dt_row` |
-| 战斗 | 数据表 | `unit`、`unit_resistance`、`skill`、`unit_skill`、`command_skill`、`battle_group`、`battle_group_member`、`encounter`、`unit_ai`、`enemy_chapter` |
-| 世界 | 数据表 | `map`、`island`、`region`、`map_release_condition`、`save_point`、`teleport_point`、`map_link`、`treasure_box`、`item`、`shop`、`shop_item`、`inn`、`quest`、`quest_prize`、`chapter`、`main_scenario`、`flag_condition`、`playable_unit` |
+| 战斗 | 数据表 | `unit`、`unit_resistance`、`skill`、`unit_skill`、`command_skill`、`battle_group`、`battle_group_member`、`encounter`、`unit_ai`、`enemy_chapter`；未翻译伴随表 `unit_untranslated`、`skill_untranslated`、`command_skill_untranslated` |
+| 世界 | 数据表 | `map`、`island`、`region`、`map_release_condition`、`save_point`、`save_point_command`、`teleport_point`、`map_link`、`treasure_box`、`item`、`shop`、`shop_item`、`inn`、`quest`、`quest_prize`、`quest_board`、`chapter`、`main_scenario`、`main_quest`、`flag_condition`、`playable_unit`、`item_drop`；未翻译伴随表 `map_untranslated`、`island_untranslated`、`save_point_command_untranslated`、`item_untranslated`、`shop_untranslated`、`quest_untranslated`、`quest_prize_untranslated`、`quest_board_untranslated`、`chapter_untranslated`、`main_scenario_untranslated`、`main_quest_untranslated`、`playable_unit_untranslated`、`item_drop_untranslated` |
 | 资源索引 | `AssetRegistry.bin`（`inventory/registry.jsonl`）、全量导出、`Config/*.ini` | `asset`、`asset_tag`、`asset_ref`（资源之间的引用，从导出 JSON 里收集）、`config_entry` |
 | 反射 | `.jmap` | `ue_class`（类、结构体、枚举）、`ue_property`、`ue_function`、`ue_enum_value` |
 | 输入、蓝图、界面 | 全量导出 | `input_action`、`input_context`、`input_mapping`、`input_set`；`blueprint`（类默认值里改过的属性）、`blueprint_component`；`widget_node`（界面控件树） |
 | 关卡 | [final-fantasy-resonance-export](https://github.com/AutoGamePlaying/final-fantasy-resonance-export) `export-maps` 的关卡文件和 `_graph.json` | `level`、`actor`、`actor_rtree`（R*Tree 空间索引）、`level_object`（NPC、宝箱、事件、出入口、存档点、商店、机关、遭遇区域，带指向对应数据的编号）、`map_edge` |
 | 过场 | 全量导出里的 `LevelSequence` | `sequence`、`sequence_binding` |
 | 真机快照（可选） | `.deps/r1/*` | `snapshot`、`snapshot_object`、`snapshot_widget`、`snapshot_text`、`marker` |
-| 跨区域连接 | 前面各区域的表和导出 | `talk_event`、`talk_event_next`、`talk_line`（对话事件 → 过场、台词）、`level_object_talk`、`map_unit`（`DT_MapUnitAsset`）、`class_ref`（各表出现的类名统一后连到反射或蓝图） |
+| 跨区域连接 | 前面各区域的表和导出 | `talk_event`、`talk_event_next`、`talk_line`（对话事件 → 过场、台词）、`level_object_talk`、`map_unit`（`DT_MapUnitAsset`）、`class_ref`（各表出现的类名统一后连到反射或蓝图）；未翻译伴随表 `talk_line_untranslated`、`map_unit_untranslated` |
 
 跨区域的连接：
 
@@ -51,6 +51,26 @@
 
 - 资源注册表的 `ActorsMetaData` 标签：每个关卡对象的描述（对象路径、类、二进制描述），内容和关卡导出重复，正文约 120 MB。原始数据在 `inventory/registry.jsonl`；
 - 真机快照默认不导入，只有构建时给了 `--snapshots` 才导入。部署到游戏机的库不带快照。
+
+### 文本与“游戏未翻译”分表
+
+游戏官方的 `Localization/<lang>.json` 里有部分尚未翻译的条目，原文直接留着日文。为了遵守**不拿日文冒充别的语言**的原则，构建时会把真正翻译过的文本与游戏未翻译的文本分表存放：
+
+- **判定规则**（对 `lang != 'ja'` 的条目，与其同 `(ns, key)` 的 `ja` 值比较）：
+  - 与 `ja` 值**完全相同**且含有日文假名（平假名或片假名，不含中点 `・` 等标点）的，判定为未翻译，依据记为 `same_as_ja_with_kana`；
+  - 英文条目（`en` / `en-*`）放宽为：与 `ja` 完全相同且含有任何日文假名或 CJK 汉字的，判定为未翻译，仅含汉字时依据记为 `same_as_ja_with_cjk`；
+  - 中文条目只看假名，避免纯汉字的人名、地名与日文碰巧一致时被误判。
+- **文本分表**：
+  - `text` 只保留真正翻译过的非日文条目以及全部 `ja` 原文；`text_fts` 仅索引 `text`，不把冒充译文的日文混进普通文本搜索；
+  - `text_untranslated(ns, key, lang, value, reason)` 原样保存被判为未翻译的条目，主键 `(ns, key, lang)`，建有 `(lang, ns, key)` 索引；可通过 `GameDb::text_untranslated()` 和 `GameDb::untranslated_texts(lang)` 查询。
+- **实体未翻译伴随表**：
+  - 所有含按语言解析文本字段（名称、说明、目标、台词等）的 18 张实体表，各配一张 `<表名>_untranslated(<主表主键列>, field, lang, text_ns, text_key, value)`，在 `(<主表主键列>, field, lang)` 上建主键，在 `(lang, <主表主键列>, field)` 上建索引；
+  - 主表的 `name_zh` / `label_zh` / `text_zh` / `unit_name_zh` 在对应中文未翻译时保持 `NULL`；`stage_report.note` 记录 `text_untranslated` 及每张伴随表各语言的行数；
+  - 每张伴随表都提供按语言和按主表主键读取的 `GameDb` 方法（例如 `untranslated_items(lang)` / `item_untranslated_fields(item_id)`、`untranslated_skills(lang)` / `skill_untranslated_fields(skill_id)`、`untranslated_talk_lines(lang)` / `talk_line_untranslated_fields(table_path, row)` 等）。
+- **读取与解析**：
+  - `GameDb::text()`、`GameDb::text_all_langs()`、`GameDb::search_text()`、`GameDb::talk_lines()` 只查 `text`，因此不会把未翻译的日文当成其他语言返回；
+  - `GameDb::resolve_ftext()` 先查 `text`，查不到再查 `text_untranslated`：命中时默认按**缺失**处理，原因为“游戏官方未翻译（该语言文件里是日文原文）”；仅在显式开启 `fallback_to_native` 回落时，返回日文原文并标明 `lang = "ja"`；
+  - 读 JSON 的 `ffr_data::TextResolver` 使用完全一致的判定和回落规则，与数据库路径保持对齐。
 
 ## 4. 索引
 

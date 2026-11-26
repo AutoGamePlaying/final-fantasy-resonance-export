@@ -725,6 +725,19 @@ fn every_world_query_uses_indexes_with_no_full_table_scans() {
         "item_drop",
         "world_name",
         "world_name_fts",
+        "map_untranslated",
+        "island_untranslated",
+        "save_point_command_untranslated",
+        "item_untranslated",
+        "shop_untranslated",
+        "quest_untranslated",
+        "quest_prize_untranslated",
+        "quest_board_untranslated",
+        "chapter_untranslated",
+        "main_scenario_untranslated",
+        "main_quest_untranslated",
+        "playable_unit_untranslated",
+        "item_drop_untranslated",
     ];
 
     // map(id) & map_by_level(name)
@@ -1082,6 +1095,253 @@ fn every_world_query_uses_indexes_with_no_full_table_scans() {
         db,
         "SELECT 1 FROM flag_condition WHERE row_key >= '' LIMIT 1",
         [],
+        &world_tables,
+    );
+
+    // Companion `*_untranslated` tables (all 13 world text-bearing tables x 2 queries).
+    assert!(db.untranslated_maps("zh-Hans").unwrap().is_empty());
+    assert!(db.map_untranslated_fields(3001).unwrap().is_empty());
+    assert!(db.untranslated_islands("zh-Hans").unwrap().is_empty());
+    assert!(
+        db.island_untranslated_fields("eMapIslandType::Grandshelt")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        db.untranslated_save_point_commands("zh-Hans")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        db.save_point_command_untranslated_fields("ESavePointCommandType::Tent")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(db.untranslated_items("zh-Hans").unwrap().is_empty());
+    assert!(db.item_untranslated_fields(1).unwrap().is_empty());
+    assert!(db.untranslated_shops("zh-Hans").unwrap().is_empty());
+    assert!(db.shop_untranslated_fields(1).unwrap().is_empty());
+    assert!(db.untranslated_quests("zh-Hans").unwrap().is_empty());
+    assert!(db.quest_untranslated_fields(10).unwrap().is_empty());
+    assert!(db.untranslated_quest_prizes("zh-Hans").unwrap().is_empty());
+    assert!(
+        db.quest_prize_untranslated_fields(10, 0)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(db.untranslated_quest_boards("zh-Hans").unwrap().is_empty());
+    assert!(
+        db.quest_board_untranslated_fields("QB_001")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(db.untranslated_chapters("zh-Hans").unwrap().is_empty());
+    assert!(db.chapter_untranslated_fields(1).unwrap().is_empty());
+    assert!(
+        db.untranslated_main_scenarios("zh-Hans")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        db.main_scenario_untranslated_fields("MS_001")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(db.untranslated_main_quests("zh-Hans").unwrap().is_empty());
+    assert!(db.main_quest_untranslated_fields(1001).unwrap().is_empty());
+    assert!(
+        db.untranslated_playable_units("zh-Hans")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(db.playable_unit_untranslated_fields(10).unwrap().is_empty());
+    assert!(db.untranslated_item_drops("zh-Hans").unwrap().is_empty());
+    assert!(
+        db.item_drop_untranslated_fields(1, "drop_normal")
+            .unwrap()
+            .is_empty()
+    );
+
+    assert_db_uses_index(
+        db,
+        "SELECT map_id, field, lang, text_ns, text_key, value \
+         FROM map_untranslated WHERE lang = ?1 ORDER BY map_id, field",
+        ["zh-Hans"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT map_id, field, lang, text_ns, text_key, value \
+         FROM map_untranslated WHERE map_id = ?1 ORDER BY field, lang",
+        [3001_i64],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT island_type, field, lang, text_ns, text_key, value \
+         FROM island_untranslated WHERE lang = ?1 ORDER BY island_type, field",
+        ["zh-Hans"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT island_type, field, lang, text_ns, text_key, value \
+         FROM island_untranslated WHERE island_type = ?1 ORDER BY field, lang",
+        ["eMapIslandType::Grandshelt"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT command_type, field, lang, text_ns, text_key, value \
+         FROM save_point_command_untranslated WHERE lang = ?1 ORDER BY command_type, field",
+        ["zh-Hans"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT command_type, field, lang, text_ns, text_key, value \
+         FROM save_point_command_untranslated WHERE command_type = ?1 ORDER BY field, lang",
+        ["ESavePointCommandType::Tent"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT item_id, field, lang, text_ns, text_key, value \
+         FROM item_untranslated WHERE lang = ?1 ORDER BY item_id, field",
+        ["zh-Hans"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT item_id, field, lang, text_ns, text_key, value \
+         FROM item_untranslated WHERE item_id = ?1 ORDER BY field, lang",
+        [1_i64],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT shop_id, field, lang, text_ns, text_key, value \
+         FROM shop_untranslated WHERE lang = ?1 ORDER BY shop_id, field",
+        ["zh-Hans"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT shop_id, field, lang, text_ns, text_key, value \
+         FROM shop_untranslated WHERE shop_id = ?1 ORDER BY field, lang",
+        [1_i64],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT quest_id, field, lang, text_ns, text_key, value \
+         FROM quest_untranslated WHERE lang = ?1 ORDER BY quest_id, field",
+        ["zh-Hans"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT quest_id, field, lang, text_ns, text_key, value \
+         FROM quest_untranslated WHERE quest_id = ?1 ORDER BY field, lang",
+        [10_i64],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT quest_id, prize_index, field, lang, text_ns, text_key, value \
+         FROM quest_prize_untranslated WHERE lang = ?1 ORDER BY quest_id, prize_index, field",
+        ["zh-Hans"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT quest_id, prize_index, field, lang, text_ns, text_key, value \
+         FROM quest_prize_untranslated WHERE quest_id = ?1 AND prize_index = ?2 ORDER BY field, lang",
+        params![10_i64, 0_i64],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT row_key, field, lang, text_ns, text_key, value \
+         FROM quest_board_untranslated WHERE lang = ?1 ORDER BY row_key, field",
+        ["zh-Hans"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT row_key, field, lang, text_ns, text_key, value \
+         FROM quest_board_untranslated WHERE row_key = ?1 ORDER BY field, lang",
+        ["QB_001"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT chapter_no, field, lang, text_ns, text_key, value \
+         FROM chapter_untranslated WHERE lang = ?1 ORDER BY chapter_no, field",
+        ["zh-Hans"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT chapter_no, field, lang, text_ns, text_key, value \
+         FROM chapter_untranslated WHERE chapter_no = ?1 ORDER BY field, lang",
+        [1_i64],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT row_key, field, lang, text_ns, text_key, value \
+         FROM main_scenario_untranslated WHERE lang = ?1 ORDER BY row_key, field",
+        ["zh-Hans"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT row_key, field, lang, text_ns, text_key, value \
+         FROM main_scenario_untranslated WHERE row_key = ?1 ORDER BY field, lang",
+        ["MS_001"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT quest_id, field, lang, text_ns, text_key, value \
+         FROM main_quest_untranslated WHERE lang = ?1 ORDER BY quest_id, field",
+        ["zh-Hans"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT quest_id, field, lang, text_ns, text_key, value \
+         FROM main_quest_untranslated WHERE quest_id = ?1 ORDER BY field, lang",
+        [1001_i64],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT map_unit_id, field, lang, text_ns, text_key, value \
+         FROM playable_unit_untranslated WHERE lang = ?1 ORDER BY map_unit_id, field",
+        ["zh-Hans"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT map_unit_id, field, lang, text_ns, text_key, value \
+         FROM playable_unit_untranslated WHERE map_unit_id = ?1 ORDER BY field, lang",
+        [10_i64],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT unit_id, drop_kind, field, lang, text_ns, text_key, value \
+         FROM item_drop_untranslated WHERE lang = ?1 ORDER BY unit_id, drop_kind, field",
+        ["zh-Hans"],
+        &world_tables,
+    );
+    assert_db_uses_index(
+        db,
+        "SELECT unit_id, drop_kind, field, lang, text_ns, text_key, value \
+         FROM item_drop_untranslated WHERE unit_id = ?1 AND drop_kind = ?2 ORDER BY field, lang",
+        params![1_i64, "drop_normal"],
         &world_tables,
     );
 }

@@ -154,9 +154,10 @@ fn skeleton_build_on_empty_inputs_marks_all_stages_skipped() {
 
     let db = GameDb::open(&out_path).expect("open built db");
     let meta = db.meta().expect("read meta");
+    let expected_schema_ver = SCHEMA_VERSION.to_string();
     assert_eq!(
         meta.get(META_KEY_SCHEMA_VERSION).map(String::as_str),
-        Some("1")
+        Some(expected_schema_ver.as_str())
     );
     assert_eq!(
         meta.get(META_KEY_BUILDER_VERSION).map(String::as_str),
@@ -360,7 +361,11 @@ fn readonly_sql_rejects_write_and_multi_statements() {
         .query_readonly_json("SELECT key, value FROM meta WHERE key = 'schema_version'")
         .expect("select meta");
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].get("value").and_then(|v| v.as_str()), Some("1"));
+    let expected_schema_ver = SCHEMA_VERSION.to_string();
+    assert_eq!(
+        rows[0].get("value").and_then(|v| v.as_str()),
+        Some(expected_schema_ver.as_str())
+    );
 
     // Write / DDL / PRAGMA / CTE-write / multi-statement queries must all be rejected.
     let rejected = [
@@ -797,7 +802,7 @@ fn cli_build_stats_sql_and_explain_end_to_end() {
         String::from_utf8_lossy(&stats_out.stderr)
     );
     let stats_stdout = String::from_utf8_lossy(&stats_out.stdout);
-    assert!(stats_stdout.contains("schema_version = 1"));
+    assert!(stats_stdout.contains(&format!("schema_version = {SCHEMA_VERSION}")));
     assert!(stats_stdout.contains("stage_report"));
 
     // 3. sql (NDJSON output)

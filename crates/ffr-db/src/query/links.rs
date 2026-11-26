@@ -20,6 +20,9 @@ use serde::{Deserialize, Serialize};
 use crate::build::links::clean_raw_class_name;
 use crate::db::GameDb;
 use crate::error::{DbError, Result};
+use crate::query::text::{
+    UntranslatedField, query_untranslated_pair_key, query_untranslated_single_key,
+};
 use crate::query::world::ResolvedShop;
 use crate::record::{decode_doc, query_doc_opt, query_docs};
 
@@ -331,6 +334,30 @@ pub mod sql {
         FROM blueprint \
         WHERE class_name = ?1 \
         ORDER BY path";
+
+    pub const UNTRANSLATED_TALK_LINES: &str = "\
+        SELECT table_path, row, field, lang, text_ns, text_key, value \
+        FROM talk_line_untranslated \
+        WHERE lang = ?1 \
+        ORDER BY table_path, row, field";
+
+    pub const TALK_LINE_UNTRANSLATED_FIELDS: &str = "\
+        SELECT table_path, row, field, lang, text_ns, text_key, value \
+        FROM talk_line_untranslated \
+        WHERE table_path = ?1 AND row = ?2 \
+        ORDER BY field, lang";
+
+    pub const UNTRANSLATED_MAP_UNITS: &str = "\
+        SELECT map_unit_id, field, lang, text_ns, text_key, value \
+        FROM map_unit_untranslated \
+        WHERE lang = ?1 \
+        ORDER BY map_unit_id, field";
+
+    pub const MAP_UNIT_UNTRANSLATED_FIELDS: &str = "\
+        SELECT map_unit_id, field, lang, text_ns, text_key, value \
+        FROM map_unit_untranslated \
+        WHERE map_unit_id = ?1 \
+        ORDER BY field, lang";
 }
 
 impl GameDb {
@@ -818,6 +845,67 @@ impl GameDb {
                 blueprint,
                 parent_chain,
             }))
+        })
+    }
+
+    // ---- Companion `<table_name>_untranslated` queries ----
+
+    /// Return all untranslated `talk_line` fields for `lang`, ordered by
+    /// `(table_path, row, field)`.
+    pub fn untranslated_talk_lines(
+        &self,
+        lang: &str,
+    ) -> Result<Vec<UntranslatedField<(String, String)>>> {
+        self.with_conn(|conn| {
+            query_untranslated_pair_key(
+                conn,
+                "talk_line_untranslated",
+                sql::UNTRANSLATED_TALK_LINES,
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of talk line `(table_path, row)`, ordered by `(field, lang)`.
+    pub fn talk_line_untranslated_fields(
+        &self,
+        table_path: &str,
+        row: &str,
+    ) -> Result<Vec<UntranslatedField<(String, String)>>> {
+        self.with_conn(|conn| {
+            query_untranslated_pair_key(
+                conn,
+                "talk_line_untranslated",
+                sql::TALK_LINE_UNTRANSLATED_FIELDS,
+                params![table_path, row],
+            )
+        })
+    }
+
+    /// Return all untranslated `map_unit` fields for `lang`, ordered by `(map_unit_id, field)`.
+    pub fn untranslated_map_units(&self, lang: &str) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "map_unit_untranslated",
+                sql::UNTRANSLATED_MAP_UNITS,
+                [lang],
+            )
+        })
+    }
+
+    /// Return all untranslated fields of `map_unit_id`, ordered by `(field, lang)`.
+    pub fn map_unit_untranslated_fields(
+        &self,
+        map_unit_id: i64,
+    ) -> Result<Vec<UntranslatedField<i64>>> {
+        self.with_conn(|conn| {
+            query_untranslated_single_key(
+                conn,
+                "map_unit_untranslated",
+                sql::MAP_UNIT_UNTRANSLATED_FIELDS,
+                [map_unit_id],
+            )
         })
     }
 }

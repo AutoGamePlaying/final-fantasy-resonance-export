@@ -23,3 +23,6 @@ CREATE INDEX idx_map_unit_name_zh ON map_unit(name_zh);
 CREATE INDEX idx_class_ref_normalized ON class_ref(normalized);
 CREATE INDEX idx_class_ref_ue_class_id ON class_ref(ue_class_id);
 CREATE INDEX idx_class_ref_blueprint_id ON class_ref(blueprint_id);
+
+CREATE INDEX idx_talk_line_untranslated_lang ON talk_line_untranslated(lang, table_path, row, field);
+CREATE INDEX idx_map_unit_untranslated_lang ON map_unit_untranslated(lang, map_unit_id, field);

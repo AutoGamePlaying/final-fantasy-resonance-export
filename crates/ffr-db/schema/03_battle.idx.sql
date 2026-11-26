@@ -38,3 +38,7 @@ CREATE INDEX idx_unit_ai_ai_id ON unit_ai(ai_id);
 CREATE INDEX idx_enemy_chapter_unit ON enemy_chapter(unit_id, chapter_no);
 CREATE INDEX idx_enemy_chapter_chapter ON enemy_chapter(chapter_no, unit_id);
 CREATE INDEX idx_enemy_chapter_bg ON enemy_chapter(battle_group_id, unit_id);
+
+CREATE INDEX idx_unit_untranslated_lang ON unit_untranslated(lang, unit_id, field);
+CREATE INDEX idx_skill_untranslated_lang ON skill_untranslated(lang, skill_id, field);
+CREATE INDEX idx_command_skill_untranslated_lang ON command_skill_untranslated(lang, command_skill_id, field);

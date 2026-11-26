@@ -39,6 +39,7 @@ pub use paths::{
     DbPaths, ResolvedBuildPaths, default_db_path_from_deps, default_db_path_from_env,
     resolve_db_path,
 };
+pub use query::text::{TextHit, UntranslatedField, UntranslatedTextEntry};
 pub use schema::{
     DB_APPLICATION_ID, DB_PAGE_SIZE, META_KEY_BUILDER_VERSION, META_KEY_GAME_BUILD_ID,
     META_KEY_SCHEMA_VERSION, SCHEMA_PARTS, SCHEMA_VERSION, SchemaPart,

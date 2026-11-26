@@ -18,14 +18,14 @@ use ffr_data::battle::{
     UNIT_PARAMETER_TABLE, parse_encounter_pool,
 };
 use ffr_data::{
-    DEFAULT_LOCRES_LANGUAGES, DataError, DataStore, FTextValue, MODEL_LANGUAGE, ResolveOptions,
-    TextResolver, datatable_dir, datatable_relative_path_to_json, is_safe_language_tag,
-    localization_dir,
+    DEFAULT_LOCRES_LANGUAGES, DataError, DataStore, FTextValue, MODEL_LANGUAGE, NATIVE_LANGUAGE,
+    ResolveOptions, TextResolver, datatable_dir, datatable_relative_path_to_json,
+    is_safe_language_tag, localization_dir,
 };
 use rusqlite::params;
 use serde_json::Value;
 
-use crate::build::{ImportCtx, StageStats, relative_label_under};
+use crate::build::{ImportCtx, StageStats, format_untranslated_table_counts, relative_label_under};
 use crate::error::{DbError, Result};
 use crate::query::battle::{
     element_to_db, enemy_chapter_source_kind_to_db, resistance_to_db, skill_attr_to_db,
@@ -57,21 +57,50 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
     let battle = store.battle()?;
     let resolver = &battle.text_resolver;
     let languages = discover_languages(store.export_root())?;
+    let non_native_langs: Vec<String> = languages
+        .iter()
+        .filter(|l| l.as_str() != NATIVE_LANGUAGE)
+        .cloned()
+        .collect();
 
     let unit_ids: BTreeSet<i64> = battle.units.iter().map(|u| u.id).collect();
     let skill_ids: BTreeSet<i64> = battle.skills.iter().map(|s| s.id).collect();
     let battle_group_ids: BTreeSet<i64> = battle.battle_groups.iter().map(|g| g.id).collect();
 
     let mut total_rows: u64 = 0;
+    let mut unit_untrans: BTreeMap<String, u64> = BTreeMap::new();
+    let mut skill_untrans: BTreeMap<String, u64> = BTreeMap::new();
+    let mut cmd_untrans: BTreeMap<String, u64> = BTreeMap::new();
 
-    // 1. Units, multilingual names (+ FTS5), and elemental resistances.
-    total_rows += import_units(ctx, &battle, resolver, &languages)?;
+    // 1. Units, multilingual names (+ FTS5), untranslated fields, and elemental resistances.
+    total_rows += import_units(
+        ctx,
+        &battle,
+        resolver,
+        &languages,
+        &non_native_langs,
+        &mut unit_untrans,
+    )?;
 
-    // 2. Skills and multilingual names (+ FTS5).
-    total_rows += import_skills(ctx, &battle, resolver, &languages)?;
+    // 2. Skills, multilingual names (+ FTS5), and untranslated fields.
+    total_rows += import_skills(
+        ctx,
+        &battle,
+        resolver,
+        &languages,
+        &non_native_langs,
+        &mut skill_untrans,
+    )?;
 
     // 3. Command skills (optional if table absent in minimal synthetic fixtures).
-    let (cmd_rows, command_skill_ids) = import_command_skills(ctx, store, resolver, &unit_ids)?;
+    let (cmd_rows, command_skill_ids) = import_command_skills(
+        ctx,
+        store,
+        resolver,
+        &unit_ids,
+        &non_native_langs,
+        &mut cmd_untrans,
+    )?;
     total_rows += cmd_rows;
 
     // Validate Skill -> CommandSkill references when DT_CommandSkillData was loaded.
@@ -124,7 +153,17 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
         Some(store.cached_data_table_count() as u64),
     )?;
 
-    Ok(StageStats::ok(total_rows))
+    let note = format!(
+        "未翻译：{}, {}, {}",
+        format_untranslated_table_counts("unit_untranslated", &non_native_langs, &unit_untrans),
+        format_untranslated_table_counts("skill_untranslated", &non_native_langs, &skill_untrans),
+        format_untranslated_table_counts(
+            "command_skill_untranslated",
+            &non_native_langs,
+            &cmd_untrans
+        ),
+    );
+    Ok(StageStats::ok_with_note(total_rows, note))
 }
 
 fn import_units(
@@ -132,6 +171,8 @@ fn import_units(
     battle: &BattleData,
     resolver: &TextResolver,
     languages: &[String],
+    non_native_langs: &[String],
+    untrans_counts: &mut BTreeMap<String, u64>,
 ) -> Result<u64> {
     let tx = ctx.tx();
     let mut unit_stmt = tx
@@ -153,6 +194,12 @@ fn import_units(
             "INSERT INTO unit_resistance (unit_id, element, resistance) VALUES (?1, ?2, ?3)",
         )
         .map_err(|err| DbError::sqlite("准备写入 unit_resistance 表", err))?;
+    let mut untrans_stmt = tx
+        .prepare_cached(
+            "INSERT INTO unit_untranslated (unit_id, field, lang, text_ns, text_key, value) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        )
+        .map_err(|err| DbError::sqlite("准备写入 unit_untranslated 表", err))?;
 
     let mut sorted_units: Vec<_> = battle.units.iter().collect();
     sorted_units.sort_by_key(|u| u.id);
@@ -196,6 +243,23 @@ fn import_units(
             }
         }
 
+        let mut fields: Vec<(String, &FTextValue)> = vec![
+            ("description".to_owned(), &unit.description),
+            ("name".to_owned(), &unit.name),
+        ];
+        for (idx, tr) in unit.traits.iter().enumerate() {
+            fields.push((format!("traits[{idx}]"), tr));
+        }
+        rows += insert_i64_untranslated(
+            &mut untrans_stmt,
+            "unit_untranslated",
+            unit.id,
+            &fields,
+            resolver,
+            non_native_langs,
+            untrans_counts,
+        )?;
+
         let mut resistances: Vec<(&'static str, &'static str)> = unit
             .element_resistances
             .iter()
@@ -219,6 +283,8 @@ fn import_skills(
     battle: &BattleData,
     resolver: &TextResolver,
     languages: &[String],
+    non_native_langs: &[String],
+    untrans_counts: &mut BTreeMap<String, u64>,
 ) -> Result<u64> {
     let tx = ctx.tx();
     let mut skill_stmt = tx
@@ -235,6 +301,12 @@ fn import_skills(
     let mut fts_stmt = tx
         .prepare_cached("INSERT INTO skill_name_fts (skill_id, lang, name) VALUES (?1, ?2, ?3)")
         .map_err(|err| DbError::sqlite("准备写入 skill_name_fts 表", err))?;
+    let mut untrans_stmt = tx
+        .prepare_cached(
+            "INSERT INTO skill_untranslated (skill_id, field, lang, text_ns, text_key, value) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        )
+        .map_err(|err| DbError::sqlite("准备写入 skill_untranslated 表", err))?;
 
     let mut sorted_skills: Vec<_> = battle.skills.iter().collect();
     sorted_skills.sort_by_key(|s| s.id);
@@ -279,6 +351,20 @@ fn import_skills(
                 rows += 1;
             }
         }
+
+        let fields = [
+            ("description".to_owned(), &skill.description),
+            ("name".to_owned(), &skill.name),
+        ];
+        rows += insert_i64_untranslated(
+            &mut untrans_stmt,
+            "skill_untranslated",
+            skill.id,
+            &fields,
+            resolver,
+            non_native_langs,
+            untrans_counts,
+        )?;
     }
     Ok(rows)
 }
@@ -288,6 +374,8 @@ fn import_command_skills(
     store: &DataStore,
     resolver: &TextResolver,
     unit_ids: &BTreeSet<i64>,
+    non_native_langs: &[String],
+    untrans_counts: &mut BTreeMap<String, u64>,
 ) -> Result<(u64, Option<BTreeSet<i64>>)> {
     let command_data = match store.command_skills() {
         Ok(data) => data,
@@ -311,6 +399,14 @@ fn import_command_skills(
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         )
         .map_err(|err| DbError::sqlite("准备写入 command_skill 表", err))?;
+    let mut untrans_stmt = ctx
+        .tx()
+        .prepare_cached(
+            "INSERT INTO command_skill_untranslated \
+             (command_skill_id, field, lang, text_ns, text_key, value) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        )
+        .map_err(|err| DbError::sqlite("准备写入 command_skill_untranslated 表", err))?;
 
     let mut sorted_cmds: Vec<_> = command_data.commands.iter().collect();
     sorted_cmds.sort_by_key(|c| c.id);
@@ -348,8 +444,51 @@ fn import_command_skills(
         ])
         .map_err(|err| DbError::sqlite(format!("写入 command_skill 主键 {}", cmd.id), err))?;
         rows += 1;
+
+        let fields = [
+            ("description".to_owned(), &cmd.description),
+            ("name".to_owned(), &cmd.name),
+        ];
+        rows += insert_i64_untranslated(
+            &mut untrans_stmt,
+            "command_skill_untranslated",
+            cmd.id,
+            &fields,
+            resolver,
+            non_native_langs,
+            untrans_counts,
+        )?;
     }
     Ok((rows, Some(ids)))
+}
+
+fn insert_i64_untranslated(
+    stmt: &mut rusqlite::CachedStatement<'_>,
+    table: &str,
+    entity_id: i64,
+    fields: &[(String, &FTextValue)],
+    resolver: &TextResolver,
+    non_native_langs: &[String],
+    counts: &mut BTreeMap<String, u64>,
+) -> Result<u64> {
+    let mut pending: BTreeMap<(&str, &str), (String, String, String)> = BTreeMap::new();
+    for (field, ftext) in fields {
+        for lang in non_native_langs {
+            if let Some((ns, key, val, _reason)) = resolver.untranslated_entry(ftext, lang) {
+                pending.insert((field.as_str(), lang.as_str()), (ns, key, val));
+            }
+        }
+    }
+    let mut rows = 0_u64;
+    for ((field, lang), (ns, key, val)) in pending {
+        stmt.execute(params![entity_id, field, lang, ns, key, val])
+            .map_err(|err| {
+                DbError::sqlite(format!("写入 {table} ({entity_id}, {field}, {lang})"), err)
+            })?;
+        *counts.entry(lang.to_owned()).or_insert(0) += 1;
+        rows += 1;
+    }
+    Ok(rows)
 }
 
 fn import_battle_groups(

@@ -61,3 +61,24 @@ CREATE TABLE class_ref (
     ue_class_id TEXT,
     blueprint_id TEXT
 );
+
+CREATE TABLE talk_line_untranslated (
+    table_path TEXT NOT NULL,
+    row TEXT NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (table_path, row, field, lang)
+);
+
+CREATE TABLE map_unit_untranslated (
+    map_unit_id INTEGER NOT NULL,
+    field TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text_ns TEXT NOT NULL,
+    text_key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (map_unit_id, field, lang)
+);

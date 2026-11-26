@@ -17,14 +17,128 @@ use ffr_data::{
     NATIVE_LANGUAGE, ResolveOptions, ScenarioData, TextResolver, datatable_relative_path_to_json,
     is_safe_language_tag, localization_dir,
 };
-use rusqlite::params;
+use rusqlite::{ToSql, params};
 
-use crate::build::{ImportCtx, StageStats};
+use crate::build::{ImportCtx, StageStats, format_untranslated_table_counts};
 use crate::error::{DbError, Result};
 use crate::record::encode_doc;
 
 /// Pending row for `world_name` / `world_name_fts`, keyed by natural PK `(entity_kind, entity_id, lang)`.
 type WorldNameMap = BTreeMap<(&'static str, i64, String), (String, String)>;
+
+const WORLD_UNTRANSLATED_TABLES: [&str; 13] = [
+    "map_untranslated",
+    "island_untranslated",
+    "save_point_command_untranslated",
+    "item_untranslated",
+    "shop_untranslated",
+    "quest_untranslated",
+    "quest_prize_untranslated",
+    "quest_board_untranslated",
+    "chapter_untranslated",
+    "main_scenario_untranslated",
+    "main_quest_untranslated",
+    "playable_unit_untranslated",
+    "item_drop_untranslated",
+];
+
+struct WorldUntranslatedCtx<'a> {
+    non_native_langs: &'a [String],
+    counts: BTreeMap<&'static str, BTreeMap<String, u64>>,
+}
+
+impl<'a> WorldUntranslatedCtx<'a> {
+    fn new(non_native_langs: &'a [String]) -> Self {
+        Self {
+            non_native_langs,
+            counts: BTreeMap::new(),
+        }
+    }
+
+    fn insert_single<K: ToSql + std::fmt::Display>(
+        &mut self,
+        stmt: &mut rusqlite::CachedStatement<'_>,
+        table: &'static str,
+        key: K,
+        fields: &[(String, &FTextValue)],
+        resolver: &TextResolver,
+    ) -> Result<u64> {
+        let pending = collect_untranslated_fields(fields, resolver, self.non_native_langs);
+        let mut rows = 0_u64;
+        for ((field, lang), (ns, text_key, val)) in pending {
+            stmt.execute(params![&key, field, lang, ns, text_key, val])
+                .map_err(|err| {
+                    DbError::sqlite(format!("写入 {table} ({key}, {field}, {lang})"), err)
+                })?;
+            *self
+                .counts
+                .entry(table)
+                .or_default()
+                .entry(lang.to_owned())
+                .or_insert(0) += 1;
+            rows += 1;
+        }
+        Ok(rows)
+    }
+
+    fn insert_pair<K1: ToSql + std::fmt::Display, K2: ToSql + std::fmt::Display>(
+        &mut self,
+        stmt: &mut rusqlite::CachedStatement<'_>,
+        table: &'static str,
+        key1: K1,
+        key2: K2,
+        fields: &[(String, &FTextValue)],
+        resolver: &TextResolver,
+    ) -> Result<u64> {
+        let pending = collect_untranslated_fields(fields, resolver, self.non_native_langs);
+        let mut rows = 0_u64;
+        for ((field, lang), (ns, text_key, val)) in pending {
+            stmt.execute(params![&key1, &key2, field, lang, ns, text_key, val])
+                .map_err(|err| {
+                    DbError::sqlite(
+                        format!("写入 {table} ({key1}, {key2}, {field}, {lang})"),
+                        err,
+                    )
+                })?;
+            *self
+                .counts
+                .entry(table)
+                .or_default()
+                .entry(lang.to_owned())
+                .or_insert(0) += 1;
+            rows += 1;
+        }
+        Ok(rows)
+    }
+
+    fn format_note(&self) -> String {
+        let empty = BTreeMap::new();
+        let parts: Vec<String> = WORLD_UNTRANSLATED_TABLES
+            .iter()
+            .map(|&table| {
+                let table_counts = self.counts.get(table).unwrap_or(&empty);
+                format_untranslated_table_counts(table, self.non_native_langs, table_counts)
+            })
+            .collect();
+        format!("未翻译：{}", parts.join(", "))
+    }
+}
+
+fn collect_untranslated_fields<'a>(
+    fields: &'a [(String, &FTextValue)],
+    resolver: &TextResolver,
+    non_native_langs: &'a [String],
+) -> BTreeMap<(&'a str, &'a str), (String, String, String)> {
+    let mut pending = BTreeMap::new();
+    for (field, ftext) in fields {
+        for lang in non_native_langs {
+            if let Some((ns, key, val, _reason)) = resolver.untranslated_entry(ftext, lang) {
+                pending.insert((field.as_str(), lang.as_str()), (ns, key, val));
+            }
+        }
+    }
+    pending
+}
 
 /// Import typed world, item, shop, inn, quest, scenario, flag, playable-unit, and drop tables.
 pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
@@ -50,7 +164,13 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
     let units = load_optional_units(store)?;
 
     let languages = discover_languages(store.export_root());
+    let non_native_langs: Vec<String> = languages
+        .iter()
+        .filter(|l| l.as_str() != NATIVE_LANGUAGE)
+        .cloned()
+        .collect();
     let resolver = store.text_resolver();
+    let mut untrans = WorldUntranslatedCtx::new(&non_native_langs);
 
     let map_ids: BTreeSet<i64> = world.maps().iter().map(|m| m.id).collect();
     let island_types: BTreeSet<&str> = world
@@ -85,13 +205,14 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
         &island_types,
         &region_ids,
         &mut world_names,
+        &mut untrans,
     )?;
 
     // 2. Islands, regions, release conditions
-    total_rows += import_islands_and_regions(ctx, &world, resolver, &island_types)?;
+    total_rows += import_islands_and_regions(ctx, &world, resolver, &island_types, &mut untrans)?;
 
     // 3. Save points & save-point commands
-    total_rows += import_save_points(ctx, &world, resolver, &item_prices)?;
+    total_rows += import_save_points(ctx, &world, resolver, &item_prices, &mut untrans)?;
 
     // 4. Teleport points & derived map_link rows
     total_rows += import_teleports_and_links(ctx, &world, &map_ids)?;
@@ -104,13 +225,15 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
         &languages,
         &item_prices,
         &mut world_names,
+        &mut untrans,
     )?;
 
     // 6. Treasure boxes
     total_rows += import_treasure_boxes(ctx, &world, &map_ids, &item_prices)?;
 
     // 7. Shops, shop_item, various_shop, various_shop_member, inns
-    total_rows += import_shops_and_inns(ctx, &world, resolver, &item_prices, &shop_ids)?;
+    total_rows +=
+        import_shops_and_inns(ctx, &world, resolver, &item_prices, &shop_ids, &mut untrans)?;
 
     // 8. Quests, quest_prize, quest_board, quest_board_reward
     total_rows += import_quests(
@@ -120,10 +243,11 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
         &map_ids,
         &item_prices,
         &valid_quest_board_ids,
+        &mut untrans,
     )?;
 
     // 9. Chapters, main_scenario, main_quest
-    total_rows += import_scenario(ctx, &scenario, resolver, &map_ids)?;
+    total_rows += import_scenario(ctx, &scenario, resolver, &map_ids, &mut untrans)?;
 
     // 10. Flag conditions
     if let Some(flag_data) = &flags {
@@ -132,12 +256,12 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
 
     // 11. Playable map units
     if let Some(playable_data) = &playable {
-        total_rows += import_playable_units(ctx, playable_data, resolver)?;
+        total_rows += import_playable_units(ctx, playable_data, resolver, &mut untrans)?;
     }
 
     // 12. Enemy / unit item drops & steals
     if let Some(unit_list) = &units {
-        total_rows += import_item_drops(ctx, unit_list, resolver, &item_prices)?;
+        total_rows += import_item_drops(ctx, unit_list, resolver, &item_prices, &mut untrans)?;
     }
 
     // 13. World multilingual name index + FTS5 in natural PK `(entity_kind, entity_id, lang)` order.
@@ -148,20 +272,17 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
 
     let mut notes = Vec::new();
     if flags.is_none() {
-        notes.push("缺少 Flag/CDT_FlagCondition.json");
+        notes.push("缺少 Flag/CDT_FlagCondition.json".to_owned());
     }
     if playable.is_none() {
-        notes.push("缺少 Map/DT_MapUnitPlayableData.json 或 Unit/DT_UnitParameter.json");
+        notes.push("缺少 Map/DT_MapUnitPlayableData.json 或 Unit/DT_UnitParameter.json".to_owned());
     }
     if units.is_none() {
-        notes.push("缺少 Unit/DT_UnitParameter.json（未导入敌人掉落）");
+        notes.push("缺少 Unit/DT_UnitParameter.json（未导入敌人掉落）".to_owned());
     }
+    notes.push(untrans.format_note());
 
-    if notes.is_empty() {
-        Ok(StageStats::ok(total_rows))
-    } else {
-        Ok(StageStats::ok_with_note(total_rows, notes.join("；")))
-    }
+    Ok(StageStats::ok_with_note(total_rows, notes.join("；")))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -174,6 +295,7 @@ fn import_maps(
     island_types: &BTreeSet<&str>,
     region_ids: &BTreeSet<i64>,
     world_names: &mut WorldNameMap,
+    untrans: &mut WorldUntranslatedCtx<'_>,
 ) -> Result<u64> {
     let mut rows: u64 = 0;
     let mut stmt = ctx
@@ -186,6 +308,13 @@ fn import_maps(
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
         )
         .map_err(|err| DbError::sqlite("准备写入 map 表", err))?;
+    let mut untrans_stmt = ctx
+        .tx()
+        .prepare_cached(
+            "INSERT INTO map_untranslated (map_id, field, lang, text_ns, text_key, value) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        )
+        .map_err(|err| DbError::sqlite("准备写入 map_untranslated 表", err))?;
 
     let mut sorted_maps: Vec<_> = world.maps().iter().collect();
     sorted_maps.sort_by_key(|m| m.id);
@@ -242,6 +371,13 @@ fn import_maps(
         rows += 1;
 
         collect_entity_names("map", map.id, &map.name, resolver, languages, world_names);
+        rows += untrans.insert_single(
+            &mut untrans_stmt,
+            "map_untranslated",
+            map.id,
+            &[("name".to_owned(), &map.name)],
+            resolver,
+        )?;
     }
 
     Ok(rows)
@@ -252,6 +388,7 @@ fn import_islands_and_regions(
     world: &WorldData,
     resolver: &TextResolver,
     island_types: &BTreeSet<&str>,
+    untrans: &mut WorldUntranslatedCtx<'_>,
 ) -> Result<u64> {
     let mut rows: u64 = 0;
 
@@ -264,6 +401,14 @@ fn import_islands_and_regions(
                  ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             )
             .map_err(|err| DbError::sqlite("准备写入 island 表", err))?;
+        let mut untrans_stmt = ctx
+            .tx()
+            .prepare_cached(
+                "INSERT INTO island_untranslated \
+                 (island_type, field, lang, text_ns, text_key, value) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            )
+            .map_err(|err| DbError::sqlite("准备写入 island_untranslated 表", err))?;
 
         let mut sorted_islands: Vec<_> = world.islands().iter().collect();
         sorted_islands.sort_by(|a, b| a.island_type.cmp(&b.island_type));
@@ -284,6 +429,14 @@ fn import_islands_and_regions(
                 DbError::sqlite(format!("写入 island 主键 {}", island.island_type), err)
             })?;
             rows += 1;
+
+            rows += untrans.insert_single(
+                &mut untrans_stmt,
+                "island_untranslated",
+                &island.island_type,
+                &[("name".to_owned(), &island.name)],
+                resolver,
+            )?;
         }
     }
 
@@ -357,6 +510,7 @@ fn import_save_points(
     world: &WorldData,
     resolver: &TextResolver,
     item_prices: &BTreeMap<i64, i64>,
+    untrans: &mut WorldUntranslatedCtx<'_>,
 ) -> Result<u64> {
     let mut rows: u64 = 0;
 
@@ -396,6 +550,14 @@ fn import_save_points(
                  ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             )
             .map_err(|err| DbError::sqlite("准备写入 save_point_command 表", err))?;
+        let mut untrans_stmt = ctx
+            .tx()
+            .prepare_cached(
+                "INSERT INTO save_point_command_untranslated \
+                 (command_type, field, lang, text_ns, text_key, value) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            )
+            .map_err(|err| DbError::sqlite("准备写入 save_point_command_untranslated 表", err))?;
 
         let mut sorted_cmds: Vec<_> = world.save_point_commands().iter().collect();
         sorted_cmds.sort_by(|a, b| a.command_type.cmp(&b.command_type));
@@ -429,6 +591,17 @@ fn import_save_points(
                 )
             })?;
             rows += 1;
+
+            rows += untrans.insert_single(
+                &mut untrans_stmt,
+                "save_point_command_untranslated",
+                &cmd.command_type,
+                &[
+                    ("label".to_owned(), &cmd.label),
+                    ("tooltip".to_owned(), &cmd.tooltip),
+                ],
+                resolver,
+            )?;
         }
     }
 
@@ -575,6 +748,7 @@ fn import_teleports_and_links(
     Ok(rows)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn import_items(
     ctx: &ImportCtx<'_>,
     world: &WorldData,
@@ -582,6 +756,7 @@ fn import_items(
     languages: &[String],
     item_prices: &BTreeMap<i64, i64>,
     world_names: &mut WorldNameMap,
+    untrans: &mut WorldUntranslatedCtx<'_>,
 ) -> Result<u64> {
     let mut rows: u64 = 0;
     let mut stmt = ctx
@@ -594,6 +769,13 @@ fn import_items(
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         )
         .map_err(|err| DbError::sqlite("准备写入 item 表", err))?;
+    let mut untrans_stmt = ctx
+        .tx()
+        .prepare_cached(
+            "INSERT INTO item_untranslated (item_id, field, lang, text_ns, text_key, value) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        )
+        .map_err(|err| DbError::sqlite("准备写入 item_untranslated 表", err))?;
 
     let mut sorted_items: Vec<_> = world.items().iter().collect();
     sorted_items.sort_by_key(|it| it.id);
@@ -651,6 +833,16 @@ fn import_items(
             languages,
             world_names,
         );
+        rows += untrans.insert_single(
+            &mut untrans_stmt,
+            "item_untranslated",
+            item.id,
+            &[
+                ("description".to_owned(), &item.description),
+                ("name".to_owned(), &item.name),
+            ],
+            resolver,
+        )?;
     }
 
     Ok(rows)
@@ -724,6 +916,7 @@ fn import_shops_and_inns(
     resolver: &TextResolver,
     item_prices: &BTreeMap<i64, i64>,
     shop_ids: &BTreeSet<i64>,
+    untrans: &mut WorldUntranslatedCtx<'_>,
 ) -> Result<u64> {
     let mut rows: u64 = 0;
 
@@ -735,6 +928,13 @@ fn import_shops_and_inns(
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             )
             .map_err(|err| DbError::sqlite("准备写入 shop 表", err))?;
+        let mut shop_untrans_stmt = ctx
+            .tx()
+            .prepare_cached(
+                "INSERT INTO shop_untranslated (shop_id, field, lang, text_ns, text_key, value) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            )
+            .map_err(|err| DbError::sqlite("准备写入 shop_untranslated 表", err))?;
 
         let mut shop_item_stmt = ctx
             .tx()
@@ -762,6 +962,14 @@ fn import_shops_and_inns(
                 ])
                 .map_err(|err| DbError::sqlite(format!("写入 shop 主键 {}", shop.id), err))?;
             rows += 1;
+
+            rows += untrans.insert_single(
+                &mut shop_untrans_stmt,
+                "shop_untranslated",
+                shop.id,
+                &[("name".to_owned(), &shop.name)],
+                resolver,
+            )?;
 
             for (slot_idx, entry) in shop.items.iter().enumerate() {
                 let effective_price = match item_prices.get(&entry.item_id) {
@@ -893,6 +1101,7 @@ fn import_quests(
     map_ids: &BTreeSet<i64>,
     item_prices: &BTreeMap<i64, i64>,
     valid_quest_board_ids: &BTreeSet<i64>,
+    untrans: &mut WorldUntranslatedCtx<'_>,
 ) -> Result<u64> {
     let mut rows: u64 = 0;
 
@@ -906,6 +1115,13 @@ fn import_quests(
                  ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             )
             .map_err(|err| DbError::sqlite("准备写入 quest 表", err))?;
+        let mut quest_untrans_stmt = ctx
+            .tx()
+            .prepare_cached(
+                "INSERT INTO quest_untranslated (quest_id, field, lang, text_ns, text_key, value) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            )
+            .map_err(|err| DbError::sqlite("准备写入 quest_untranslated 表", err))?;
 
         let mut prize_stmt = ctx
             .tx()
@@ -915,6 +1131,14 @@ fn import_quests(
                  ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             )
             .map_err(|err| DbError::sqlite("准备写入 quest_prize 表", err))?;
+        let mut prize_untrans_stmt = ctx
+            .tx()
+            .prepare_cached(
+                "INSERT INTO quest_prize_untranslated \
+                 (quest_id, prize_index, field, lang, text_ns, text_key, value) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            )
+            .map_err(|err| DbError::sqlite("准备写入 quest_prize_untranslated 表", err))?;
 
         let mut sorted_quests: Vec<_> = world.quests().iter().collect();
         sorted_quests.sort_by_key(|q| q.id);
@@ -984,6 +1208,23 @@ fn import_quests(
                 .map_err(|err| DbError::sqlite(format!("写入 quest 主键 {}", quest.id), err))?;
             rows += 1;
 
+            let mut quest_fields: Vec<(String, &FTextValue)> = vec![
+                ("ending_summary".to_owned(), &quest.ending_summary),
+                ("requester".to_owned(), &quest.requester),
+                ("title".to_owned(), &quest.title),
+            ];
+            for (idx, obj) in quest.objectives.iter().enumerate() {
+                quest_fields.push((format!("objectives[{idx}].goal_text"), &obj.goal_text));
+                quest_fields.push((format!("objectives[{idx}].summary_text"), &obj.summary_text));
+            }
+            rows += untrans.insert_single(
+                &mut quest_untrans_stmt,
+                "quest_untranslated",
+                quest.id,
+                &quest_fields,
+                resolver,
+            )?;
+
             for (prize_idx, prize) in quest.prizes.iter().enumerate() {
                 if let Some(iid) = prize.item_id
                     && !item_prices.contains_key(&iid)
@@ -1011,6 +1252,15 @@ fn import_quests(
                         DbError::sqlite(format!("写入 quest_prize ({}, {p_idx})", quest.id), err)
                     })?;
                 rows += 1;
+
+                rows += untrans.insert_pair(
+                    &mut prize_untrans_stmt,
+                    "quest_prize_untranslated",
+                    quest.id,
+                    p_idx,
+                    &[("text".to_owned(), &prize.text)],
+                    resolver,
+                )?;
             }
         }
     }
@@ -1025,6 +1275,14 @@ fn import_quests(
                  ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             )
             .map_err(|err| DbError::sqlite("准备写入 quest_board 表", err))?;
+        let mut qb_untrans_stmt = ctx
+            .tx()
+            .prepare_cached(
+                "INSERT INTO quest_board_untranslated \
+                 (row_key, field, lang, text_ns, text_key, value) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            )
+            .map_err(|err| DbError::sqlite("准备写入 quest_board_untranslated 表", err))?;
 
         let mut reward_stmt = ctx
             .tx()
@@ -1057,6 +1315,18 @@ fn import_quests(
                     DbError::sqlite(format!("写入 quest_board 主键 {}", entry.row_key), err)
                 })?;
             rows += 1;
+
+            rows += untrans.insert_single(
+                &mut qb_untrans_stmt,
+                "quest_board_untranslated",
+                &entry.row_key,
+                &[
+                    ("description".to_owned(), &entry.description),
+                    ("map_name".to_owned(), &entry.map_name),
+                    ("title".to_owned(), &entry.title),
+                ],
+                resolver,
+            )?;
 
             for (r_idx, reward) in entry.rewards.iter().enumerate() {
                 if let Some(iid) = reward.item_id
@@ -1100,6 +1370,7 @@ fn import_scenario(
     scenario: &ScenarioData,
     resolver: &TextResolver,
     map_ids: &BTreeSet<i64>,
+    untrans: &mut WorldUntranslatedCtx<'_>,
 ) -> Result<u64> {
     let mut rows: u64 = 0;
 
@@ -1111,6 +1382,14 @@ fn import_scenario(
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             )
             .map_err(|err| DbError::sqlite("准备写入 chapter 表", err))?;
+        let mut ch_untrans_stmt = ctx
+            .tx()
+            .prepare_cached(
+                "INSERT INTO chapter_untranslated \
+                 (chapter_no, field, lang, text_ns, text_key, value) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            )
+            .map_err(|err| DbError::sqlite("准备写入 chapter_untranslated 表", err))?;
 
         let mut sorted_chapters: Vec<_> = scenario.chapters.iter().collect();
         sorted_chapters.sort_by_key(|c| c.chapter_no);
@@ -1131,6 +1410,14 @@ fn import_scenario(
                     DbError::sqlite(format!("写入 chapter 主键 {}", ch.chapter_no), err)
                 })?;
             rows += 1;
+
+            rows += untrans.insert_single(
+                &mut ch_untrans_stmt,
+                "chapter_untranslated",
+                ch.chapter_no,
+                &[("name".to_owned(), &ch.name)],
+                resolver,
+            )?;
         }
     }
 
@@ -1156,6 +1443,14 @@ fn import_scenario(
                  ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             )
             .map_err(|err| DbError::sqlite("准备写入 main_scenario 表", err))?;
+        let mut ms_untrans_stmt = ctx
+            .tx()
+            .prepare_cached(
+                "INSERT INTO main_scenario_untranslated \
+                 (row_key, field, lang, text_ns, text_key, value) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            )
+            .map_err(|err| DbError::sqlite("准备写入 main_scenario_untranslated 表", err))?;
 
         let mut sorted_ms: Vec<_> = scenario.main_scenario.iter().collect();
         sorted_ms.sort_by(|a, b| a.row_key.cmp(&b.row_key));
@@ -1194,6 +1489,17 @@ fn import_scenario(
                     DbError::sqlite(format!("写入 main_scenario 主键 {}", entry.row_key), err)
                 })?;
             rows += 1;
+
+            rows += untrans.insert_single(
+                &mut ms_untrans_stmt,
+                "main_scenario_untranslated",
+                &entry.row_key,
+                &[
+                    ("summary_text".to_owned(), &entry.summary_text),
+                    ("text".to_owned(), &entry.text),
+                ],
+                resolver,
+            )?;
         }
     }
 
@@ -1206,6 +1512,14 @@ fn import_scenario(
                  ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             )
             .map_err(|err| DbError::sqlite("准备写入 main_quest 表", err))?;
+        let mut mq_untrans_stmt = ctx
+            .tx()
+            .prepare_cached(
+                "INSERT INTO main_quest_untranslated \
+                 (quest_id, field, lang, text_ns, text_key, value) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            )
+            .map_err(|err| DbError::sqlite("准备写入 main_quest_untranslated 表", err))?;
 
         let mut main_quests = scenario.main_quests();
         main_quests.sort_by_key(|mq| mq.quest_id);
@@ -1227,6 +1541,14 @@ fn import_scenario(
                     DbError::sqlite(format!("写入 main_quest 主键 {}", mq.quest_id), err)
                 })?;
             rows += 1;
+
+            rows += untrans.insert_single(
+                &mut mq_untrans_stmt,
+                "main_quest_untranslated",
+                mq.quest_id,
+                &[("chapter_name".to_owned(), &mq.chapter_name)],
+                resolver,
+            )?;
         }
     }
 
@@ -1286,6 +1608,7 @@ fn import_playable_units(
     ctx: &ImportCtx<'_>,
     playable: &MapUnitPlayableData,
     resolver: &TextResolver,
+    untrans: &mut WorldUntranslatedCtx<'_>,
 ) -> Result<u64> {
     let mut rows: u64 = 0;
 
@@ -1321,6 +1644,14 @@ fn import_playable_units(
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         )
         .map_err(|err| DbError::sqlite("准备写入 playable_unit 表", err))?;
+    let mut untrans_stmt = ctx
+        .tx()
+        .prepare_cached(
+            "INSERT INTO playable_unit_untranslated \
+             (map_unit_id, field, lang, text_ns, text_key, value) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        )
+        .map_err(|err| DbError::sqlite("准备写入 playable_unit_untranslated 表", err))?;
 
     let mut sorted_mappings = playable.all_mappings();
     sorted_mappings.sort_by_key(|u| u.map_unit_id);
@@ -1343,6 +1674,14 @@ fn import_playable_units(
             DbError::sqlite(format!("写入 playable_unit 主键 {}", unit.map_unit_id), err)
         })?;
         rows += 1;
+
+        rows += untrans.insert_single(
+            &mut untrans_stmt,
+            "playable_unit_untranslated",
+            unit.map_unit_id,
+            &[("name".to_owned(), &unit.name)],
+            resolver,
+        )?;
     }
 
     Ok(rows)
@@ -1353,6 +1692,7 @@ fn import_item_drops(
     units: &[Unit],
     resolver: &TextResolver,
     item_prices: &BTreeMap<i64, i64>,
+    untrans: &mut WorldUntranslatedCtx<'_>,
 ) -> Result<u64> {
     let mut rows: u64 = 0;
     let mut stmt = ctx
@@ -1363,6 +1703,14 @@ fn import_item_drops(
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         )
         .map_err(|err| DbError::sqlite("准备写入 item_drop 表", err))?;
+    let mut untrans_stmt = ctx
+        .tx()
+        .prepare_cached(
+            "INSERT INTO item_drop_untranslated \
+             (unit_id, drop_kind, field, lang, text_ns, text_key, value) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        )
+        .map_err(|err| DbError::sqlite("准备写入 item_drop_untranslated 表", err))?;
 
     let mut sorted_units: Vec<_> = units.iter().collect();
     sorted_units.sort_by_key(|u| u.id);
@@ -1420,6 +1768,15 @@ fn import_item_drops(
                 DbError::sqlite(format!("写入 item_drop ({}, {drop_kind})", unit.id), err)
             })?;
             rows += 1;
+
+            rows += untrans.insert_pair(
+                &mut untrans_stmt,
+                "item_drop_untranslated",
+                unit.id,
+                drop_kind,
+                &[("unit_name".to_owned(), &unit.name)],
+                resolver,
+            )?;
         }
     }
 

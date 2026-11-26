@@ -70,3 +70,17 @@ CREATE INDEX idx_item_drop_item_id ON item_drop(item_id, unit_id, drop_kind);
 CREATE INDEX idx_item_drop_unit_id ON item_drop(unit_id);
 
 CREATE INDEX idx_world_name_lookup ON world_name(entity_kind, lang, name_lower, entity_id);
+
+CREATE INDEX idx_map_untranslated_lang ON map_untranslated(lang, map_id, field);
+CREATE INDEX idx_island_untranslated_lang ON island_untranslated(lang, island_type, field);
+CREATE INDEX idx_save_point_command_untranslated_lang ON save_point_command_untranslated(lang, command_type, field);
+CREATE INDEX idx_item_untranslated_lang ON item_untranslated(lang, item_id, field);
+CREATE INDEX idx_shop_untranslated_lang ON shop_untranslated(lang, shop_id, field);
+CREATE INDEX idx_quest_untranslated_lang ON quest_untranslated(lang, quest_id, field);
+CREATE INDEX idx_quest_prize_untranslated_lang ON quest_prize_untranslated(lang, quest_id, prize_index, field);
+CREATE INDEX idx_quest_board_untranslated_lang ON quest_board_untranslated(lang, row_key, field);
+CREATE INDEX idx_chapter_untranslated_lang ON chapter_untranslated(lang, chapter_no, field);
+CREATE INDEX idx_main_scenario_untranslated_lang ON main_scenario_untranslated(lang, row_key, field);
+CREATE INDEX idx_main_quest_untranslated_lang ON main_quest_untranslated(lang, quest_id, field);
+CREATE INDEX idx_playable_unit_untranslated_lang ON playable_unit_untranslated(lang, map_unit_id, field);
+CREATE INDEX idx_item_drop_untranslated_lang ON item_drop_untranslated(lang, unit_id, drop_kind, field);

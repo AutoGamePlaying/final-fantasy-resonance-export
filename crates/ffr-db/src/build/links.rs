@@ -26,7 +26,7 @@ use ffr_data::{datatable_relative_path_to_json, normalize_row_struct_name};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::Value;
 
-use crate::build::{ImportCtx, StageStats};
+use crate::build::{ImportCtx, StageStats, format_untranslated_table_counts};
 use crate::error::{DbError, Result};
 use crate::query::links::{MapUnit, MapUnitAnimationAsset};
 use crate::record::encode_doc;
@@ -38,13 +38,20 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
     let mut skipped_parts: Vec<String> = Vec::new();
     let mut any_subpass_ran = false;
 
+    let (non_native_langs, text_untranslated) = load_text_untranslated_lookup(ctx.tx())?;
+
     // 1. Talk events, next-event edges, dialogue lines, and level_object -> talk links.
-    match import_talk_chain(ctx, &mut skipped_parts)? {
+    match import_talk_chain(ctx, &text_untranslated, &mut skipped_parts)? {
         Some(stats) => {
             any_subpass_ran = true;
             total_rows = total_rows.saturating_add(stats.total_rows());
+            let untrans_note = format_untranslated_table_counts(
+                "talk_line_untranslated",
+                &non_native_langs,
+                &stats.talk_line_untranslated_by_lang,
+            );
             summary_parts.push(format!(
-                "talk_event={}, talk_event_next={}, talk_line={}, level_object_talk={}",
+                "talk_event={}, talk_event_next={}, talk_line={}, {untrans_note}, level_object_talk={}",
                 stats.talk_events, stats.talk_next, stats.talk_lines, stats.level_object_talk
             ));
         }
@@ -54,11 +61,18 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
     }
 
     // 2. Map units (`DT_MapUnitAsset`) and `level_object` map-unit reference validation.
-    match import_map_units(ctx, &mut skipped_parts)? {
-        Some(map_unit_rows) => {
+    match import_map_units(ctx, &text_untranslated, &mut skipped_parts)? {
+        Some(stats) => {
             any_subpass_ran = true;
-            total_rows = total_rows.saturating_add(map_unit_rows);
-            summary_parts.push(format!("map_unit={map_unit_rows}"));
+            total_rows = total_rows
+                .saturating_add(stats.map_units)
+                .saturating_add(stats.map_unit_untranslated);
+            let untrans_note = format_untranslated_table_counts(
+                "map_unit_untranslated",
+                &non_native_langs,
+                &stats.map_unit_untranslated_by_lang,
+            );
+            summary_parts.push(format!("map_unit={}, {untrans_note}", stats.map_units));
         }
         None => {
             skipped_parts.push(format!("地图单位（dt_table 缺少 {MAP_UNIT_ASSET_TABLE}）"));
@@ -91,21 +105,30 @@ pub fn import(ctx: &mut ImportCtx<'_>) -> Result<StageStats> {
     ))
 }
 
+type UntranslatedByKey = BTreeMap<(String, String), Vec<(String, String)>>;
+
 struct TalkImportStats {
     talk_events: u64,
     talk_next: u64,
     talk_lines: u64,
+    talk_line_untranslated: u64,
+    talk_line_untranslated_by_lang: BTreeMap<String, u64>,
     level_object_talk: u64,
 }
 
 impl TalkImportStats {
     fn total_rows(&self) -> u64 {
-        self.talk_events + self.talk_next + self.talk_lines + self.level_object_talk
+        self.talk_events
+            + self.talk_next
+            + self.talk_lines
+            + self.talk_line_untranslated
+            + self.level_object_talk
     }
 }
 
 fn import_talk_chain(
     ctx: &mut ImportCtx<'_>,
+    text_untranslated: &UntranslatedByKey,
     skipped_parts: &mut Vec<String>,
 ) -> Result<Option<TalkImportStats>> {
     let tx = ctx.tx();
@@ -303,6 +326,8 @@ fn import_talk_chain(
     // Import dialogue lines for every referenced TalkEventRowData table, preserving original JSON
     // row order in `ord` while inserting rows in natural PRIMARY KEY `(table_path, row)` order.
     let mut talk_line_rows: u64 = 0;
+    let mut talk_line_untrans_rows: u64 = 0;
+    let mut talk_line_untrans_by_lang: BTreeMap<String, u64> = BTreeMap::new();
     {
         let mut insert_line = tx
             .prepare_cached(
@@ -311,6 +336,13 @@ fn import_talk_chain(
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             )
             .map_err(|err| DbError::sqlite("准备写入 talk_line", err))?;
+        let mut insert_line_untrans = tx
+            .prepare_cached(
+                "INSERT INTO talk_line_untranslated \
+                 (table_path, row, field, lang, text_ns, text_key, value) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            )
+            .map_err(|err| DbError::sqlite("准备写入 talk_line_untranslated", err))?;
 
         for (ue_path, rel_path, table_id) in &referenced_talk_tables {
             let ordered_rows = load_talk_table_rows_ordered(ctx, rel_path, *table_id)?;
@@ -345,6 +377,34 @@ fn import_talk_chain(
                         )
                     })?;
                 talk_line_rows += 1;
+
+                if let (Some(ns), Some(key)) = (&line.text_ns, &line.text_key)
+                    && let Some(entries) = text_untranslated.get(&(ns.clone(), key.clone()))
+                {
+                    for (lang, value) in entries {
+                        insert_line_untrans
+                            .execute(params![
+                                line.table_path,
+                                line.row_key,
+                                "text",
+                                lang,
+                                ns,
+                                key,
+                                value,
+                            ])
+                            .map_err(|err| {
+                                DbError::sqlite(
+                                    format!(
+                                        "写入 talk_line_untranslated ({}:{}, {lang})",
+                                        line.table_path, line.row_key
+                                    ),
+                                    err,
+                                )
+                            })?;
+                        *talk_line_untrans_by_lang.entry(lang.clone()).or_insert(0) += 1;
+                        talk_line_untrans_rows += 1;
+                    }
+                }
             }
         }
     }
@@ -361,6 +421,8 @@ fn import_talk_chain(
         talk_events: talk_event_rows,
         talk_next: talk_next_rows,
         talk_lines: talk_line_rows,
+        talk_line_untranslated: talk_line_untrans_rows,
+        talk_line_untranslated_by_lang: talk_line_untrans_by_lang,
         level_object_talk: level_object_talk_rows,
     }))
 }
@@ -531,10 +593,17 @@ fn extract_level_object_event_ids(obj: &LevelObject) -> Vec<(String, Option<Stri
     out
 }
 
+struct MapUnitImportStats {
+    map_units: u64,
+    map_unit_untranslated: u64,
+    map_unit_untranslated_by_lang: BTreeMap<String, u64>,
+}
+
 fn import_map_units(
     ctx: &mut ImportCtx<'_>,
+    text_untranslated: &UntranslatedByKey,
     skipped_parts: &mut Vec<String>,
-) -> Result<Option<u64>> {
+) -> Result<Option<MapUnitImportStats>> {
     let tx = ctx.tx();
     let Some(table_id) = lookup_dt_table_id(tx, MAP_UNIT_ASSET_TABLE)? else {
         return Ok(None);
@@ -598,6 +667,8 @@ fn import_map_units(
 
     let mut known_map_unit_ids: BTreeSet<i64> = BTreeSet::new();
     let mut inserted_rows: u64 = 0;
+    let mut untrans_rows: u64 = 0;
+    let mut untrans_by_lang: BTreeMap<String, u64> = BTreeMap::new();
 
     {
         let mut insert_stmt = tx
@@ -607,6 +678,13 @@ fn import_map_units(
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             )
             .map_err(|err| DbError::sqlite("准备写入 map_unit", err))?;
+        let mut insert_untrans = tx
+            .prepare_cached(
+                "INSERT INTO map_unit_untranslated \
+                 (map_unit_id, field, lang, text_ns, text_key, value) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            )
+            .map_err(|err| DbError::sqlite("准备写入 map_unit_untranslated", err))?;
 
         for unit in units_by_id.values() {
             let doc = encode_doc("map_unit", unit.id, unit)?;
@@ -624,6 +702,23 @@ fn import_map_units(
                 .map_err(|err| DbError::sqlite(format!("写入 map_unit {}", unit.id), err))?;
             known_map_unit_ids.insert(unit.id);
             inserted_rows += 1;
+
+            if let (Some(ns), Some(key)) = (&unit.name_ns, &unit.name_key)
+                && let Some(entries) = text_untranslated.get(&(ns.clone(), key.clone()))
+            {
+                for (lang, value) in entries {
+                    insert_untrans
+                        .execute(params![unit.id, "name", lang, ns, key, value])
+                        .map_err(|err| {
+                            DbError::sqlite(
+                                format!("写入 map_unit_untranslated ({}, {lang})", unit.id),
+                                err,
+                            )
+                        })?;
+                    *untrans_by_lang.entry(lang.clone()).or_insert(0) += 1;
+                    untrans_rows += 1;
+                }
+            }
         }
     }
 
@@ -686,7 +781,11 @@ fn import_map_units(
         skipped_parts.push("地图单位引用校验（level_object 表为空）".to_owned());
     }
 
-    Ok(Some(inserted_rows))
+    Ok(Some(MapUnitImportStats {
+        map_units: inserted_rows,
+        map_unit_untranslated: untrans_rows,
+        map_unit_untranslated_by_lang: untrans_by_lang,
+    }))
 }
 
 fn parse_map_unit_animations(raw: Option<&Value>) -> Vec<MapUnitAnimationAsset> {
@@ -1213,6 +1312,59 @@ fn load_string_table_ns_map(conn: &Connection) -> Result<BTreeMap<String, String
         map.insert(tid, ns);
     }
     Ok(map)
+}
+
+fn load_text_untranslated_lookup(conn: &Connection) -> Result<(Vec<String>, UntranslatedByKey)> {
+    let mut langs = Vec::new();
+    {
+        let mut stmt = conn
+            .prepare_cached("SELECT lang FROM text_language WHERE lang != 'ja' ORDER BY lang")
+            .map_err(|err| DbError::sqlite("准备读取 text_language", err))?;
+        let mut rows = stmt
+            .query([])
+            .map_err(|err| DbError::sqlite("读取 text_language", err))?;
+        while let Some(row) = rows
+            .next()
+            .map_err(|err| DbError::sqlite("迭代 text_language", err))?
+        {
+            langs.push(
+                row.get(0)
+                    .map_err(|err| DbError::sqlite("读取 text_language.lang", err))?,
+            );
+        }
+    }
+
+    let mut by_key: UntranslatedByKey = BTreeMap::new();
+    {
+        let mut stmt = conn
+            .prepare_cached(
+                "SELECT ns, key, lang, value FROM text_untranslated ORDER BY ns, key, lang",
+            )
+            .map_err(|err| DbError::sqlite("准备读取 text_untranslated", err))?;
+        let mut rows = stmt
+            .query([])
+            .map_err(|err| DbError::sqlite("读取 text_untranslated", err))?;
+        while let Some(row) = rows
+            .next()
+            .map_err(|err| DbError::sqlite("迭代 text_untranslated", err))?
+        {
+            let ns: String = row
+                .get(0)
+                .map_err(|err| DbError::sqlite("读取 text_untranslated.ns", err))?;
+            let key: String = row
+                .get(1)
+                .map_err(|err| DbError::sqlite("读取 text_untranslated.key", err))?;
+            let lang: String = row
+                .get(2)
+                .map_err(|err| DbError::sqlite("读取 text_untranslated.lang", err))?;
+            let value: String = row
+                .get(3)
+                .map_err(|err| DbError::sqlite("读取 text_untranslated.value", err))?;
+            by_key.entry((ns, key)).or_default().push((lang, value));
+        }
+    }
+
+    Ok((langs, by_key))
 }
 
 type PlayableNameTuple = (Option<String>, Option<String>, Option<String>);

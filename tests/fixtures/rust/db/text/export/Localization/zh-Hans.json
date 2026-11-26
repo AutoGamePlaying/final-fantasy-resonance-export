@@ -2,10 +2,13 @@
   "FakeTextNamespace": {
     "Greeting": "钢蝠",
     "LongText": "洞窟深处的钢铁蝙蝠",
-    "Literal": "100%_\\测试"
+    "Literal": "100%_\\测试",
+    "UntranslatedKana": "テスト未翻訳の技",
+    "SameKanjiName": "白虎"
   },
   "InlineNs": {
-    "InlineKey": "内联钢铁蝙蝠"
+    "InlineKey": "内联钢铁蝙蝠",
+    "UntranslatedInline": "仮の未翻訳メッセージ"
   },
   "EmptyNs": {}
 }

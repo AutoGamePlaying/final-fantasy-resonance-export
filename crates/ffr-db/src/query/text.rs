@@ -3,16 +3,17 @@
 use std::path::Path;
 
 use ffr_data::{
-    FTextValue, NATIVE_LANGUAGE, ResolveOptions, ResolvedText, TextSource, is_safe_language_tag,
-    ue_object_path_to_export_json,
+    FTextValue, NATIVE_LANGUAGE, ResolveOptions, ResolvedText, TextSource, UNTRANSLATED_REASON,
+    is_safe_language_tag, ue_object_path_to_export_json,
 };
+use rusqlite::types::FromSql;
 use rusqlite::{Connection, OptionalExtension, Params, Statement, params};
 use serde::{Deserialize, Serialize};
 
 use crate::db::GameDb;
 use crate::error::{DbError, Result};
 
-/// One localized text search result.
+/// One localized text search result (from `text`, which excludes untranslated non-native rows).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TextHit {
     pub ns: String,
@@ -21,18 +22,45 @@ pub struct TextHit {
     pub value: String,
 }
 
+/// One game-official untranslated entry stored in `text_untranslated`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UntranslatedTextEntry {
+    pub ns: String,
+    pub key: String,
+    pub lang: String,
+    pub value: String,
+    pub reason: String,
+}
+
+/// One entity text field recorded in a `<table_name>_untranslated` companion table.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UntranslatedField<K> {
+    pub key: K,
+    pub field: String,
+    pub lang: String,
+    pub text_ns: String,
+    pub text_key: String,
+    pub value: String,
+}
+
 impl GameDb {
-    /// Look up one localized string by its primary key.
+    /// Look up one translated localized string (or native `ja` string) by its primary key.
+    ///
+    /// Game-official untranslated entries live in `text_untranslated` instead of `text`, so this
+    /// strictly returns `None` for them.
     pub fn text(&self, ns: &str, key: &str, lang: &str) -> Result<Option<String>> {
         self.with_conn(|conn| lookup_text(conn, ns, key, lang))
     }
 
-    /// Return all stored translations as `(lang, value)` pairs ordered by language.
+    /// Return all translated entries (plus native `ja`) as `(lang, value)` pairs ordered by
+    /// language.
     pub fn text_all_langs(&self, ns: &str, key: &str) -> Result<Vec<(String, String)>> {
         self.with_conn(|conn| {
             let mut stmt = conn
                 .prepare_cached(
-                    "SELECT lang, value FROM text WHERE ns = ?1 AND key = ?2 ORDER BY lang",
+                    "SELECT lang, value FROM text \
+                     WHERE ns = ?1 AND key = ?2 \
+                     ORDER BY lang",
                 )
                 .map_err(|err| DbError::sqlite("准备查询 text 的全部语言", err))?;
             let mut rows = stmt
@@ -49,6 +77,73 @@ impl GameDb {
                     row.get(1)
                         .map_err(|err| DbError::sqlite("读取 text.value", err))?,
                 ));
+            }
+            Ok(out)
+        })
+    }
+
+    /// Look up one game-official untranslated entry by its `(ns, key, lang)` primary key.
+    pub fn text_untranslated(
+        &self,
+        ns: &str,
+        key: &str,
+        lang: &str,
+    ) -> Result<Option<UntranslatedTextEntry>> {
+        self.with_conn(|conn| {
+            let mut stmt = conn
+                .prepare_cached(
+                    "SELECT ns, key, lang, value, reason FROM text_untranslated \
+                     WHERE ns = ?1 AND key = ?2 AND lang = ?3",
+                )
+                .map_err(|err| DbError::sqlite("准备查询 text_untranslated", err))?;
+            stmt.query_row(params![ns, key, lang], |row| {
+                Ok(UntranslatedTextEntry {
+                    ns: row.get(0)?,
+                    key: row.get(1)?,
+                    lang: row.get(2)?,
+                    value: row.get(3)?,
+                    reason: row.get(4)?,
+                })
+            })
+            .optional()
+            .map_err(|err| DbError::sqlite(format!("查询未翻译文本 {ns}/{key}（{lang}）"), err))
+        })
+    }
+
+    /// Return all game-official untranslated entries for `lang`, ordered by `(ns, key)`.
+    pub fn untranslated_texts(&self, lang: &str) -> Result<Vec<UntranslatedTextEntry>> {
+        self.with_conn(|conn| {
+            let mut stmt = conn
+                .prepare_cached(
+                    "SELECT ns, key, lang, value, reason FROM text_untranslated \
+                     WHERE lang = ?1 ORDER BY ns, key",
+                )
+                .map_err(|err| DbError::sqlite("准备按语言查询 text_untranslated", err))?;
+            let mut rows = stmt
+                .query([lang])
+                .map_err(|err| DbError::sqlite(format!("按语言查询未翻译文本（{lang}）"), err))?;
+            let mut out = Vec::new();
+            while let Some(row) = rows
+                .next()
+                .map_err(|err| DbError::sqlite("读取 text_untranslated 行", err))?
+            {
+                out.push(UntranslatedTextEntry {
+                    ns: row
+                        .get(0)
+                        .map_err(|err| DbError::sqlite("读取 text_untranslated.ns", err))?,
+                    key: row
+                        .get(1)
+                        .map_err(|err| DbError::sqlite("读取 text_untranslated.key", err))?,
+                    lang: row
+                        .get(2)
+                        .map_err(|err| DbError::sqlite("读取 text_untranslated.lang", err))?,
+                    value: row
+                        .get(3)
+                        .map_err(|err| DbError::sqlite("读取 text_untranslated.value", err))?,
+                    reason: row
+                        .get(4)
+                        .map_err(|err| DbError::sqlite("读取 text_untranslated.reason", err))?,
+                });
             }
             Ok(out)
         })
@@ -97,7 +192,8 @@ impl GameDb {
         })
     }
 
-    /// Search localized values by literal substring, using trigram FTS or a short-query LIKE fallback.
+    /// Search localized values in `text` by literal substring, using trigram FTS or a short-query
+    /// LIKE fallback.
     pub fn search_text(
         &self,
         query: &str,
@@ -137,7 +233,8 @@ impl GameDb {
                 if let Some(lang) = lang {
                     let mut stmt = conn
                         .prepare_cached(
-                            "SELECT ns, key, lang, value FROM text INDEXED BY idx_text_lang_ns_key \
+                            "SELECT ns, key, lang, value \
+                             FROM text INDEXED BY idx_text_lang_ns_key \
                              WHERE lang = ?1 AND value LIKE ?2 ESCAPE '\\' \
                              ORDER BY ns, key LIMIT ?3",
                         )
@@ -146,7 +243,8 @@ impl GameDb {
                 } else {
                     let mut stmt = conn
                         .prepare_cached(
-                            "SELECT ns, key, lang, value FROM text INDEXED BY idx_text_lang_ns_key \
+                            "SELECT ns, key, lang, value \
+                             FROM text INDEXED BY idx_text_lang_ns_key \
                              WHERE value LIKE ?1 ESCAPE '\\' \
                              ORDER BY ns, key, lang LIMIT ?2",
                         )
@@ -156,6 +254,107 @@ impl GameDb {
             }
         })
     }
+}
+
+/// Shared helper for reading `<table_name>_untranslated` rows with a single primary-key column.
+///
+/// Expected column order: `(pk, field, lang, text_ns, text_key, value)`.
+pub(crate) fn query_untranslated_single_key<K, P>(
+    conn: &Connection,
+    table: &str,
+    sql: &str,
+    params: P,
+) -> Result<Vec<UntranslatedField<K>>>
+where
+    K: FromSql,
+    P: Params,
+{
+    let mut stmt = conn
+        .prepare_cached(sql)
+        .map_err(|err| DbError::sqlite(format!("准备查询 {table}"), err))?;
+    let mut rows = stmt
+        .query(params)
+        .map_err(|err| DbError::sqlite(format!("查询 {table}"), err))?;
+    let mut out = Vec::new();
+    while let Some(row) = rows
+        .next()
+        .map_err(|err| DbError::sqlite(format!("读取 {table} 行"), err))?
+    {
+        out.push(UntranslatedField {
+            key: row
+                .get(0)
+                .map_err(|err| DbError::sqlite(format!("读取 {table} 主键"), err))?,
+            field: row
+                .get(1)
+                .map_err(|err| DbError::sqlite(format!("读取 {table}.field"), err))?,
+            lang: row
+                .get(2)
+                .map_err(|err| DbError::sqlite(format!("读取 {table}.lang"), err))?,
+            text_ns: row
+                .get(3)
+                .map_err(|err| DbError::sqlite(format!("读取 {table}.text_ns"), err))?,
+            text_key: row
+                .get(4)
+                .map_err(|err| DbError::sqlite(format!("读取 {table}.text_key"), err))?,
+            value: row
+                .get(5)
+                .map_err(|err| DbError::sqlite(format!("读取 {table}.value"), err))?,
+        });
+    }
+    Ok(out)
+}
+
+/// Shared helper for reading `<table_name>_untranslated` rows with a 2-column composite primary key.
+///
+/// Expected column order: `(pk1, pk2, field, lang, text_ns, text_key, value)`.
+pub(crate) fn query_untranslated_pair_key<K1, K2, P>(
+    conn: &Connection,
+    table: &str,
+    sql: &str,
+    params: P,
+) -> Result<Vec<UntranslatedField<(K1, K2)>>>
+where
+    K1: FromSql,
+    K2: FromSql,
+    P: Params,
+{
+    let mut stmt = conn
+        .prepare_cached(sql)
+        .map_err(|err| DbError::sqlite(format!("准备查询 {table}"), err))?;
+    let mut rows = stmt
+        .query(params)
+        .map_err(|err| DbError::sqlite(format!("查询 {table}"), err))?;
+    let mut out = Vec::new();
+    while let Some(row) = rows
+        .next()
+        .map_err(|err| DbError::sqlite(format!("读取 {table} 行"), err))?
+    {
+        let k1: K1 = row
+            .get(0)
+            .map_err(|err| DbError::sqlite(format!("读取 {table} 主键列 1"), err))?;
+        let k2: K2 = row
+            .get(1)
+            .map_err(|err| DbError::sqlite(format!("读取 {table} 主键列 2"), err))?;
+        out.push(UntranslatedField {
+            key: (k1, k2),
+            field: row
+                .get(2)
+                .map_err(|err| DbError::sqlite(format!("读取 {table}.field"), err))?,
+            lang: row
+                .get(3)
+                .map_err(|err| DbError::sqlite(format!("读取 {table}.lang"), err))?,
+            text_ns: row
+                .get(4)
+                .map_err(|err| DbError::sqlite(format!("读取 {table}.text_ns"), err))?,
+            text_key: row
+                .get(5)
+                .map_err(|err| DbError::sqlite(format!("读取 {table}.text_key"), err))?,
+            value: row
+                .get(6)
+                .map_err(|err| DbError::sqlite(format!("读取 {table}.value"), err))?,
+        });
+    }
+    Ok(out)
 }
 
 fn query_hits<P: Params>(stmt: &mut Statement<'_>, params: P) -> Result<Vec<TextHit>> {
@@ -233,6 +432,41 @@ fn lookup_text(conn: &Connection, ns: &str, key: &str, lang: &str) -> Result<Opt
         .map_err(|err| DbError::sqlite(format!("查询文本 {ns}/{key}（{lang}）"), err))
 }
 
+fn lookup_text_untranslated(
+    conn: &Connection,
+    ns: &str,
+    key: &str,
+    lang: &str,
+) -> Result<Option<String>> {
+    let mut stmt = conn
+        .prepare_cached(
+            "SELECT value FROM text_untranslated WHERE ns = ?1 AND key = ?2 AND lang = ?3",
+        )
+        .map_err(|err| DbError::sqlite("准备查询 text_untranslated", err))?;
+    stmt.query_row(params![ns, key, lang], |row| row.get(0))
+        .optional()
+        .map_err(|err| DbError::sqlite(format!("查询未翻译文本 {ns}/{key}（{lang}）"), err))
+}
+
+fn resolve_untranslated(
+    native_text: String,
+    language: &str,
+    fallback_to_native: bool,
+) -> ResolvedText {
+    if !fallback_to_native {
+        return missing(language, UNTRANSLATED_REASON);
+    }
+    ResolvedText {
+        text: Some(native_text),
+        lang: Some(NATIVE_LANGUAGE.to_owned()),
+        requested_language: language.to_owned(),
+        reason: Some(format!(
+            "{UNTRANSLATED_REASON}，已回落到源语言 {NATIVE_LANGUAGE}"
+        )),
+        source: TextSource::Localization,
+    }
+}
+
 fn string_table_namespace(conn: &Connection, table_id: &str) -> Result<Option<String>> {
     let mut stmt = conn
         .prepare_cached("SELECT ns FROM string_table WHERE table_id = ?1")
@@ -272,10 +506,13 @@ fn resolve_string_table(
     if let CatalogState::Error(reason) = &catalog {
         return Ok(missing(language, reason.clone()));
     }
-    if matches!(catalog, CatalogState::Loaded)
-        && let Some(translated) = lookup_text(conn, &namespace, key, language)?
-    {
-        return Ok(localized(translated, language, TextSource::Localization));
+    if matches!(catalog, CatalogState::Loaded) {
+        if let Some(value) = lookup_text(conn, &namespace, key, language)? {
+            return Ok(localized(value, language, TextSource::Localization));
+        }
+        if let Some(value) = lookup_text_untranslated(conn, &namespace, key, language)? {
+            return Ok(resolve_untranslated(value, language, fallback_to_native));
+        }
     }
 
     let missing_reason = match catalog {
@@ -328,10 +565,13 @@ fn resolve_inline(
     if let CatalogState::Error(reason) = &catalog {
         return Ok(missing(language, reason.clone()));
     }
-    if matches!(catalog, CatalogState::Loaded)
-        && let Some(translated) = lookup_text(conn, namespace, key, language)?
-    {
-        return Ok(localized(translated, language, TextSource::Localization));
+    if matches!(catalog, CatalogState::Loaded) {
+        if let Some(value) = lookup_text(conn, namespace, key, language)? {
+            return Ok(localized(value, language, TextSource::Localization));
+        }
+        if let Some(value) = lookup_text_untranslated(conn, namespace, key, language)? {
+            return Ok(resolve_untranslated(value, language, fallback_to_native));
+        }
     }
 
     let missing_reason = match catalog {
