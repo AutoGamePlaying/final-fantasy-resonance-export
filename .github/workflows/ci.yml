@@ -88,13 +88,26 @@ jobs:
           if (-not (Test-Path -LiteralPath $guiExe -PathType Leaf)) {
             throw "错误：找不到编译生成的窗口程序：$guiExe"
           }
-          # WinExe (GUI subsystem): `& exe` does not wait and leaves $LASTEXITCODE unset, so wait explicitly.
-          $selfTest = Start-Process -FilePath $guiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow
-          $selfTestExit = $selfTest.ExitCode
-          if ($selfTestExit -ne 0) {
-            throw "错误：ffr-export-gui.exe --self-test 失败（退出码 $selfTestExit）"
+          $stderrFile = Join-Path ([System.IO.Path]::GetTempPath()) ("ffr-gui-selftest-stderr-" + [System.Guid]::NewGuid().ToString("N") + ".log")
+          try {
+            # WinExe (GUI subsystem): `& exe` does not wait and leaves $LASTEXITCODE unset, so wait explicitly.
+            $selfTest = Start-Process -FilePath $guiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow -RedirectStandardError $stderrFile
+            $selfTestExit = $selfTest.ExitCode
+            if ($selfTestExit -ne 0) {
+              if (Test-Path -LiteralPath $stderrFile -PathType Leaf) {
+                $stderrText = Get-Content -LiteralPath $stderrFile -Raw -Encoding UTF8
+                if (-not [string]::IsNullOrWhiteSpace($stderrText)) {
+                  [Console]::Error.WriteLine($stderrText)
+                }
+              }
+              throw "错误：ffr-export-gui.exe --self-test 失败（退出码 $selfTestExit）"
+            }
+          } finally {
+            if (Test-Path -LiteralPath $stderrFile) {
+              Remove-Item -LiteralPath $stderrFile -Force -ErrorAction SilentlyContinue
+            }
           }
-          Write-Host "窗口程序依赖自检通过：$guiExe --self-test"
+          Write-Host "窗口程序构造自检通过：$guiExe --self-test"
 
   fixture-hash:
     name: Fixture Hash (${{ matrix.os }})
@@ -309,6 +322,43 @@ jobs:
             }
           }
           Write-Host "压缩包内容校验通过：$($names -join ', ')"
+
+      - name: Self-test packaged single-file GUI binary
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zipPath = "dist/ffr-export-$($env:PACKAGE_VERSION)-win-x64.zip"
+          $extractDir = Join-Path ([System.IO.Path]::GetTempPath()) ("ffr-pkg-selftest-" + [System.Guid]::NewGuid().ToString("N"))
+          $stderrFile = Join-Path ([System.IO.Path]::GetTempPath()) ("ffr-pkg-selftest-stderr-" + [System.Guid]::NewGuid().ToString("N") + ".log")
+          try {
+            [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $extractDir)
+            $packagedGuiExe = Join-Path $extractDir "ffr-export-gui.exe"
+            if (-not (Test-Path -LiteralPath $packagedGuiExe -PathType Leaf)) {
+              throw "错误：解压后的压缩包缺少窗口程序：$packagedGuiExe"
+            }
+            # WinExe (GUI subsystem): wait explicitly with Start-Process and capture stderr on failure.
+            $selfTest = Start-Process -FilePath $packagedGuiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow -RedirectStandardError $stderrFile
+            $selfTestExit = $selfTest.ExitCode
+            if ($selfTestExit -ne 0) {
+              if (Test-Path -LiteralPath $stderrFile -PathType Leaf) {
+                $stderrText = Get-Content -LiteralPath $stderrFile -Raw -Encoding UTF8
+                if (-not [string]::IsNullOrWhiteSpace($stderrText)) {
+                  [Console]::Error.WriteLine($stderrText)
+                }
+              }
+              throw "错误：打包后的单文件 ffr-export-gui.exe --self-test 失败（退出码 $selfTestExit）"
+            }
+            Write-Host "打包后的单文件窗口自检通过：$packagedGuiExe --self-test"
+          } finally {
+            if (Test-Path -LiteralPath $stderrFile) {
+              Remove-Item -LiteralPath $stderrFile -Force -ErrorAction SilentlyContinue
+            }
+            if (Test-Path -LiteralPath $extractDir) {
+              Remove-Item -LiteralPath $extractDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
 
       - name: Upload Windows package artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

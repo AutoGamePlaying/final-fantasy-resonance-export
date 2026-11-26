@@ -177,12 +177,25 @@ try {
         throw "错误：dotnet publish 未生成 $ffrExportGuiExe"
     }
 
-    Write-Host "==> 自检 ffr-export-gui.exe --self-test"
-    # WinExe (GUI subsystem): `& exe` does not wait and leaves $LASTEXITCODE unset, so wait explicitly.
-    $selfTest = Start-Process -FilePath $ffrExportGuiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow
-    $selfTestExit = $selfTest.ExitCode
-    if ($selfTestExit -ne 0) {
-        throw "错误：ffr-export-gui.exe --self-test 自检失败（退出码 $selfTestExit）"
+    Write-Host "==> 自检 ffr-export-gui.exe --self-test（单文件窗口构造自检）"
+    $selfTestStderr = Join-Path $stageDir "gui-selftest-stderr.log"
+    try {
+        # WinExe (GUI subsystem): `& exe` does not wait and leaves $LASTEXITCODE unset, so wait explicitly.
+        $selfTest = Start-Process -FilePath $ffrExportGuiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow -RedirectStandardError $selfTestStderr
+        $selfTestExit = $selfTest.ExitCode
+        if ($selfTestExit -ne 0) {
+            if (Test-Path -LiteralPath $selfTestStderr -PathType Leaf) {
+                $stderrText = Get-Content -LiteralPath $selfTestStderr -Raw -Encoding UTF8
+                if (-not [string]::IsNullOrWhiteSpace($stderrText)) {
+                    [Console]::Error.WriteLine($stderrText)
+                }
+            }
+            throw "错误：ffr-export-gui.exe --self-test 自检失败（退出码 $selfTestExit）"
+        }
+    } finally {
+        if (Test-Path -LiteralPath $selfTestStderr) {
+            Remove-Item -LiteralPath $selfTestStderr -Force -ErrorAction SilentlyContinue
+        }
     }
 
     Write-Host "==> 原生编译 ffr-db.exe（cargo build --release -p ffr-db）"

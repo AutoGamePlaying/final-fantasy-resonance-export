@@ -106,6 +106,41 @@ jobs:
             }
           }
 
+      - name: Self-test packaged single-file GUI binary
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zipPath = "dist/ffr-export-$($env:RELEASE_VERSION)-win-x64.zip"
+          $extractDir = Join-Path ([System.IO.Path]::GetTempPath()) ("ffr-rel-selftest-" + [System.Guid]::NewGuid().ToString("N"))
+          $stderrFile = Join-Path ([System.IO.Path]::GetTempPath()) ("ffr-rel-selftest-stderr-" + [System.Guid]::NewGuid().ToString("N") + ".log")
+          try {
+            [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $extractDir)
+            $packagedGuiExe = Join-Path $extractDir "ffr-export-gui.exe"
+            if (-not (Test-Path -LiteralPath $packagedGuiExe -PathType Leaf)) {
+              throw "错误：解压后的发布压缩包缺少窗口程序：$packagedGuiExe"
+            }
+            # WinExe (GUI subsystem): wait explicitly with Start-Process and capture stderr on failure.
+            $selfTest = Start-Process -FilePath $packagedGuiExe -ArgumentList @('--self-test') -Wait -PassThru -NoNewWindow -RedirectStandardError $stderrFile
+            $selfTestExit = $selfTest.ExitCode
+            if ($selfTestExit -ne 0) {
+              if (Test-Path -LiteralPath $stderrFile -PathType Leaf) {
+                $stderrText = Get-Content -LiteralPath $stderrFile -Raw -Encoding UTF8
+                if (-not [string]::IsNullOrWhiteSpace($stderrText)) {
+                  [Console]::Error.WriteLine($stderrText)
+                }
+              }
+              throw "错误：发布压缩包内的单文件 ffr-export-gui.exe --self-test 失败（退出码 $selfTestExit）"
+            }
+            Write-Host "发布压缩包单文件窗口自检通过：$packagedGuiExe --self-test"
+          } finally {
+            if (Test-Path -LiteralPath $stderrFile) {
+              Remove-Item -LiteralPath $stderrFile -Force -ErrorAction SilentlyContinue
+            }
+            if (Test-Path -LiteralPath $extractDir) {
+              Remove-Item -LiteralPath $extractDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
+
       - name: Prepare Release notes
         shell: bash
         run: |
