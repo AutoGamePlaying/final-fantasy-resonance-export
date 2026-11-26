@@ -5,7 +5,9 @@ use std::sync::Arc;
 
 use ffr_data::{
     FTextValue, LocalizationCatalog, MODEL_LANGUAGE, NATIVE_LANGUAGE, ResolveOptions, TextResolver,
-    TextResolverOptions, TextSource, parse_ftext, resolve_ftext, resolve_model_text,
+    TextResolverOptions, TextSource, UNTRANSLATED_REASON, UNTRANSLATED_REASON_CJK,
+    UNTRANSLATED_REASON_KANA, is_cjk_ideograph, is_japanese_kana, is_untranslated_entry,
+    parse_ftext, resolve_ftext, resolve_model_text, untranslated_reason_code,
 };
 use serde_json::json;
 use tempfile::tempdir;
@@ -352,5 +354,200 @@ fn inline_invariant_preloaded_and_corrupt_locres_cases() {
             .as_deref()
             .unwrap()
             .contains("加载语言 ja 的本地化表失败")
+    );
+}
+
+#[test]
+fn untranslated_detection_rules_cover_kana_pure_hanzi_and_translated_cases() {
+    assert!(is_japanese_kana('あ'));
+    assert!(is_japanese_kana('ア'));
+    assert!(is_japanese_kana('ー'));
+    assert!(is_japanese_kana('ｱ'));
+    assert!(!is_japanese_kana('・'));
+    assert!(!is_japanese_kana('白'));
+    assert!(is_cjk_ideograph('白'));
+    assert!(!is_cjk_ideograph('あ'));
+
+    // 1. Same as ja and contains Japanese kana -> untranslated for both zh-Hans and en.
+    assert!(is_untranslated_entry(
+        "zh-Hans",
+        "テスト未翻訳の技",
+        Some("テスト未翻訳の技")
+    ));
+    assert_eq!(
+        untranslated_reason_code("zh-Hans", "テスト未翻訳の技", Some("テスト未翻訳の技")),
+        Some(UNTRANSLATED_REASON_KANA)
+    );
+    assert!(is_untranslated_entry(
+        "en",
+        "テスト未翻訳の技",
+        Some("テスト未翻訳の技")
+    ));
+    assert_eq!(
+        untranslated_reason_code("en", "テスト未翻訳の技", Some("テスト未翻訳の技")),
+        Some(UNTRANSLATED_REASON_KANA)
+    );
+    assert!(!is_untranslated_entry(
+        "ja",
+        "テスト未翻訳の技",
+        Some("テスト未翻訳の技")
+    ));
+
+    // 2. Same as ja, pure Hanzi -> valid Chinese, but untranslated for English.
+    assert!(!is_untranslated_entry("zh-Hans", "白虎", Some("白虎")));
+    assert_eq!(
+        untranslated_reason_code("zh-Hans", "白虎", Some("白虎")),
+        None
+    );
+    assert!(!is_untranslated_entry(
+        "zh-Hans",
+        "魔法回避・小",
+        Some("魔法回避・小")
+    ));
+    assert!(is_untranslated_entry("en", "白虎", Some("白虎")));
+    assert_eq!(
+        untranslated_reason_code("en", "白虎", Some("白虎")),
+        Some(UNTRANSLATED_REASON_CJK)
+    );
+    assert!(!is_untranslated_entry("en", "HP 100", Some("HP 100")));
+
+    // 3. Different from ja (or ja absent) -> never marked untranslated.
+    assert!(!is_untranslated_entry("zh-Hans", "钢蝠", Some("鋼の蝙蝠")));
+    assert!(!is_untranslated_entry("en", "Steel bat", Some("鋼の蝙蝠")));
+    assert!(!is_untranslated_entry(
+        "zh-Hans",
+        "テスト未翻訳の技",
+        Some("別の文章")
+    ));
+    assert!(!is_untranslated_entry("zh-Hans", "テスト未翻訳の技", None));
+}
+
+#[test]
+fn text_resolver_treats_untranslated_entries_as_missing_and_falls_back_to_ja() {
+    let text_fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/rust/db/text/export")
+        .canonicalize()
+        .expect("db text fixture export exists");
+    let resolver = TextResolver::new(&text_fixture);
+    let table_id = "/Game/Datatable/Strings/Fake/ST_Fake.ST_Fake";
+
+    // Case 1: same as ja + kana -> strict missing with exact Chinese reason, fallback -> lang="ja".
+    let untrans_st = FTextValue::StringTable {
+        table_id: table_id.to_owned(),
+        key: "UntranslatedKana".to_owned(),
+        source_string: None,
+        localized_string: None,
+    };
+    for lang in ["zh-Hans", "en"] {
+        let strict = resolver.resolve_with(&untrans_st, Some(lang), ResolveOptions::strict());
+        assert_eq!(strict.text, None);
+        assert_eq!(strict.lang, None);
+        assert_eq!(strict.requested_language, lang);
+        assert_eq!(strict.source, TextSource::Missing);
+        assert_eq!(strict.reason.as_deref(), Some(UNTRANSLATED_REASON));
+
+        let fallback =
+            resolver.resolve_with(&untrans_st, Some(lang), ResolveOptions::with_fallback());
+        assert_eq!(fallback.text.as_deref(), Some("テスト未翻訳の技"));
+        assert_eq!(fallback.lang.as_deref(), Some("ja"));
+        assert_eq!(fallback.requested_language, lang);
+        assert_eq!(fallback.source, TextSource::Localization);
+        assert!(fallback.is_fallback());
+        assert!(
+            fallback
+                .reason
+                .as_deref()
+                .unwrap()
+                .contains(UNTRANSLATED_REASON)
+        );
+    }
+    let ja_direct = resolver.resolve_in(&untrans_st, "ja");
+    assert_eq!(ja_direct.text.as_deref(), Some("テスト未翻訳の技"));
+    assert_eq!(ja_direct.lang.as_deref(), Some("ja"));
+    assert_eq!(ja_direct.reason, None);
+
+    // Case 2: pure Hanzi same as ja -> valid zh-Hans, untranslated en.
+    let kanji_st = FTextValue::StringTable {
+        table_id: table_id.to_owned(),
+        key: "SameKanjiName".to_owned(),
+        source_string: None,
+        localized_string: None,
+    };
+    let kanji_zh = resolver.resolve_in(&kanji_st, "zh-Hans");
+    assert_eq!(kanji_zh.text.as_deref(), Some("白虎"));
+    assert_eq!(kanji_zh.lang.as_deref(), Some("zh-Hans"));
+    assert_eq!(kanji_zh.reason, None);
+    assert_eq!(kanji_zh.source, TextSource::Localization);
+
+    let kanji_en_strict = resolver.resolve_in(&kanji_st, "en");
+    assert_eq!(kanji_en_strict.text, None);
+    assert_eq!(kanji_en_strict.lang, None);
+    assert_eq!(kanji_en_strict.source, TextSource::Missing);
+    assert_eq!(kanji_en_strict.reason.as_deref(), Some(UNTRANSLATED_REASON));
+
+    let kanji_en_fb = resolver.resolve_with(&kanji_st, Some("en"), ResolveOptions::with_fallback());
+    assert_eq!(kanji_en_fb.text.as_deref(), Some("白虎"));
+    assert_eq!(kanji_en_fb.lang.as_deref(), Some("ja"));
+    assert!(kanji_en_fb.is_fallback());
+
+    // Case 3: inline untranslated without SourceString still falls back to ja locres cleanly.
+    let untrans_inline = FTextValue::Inline {
+        namespace: "InlineNs".to_owned(),
+        key: "UntranslatedInline".to_owned(),
+        source_string: None,
+        localized_string: None,
+    };
+    let inline_strict = resolver.resolve_in(&untrans_inline, "zh-Hans");
+    assert_eq!(inline_strict.text, None);
+    assert_eq!(inline_strict.source, TextSource::Missing);
+    assert_eq!(inline_strict.reason.as_deref(), Some(UNTRANSLATED_REASON));
+
+    let inline_fb = resolver.resolve_with(
+        &untrans_inline,
+        Some("zh-Hans"),
+        ResolveOptions::with_fallback(),
+    );
+    assert_eq!(inline_fb.text.as_deref(), Some("仮の未翻訳メッセージ"));
+    assert_eq!(inline_fb.lang.as_deref(), Some("ja"));
+    assert_eq!(inline_fb.source, TextSource::Localization);
+
+    // `untranslated_entry` exposes (ns, key, raw_value, reason_code) for companion-table building.
+    assert_eq!(
+        resolver.untranslated_entry(&untrans_st, "zh-Hans"),
+        Some((
+            "FakeTextNamespace".to_owned(),
+            "UntranslatedKana".to_owned(),
+            "テスト未翻訳の技".to_owned(),
+            UNTRANSLATED_REASON_KANA,
+        ))
+    );
+    assert_eq!(
+        resolver.untranslated_entry(&untrans_st, "en"),
+        Some((
+            "FakeTextNamespace".to_owned(),
+            "UntranslatedKana".to_owned(),
+            "テスト未翻訳の技".to_owned(),
+            UNTRANSLATED_REASON_KANA,
+        ))
+    );
+    assert_eq!(resolver.untranslated_entry(&untrans_st, "ja"), None);
+    assert_eq!(resolver.untranslated_entry(&kanji_st, "zh-Hans"), None);
+    assert_eq!(
+        resolver.untranslated_entry(&kanji_st, "en"),
+        Some((
+            "FakeTextNamespace".to_owned(),
+            "SameKanjiName".to_owned(),
+            "白虎".to_owned(),
+            UNTRANSLATED_REASON_CJK,
+        ))
+    );
+    assert_eq!(
+        resolver.untranslated_entry(&untrans_inline, "zh-Hans"),
+        Some((
+            "InlineNs".to_owned(),
+            "UntranslatedInline".to_owned(),
+            "仮の未翻訳メッセージ".to_owned(),
+            UNTRANSLATED_REASON_KANA,
+        ))
     );
 }

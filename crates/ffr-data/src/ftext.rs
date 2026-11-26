@@ -27,6 +27,93 @@ pub const NATIVE_LANGUAGE: &str = "ja";
 pub const MODEL_LANGUAGE: &str = "zh-Hans";
 /// Standard exported locres language set.
 pub const DEFAULT_LOCRES_LANGUAGES: [&str; 3] = ["zh-Hans", "en", "ja"];
+/// Chinese reason reported when a non-native localization entry contains untranslated Japanese text.
+pub const UNTRANSLATED_REASON: &str = "游戏官方未翻译（该语言文件里是日文原文）";
+/// Machine-readable reason code stored in `text_untranslated.reason` when text matches `ja` and
+/// contains Japanese kana.
+pub const UNTRANSLATED_REASON_KANA: &str = "same_as_ja_with_kana";
+/// Machine-readable reason code stored in `text_untranslated.reason` when an English entry matches
+/// `ja` and contains CJK ideographs (without kana).
+pub const UNTRANSLATED_REASON_CJK: &str = "same_as_ja_with_cjk";
+
+/// Returns `true` when `ch` is a Japanese Hiragana or Katakana character (excluding punctuation
+/// marks such as middle dot `・`/`･` and double hyphen `゠`).
+pub fn is_japanese_kana(ch: char) -> bool {
+    matches!(
+        ch,
+        '\u{3041}'..='\u{3096}'
+            | '\u{3099}'..='\u{309F}'
+            | '\u{30A1}'..='\u{30FA}'
+            | '\u{30FC}'..='\u{30FF}'
+            | '\u{31F0}'..='\u{31FF}'
+            | '\u{FF66}'..='\u{FF9F}'
+    )
+}
+
+/// Returns `true` when `ch` is a CJK Unified or Compatibility Ideograph (Hanzi / Kanji).
+pub fn is_cjk_ideograph(ch: char) -> bool {
+    matches!(
+        ch,
+        '\u{3400}'..='\u{4DBF}'
+            | '\u{4E00}'..='\u{9FFF}'
+            | '\u{F900}'..='\u{FAFF}'
+            | '\u{20000}'..='\u{2A6DF}'
+            | '\u{2A700}'..='\u{2B73F}'
+            | '\u{2B740}'..='\u{2B81F}'
+            | '\u{2B820}'..='\u{2CEAF}'
+            | '\u{2CEB0}'..='\u{2EBEF}'
+            | '\u{30000}'..='\u{3134F}'
+    )
+}
+
+fn is_english_language(lang: &str) -> bool {
+    lang.eq_ignore_ascii_case("en")
+        || lang
+            .get(..3)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("en-"))
+}
+
+fn untranslated_script_reason(lang: &str, value: &str) -> Option<&'static str> {
+    if value.chars().any(is_japanese_kana) {
+        return Some(UNTRANSLATED_REASON_KANA);
+    }
+    if is_english_language(lang) && value.chars().any(is_cjk_ideograph) {
+        return Some(UNTRANSLATED_REASON_CJK);
+    }
+    None
+}
+
+/// Classify whether a non-native localization entry is untranslated Japanese left verbatim in the
+/// game's locres file, returning the machine-readable reason code when untranslated.
+///
+/// Rules:
+/// - Native language (`"ja"`) is never considered untranslated.
+/// - `value` must equal the corresponding `"ja"` entry (`ja_value == Some(value)`).
+/// - If `value` contains Japanese kana, returns `Some("same_as_ja_with_kana")`.
+/// - For English (`en` / `en-*`), if `value` contains CJK ideographs without kana, returns
+///   `Some("same_as_ja_with_cjk")`.
+/// - For all other non-native languages (including `zh-Hans`), pure-Hanzi strings return `None` so
+///   names legitimately matching Japanese Kanji are preserved.
+pub fn untranslated_reason_code(
+    lang: &str,
+    value: &str,
+    ja_value: Option<&str>,
+) -> Option<&'static str> {
+    if lang == NATIVE_LANGUAGE {
+        return None;
+    }
+    let ja = ja_value?;
+    if value != ja {
+        return None;
+    }
+    untranslated_script_reason(lang, value)
+}
+
+/// Returns `true` when a non-native localization entry appears to be untranslated Japanese left
+/// verbatim in the game's locres file.
+pub fn is_untranslated_entry(lang: &str, value: &str, ja_value: Option<&str>) -> bool {
+    untranslated_reason_code(lang, value, ja_value).is_some()
+}
 
 /// Parsed CUE4Parse `FText` JSON value.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -303,6 +390,34 @@ impl TextResolver {
         }
     }
 
+    /// Inspect `value` in `language` and, when it maps to an untranslated Japanese entry in the
+    /// localization catalog, return `(namespace, key, raw_value, reason_code)`.
+    pub fn untranslated_entry(
+        &self,
+        value: &FTextValue,
+        language: &str,
+    ) -> Option<(String, String, String, &'static str)> {
+        if language == self.native_language {
+            return None;
+        }
+        let (namespace, key) = match value {
+            FTextValue::CultureInvariant { .. } => return None,
+            FTextValue::StringTable { table_id, key, .. } => {
+                let CachedStringTable::Loaded(table) = self.load_table_cached(table_id) else {
+                    return None;
+                };
+                (table.table_namespace.clone(), key.clone())
+            }
+            FTextValue::Inline { namespace, key, .. } => (namespace.clone(), key.clone()),
+        };
+        let CachedLocalization::Loaded(catalog) = self.load_catalog_cached(language) else {
+            return None;
+        };
+        let translated = catalog.get(&namespace, &key)?;
+        let reason = self.untranslated_reason(&namespace, &key, language, translated)?;
+        Some((namespace, key, translated.to_owned(), reason))
+    }
+
     pub(crate) fn load_string_table_strict(&self, json_path: &Path) -> Result<Arc<StringTable>> {
         {
             let cache = self
@@ -444,6 +559,60 @@ impl TextResolver {
         result
     }
 
+    fn untranslated_reason(
+        &self,
+        namespace: &str,
+        key: &str,
+        language: &str,
+        translated: &str,
+    ) -> Option<&'static str> {
+        if language == self.native_language {
+            return None;
+        }
+        let reason = untranslated_script_reason(language, translated)?;
+        let CachedLocalization::Loaded(native_catalog) =
+            self.load_catalog_cached(&self.native_language)
+        else {
+            return None;
+        };
+        native_catalog
+            .get(namespace, key)
+            .filter(|&native_value| translated == native_value)
+            .map(|_| reason)
+    }
+
+    fn is_untranslated(
+        &self,
+        namespace: &str,
+        key: &str,
+        language: &str,
+        translated: &str,
+    ) -> bool {
+        self.untranslated_reason(namespace, key, language, translated)
+            .is_some()
+    }
+
+    fn resolve_untranslated(
+        &self,
+        native_text: &str,
+        language: &str,
+        fallback_to_native: bool,
+    ) -> ResolvedText {
+        if !fallback_to_native {
+            return missing(language, UNTRANSLATED_REASON);
+        }
+        ResolvedText {
+            text: Some(native_text.to_owned()),
+            lang: Some(self.native_language.clone()),
+            requested_language: language.to_owned(),
+            reason: Some(format!(
+                "{UNTRANSLATED_REASON}，已回落到源语言 {}",
+                self.native_language
+            )),
+            source: TextSource::Localization,
+        }
+    }
+
     fn resolve_string_table_text(
         &self,
         table_id: &str,
@@ -462,6 +631,9 @@ impl TextResolver {
             CachedLocalization::Error(reason) => return missing(language, reason.clone()),
             CachedLocalization::Loaded(catalog) => {
                 if let Some(translated) = catalog.get(ns, key) {
+                    if self.is_untranslated(ns, key, language, translated) {
+                        return self.resolve_untranslated(translated, language, fallback_to_native);
+                    }
                     return ResolvedText {
                         text: Some(translated.to_owned()),
                         lang: Some(language.to_owned()),
@@ -535,6 +707,9 @@ impl TextResolver {
             CachedLocalization::Error(reason) => return missing(language, reason.clone()),
             CachedLocalization::Loaded(catalog) => {
                 if let Some(translated) = catalog.get(namespace, key) {
+                    if self.is_untranslated(namespace, key, language, translated) {
+                        return self.resolve_untranslated(translated, language, fallback_to_native);
+                    }
                     return ResolvedText {
                         text: Some(translated.to_owned()),
                         lang: Some(language.to_owned()),

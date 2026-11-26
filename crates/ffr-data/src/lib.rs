@@ -29,8 +29,10 @@ pub use flags::{
 };
 pub use ftext::{
     DEFAULT_LOCRES_LANGUAGES, FTextValue, MODEL_LANGUAGE, NATIVE_LANGUAGE, ResolveOptions,
-    ResolvedText, TextResolver, TextResolverOptions, TextSource, parse_ftext, resolve_ftext,
-    resolve_model_text,
+    ResolvedText, TextResolver, TextResolverOptions, TextSource, UNTRANSLATED_REASON,
+    UNTRANSLATED_REASON_CJK, UNTRANSLATED_REASON_KANA, is_cjk_ideograph, is_japanese_kana,
+    is_untranslated_entry, parse_ftext, resolve_ftext, resolve_model_text,
+    untranslated_reason_code,
 };
 pub use paths::{
     FFR_DEPS_ENV, datatable_dir, datatable_relative_path_to_json, export_dir_from_deps,
