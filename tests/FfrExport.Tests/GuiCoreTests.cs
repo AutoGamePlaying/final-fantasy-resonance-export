@@ -75,11 +75,13 @@ public sealed class GuiCoreTests
         var ue4ssDir = Path.Combine(win64Dir, "ue4ss");
         Directory.CreateDirectory(ue4ssDir);
 
-        // 1. None found -> Chinese UE4SS guidance
-        var emptyResult = MappingDiscovery.DiscoverUsmap(gameDir);
+        var emptyAgpUsmapDir = Path.Combine(workspace.AgpHomeDir, "ffr-export", "usmap");
+
+        // 1. None found -> Chinese one-click guidance
+        var emptyResult = MappingDiscovery.DiscoverUsmap(gameDir, agpUsmapDirectoryOverride: emptyAgpUsmapDir);
         Assert.Null(emptyResult.Selected);
         Assert.Empty(emptyResult.Candidates);
-        Assert.Contains("UE4SS", emptyResult.NotFoundGuidance, StringComparison.Ordinal);
+        Assert.Contains("一键获取 .usmap", emptyResult.NotFoundGuidance, StringComparison.Ordinal);
 
         // 2. Only Win64 has .usmap -> fallback finds newest in Win64
         var win64Old = Path.Combine(win64Dir, "old.usmap");
@@ -89,7 +91,7 @@ public sealed class GuiCoreTests
         File.SetLastWriteTimeUtc(win64Old, new DateTime(2026, 11, 20, 8, 0, 0, DateTimeKind.Utc));
         File.SetLastWriteTimeUtc(win64New, new DateTime(2026, 11, 24, 12, 30, 0, DateTimeKind.Utc));
 
-        var win64Result = MappingDiscovery.DiscoverUsmap(gameDir);
+        var win64Result = MappingDiscovery.DiscoverUsmap(gameDir, agpUsmapDirectoryOverride: emptyAgpUsmapDir);
         Assert.NotNull(win64Result.Selected);
         Assert.Equal("new.usmap", win64Result.Selected.FileName);
         Assert.Equal("Win64", win64Result.Selected.SourceLabel);
@@ -103,12 +105,24 @@ public sealed class GuiCoreTests
         File.SetLastWriteTimeUtc(ue4ssOld, new DateTime(2026, 11, 21, 9, 0, 0, DateTimeKind.Utc));
         File.SetLastWriteTimeUtc(ue4ssNew, new DateTime(2026, 11, 25, 16, 45, 0, DateTimeKind.Utc));
 
-        var ue4ssResult = MappingDiscovery.DiscoverUsmap(gameDir);
+        var ue4ssResult = MappingDiscovery.DiscoverUsmap(gameDir, agpUsmapDirectoryOverride: emptyAgpUsmapDir);
         Assert.NotNull(ue4ssResult.Selected);
         Assert.Equal("dump-latest.usmap", ue4ssResult.Selected.FileName);
         Assert.Equal("ue4ss", ue4ssResult.Selected.SourceLabel);
         Assert.Equal(2, ue4ssResult.Candidates.Count);
         Assert.Null(ue4ssResult.NotFoundGuidance);
+
+        // 3b. Unified agp/ffr-export/usmap/ is also searched and wins when newest or equal-mtime.
+        Directory.CreateDirectory(emptyAgpUsmapDir);
+        var agpUsmap = Path.Combine(emptyAgpUsmapDir, "FFRS-24250053-af38d4a0.usmap");
+        File.WriteAllBytes(agpUsmap, [5]);
+        File.SetLastWriteTimeUtc(agpUsmap, new DateTime(2026, 11, 26, 10, 0, 0, DateTimeKind.Utc));
+
+        var agpResult = MappingDiscovery.DiscoverUsmap(gameDir, agpUsmapDirectoryOverride: emptyAgpUsmapDir);
+        Assert.NotNull(agpResult.Selected);
+        Assert.Equal("FFRS-24250053-af38d4a0.usmap", agpResult.Selected.FileName);
+        Assert.Equal("agp/usmap", agpResult.Selected.SourceLabel);
+        Assert.Equal(3, agpResult.Candidates.Count);
 
         var formattedUsmap = MappingDiscovery.FormatUsmapDisplay(
             ue4ssResult.Selected,
@@ -140,16 +154,16 @@ public sealed class GuiCoreTests
     {
         using var workspace = new TempWorkspace("ffr-gui-paths");
 
-        var fakeDocs = Path.Combine(workspace.Root, "Documents");
-        var defaultRoot = GuiPaths.ResolveDefaultOutputRoot(documentsDirectoryOverride: fakeDocs);
-        Assert.Equal(Path.Combine(fakeDocs, "FF-Export"), defaultRoot);
+        var fakeAgpHome = workspace.AgpHomeDir;
+        var defaultRoot = GuiPaths.ResolveDefaultOutputRoot(agpHomeOverride: fakeAgpHome);
+        Assert.Equal(Path.Combine(fakeAgpHome, "ffr-export", "output"), defaultRoot);
 
         var defaultOut = GuiPaths.BuildDefaultOutputDirectory(
             outputRootOverride: null,
             gameCode: "ffr",
             steamBuildId: "24250053",
-            documentsDirectoryOverride: fakeDocs);
-        Assert.Equal(Path.Combine(fakeDocs, "FF-Export", "ffr-24250053"), defaultOut);
+            agpHomeOverride: fakeAgpHome);
+        Assert.Equal(Path.Combine(fakeAgpHome, "ffr-export", "output", "ffr-24250053"), defaultOut);
 
         var unknownBuildOut = GuiPaths.BuildDefaultOutputDirectory(
             outputRootOverride: defaultRoot,
@@ -408,18 +422,35 @@ public sealed class GuiCoreTests
     }
 
     [Fact]
-    public void GuiSettingsStore_PersistsToJsonAndHandlesMissingOrCorruptFiles()
+    public void GuiSettingsStore_PersistsToUnifiedAgpPathMigratesLegacyAndHandlesCorruptFiles()
     {
         using var workspace = new TempWorkspace("ffr-gui-settings");
 
-        var appDataDir = Path.Combine(workspace.Root, "AppData");
-        var settingsPath = GuiSettingsStore.GetDefaultSettingsPath(appDataDir);
-        Assert.Equal(Path.Combine(appDataDir, "ffr-export", "settings.json"), settingsPath);
+        var settingsPath = GuiSettingsStore.GetDefaultSettingsPath(agpHomeOverride: workspace.AgpHomeDir);
+        Assert.Equal(Path.Combine(workspace.AgpHomeDir, "ffr-export", "settings.json"), settingsPath);
 
         // Missing file returns defaults (IncludeJmap == false).
         var initial = GuiSettingsStore.Load(settingsPath);
         Assert.Null(initial.OutputRootDirectory);
         Assert.False(initial.IncludeJmap);
+
+        // Legacy %APPDATA%\ffr-export\settings.json is migrated to the new path and renamed to .migrated (not deleted).
+        var legacyAppData = Path.Combine(workspace.Root, "LegacyAppData");
+        var legacyPath = GuiSettingsStore.GetLegacySettingsPath(legacyAppData)!;
+        var legacyRoot = Path.Combine(workspace.Root, "Legacy Exports");
+        GuiSettingsStore.Save(new GuiSettings(legacyRoot, true), legacyPath);
+        Assert.True(File.Exists(legacyPath));
+
+        var migratedResult = GuiSettingsStore.LoadWithDiagnostics(
+            settingsPath,
+            legacySettingsPathOverride: legacyPath);
+        Assert.Equal(legacyPath, migratedResult.MigratedFromPath);
+        Assert.Null(migratedResult.WarningMessage);
+        Assert.Equal(legacyRoot, migratedResult.Settings.OutputRootDirectory);
+        Assert.True(migratedResult.Settings.IncludeJmap);
+        Assert.True(File.Exists(settingsPath));
+        Assert.False(File.Exists(legacyPath));
+        Assert.True(File.Exists(legacyPath + ".migrated"));
 
         // Save and reload roundtrip.
         var customRoot = Path.Combine(workspace.Root, "My Exports");
@@ -429,6 +460,15 @@ public sealed class GuiCoreTests
         var reloaded = GuiSettingsStore.Load(settingsPath);
         Assert.Equal(customRoot, reloaded.OutputRootDirectory);
         Assert.True(reloaded.IncludeJmap);
+
+        // Existing new settings file is NOT overwritten by a newly placed legacy file.
+        GuiSettingsStore.Save(new GuiSettings(Path.Combine(workspace.Root, "IgnoredLegacy"), false), legacyPath);
+        var noOverwrite = GuiSettingsStore.LoadWithDiagnostics(
+            settingsPath,
+            legacySettingsPathOverride: legacyPath);
+        Assert.Null(noOverwrite.MigratedFromPath);
+        Assert.Equal(customRoot, noOverwrite.Settings.OutputRootDirectory);
+        Assert.True(File.Exists(legacyPath));
 
         // Corrupt JSON degrades safely to defaults.
         File.WriteAllText(settingsPath, "{ invalid json", Encoding.UTF8);
@@ -446,7 +486,7 @@ public sealed class GuiCoreTests
         var tempDir = Path.Combine(workspace.Root, "Temp");
         Directory.CreateDirectory(tempDir);
 
-        var expectedPrimaryDir = Path.Combine(localAppData, "ffr-export", "logs");
+        var expectedPrimaryDir = Path.Combine(localAppData, "agp", "ffr-export", "logs");
         Assert.Equal(expectedPrimaryDir, GuiStartupLog.GetPrimaryLogDirectory(localAppData));
 
         var info = new GuiStartupInfo(
@@ -551,7 +591,7 @@ public sealed class GuiCoreTests
         using var workspace = new TempWorkspace("ffr-gui-log-retention");
 
         var localAppData = Path.Combine(workspace.Root, "LocalAppData");
-        var logsDir = Path.Combine(localAppData, "ffr-export", "logs");
+        var logsDir = Path.Combine(localAppData, "agp", "ffr-export", "logs");
         Directory.CreateDirectory(logsDir);
 
         var baseTime = new DateTimeOffset(2026, 11, 26, 9, 0, 0, TimeSpan.Zero);
@@ -769,42 +809,27 @@ public sealed class GuiCoreTests
         Assert.Equal("MsgBox-MonoFallback", monoFallback.Font);
         Assert.True(monoFallback.UsedFallback);
 
-        // 3. Default output directory fallback when Documents is redirected/non-existent or saved root is invalid.
-        var fakeDocs = Path.Combine(workspace.Root, "RedirectedMissingDocs");
-        var fakeProfile = Path.Combine(workspace.Root, "UserProfile");
-        var fakeLocalApp = Path.Combine(workspace.Root, "LocalApp");
+        // 3. Default output directory fallback when primary AGP root is unusable or saved root is invalid.
+        var blockedAgp = Path.Combine(workspace.Root, "BlockedAgp");
         var fakeTemp = Path.Combine(workspace.Root, "TempOut");
-        Directory.CreateDirectory(fakeProfile);
-        Directory.CreateDirectory(fakeLocalApp);
         Directory.CreateDirectory(fakeTemp);
 
-        var docsFallback = GuiPaths.ResolveDefaultOutputRootSafe(
-            documentsDirectoryOverride: fakeDocs,
-            userProfileOverride: fakeProfile,
-            localAppDataOverride: fakeLocalApp,
+        var primaryFallback = GuiPaths.ResolveDefaultOutputRootSafe(
+            agpHomeOverride: blockedAgp,
             tempDirectoryOverride: fakeTemp,
-            directoryExistsCheck: path => !string.Equals(path, fakeDocs, StringComparison.Ordinal));
-        Assert.True(docsFallback.UsedFallback);
-        Assert.Equal(Path.Combine(fakeProfile, "FF-Export"), docsFallback.Path);
-        Assert.Contains("文档", docsFallback.WarningMessage, StringComparison.Ordinal);
-
-        var tempFallback = GuiPaths.ResolveDefaultOutputRootSafe(
-            documentsDirectoryOverride: "",
-            userProfileOverride: Path.Combine(workspace.Root, "MissingProfile"),
-            localAppDataOverride: Path.Combine(workspace.Root, "MissingLocal"),
-            tempDirectoryOverride: fakeTemp,
-            directoryExistsCheck: _ => false);
-        Assert.True(tempFallback.UsedFallback);
-        Assert.Equal(Path.Combine(fakeTemp, "FF-Export"), tempFallback.Path);
+            directoryUsableCheck: path => !path.StartsWith(blockedAgp, StringComparison.Ordinal));
+        Assert.True(primaryFallback.UsedFallback);
+        Assert.Equal(Path.Combine(fakeTemp, "agp", "ffr-export", "output"), primaryFallback.Path);
+        Assert.Contains("默认数据目录不可用", primaryFallback.WarningMessage, StringComparison.Ordinal);
 
         var badSavedRoot = GuiPaths.BuildDefaultOutputDirectorySafe(
             outputRootOverride: "bad\0saved-root",
             gameCode: "ffr",
             steamBuildId: "24250053",
-            documentsDirectoryOverride: fakeProfile,
-            directoryExistsCheck: _ => true);
+            agpHomeOverride: workspace.AgpHomeDir,
+            directoryUsableCheck: _ => true);
         Assert.True(badSavedRoot.UsedFallback);
-        Assert.Equal(Path.Combine(fakeProfile, "FF-Export", "ffr-24250053"), badSavedRoot.Path);
+        Assert.Equal(Path.Combine(workspace.AgpHomeDir, "ffr-export", "output", "ffr-24250053"), badSavedRoot.Path);
         Assert.Contains("上次保存的输出目录无效", badSavedRoot.WarningMessage, StringComparison.Ordinal);
 
         // 4. Steam scan fallback on registry permission error and unreadable Steam library directory.
@@ -854,6 +879,11 @@ public sealed class GuiCoreTests
                 if (dir.EndsWith("ue4ss", StringComparison.OrdinalIgnoreCase))
                 {
                     throw new UnauthorizedAccessException("ue4ss 无读权限");
+                }
+
+                if (dir.EndsWith("usmap", StringComparison.OrdinalIgnoreCase))
+                {
+                    return [];
                 }
 
                 return [win64Usmap];
@@ -1083,7 +1113,7 @@ public sealed class GuiCoreTests
 
         string[] forbiddenTokens = ["OodleHelper", "DownloadOodle", "HttpClient", "WebClient"];
         var linuxRootRegex = new Regex(@"/root/", RegexOptions.CultureInvariant);
-        var windowsDriveRegex = new Regex(@"[A-Za-z]:[\\/]", RegexOptions.CultureInvariant);
+        var windowsDriveRegex = new Regex(@"(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]", RegexOptions.CultureInvariant);
 
         foreach (var file in Directory.EnumerateFiles(guiDir, "*.cs", SearchOption.AllDirectories))
         {

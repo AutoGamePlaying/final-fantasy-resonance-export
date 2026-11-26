@@ -27,15 +27,17 @@ internal static class MappingDiscovery
     internal const string RelativeWin64Subpath = "FFRS/Binaries/Win64";
 
     internal const string UsmapNotFoundGuidance =
-        "未自动找到 .usmap 文件。需要先用 UE4SS 在游戏运行时转储（默认保存在游戏目录的 FFRS\\Binaries\\Win64\\ue4ss\\ 下），或点击“选择 .usmap…”手动指定。";
+        "未自动找到 .usmap 文件。可点击下方「一键获取 .usmap（会启动一次游戏）」自动转储，或点击「选择 .usmap…」手动指定。";
 
     /// <summary>
-    /// Searches FFRS\Binaries\Win64\ue4ss\*.usmap first, then FFRS\Binaries\Win64\*.usmap.
-    /// When multiple files exist in the matched location, selects the one with the latest modification time.
+    /// Searches %LOCALAPPDATA%\agp\ffr-export\usmap\*.usmap and FFRS\Binaries\Win64\ue4ss\*.usmap first
+    /// (selecting the newest file across both, breaking ties in favor of agp/usmap),
+    /// then falls back to FFRS\Binaries\Win64\*.usmap.
     /// </summary>
     internal static UsmapDiscoveryResult DiscoverUsmap(
         string? gameDirectory,
-        Func<string, IEnumerable<string>>? fileEnumeratorOverride = null)
+        Func<string, IEnumerable<string>>? fileEnumeratorOverride = null,
+        string? agpUsmapDirectoryOverride = null)
     {
         if (string.IsNullOrWhiteSpace(gameDirectory))
         {
@@ -43,6 +45,30 @@ internal static class MappingDiscovery
         }
 
         var errors = new List<string>();
+        var agpUsmapDir = agpUsmapDirectoryOverride is not null
+            ? agpUsmapDirectoryOverride
+            : AgpPaths.GetUsmapDirectory();
+
+        var primaryFiles = new List<DiscoveredMappingFile>();
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var seen = new HashSet<string>(comparer);
+
+        if (!string.IsNullOrWhiteSpace(agpUsmapDir))
+        {
+            var agpScan = ScanDirectory(agpUsmapDir, ".usmap", "agp/usmap", fileEnumeratorOverride);
+            if (!string.IsNullOrWhiteSpace(agpScan.ErrorMessage))
+            {
+                errors.Add(agpScan.ErrorMessage);
+            }
+
+            foreach (var file in agpScan.Files)
+            {
+                if (seen.Add(file.FullPath))
+                {
+                    primaryFiles.Add(file);
+                }
+            }
+        }
 
         var ue4ssDir = SteamLocator.CombineRelativeSubpath(gameDirectory, RelativeUe4ssSubpath);
         var ue4ssScan = ScanDirectory(ue4ssDir, ".usmap", "ue4ss", fileEnumeratorOverride);
@@ -51,9 +77,17 @@ internal static class MappingDiscovery
             errors.Add(ue4ssScan.ErrorMessage);
         }
 
-        if (ue4ssScan.Files.Count > 0)
+        foreach (var file in ue4ssScan.Files)
         {
-            var ordered = OrderNewestFirst(ue4ssScan.Files);
+            if (seen.Add(file.FullPath))
+            {
+                primaryFiles.Add(file);
+            }
+        }
+
+        if (primaryFiles.Count > 0)
+        {
+            var ordered = OrderNewestFirstPreferringAgp(primaryFiles);
             var partialError = errors.Count > 0 ? string.Join("；", errors) : null;
             return new UsmapDiscoveryResult(ordered[0], ordered, null, partialError);
         }
@@ -67,7 +101,7 @@ internal static class MappingDiscovery
 
         if (win64Scan.Files.Count > 0)
         {
-            var ordered = OrderNewestFirst(win64Scan.Files);
+            var ordered = OrderNewestFirstPreferringAgp(win64Scan.Files);
             var partialError = errors.Count > 0 ? string.Join("；", errors) : null;
             return new UsmapDiscoveryResult(ordered[0], ordered, null, partialError);
         }
@@ -76,7 +110,7 @@ internal static class MappingDiscovery
         {
             var combinedError = string.Join("；", errors);
             var errorGuidance =
-                $"自动查找 .usmap 失败（{combinedError}）。请检查游戏目录权限，或点击「选择 .usmap…」手动指定。";
+                $"自动查找 .usmap 失败（{combinedError}）。请检查目录权限，或点击「一键获取 .usmap」/「选择 .usmap…」。";
             return new UsmapDiscoveryResult(null, [], errorGuidance, combinedError);
         }
 
@@ -276,10 +310,11 @@ internal static class MappingDiscovery
         }
     }
 
-    private static List<DiscoveredMappingFile> OrderNewestFirst(List<DiscoveredMappingFile> items)
+    private static List<DiscoveredMappingFile> OrderNewestFirstPreferringAgp(List<DiscoveredMappingFile> items)
     {
         return items
             .OrderByDescending(file => file.LastWriteTimeUtc)
+            .ThenBy(file => string.Equals(file.SourceLabel, "agp/usmap", StringComparison.Ordinal) ? 0 : 1)
             .ThenByDescending(file => file.FileName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(file => file.FullPath, StringComparer.Ordinal)
             .ToList();

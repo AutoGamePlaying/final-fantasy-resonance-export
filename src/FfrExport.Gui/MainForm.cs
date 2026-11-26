@@ -11,10 +11,17 @@ namespace FfrExport.Gui;
 internal sealed class MainForm : Form
 {
     private const int MinimumWindowWidth = 720;
-    private const int MinimumWindowHeight = 680;
+    private const int MinimumWindowHeight = 700;
     private const int MaxLogCharacters = 400_000;
     private const string DefaultOutputHintText =
-        "默认位置：%USERPROFILE%\\Documents\\FF-Export\\ffr-<Steam 构建号>\\（导出只读游戏文件，不会修改游戏目录）";
+        "默认位置：%LOCALAPPDATA%\\agp\\ffr-export\\output\\ffr-<Steam 构建号>\\（导出只读游戏文件，不会修改游戏目录）";
+
+    private enum ActiveOperation
+    {
+        None,
+        Exporting,
+        FetchingUsmap,
+    }
 
     private readonly GuiStartupLogSession? _startupLog;
     private readonly List<Font> _ownedFonts = [];
@@ -32,11 +39,13 @@ internal sealed class MainForm : Form
     private readonly ListView _gameListView;
     private readonly Button _manualGameButton;
     private readonly Button _rescanGameButton;
+    private readonly Button _settingsButton;
     private readonly Label _gameStatusLabel;
 
     private readonly Label _usmapStatusLabel;
     private readonly TextBox _usmapPathTextBox;
     private readonly Button _browseUsmapButton;
+    private readonly Button _fetchUsmapButton;
     private readonly CheckBox _includeJmapCheckBox;
     private readonly ListBox _jmapListBox;
     private readonly Button _addJmapButton;
@@ -70,8 +79,10 @@ internal sealed class MainForm : Form
     private bool _userCustomizedOutputDir;
     private bool _suppressOutputTextChanged;
     private bool _suppressJmapToggle;
-    private bool _isExporting;
+    private ActiveOperation _activeOperation = ActiveOperation.None;
+    private bool _isExporting => _activeOperation != ActiveOperation.None;
     private CancellationTokenSource? _exportCts;
+    private string? _lastFetchedUsmapPath;
     private BuildReportSummary? _lastReport;
     private string? _lastCompletedOutputDir;
 
@@ -81,7 +92,15 @@ internal sealed class MainForm : Form
         var startupWarnings = new List<string>();
 
         _settingsPath = GuiSettingsStore.GetDefaultSettingsPath();
-        var settingsResult = GuiSettingsStore.LoadWithDiagnostics(_settingsPath);
+        var settingsResult = GuiSettingsStore.LoadWithDiagnostics();
+        if (!string.IsNullOrWhiteSpace(settingsResult.MigratedFromPath))
+        {
+            var migratedNote =
+                $"已自动将旧版设置从 {settingsResult.MigratedFromPath} 迁移至 {_settingsPath}（旧文件已重命名为 .migrated）。";
+            startupWarnings.Add(migratedNote);
+            _startupLog?.WriteInfo(migratedNote);
+        }
+
         if (!string.IsNullOrWhiteSpace(settingsResult.WarningMessage))
         {
             startupWarnings.Add(settingsResult.WarningMessage);
@@ -179,7 +198,7 @@ internal sealed class MainForm : Form
             GridLines = true,
             HeaderStyle = ColumnHeaderStyle.Nonclickable,
             Dock = DockStyle.Fill,
-            Height = 84,
+            Height = 104,
             Margin = new Padding(0, 2, 8, 4),
         };
         _gameListView.Columns.Add("游戏名称", 210);
@@ -199,8 +218,8 @@ internal sealed class MainForm : Form
         {
             Text = "手动选择游戏目录…",
             Width = 152,
-            Height = 32,
-            Margin = new Padding(0, 0, 0, 6),
+            Height = 30,
+            Margin = new Padding(0, 0, 0, 5),
         };
         _manualGameButton.Click += OnManualSelectGameClick;
 
@@ -209,12 +228,22 @@ internal sealed class MainForm : Form
             Text = "重新扫描 Steam",
             Width = 152,
             Height = 30,
-            Margin = new Padding(0),
+            Margin = new Padding(0, 0, 0, 5),
         };
         _rescanGameButton.Click += (_, _) => ScanAndPopulateGames();
 
+        _settingsButton = new Button
+        {
+            Text = "设置…",
+            Width = 152,
+            Height = 30,
+            Margin = new Padding(0),
+        };
+        _settingsButton.Click += OnOpenSettingsClick;
+
         gameButtonPanel.Controls.Add(_manualGameButton);
         gameButtonPanel.Controls.Add(_rescanGameButton);
+        gameButtonPanel.Controls.Add(_settingsButton);
 
         _gameStatusLabel = new Label
         {
@@ -244,7 +273,7 @@ internal sealed class MainForm : Form
             Dock = DockStyle.Fill,
             AutoSize = true,
             ColumnCount = 3,
-            RowCount = 6,
+            RowCount = 7,
         };
         mappingLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         mappingLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
@@ -273,6 +302,18 @@ internal sealed class MainForm : Form
             Margin = new Padding(0, 2, 0, 4),
         };
         _browseUsmapButton.Click += OnBrowseUsmapClick;
+
+        _fetchUsmapButton = new Button
+        {
+            Text = "一键获取 .usmap（会启动一次游戏）",
+            Font = _boldUiFont,
+            AutoSize = true,
+            Height = 32,
+            Padding = new Padding(10, 2, 10, 2),
+            Visible = false,
+            Margin = new Padding(0, 2, 0, 6),
+        };
+        _fetchUsmapButton.Click += OnFetchUsmapClick;
 
         var usmapPathCaption = new Label
         {
@@ -354,21 +395,24 @@ internal sealed class MainForm : Form
         mappingLayout.Controls.Add(_usmapStatusLabel, 1, 0);
         mappingLayout.Controls.Add(_browseUsmapButton, 2, 0);
 
-        mappingLayout.Controls.Add(usmapPathCaption, 0, 1);
-        mappingLayout.Controls.Add(_usmapPathTextBox, 1, 1);
+        mappingLayout.Controls.Add(_fetchUsmapButton, 1, 1);
+        mappingLayout.SetColumnSpan(_fetchUsmapButton, 2);
+
+        mappingLayout.Controls.Add(usmapPathCaption, 0, 2);
+        mappingLayout.Controls.Add(_usmapPathTextBox, 1, 2);
         mappingLayout.SetColumnSpan(_usmapPathTextBox, 2);
 
-        mappingLayout.Controls.Add(_includeJmapCheckBox, 0, 2);
+        mappingLayout.Controls.Add(_includeJmapCheckBox, 0, 3);
         mappingLayout.SetColumnSpan(_includeJmapCheckBox, 3);
 
-        mappingLayout.Controls.Add(jmapComboHint, 0, 3);
+        mappingLayout.Controls.Add(jmapComboHint, 0, 4);
         mappingLayout.SetColumnSpan(jmapComboHint, 3);
 
-        mappingLayout.Controls.Add(_jmapListBox, 0, 4);
+        mappingLayout.Controls.Add(_jmapListBox, 0, 5);
         mappingLayout.SetColumnSpan(_jmapListBox, 2);
-        mappingLayout.Controls.Add(jmapButtonsPanel, 2, 4);
+        mappingLayout.Controls.Add(jmapButtonsPanel, 2, 5);
 
-        mappingLayout.Controls.Add(_jmapStatusLabel, 0, 5);
+        mappingLayout.Controls.Add(_jmapStatusLabel, 0, 6);
         mappingLayout.SetColumnSpan(_jmapStatusLabel, 3);
         mappingGroup.Controls.Add(mappingLayout);
 
@@ -705,9 +749,10 @@ internal sealed class MainForm : Form
     {
         if (_isExporting)
         {
+            var opName = _activeOperation == ActiveOperation.FetchingUsmap ? "获取 .usmap" : "导出";
             var answer = MessageBox.Show(
                 this,
-                "导出仍在进行中。关闭窗口会取消导出并结束后台进程，确定要退出吗？",
+                $"{opName}仍在进行中。关闭窗口会取消{opName}并清理后台进程，确定要退出吗？",
                 "确认退出",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning,
@@ -725,6 +770,11 @@ internal sealed class MainForm : Form
             catch
             {
                 // Best-effort cancellation during window shutdown.
+            }
+
+            if (_activeOperation == ActiveOperation.FetchingUsmap && _selectedGame is not null)
+            {
+                Ue4ssRuntimeSupport.DisableAndRemoveDumpMod(_selectedGame.GameDirectory);
             }
         }
 
@@ -950,6 +1000,7 @@ internal sealed class MainForm : Form
                     _usmapStatusLabel.Text =
                         $"已自动找到：{MappingDiscovery.FormatUsmapDisplay(usmapResult.Selected, usmapResult.Candidates.Count)}";
                     _usmapPathTextBox.Text = usmapResult.Selected.FullPath;
+                    _fetchUsmapButton.Visible = false;
                 }
                 else
                 {
@@ -957,16 +1008,18 @@ internal sealed class MainForm : Form
                     _usmapStatusLabel.Font = _uiFont;
                     _usmapStatusLabel.Text = usmapResult.NotFoundGuidance ?? MappingDiscovery.UsmapNotFoundGuidance;
                     _usmapPathTextBox.Text = string.Empty;
+                    _fetchUsmapButton.Visible = true;
                 }
             }
             catch (Exception exception)
             {
                 _selectedUsmap = null;
-                var errorMessage = $"自动查找 .usmap 失败：{exception.Message}；请点击「选择 .usmap…」手动指定。";
+                var errorMessage = $"自动查找 .usmap 失败：{exception.Message}；请点击「一键获取 .usmap」或「选择 .usmap…」。";
                 _usmapStatusLabel.ForeColor = Color.FromArgb(185, 28, 28);
                 _usmapStatusLabel.Font = _uiFont;
                 _usmapStatusLabel.Text = errorMessage;
                 _usmapPathTextBox.Text = string.Empty;
+                _fetchUsmapButton.Visible = true;
                 _startupLog?.WriteWarning(errorMessage);
                 AppendLogLine($"[提示] {errorMessage}");
             }
@@ -1002,13 +1055,18 @@ internal sealed class MainForm : Form
         }
         else if (_selectedGame is not null)
         {
+            var agpUsmapDir = AgpPaths.GetUsmapDirectory();
             var ue4ssDir = SteamLocator.CombineRelativeSubpath(
                 _selectedGame.GameDirectory,
                 MappingDiscovery.RelativeUe4ssSubpath);
             var win64Dir = SteamLocator.CombineRelativeSubpath(
                 _selectedGame.GameDirectory,
                 MappingDiscovery.RelativeWin64Subpath);
-            if (Directory.Exists(ue4ssDir))
+            if (Directory.Exists(agpUsmapDir))
+            {
+                dialog.InitialDirectory = agpUsmapDir;
+            }
+            else if (Directory.Exists(ue4ssDir))
             {
                 dialog.InitialDirectory = ue4ssDir;
             }
@@ -1029,6 +1087,225 @@ internal sealed class MainForm : Form
         _usmapStatusLabel.Font = _boldUiFont;
         _usmapStatusLabel.Text = $"已手动选择：{MappingDiscovery.FormatUsmapDisplay(_selectedUsmap)}";
         _usmapPathTextBox.Text = _selectedUsmap.FullPath;
+        _fetchUsmapButton.Visible = false;
+    }
+
+    private void OnOpenSettingsClick(object? sender, EventArgs e)
+    {
+        if (_isExporting)
+        {
+            return;
+        }
+
+        using var dialog = new SettingsDialog(
+            _selectedGame?.GameDirectory,
+            _uiFont,
+            _boldUiFont,
+            line =>
+            {
+                if (!IsDisposed && IsHandleCreated)
+                {
+                    BeginInvoke(() =>
+                    {
+                        if (!IsDisposed)
+                        {
+                            AppendLogLine(line);
+                        }
+                    });
+                }
+            });
+        dialog.ShowDialog(this);
+        if (dialog.Ue4ssUninstalled)
+        {
+            RefreshMappingsForSelectedGame(resetManualUsmap: false);
+        }
+    }
+
+    private async void OnFetchUsmapClick(object? sender, EventArgs e)
+    {
+        if (_isExporting)
+        {
+            return;
+        }
+
+        try
+        {
+            await StartFetchUsmapWorkflowAsync();
+        }
+        catch (Exception exception)
+        {
+            AppendLogLine($"[错误] 一键获取 .usmap 时发生未预期异常：{exception.Message}");
+            MessageBox.Show(
+                this,
+                $"获取 .usmap 过程发生错误：{exception.Message}",
+                "获取 .usmap 失败",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+    }
+
+    private async Task StartFetchUsmapWorkflowAsync()
+    {
+        var cliLookup = GuiPaths.ResolveCliExecutable();
+        if (!cliLookup.Found)
+        {
+            MessageBox.Show(
+                this,
+                cliLookup.ErrorMessage,
+                "缺少命令行程序",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            return;
+        }
+
+        if (_selectedGame is null)
+        {
+            MessageBox.Show(
+                this,
+                "请先选择一个游戏，或点击「手动选择游戏目录…」指定《FINAL FANTASY RESONANCE》安装目录。",
+                "未选择游戏",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        var gameCheck = GameScanner.ValidateManualGameDirectory(_selectedGame.GameDirectory);
+        if (!gameCheck.IsValid)
+        {
+            MessageBox.Show(
+                this,
+                gameCheck.ErrorMessage ?? "所选游戏目录无效，请重新选择。",
+                "游戏目录无效",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (Ue4ssRuntimeSupport.IsGameProcessRunning())
+        {
+            MessageBox.Show(
+                this,
+                $"检测到游戏（{Ue4ssRuntimeSupport.GameExeFileName}）正在运行，请先关闭游戏后再获取 .usmap。",
+                "游戏正在运行",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        var confirmText =
+            "即将一键获取 .usmap 映射文件，执行前请知悉：\n\n"
+            + "1. 若游戏目录尚未安装 UE4SS，将从 UE4SS 官方 GitHub（RE-UE4SS v4.0.0）下载约 8.4 MB 压缩包并严格校验 SHA-256，安装进游戏目录；若您原本已安装 UE4SS，则完全不动原有配置。\n"
+            + "2. 会放入临时转储模组并通过 Steam 启动一次游戏，等待引擎初始化后在标题画面转储 .usmap，随后自动移除临时模组并关闭游戏。\n"
+            + "3. 转储完成后会保留 UE4SS 供下次复用，您可以随时点击主窗口「设置…」中的「卸载 UE4SS」仅删除本工具安装的文件。\n"
+            + "4. 全程只读取类型映射，停留在标题画面，不会触碰或修改任何游戏存档。\n\n"
+            + "确定要开始获取 .usmap 吗？";
+
+        var answer = MessageBox.Show(
+            this,
+            confirmText,
+            "确认一键获取 .usmap",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question,
+            MessageBoxDefaultButton.Button1);
+        if (answer != DialogResult.Yes)
+        {
+            return;
+        }
+
+        var gameDir = _selectedGame.GameDirectory;
+        var cliArgs = BuildCliCommand.BuildFetchUsmapArguments(gameDir, yes: true);
+
+        _lastFetchedUsmapPath = null;
+        _logTextBox.Clear();
+        AppendLogLine($"启动命令：{cliLookup.FileName} {string.Join(" ", cliArgs.Select(QuoteForLog))}");
+        _progressBar.Value = 5;
+        _progressLabel.Text = "状态：正在准备获取 .usmap……";
+
+        _exportCts?.Dispose();
+        _exportCts = new CancellationTokenSource();
+        var token = _exportCts.Token;
+
+        SetOperationState(ActiveOperation.FetchingUsmap);
+        try
+        {
+            var exitCode = await BuildCliCommand.RunAsync(
+                cliLookup.ExpectedPath,
+                cliArgs,
+                OnChildStdoutLine,
+                OnChildStderrLine,
+                token);
+
+            if (exitCode == 0)
+            {
+                _progressBar.Value = 100;
+                _progressLabel.Text = "状态：.usmap 获取完成";
+
+                if (!string.IsNullOrWhiteSpace(_lastFetchedUsmapPath)
+                    && File.Exists(PathSupport.ToIoPath(_lastFetchedUsmapPath)))
+                {
+                    _selectedUsmap = MappingDiscovery.CreateFromExistingFile(_lastFetchedUsmapPath, "一键获取");
+                    _usmapManuallySelected = false;
+                    _usmapStatusLabel.ForeColor = Color.FromArgb(0, 120, 0);
+                    _usmapStatusLabel.Font = _boldUiFont;
+                    _usmapStatusLabel.Text = $"已自动获取：{MappingDiscovery.FormatUsmapDisplay(_selectedUsmap)}";
+                    _usmapPathTextBox.Text = _selectedUsmap.FullPath;
+                    _fetchUsmapButton.Visible = false;
+                }
+                else
+                {
+                    RefreshMappingsForSelectedGame(resetManualUsmap: true);
+                }
+
+                AppendLogLine("[完成] .usmap 已获取并自动选中，现在可以点击「开始导出」。");
+            }
+            else
+            {
+                _progressLabel.Text = string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"状态：获取 .usmap 失败（退出码：{exitCode}）");
+                AppendLogLine($"[错误] fetch-usmap 异常结束（退出码：{exitCode}）。");
+                MessageBox.Show(
+                    this,
+                    $"获取 .usmap 失败（退出码：{exitCode}），请查看窗口日志了解具体原因和排查建议。",
+                    "获取 .usmap 失败",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _progressBar.Value = 0;
+            _progressLabel.Text = "状态：正在取消——停用临时模组并关闭游戏……";
+            AppendLogLine("[已取消] 用户取消了获取 .usmap，正在停用临时模组并关闭游戏……");
+
+            await Task.Run(async () =>
+            {
+                Ue4ssRuntimeSupport.DisableAndRemoveDumpMod(
+                    gameDir,
+                    msg => PostLogLineSafely(msg));
+                await Ue4ssRuntimeSupport.CloseGameProcessesAsync(
+                    TimeSpan.FromSeconds(15),
+                    msg => PostLogLineSafely(msg)).ConfigureAwait(false);
+            });
+
+            _progressLabel.Text = "状态：已取消获取 .usmap";
+            AppendLogLine("[已取消] 已停用临时转储模组并结束游戏进程。");
+        }
+        catch (Exception exception)
+        {
+            _progressLabel.Text = "状态：获取 .usmap 失败";
+            AppendLogLine($"[错误] 获取 .usmap 失败：{exception.Message}");
+            MessageBox.Show(
+                this,
+                $"获取 .usmap 失败：{exception.Message}",
+                "获取 .usmap 失败",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+        finally
+        {
+            SetOperationState(ActiveOperation.None);
+        }
     }
 
     private void OnIncludeJmapCheckedChanged(object? sender, EventArgs e)
@@ -1439,7 +1716,7 @@ internal sealed class MainForm : Form
         _exportCts = new CancellationTokenSource();
         var token = _exportCts.Token;
 
-        SetExportingState(true);
+        SetOperationState(ActiveOperation.Exporting);
         try
         {
             var exitCode = await BuildCliCommand.RunAsync(
@@ -1507,7 +1784,7 @@ internal sealed class MainForm : Form
         }
         finally
         {
-            SetExportingState(false);
+            SetOperationState(ActiveOperation.None);
         }
     }
 
@@ -1548,6 +1825,11 @@ internal sealed class MainForm : Form
                 }
 
                 AppendLogLine(line);
+                if (BuildCliCommand.TryParseFetchedUsmapPath(line, out var savedUsmap))
+                {
+                    _lastFetchedUsmapPath = savedUsmap;
+                }
+
                 if (BuildCliCommand.TryParseStepProgress(line, out var step))
                 {
                     _progressBar.Value = Math.Clamp(step.Percent, _progressBar.Minimum, _progressBar.Maximum);
@@ -1700,21 +1982,51 @@ internal sealed class MainForm : Form
         }
     }
 
-    private void SetExportingState(bool exporting)
+    private void SetOperationState(ActiveOperation operation)
     {
-        _isExporting = exporting;
+        _activeOperation = operation;
+        var busy = operation != ActiveOperation.None;
 
-        _gameListView.Enabled = !exporting;
-        _manualGameButton.Enabled = !exporting;
-        _rescanGameButton.Enabled = !exporting;
-        _browseUsmapButton.Enabled = !exporting;
-        _includeJmapCheckBox.Enabled = !exporting;
-        _outputDirTextBox.Enabled = !exporting;
-        _browseOutputButton.Enabled = !exporting;
-        _startButton.Enabled = !exporting;
-        _cancelButton.Enabled = exporting;
+        _gameListView.Enabled = !busy;
+        _manualGameButton.Enabled = !busy;
+        _rescanGameButton.Enabled = !busy;
+        _settingsButton.Enabled = !busy;
+        _browseUsmapButton.Enabled = !busy;
+        _fetchUsmapButton.Enabled = !busy;
+        _includeJmapCheckBox.Enabled = !busy;
+        _outputDirTextBox.Enabled = !busy;
+        _browseOutputButton.Enabled = !busy;
+        _startButton.Enabled = !busy;
+        _cancelButton.Enabled = busy;
 
         UpdateJmapControlsEnabledState();
+    }
+
+    private void PostLogLineSafely(string line)
+    {
+        if (IsDisposed || !IsHandleCreated)
+        {
+            return;
+        }
+
+        try
+        {
+            BeginInvoke(() =>
+            {
+                if (!IsDisposed)
+                {
+                    AppendLogLine(line);
+                }
+            });
+        }
+        catch (ObjectDisposedException)
+        {
+            // Ignore shutdown races.
+        }
+        catch (InvalidOperationException)
+        {
+            // Ignore shutdown races.
+        }
     }
 
     private void UpdateJmapControlsEnabledState()

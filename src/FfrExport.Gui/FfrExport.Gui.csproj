@@ -15,9 +15,11 @@
     <Version Condition="'$(Version)' == ''">0.1.0</Version>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Share SteamLocator and PathSupport directly from FfrExport without duplicating source files. -->
+    <!-- Share core path, Steam, and UE4SS runtime helpers directly from FfrExport without duplicating source files. -->
     <Compile Include="..\FfrExport\SteamLocator.cs" Link="Shared\SteamLocator.cs" />
     <Compile Include="..\FfrExport\PathSupport.cs" Link="Shared\PathSupport.cs" />
+    <Compile Include="..\FfrExport\AgpPaths.cs" Link="Shared\AgpPaths.cs" />
+    <Compile Include="..\FfrExport\Ue4ssRuntimeSupport.cs" Link="Shared\Ue4ssRuntimeSupport.cs" />
   </ItemGroup>
   <Target Name="EmbedGitCommitMetadata" BeforeTargets="GetAssemblyAttributes">
     <Exec Condition="'$(FfrGitCommit)' == ''"

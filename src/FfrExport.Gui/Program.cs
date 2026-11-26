@@ -238,7 +238,17 @@ internal static class Program
 
                 startupLog.WriteInfo(string.Create(
                     CultureInfo.InvariantCulture,
-                    $"自检：MainForm 创建成功（handle=0x{handle.ToInt64():X}, topControls={form.Controls.Count}），正在释放。"));
+                    $"自检：MainForm 创建成功（handle=0x{handle.ToInt64():X}, topControls={form.Controls.Count}），正在校验 SettingsDialog。"));
+
+                using var settingsDialog = new SettingsDialog(null, form.Font, form.Font);
+                settingsDialog.CreateControl();
+                if (settingsDialog.Handle == IntPtr.Zero || !settingsDialog.IsHandleCreated)
+                {
+                    throw new InvalidOperationException("设置对话框句柄创建失败。");
+                }
+
+                EnsureChildControlHandlesCreated(settingsDialog);
+                settingsDialog.PerformLayout();
             }
 
             startupLog.WriteInfo(string.Create(

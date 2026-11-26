@@ -70,6 +70,62 @@ internal static class BuildCliCommand
         return args;
     }
 
+    internal static IReadOnlyList<string> BuildFetchUsmapArguments(
+        string gameDirectory,
+        int? timeoutSeconds = null,
+        bool yes = true)
+    {
+        var args = new List<string>
+        {
+            "fetch-usmap",
+            "--game",
+            gameDirectory,
+        };
+
+        if (timeoutSeconds.HasValue && timeoutSeconds.Value > 0)
+        {
+            args.Add("--timeout");
+            args.Add(timeoutSeconds.Value.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (yes)
+        {
+            args.Add("--yes");
+        }
+
+        return args;
+    }
+
+    internal static IReadOnlyList<string> BuildUninstallUe4ssArguments(string gameDirectory)
+    {
+        return ["uninstall-ue4ss", "--game", gameDirectory];
+    }
+
+    internal static bool TryParseFetchedUsmapPath(string? line, out string usmapPath)
+    {
+        usmapPath = string.Empty;
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return false;
+        }
+
+        const string prefix = "已保存 .usmap：";
+        var trimmed = line.Trim();
+        if (!trimmed.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var path = trimmed[prefix.Length..].Trim();
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        usmapPath = path;
+        return true;
+    }
+
     internal static bool TryParseStepProgress(string? line, out StepProgress progress)
     {
         progress = default!;
