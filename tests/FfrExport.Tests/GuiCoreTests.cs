@@ -438,6 +438,437 @@ public sealed class GuiCoreTests
     }
 
     [Fact]
+    public void GuiStartupLog_WritesStartupBannerToLocalAppDataAndFallsBackToTemp()
+    {
+        using var workspace = new TempWorkspace("ffr-gui-startup-log");
+
+        var localAppData = Path.Combine(workspace.Root, "LocalAppData");
+        var tempDir = Path.Combine(workspace.Root, "Temp");
+        Directory.CreateDirectory(tempDir);
+
+        var expectedPrimaryDir = Path.Combine(localAppData, "ffr-export", "logs");
+        Assert.Equal(expectedPrimaryDir, GuiStartupLog.GetPrimaryLogDirectory(localAppData));
+
+        var info = new GuiStartupInfo(
+            Version: "0.2.0",
+            GitCommit: "abc123def456",
+            OsVersion: "TestOS 10.0",
+            DotNetVersion: ".NET 10.0.0",
+            ProcessBitness: "64-bit (X64)",
+            CurrentDirectory: workspace.Root,
+            ExecutablePath: Path.Combine(workspace.Root, "ffr-export-gui.exe"),
+            DpiSetting: "PerMonitorV2 (SetPerMonitorV2=True)",
+            Mode: "gui");
+
+        var fixedTime = new DateTimeOffset(2026, 11, 26, 10, 15, 30, TimeSpan.FromHours(9));
+        var session = GuiStartupLog.StartSession(
+            info,
+            nowOverride: fixedTime,
+            localAppDataOverride: localAppData,
+            tempDirectoryOverride: tempDir);
+
+        Assert.True(session.IsWritable);
+        Assert.False(session.UsedFallbackDirectory);
+        Assert.Equal(expectedPrimaryDir, session.LogDirectory);
+        Assert.Equal(Path.Combine(expectedPrimaryDir, "gui-20261126-101530.log"), session.LogFilePath);
+        Assert.True(File.Exists(session.LogFilePath));
+
+        var lines = File.ReadAllLines(session.LogFilePath!, Encoding.UTF8);
+        var banner = Assert.Single(lines);
+        Assert.Contains("mode=gui", banner, StringComparison.Ordinal);
+        Assert.Contains("version=0.2.0", banner, StringComparison.Ordinal);
+        Assert.Contains("git=abc123def456", banner, StringComparison.Ordinal);
+        Assert.Contains("os=\"TestOS 10.0\"", banner, StringComparison.Ordinal);
+        Assert.Contains("dotnet=\".NET 10.0.0\"", banner, StringComparison.Ordinal);
+        Assert.Contains("bits=\"64-bit (X64)\"", banner, StringComparison.Ordinal);
+        Assert.Contains("dpi=\"PerMonitorV2 (SetPerMonitorV2=True)\"", banner, StringComparison.Ordinal);
+        Assert.Contains($"cwd=\"{workspace.Root}\"", banner, StringComparison.Ordinal);
+        Assert.Contains("ffr-export-gui.exe", banner, StringComparison.Ordinal);
+
+        // Same-second launch avoids overwriting the existing log file.
+        var secondSession = GuiStartupLog.StartSession(
+            info,
+            nowOverride: fixedTime,
+            localAppDataOverride: localAppData,
+            tempDirectoryOverride: tempDir);
+        Assert.True(secondSession.IsWritable);
+        Assert.NotEqual(session.LogFilePath, secondSession.LogFilePath);
+        Assert.Equal(Path.Combine(expectedPrimaryDir, "gui-20261126-101530-2.log"), secondSession.LogFilePath);
+
+        // Blocked primary directory (regular file occupying LocalAppData path) falls back to %TEMP%.
+        var blockingFile = Path.Combine(workspace.Root, "blocked-local-appdata");
+        File.WriteAllText(blockingFile, "not a directory", Encoding.UTF8);
+        var fallbackSession = GuiStartupLog.StartSession(
+            info,
+            nowOverride: fixedTime,
+            localAppDataOverride: blockingFile,
+            tempDirectoryOverride: tempDir);
+
+        Assert.True(fallbackSession.IsWritable);
+        Assert.True(fallbackSession.UsedFallbackDirectory);
+        Assert.Equal(tempDir, fallbackSession.LogDirectory);
+        Assert.NotNull(fallbackSession.LogFilePath);
+        Assert.True(File.Exists(fallbackSession.LogFilePath));
+        var fallbackText = File.ReadAllText(fallbackSession.LogFilePath!, Encoding.UTF8);
+        Assert.Contains("[START]", fallbackText, StringComparison.Ordinal);
+        Assert.Contains("[WARN]", fallbackText, StringComparison.Ordinal);
+
+        // Permission failure in directory creator falls back to %TEMP% cleanly.
+        var permTemp = Path.Combine(workspace.Root, "PermTemp");
+        var deniedSession = GuiStartupLog.StartSession(
+            info,
+            nowOverride: fixedTime.AddSeconds(5),
+            localAppDataOverride: Path.Combine(workspace.Root, "DeniedLocalAppData"),
+            tempDirectoryOverride: permTemp,
+            directoryCreatorOverride: dir =>
+            {
+                if (dir.Contains("DeniedLocalAppData", StringComparison.Ordinal))
+                {
+                    throw new UnauthorizedAccessException("模拟无权创建日志目录");
+                }
+
+                Directory.CreateDirectory(dir);
+            });
+        Assert.True(deniedSession.IsWritable);
+        Assert.True(deniedSession.UsedFallbackDirectory);
+        Assert.Equal(permTemp, deniedSession.LogDirectory);
+        Assert.Contains("模拟无权创建日志目录", deniedSession.PrimaryDirectoryError, StringComparison.Ordinal);
+
+        // If both primary and temp fail, StartSession degrades safely without throwing.
+        var totalFailure = GuiStartupLog.StartSession(
+            info,
+            nowOverride: fixedTime,
+            localAppDataOverride: blockingFile,
+            tempDirectoryOverride: blockingFile);
+        Assert.False(totalFailure.IsWritable);
+        Assert.Null(totalFailure.LogFilePath);
+        Assert.NotNull(totalFailure.LastWriteError);
+    }
+
+    [Fact]
+    public void GuiStartupLog_RetainsLatestTenLogsAndPreservesUnrelatedFiles()
+    {
+        using var workspace = new TempWorkspace("ffr-gui-log-retention");
+
+        var localAppData = Path.Combine(workspace.Root, "LocalAppData");
+        var logsDir = Path.Combine(localAppData, "ffr-export", "logs");
+        Directory.CreateDirectory(logsDir);
+
+        var baseTime = new DateTimeOffset(2026, 11, 26, 9, 0, 0, TimeSpan.Zero);
+        for (var i = 0; i < 13; i++)
+        {
+            var stamp = baseTime.AddMinutes(i);
+            var filePath = Path.Combine(logsDir, GuiStartupLog.BuildLogFileName(stamp));
+            File.WriteAllText(filePath, $"log {i}\n", Encoding.UTF8);
+            File.SetLastWriteTimeUtc(filePath, stamp.UtcDateTime);
+        }
+
+        // Unrelated files in the directory (critical when falling back to %TEMP%) must never be pruned.
+        var unrelatedFile = Path.Combine(logsDir, "other-tool.log");
+        File.WriteAllText(unrelatedFile, "keep me", Encoding.UTF8);
+
+        var info = GuiStartupLog.CollectStartupInfo(typeof(GuiCoreTests).Assembly, "PerMonitorV2", "gui");
+        var newestTime = baseTime.AddMinutes(20);
+        var session = GuiStartupLog.StartSession(
+            info,
+            nowOverride: newestTime,
+            localAppDataOverride: localAppData,
+            tempDirectoryOverride: workspace.Root,
+            maxRetainedLogs: GuiStartupLog.DefaultMaxRetainedLogs);
+
+        Assert.True(session.IsWritable);
+        Assert.True(File.Exists(unrelatedFile));
+
+        var remainingGuiLogs = Directory.EnumerateFiles(logsDir, "gui-*.log")
+            .Select(Path.GetFileName)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+        Assert.Equal(10, remainingGuiLogs.Length);
+        Assert.Contains(Path.GetFileName(session.LogFilePath), remainingGuiLogs);
+
+        // Oldest 4 pre-existing logs (minutes 0..3) were pruned; minutes 4..12 plus newest (20) remain.
+        for (var i = 0; i < 4; i++)
+        {
+            Assert.DoesNotContain(GuiStartupLog.BuildLogFileName(baseTime.AddMinutes(i)), remainingGuiLogs);
+        }
+
+        for (var i = 4; i < 13; i++)
+        {
+            Assert.Contains(GuiStartupLog.BuildLogFileName(baseTime.AddMinutes(i)), remainingGuiLogs);
+        }
+
+        // Even with backwards clock skew, the newly created active log file is always retained.
+        var skewedSession = GuiStartupLog.StartSession(
+            info,
+            nowOverride: baseTime.AddHours(-1),
+            localAppDataOverride: localAppData,
+            tempDirectoryOverride: workspace.Root,
+            maxRetainedLogs: GuiStartupLog.DefaultMaxRetainedLogs);
+        Assert.NotNull(skewedSession.LogFilePath);
+        Assert.True(File.Exists(skewedSession.LogFilePath));
+        Assert.Equal(10, Directory.EnumerateFiles(logsDir, "gui-*.log").Count());
+    }
+
+    [Fact]
+    public void GuiStartupLog_FormatsFullExceptionChainCrashDialogAndSelfTestError()
+    {
+        using var workspace = new TempWorkspace("ffr-gui-exception-format");
+
+        Exception captured;
+        try
+        {
+            try
+            {
+                throw new UnauthorizedAccessException("底层拒绝访问");
+            }
+            catch (Exception innerMost)
+            {
+                throw new IOException("中层读取失败", innerMost);
+            }
+        }
+        catch (Exception outer)
+        {
+            captured = new InvalidOperationException("顶层窗口初始化失败", outer);
+        }
+
+        var formatted = GuiStartupLog.FormatExceptionDetails("MainForm 构造", captured);
+        Assert.Contains("阶段：MainForm 构造", formatted, StringComparison.Ordinal);
+        Assert.Contains("System.InvalidOperationException", formatted, StringComparison.Ordinal);
+        Assert.Contains("顶层窗口初始化失败", formatted, StringComparison.Ordinal);
+        Assert.Contains("HResult：0x", formatted, StringComparison.Ordinal);
+        Assert.Contains("堆栈跟踪：", formatted, StringComparison.Ordinal);
+        Assert.Contains("InnerException (depth 1)", formatted, StringComparison.Ordinal);
+        Assert.Contains("System.IO.IOException", formatted, StringComparison.Ordinal);
+        Assert.Contains("中层读取失败", formatted, StringComparison.Ordinal);
+        Assert.Contains("InnerException (depth 2)", formatted, StringComparison.Ordinal);
+        Assert.Contains("System.UnauthorizedAccessException", formatted, StringComparison.Ordinal);
+        Assert.Contains("底层拒绝访问", formatted, StringComparison.Ordinal);
+
+        // AggregateException includes every inner branch.
+        var aggregate = new AggregateException(
+            "并行初始化失败",
+            new ArgumentException("参数 A 无效"),
+            new InvalidDataException("数据 B 损坏"));
+        var aggText = GuiStartupLog.FormatExceptionDetails("AggregateTest", aggregate);
+        Assert.Contains("AggregateException.InnerExceptions[0]", aggText, StringComparison.Ordinal);
+        Assert.Contains("AggregateException.InnerExceptions[1]", aggText, StringComparison.Ordinal);
+        Assert.Contains("参数 A 无效", aggText, StringComparison.Ordinal);
+        Assert.Contains("数据 B 损坏", aggText, StringComparison.Ordinal);
+
+        // Crash dialog text states startup failure in Chinese, includes exception message, log path, and developer note.
+        var fakeLogPath = Path.Combine(workspace.Root, "gui-20261126-101530.log");
+        var dialog = GuiStartupLog.FormatCrashDialogMessage(captured, fakeLogPath);
+        Assert.Contains("窗口程序启动失败", dialog, StringComparison.Ordinal);
+        Assert.Contains("InvalidOperationException: 顶层窗口初始化失败", dialog, StringComparison.Ordinal);
+        Assert.Contains("IOException: 中层读取失败", dialog, StringComparison.Ordinal);
+        Assert.Contains(fakeLogPath, dialog, StringComparison.Ordinal);
+        Assert.Contains("发送给开发者", dialog, StringComparison.Ordinal);
+
+        // Crash dialog degrades cleanly when the log file could not be written.
+        var noLogDialog = GuiStartupLog.FormatCrashDialogMessage(captured, null, "磁盘空间不足");
+        Assert.Contains("窗口程序启动失败", noLogDialog, StringComparison.Ordinal);
+        Assert.Contains("未能写入日志文件", noLogDialog, StringComparison.Ordinal);
+        Assert.Contains("磁盘空间不足", noLogDialog, StringComparison.Ordinal);
+
+        // Self-test stderr report includes exception details and log path.
+        var selfTestErr = GuiStartupLog.FormatSelfTestFailureMessage(captured, fakeLogPath);
+        Assert.Contains("窗口程序自检失败", selfTestErr, StringComparison.Ordinal);
+        Assert.Contains(fakeLogPath, selfTestErr, StringComparison.Ordinal);
+        Assert.Contains("System.UnauthorizedAccessException", selfTestErr, StringComparison.Ordinal);
+
+        // Session WriteException persists the full formatted trace to disk.
+        var session = GuiStartupLog.StartSession(
+            GuiStartupLog.CollectStartupInfo(typeof(GuiCoreTests).Assembly, "PerMonitorV2", "self-test"),
+            localAppDataOverride: Path.Combine(workspace.Root, "LocalAppData"),
+            tempDirectoryOverride: workspace.Root);
+        session.WriteException("self-test", captured);
+        var diskLog = File.ReadAllText(session.LogFilePath!, Encoding.UTF8);
+        Assert.Contains("顶层窗口初始化失败", diskLog, StringComparison.Ordinal);
+        Assert.Contains("底层拒绝访问", diskLog, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GuiFallbacks_HandleCorruptOrDeniedSettingsFontOutputSteamAndMappings()
+    {
+        using var workspace = new TempWorkspace("ffr-gui-fallbacks");
+
+        // 1. Settings load diagnostics: missing -> no warning; corrupt / permission denied / invalid path -> warning + defaults.
+        var missingSettings = GuiSettingsStore.LoadWithDiagnostics(Path.Combine(workspace.Root, "missing.json"));
+        Assert.Equal(GuiSettings.Default, missingSettings.Settings);
+        Assert.Null(missingSettings.WarningMessage);
+
+        var corruptPath = Path.Combine(workspace.Root, "corrupt.json");
+        File.WriteAllText(corruptPath, "{ not valid json", Encoding.UTF8);
+        var corruptSettings = GuiSettingsStore.LoadWithDiagnostics(corruptPath);
+        Assert.Equal(GuiSettings.Default, corruptSettings.Settings);
+        Assert.Contains("已损坏", corruptSettings.WarningMessage, StringComparison.Ordinal);
+
+        var deniedSettings = GuiSettingsStore.LoadWithDiagnostics(
+            corruptPath,
+            fileReaderOverride: _ => throw new UnauthorizedAccessException("拒绝读取设置"));
+        Assert.Equal(GuiSettings.Default, deniedSettings.Settings);
+        Assert.Contains("无权读取配置文件", deniedSettings.WarningMessage, StringComparison.Ordinal);
+
+        var invalidPathSettings = GuiSettingsStore.LoadWithDiagnostics("bad\0settings.json");
+        Assert.Equal(GuiSettings.Default, invalidPathSettings.Settings);
+        Assert.NotNull(invalidPathSettings.WarningMessage);
+
+        // 2. Font fallback chain: preferred -> MessageBoxFont (same style) -> MessageBoxFont (regular) -> DefaultFont.
+        var okFont = GuiFontFallback.ResolveUiFont(
+            "Microsoft YaHei UI",
+            9.5f,
+            isBold: true,
+            tryCreatePreferred: (name, _, _) => $"{name}-Bold",
+            tryCreateMessageBoxFont: (_, _) => "MsgBox",
+            getFallbackDefaultFont: () => "Default");
+        Assert.Equal("Microsoft YaHei UI-Bold", okFont.Font);
+        Assert.True(okFont.IsOwned);
+        Assert.False(okFont.UsedFallback);
+        Assert.Null(okFont.WarningMessage);
+
+        var msgBoxFallback = GuiFontFallback.ResolveUiFont(
+            "Microsoft YaHei UI",
+            9.5f,
+            isBold: false,
+            tryCreatePreferred: (_, _, _) => throw new ArgumentException("字体不存在"),
+            tryCreateMessageBoxFont: (_, bold) => bold ? "MsgBox-Bold" : "MsgBox-Regular",
+            getFallbackDefaultFont: () => "Default");
+        Assert.Equal("MsgBox-Regular", msgBoxFallback.Font);
+        Assert.True(msgBoxFallback.IsOwned);
+        Assert.True(msgBoxFallback.UsedFallback);
+        Assert.Contains("MessageBoxFont", msgBoxFallback.WarningMessage, StringComparison.Ordinal);
+
+        var regularMsgBoxFallback = GuiFontFallback.ResolveUiFont(
+            "Microsoft YaHei UI",
+            11f,
+            isBold: true,
+            tryCreatePreferred: (_, _, _) => null,
+            tryCreateMessageBoxFont: (_, bold) => bold ? throw new ArgumentException("不支持粗体") : "MsgBox-Regular",
+            getFallbackDefaultFont: () => "Default");
+        Assert.Equal("MsgBox-Regular", regularMsgBoxFallback.Font);
+        Assert.True(regularMsgBoxFallback.UsedFallback);
+
+        var defaultFontFallback = GuiFontFallback.ResolveUiFont(
+            "Microsoft YaHei UI",
+            9.5f,
+            isBold: true,
+            tryCreatePreferred: (_, _, _) => throw new ArgumentException("缺失"),
+            tryCreateMessageBoxFont: (_, _) => throw new InvalidOperationException("系统字体异常"),
+            getFallbackDefaultFont: () => "ControlDefault");
+        Assert.Equal("ControlDefault", defaultFontFallback.Font);
+        Assert.False(defaultFontFallback.IsOwned);
+        Assert.True(defaultFontFallback.UsedFallback);
+
+        var monoFallback = GuiFontFallback.ResolveMonoFont(
+            "Consolas",
+            9f,
+            tryCreatePreferred: (_, _) => throw new ArgumentException("缺少 Consolas"),
+            tryCreateGenericMonospace: _ => null,
+            tryCreateMessageBoxFont: (_, _) => "MsgBox-MonoFallback",
+            getFallbackDefaultFont: () => "ControlDefault");
+        Assert.Equal("MsgBox-MonoFallback", monoFallback.Font);
+        Assert.True(monoFallback.UsedFallback);
+
+        // 3. Default output directory fallback when Documents is redirected/non-existent or saved root is invalid.
+        var fakeDocs = Path.Combine(workspace.Root, "RedirectedMissingDocs");
+        var fakeProfile = Path.Combine(workspace.Root, "UserProfile");
+        var fakeLocalApp = Path.Combine(workspace.Root, "LocalApp");
+        var fakeTemp = Path.Combine(workspace.Root, "TempOut");
+        Directory.CreateDirectory(fakeProfile);
+        Directory.CreateDirectory(fakeLocalApp);
+        Directory.CreateDirectory(fakeTemp);
+
+        var docsFallback = GuiPaths.ResolveDefaultOutputRootSafe(
+            documentsDirectoryOverride: fakeDocs,
+            userProfileOverride: fakeProfile,
+            localAppDataOverride: fakeLocalApp,
+            tempDirectoryOverride: fakeTemp,
+            directoryExistsCheck: path => !string.Equals(path, fakeDocs, StringComparison.Ordinal));
+        Assert.True(docsFallback.UsedFallback);
+        Assert.Equal(Path.Combine(fakeProfile, "FF-Export"), docsFallback.Path);
+        Assert.Contains("文档", docsFallback.WarningMessage, StringComparison.Ordinal);
+
+        var tempFallback = GuiPaths.ResolveDefaultOutputRootSafe(
+            documentsDirectoryOverride: "",
+            userProfileOverride: Path.Combine(workspace.Root, "MissingProfile"),
+            localAppDataOverride: Path.Combine(workspace.Root, "MissingLocal"),
+            tempDirectoryOverride: fakeTemp,
+            directoryExistsCheck: _ => false);
+        Assert.True(tempFallback.UsedFallback);
+        Assert.Equal(Path.Combine(fakeTemp, "FF-Export"), tempFallback.Path);
+
+        var badSavedRoot = GuiPaths.BuildDefaultOutputDirectorySafe(
+            outputRootOverride: "bad\0saved-root",
+            gameCode: "ffr",
+            steamBuildId: "24250053",
+            documentsDirectoryOverride: fakeProfile,
+            directoryExistsCheck: _ => true);
+        Assert.True(badSavedRoot.UsedFallback);
+        Assert.Equal(Path.Combine(fakeProfile, "FF-Export", "ffr-24250053"), badSavedRoot.Path);
+        Assert.Contains("上次保存的输出目录无效", badSavedRoot.WarningMessage, StringComparison.Ordinal);
+
+        // 4. Steam scan fallback on registry permission error and unreadable Steam library directory.
+        var registryDenied = GameScanner.ScanSteamGamesSafe(
+            isWindowsOverride: true,
+            windowsRegistryReader: () => throw new UnauthorizedAccessException("注册表访问被拒绝"),
+            defaultWindowsCandidatesOverride: [Path.Combine(workspace.Root, "NonExistentSteam")]);
+        Assert.Empty(registryDenied.Games);
+        Assert.Contains("注册表", registryDenied.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("手动选择游戏目录", registryDenied.ErrorMessage, StringComparison.Ordinal);
+
+        var restrictedSteamRoot = Path.Combine(workspace.Root, "RestrictedSteam");
+        Directory.CreateDirectory(Path.Combine(restrictedSteamRoot, "steamapps"));
+        var dirDenied = GameScanner.ScanSteamGamesSafe(
+            isWindowsOverride: true,
+            windowsRegistryReader: () => restrictedSteamRoot,
+            defaultWindowsCandidatesOverride: [],
+            steamDirectoryAccessProbe: _ => throw new UnauthorizedAccessException("Steam 目录无读权限"));
+        Assert.Empty(dirDenied.Games);
+        Assert.Contains("无权访问", dirDenied.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("手动选择游戏目录", dirDenied.ErrorMessage, StringComparison.Ordinal);
+
+        // 5. .usmap / .jmap discovery reports permission errors (e.g. Program Files) without throwing.
+        var protectedGameDir = Path.Combine(workspace.Root, "ProtectedGame");
+        var usmapDenied = MappingDiscovery.DiscoverUsmap(
+            protectedGameDir,
+            fileEnumeratorOverride: _ => throw new UnauthorizedAccessException("Program Files 拒绝读取"));
+        Assert.Null(usmapDenied.Selected);
+        Assert.Contains("无权读取目录", usmapDenied.ScanError, StringComparison.Ordinal);
+        Assert.Contains("选择 .usmap", usmapDenied.NotFoundGuidance, StringComparison.Ordinal);
+
+        var jmapDenied = MappingDiscovery.DiscoverJmapsWithDiagnostics(
+            protectedGameDir,
+            fileEnumeratorOverride: _ => throw new UnauthorizedAccessException("Program Files 拒绝读取"));
+        Assert.Empty(jmapDenied.Files);
+        Assert.Contains("无权读取目录", jmapDenied.ScanError, StringComparison.Ordinal);
+
+        // Partial permission failure: ue4ss denied, Win64 readable -> still selects Win64 .usmap and preserves warning.
+        var partialGameDir = Path.Combine(workspace.Root, "PartialGame");
+        var win64Usmap = Path.Combine(partialGameDir, "FFRS", "Binaries", "Win64", "fallback.usmap");
+        Directory.CreateDirectory(Path.GetDirectoryName(win64Usmap)!);
+        File.WriteAllBytes(win64Usmap, [1, 2, 3]);
+        var partialUsmap = MappingDiscovery.DiscoverUsmap(
+            partialGameDir,
+            fileEnumeratorOverride: dir =>
+            {
+                if (dir.EndsWith("ue4ss", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new UnauthorizedAccessException("ue4ss 无读权限");
+                }
+
+                return [win64Usmap];
+            });
+        Assert.NotNull(partialUsmap.Selected);
+        Assert.Equal("fallback.usmap", partialUsmap.Selected.FileName);
+        Assert.Contains("ue4ss 无读权限", partialUsmap.ScanError, StringComparison.Ordinal);
+
+        // Edge timestamps near MinValue do not throw ArgumentOutOfRangeException on negative timezone offsets.
+        var minusOffsetZone = TimeZoneInfo.CreateCustomTimeZone("TestMinus", TimeSpan.FromHours(-8), "TestMinus", "TestMinus");
+        var formattedEdge = MappingDiscovery.FormatModifiedDate(DateTimeOffset.MinValue.AddHours(1), minusOffsetZone);
+        Assert.Contains("0001-01-01", formattedEdge, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task BuildCliCommand_RunsChildProcessWithUtf8OutputAndSupportsCancellation()
     {
         var cliHostDll = Path.Combine(AppContext.BaseDirectory, "cli-host", "FfrExport.TestCliHost.dll");
@@ -642,6 +1073,13 @@ public sealed class GuiCoreTests
         Assert.Contains("<TreatWarningsAsErrors>true</TreatWarningsAsErrors>", csproj, StringComparison.Ordinal);
         Assert.Contains(@"..\FfrExport\SteamLocator.cs", csproj, StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(guiDir, "SteamLocator.cs")), "SteamLocator 应共享链接而不是复制一份");
+
+        var programCs = File.ReadAllText(Path.Combine(guiDir, "Program.cs"), Encoding.UTF8);
+        Assert.Contains("Application.ThreadException", programCs, StringComparison.Ordinal);
+        Assert.Contains("AppDomain.CurrentDomain.UnhandledException", programCs, StringComparison.Ordinal);
+        Assert.Contains("Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException)", programCs, StringComparison.Ordinal);
+        Assert.Contains("new MainForm(", programCs, StringComparison.Ordinal);
+        Assert.Contains("form.CreateControl()", programCs, StringComparison.Ordinal);
 
         string[] forbiddenTokens = ["OodleHelper", "DownloadOodle", "HttpClient", "WebClient"];
         var linuxRootRegex = new Regex(@"/root/", RegexOptions.CultureInvariant);

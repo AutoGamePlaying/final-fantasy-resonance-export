@@ -13,6 +13,12 @@ internal sealed class MainForm : Form
     private const int MinimumWindowWidth = 720;
     private const int MinimumWindowHeight = 680;
     private const int MaxLogCharacters = 400_000;
+    private const string DefaultOutputHintText =
+        "默认位置：%USERPROFILE%\\Documents\\FF-Export\\ffr-<Steam 构建号>\\（导出只读游戏文件，不会修改游戏目录）";
+
+    private readonly GuiStartupLogSession? _startupLog;
+    private readonly List<Font> _ownedFonts = [];
+    private readonly HashSet<string> _recordedFontWarnings = new(StringComparer.Ordinal);
 
     private readonly Font _uiFont;
     private readonly Font _boldUiFont;
@@ -39,6 +45,7 @@ internal sealed class MainForm : Form
 
     private readonly TextBox _outputDirTextBox;
     private readonly Button _browseOutputButton;
+    private readonly Label _outputHintLabel;
 
     private readonly Button _startButton;
     private readonly Button _cancelButton;
@@ -68,19 +75,58 @@ internal sealed class MainForm : Form
     private BuildReportSummary? _lastReport;
     private string? _lastCompletedOutputDir;
 
-    internal MainForm()
+    internal MainForm(GuiStartupLogSession? startupLog = null)
     {
-        _settingsPath = GuiSettingsStore.GetDefaultSettingsPath();
-        var loadedSettings = GuiSettingsStore.Load(_settingsPath);
-        _outputRootDirectory = string.IsNullOrWhiteSpace(loadedSettings.OutputRootDirectory)
-            ? GuiPaths.ResolveDefaultOutputRoot()
-            : loadedSettings.OutputRootDirectory;
+        _startupLog = startupLog;
+        var startupWarnings = new List<string>();
 
-        _uiFont = CreateUiFont(9.5f, FontStyle.Regular);
-        _boldUiFont = CreateUiFont(9.5f, FontStyle.Bold);
-        _startButtonFont = CreateUiFont(11f, FontStyle.Bold);
-        _verdictFont = CreateUiFont(10.5f, FontStyle.Bold);
-        _monoFont = CreateMonoFont(9f);
+        _settingsPath = GuiSettingsStore.GetDefaultSettingsPath();
+        var settingsResult = GuiSettingsStore.LoadWithDiagnostics(_settingsPath);
+        if (!string.IsNullOrWhiteSpace(settingsResult.WarningMessage))
+        {
+            startupWarnings.Add(settingsResult.WarningMessage);
+            _startupLog?.WriteWarning(settingsResult.WarningMessage);
+        }
+
+        var loadedSettings = settingsResult.Settings;
+        string? initialOutputWarning = null;
+        if (!string.IsNullOrWhiteSpace(loadedSettings.OutputRootDirectory))
+        {
+            if (GuiPaths.TryNormalizeDirectoryPath(
+                loadedSettings.OutputRootDirectory,
+                out var normalizedSavedRoot,
+                out var savedRootError))
+            {
+                _outputRootDirectory = normalizedSavedRoot;
+            }
+            else
+            {
+                var fallbackRoot = GuiPaths.ResolveDefaultOutputRootSafe();
+                _outputRootDirectory = fallbackRoot.Path;
+                initialOutputWarning =
+                    $"上次保存的输出目录无效（{loadedSettings.OutputRootDirectory}：{savedRootError}），已改用默认目录：{_outputRootDirectory}（可点击「浏览…」重新选择）。";
+            }
+        }
+        else
+        {
+            var resolvedRoot = GuiPaths.ResolveDefaultOutputRootSafe();
+            _outputRootDirectory = resolvedRoot.Path;
+            initialOutputWarning = resolvedRoot.WarningMessage;
+        }
+
+        if (!string.IsNullOrWhiteSpace(initialOutputWarning))
+        {
+            startupWarnings.Add(initialOutputWarning);
+            _startupLog?.WriteWarning(initialOutputWarning);
+        }
+
+        _uiFont = CreateUiFont(9.5f, FontStyle.Regular, startupWarnings);
+        _boldUiFont = CreateUiFont(9.5f, FontStyle.Bold, startupWarnings);
+        _startButtonFont = CreateUiFont(11f, FontStyle.Bold, startupWarnings);
+        _verdictFont = CreateUiFont(10.5f, FontStyle.Bold, startupWarnings);
+        _monoFont = CreateMonoFont(9f, startupWarnings);
+
+        SuspendLayout();
 
         Text = "《FINAL FANTASY RESONANCE》数据导出工具";
         Font = _uiFont;
@@ -375,19 +421,24 @@ internal sealed class MainForm : Form
         };
         _browseOutputButton.Click += OnBrowseOutputClick;
 
-        var outputHint = new Label
+        _outputHintLabel = new Label
         {
-            Text = "默认位置：%USERPROFILE%\\Documents\\FF-Export\\ffr-<Steam 构建号>\\（导出只读游戏文件，不会修改游戏目录）",
+            Text = string.IsNullOrWhiteSpace(initialOutputWarning)
+                ? DefaultOutputHintText
+                : initialOutputWarning,
             AutoSize = true,
-            ForeColor = SystemColors.GrayText,
+            ForeColor = string.IsNullOrWhiteSpace(initialOutputWarning)
+                ? SystemColors.GrayText
+                : Color.FromArgb(180, 100, 0),
+            MaximumSize = new Size(900, 0),
             Margin = new Padding(0, 2, 0, 0),
         };
 
         outputLayout.Controls.Add(outputCaption, 0, 0);
         outputLayout.Controls.Add(_outputDirTextBox, 1, 0);
         outputLayout.Controls.Add(_browseOutputButton, 2, 0);
-        outputLayout.Controls.Add(outputHint, 0, 1);
-        outputLayout.SetColumnSpan(outputHint, 3);
+        outputLayout.Controls.Add(_outputHintLabel, 0, 1);
+        outputLayout.SetColumnSpan(_outputHintLabel, 3);
         outputGroup.Controls.Add(outputLayout);
 
         // Section 4: Start / Cancel, progress bar, scrollable log
@@ -607,7 +658,14 @@ internal sealed class MainForm : Form
         _includeJmapCheckBox.Checked = loadedSettings.IncludeJmap;
         _suppressJmapToggle = false;
 
+        ResumeLayout(false);
         Shown += OnFormShown;
+
+        foreach (var warning in startupWarnings)
+        {
+            AppendLogLine($"[提示] {warning}");
+        }
+
         ScanAndPopulateGames();
         UpdateJmapControlsEnabledState();
     }
@@ -616,12 +674,28 @@ internal sealed class MainForm : Form
     {
         if (disposing)
         {
-            _exportCts?.Dispose();
-            _uiFont.Dispose();
-            _boldUiFont.Dispose();
-            _startButtonFont.Dispose();
-            _verdictFont.Dispose();
-            _monoFont.Dispose();
+            try
+            {
+                _exportCts?.Dispose();
+            }
+            catch
+            {
+                // Ignore cancellation source disposal errors during teardown.
+            }
+
+            foreach (var font in _ownedFonts)
+            {
+                try
+                {
+                    font.Dispose();
+                }
+                catch
+                {
+                    // Ignore font disposal errors during teardown.
+                }
+            }
+
+            _ownedFonts.Clear();
         }
 
         base.Dispose(disposing);
@@ -660,17 +734,27 @@ internal sealed class MainForm : Form
 
     private void OnFormShown(object? sender, EventArgs e)
     {
-        AdjustGameListColumnWidths();
-        var cliLookup = GuiPaths.ResolveCliExecutable();
-        if (!cliLookup.Found)
+        try
         {
-            AppendLogLine($"[提示] {cliLookup.ErrorMessage}");
-            MessageBox.Show(
-                this,
-                cliLookup.ErrorMessage,
-                "缺少命令行程序",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
+            AdjustGameListColumnWidths();
+            var cliLookup = GuiPaths.ResolveCliExecutable();
+            if (!cliLookup.Found)
+            {
+                var errorMessage = cliLookup.ErrorMessage ?? "找不到命令行程序 ffr-export.exe。";
+                AppendLogLine($"[提示] {errorMessage}");
+                _startupLog?.WriteWarning(errorMessage);
+                MessageBox.Show(
+                    this,
+                    errorMessage,
+                    "缺少命令行程序",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+        catch (Exception exception)
+        {
+            _startupLog?.WriteException("OnFormShown", exception);
+            AppendLogLine($"[警告] 窗口首次显示检查失败：{exception.Message}");
         }
     }
 
@@ -681,19 +765,28 @@ internal sealed class MainForm : Form
         _gameListView.Items.Clear();
         _selectedGame = null;
 
-        IReadOnlyList<GameEntry> discovered;
+        GameScanResult scanResult;
         try
         {
-            discovered = GameScanner.ScanSteamGames();
+            scanResult = GameScanner.ScanSteamGamesSafe();
         }
         catch (Exception exception)
         {
-            _gameStatusLabel.ForeColor = Color.FromArgb(185, 28, 28);
-            _gameStatusLabel.Text = $"自动扫描 Steam 失败：{exception.Message}；请手动选择游戏目录。";
-            discovered = [];
+            scanResult = new GameScanResult(
+                [],
+                $"自动扫描 Steam 失败：{exception.Message}；请点击右侧「手动选择游戏目录…」。");
         }
 
-        foreach (var game in discovered)
+        var scanFailed = !string.IsNullOrWhiteSpace(scanResult.ErrorMessage);
+        if (scanFailed)
+        {
+            _gameStatusLabel.ForeColor = Color.FromArgb(185, 28, 28);
+            _gameStatusLabel.Text = scanResult.ErrorMessage!;
+            _startupLog?.WriteWarning(scanResult.ErrorMessage!);
+            AppendLogLine($"[提示] {scanResult.ErrorMessage}");
+        }
+
+        foreach (var game in scanResult.Games)
         {
             AddGameToListView(game);
         }
@@ -716,10 +809,16 @@ internal sealed class MainForm : Form
 
             _gameListView.Items[indexToSelect].Selected = true;
             _gameListView.Items[indexToSelect].Focused = true;
+
+            // ListView may defer SelectedIndexChanged until handle creation; apply initial selection immediately.
+            if (_selectedGame is null)
+            {
+                ApplySelectedGame(_games[indexToSelect]);
+            }
         }
         else
         {
-            if (string.IsNullOrEmpty(_gameStatusLabel.Text))
+            if (!scanFailed)
             {
                 _gameStatusLabel.ForeColor = Color.FromArgb(180, 100, 0);
                 _gameStatusLabel.Text =
@@ -755,6 +854,16 @@ internal sealed class MainForm : Form
             return;
         }
 
+        if (ReferenceEquals(_selectedGame, entry))
+        {
+            return;
+        }
+
+        ApplySelectedGame(entry);
+    }
+
+    private void ApplySelectedGame(GameEntry entry)
+    {
         _selectedGame = entry;
         RefreshMappingsForSelectedGame(resetManualUsmap: true);
         if (!_userCustomizedOutputDir)
@@ -823,22 +932,43 @@ internal sealed class MainForm : Form
         if (resetManualUsmap || !_usmapManuallySelected)
         {
             _usmapManuallySelected = false;
-            var usmapResult = MappingDiscovery.DiscoverUsmap(_selectedGame?.GameDirectory);
-            _selectedUsmap = usmapResult.Selected;
-            if (usmapResult.Selected is not null)
+            try
             {
-                _usmapStatusLabel.ForeColor = Color.FromArgb(0, 120, 0);
-                _usmapStatusLabel.Font = _boldUiFont;
-                _usmapStatusLabel.Text =
-                    $"已自动找到：{MappingDiscovery.FormatUsmapDisplay(usmapResult.Selected, usmapResult.Candidates.Count)}";
-                _usmapPathTextBox.Text = usmapResult.Selected.FullPath;
+                var usmapResult = MappingDiscovery.DiscoverUsmap(_selectedGame?.GameDirectory);
+                _selectedUsmap = usmapResult.Selected;
+                if (!string.IsNullOrWhiteSpace(usmapResult.ScanError))
+                {
+                    var warn = $"自动查找 .usmap 时遇到目录访问错误：{usmapResult.ScanError}";
+                    _startupLog?.WriteWarning(warn);
+                    AppendLogLine($"[提示] {warn}");
+                }
+
+                if (usmapResult.Selected is not null)
+                {
+                    _usmapStatusLabel.ForeColor = Color.FromArgb(0, 120, 0);
+                    _usmapStatusLabel.Font = _boldUiFont;
+                    _usmapStatusLabel.Text =
+                        $"已自动找到：{MappingDiscovery.FormatUsmapDisplay(usmapResult.Selected, usmapResult.Candidates.Count)}";
+                    _usmapPathTextBox.Text = usmapResult.Selected.FullPath;
+                }
+                else
+                {
+                    _usmapStatusLabel.ForeColor = Color.FromArgb(185, 28, 28);
+                    _usmapStatusLabel.Font = _uiFont;
+                    _usmapStatusLabel.Text = usmapResult.NotFoundGuidance ?? MappingDiscovery.UsmapNotFoundGuidance;
+                    _usmapPathTextBox.Text = string.Empty;
+                }
             }
-            else
+            catch (Exception exception)
             {
+                _selectedUsmap = null;
+                var errorMessage = $"自动查找 .usmap 失败：{exception.Message}；请点击「选择 .usmap…」手动指定。";
                 _usmapStatusLabel.ForeColor = Color.FromArgb(185, 28, 28);
                 _usmapStatusLabel.Font = _uiFont;
-                _usmapStatusLabel.Text = usmapResult.NotFoundGuidance ?? MappingDiscovery.UsmapNotFoundGuidance;
+                _usmapStatusLabel.Text = errorMessage;
                 _usmapPathTextBox.Text = string.Empty;
+                _startupLog?.WriteWarning(errorMessage);
+                AppendLogLine($"[提示] {errorMessage}");
             }
         }
 
@@ -927,17 +1057,53 @@ internal sealed class MainForm : Form
         _jmapFiles.Clear();
         _jmapListBox.Items.Clear();
 
-        var found = MappingDiscovery.DiscoverJmaps(_selectedGame?.GameDirectory);
-        foreach (var file in found)
+        JmapDiscoveryResult jmapResult;
+        try
+        {
+            jmapResult = MappingDiscovery.DiscoverJmapsWithDiagnostics(_selectedGame?.GameDirectory);
+        }
+        catch (Exception exception)
+        {
+            var errorMessage = $"自动查找 .jmap 失败：{exception.Message}；请点「添加 .jmap…」手动选择，或取消勾选继续导出。";
+            _jmapStatusLabel.ForeColor = Color.FromArgb(185, 28, 28);
+            _jmapStatusLabel.Text = errorMessage;
+            _startupLog?.WriteWarning(errorMessage);
+            AppendLogLine($"[提示] {errorMessage}");
+            return;
+        }
+
+        foreach (var file in jmapResult.Files)
         {
             _jmapFiles.Add(file);
             _jmapListBox.Items.Add(MappingDiscovery.FormatJmapDisplay(file));
         }
 
+        if (!string.IsNullOrWhiteSpace(jmapResult.ScanError))
+        {
+            var warn = $"自动查找 .jmap 时遇到目录访问错误：{jmapResult.ScanError}";
+            _startupLog?.WriteWarning(warn);
+            AppendLogLine($"[提示] {warn}");
+        }
+
         if (_jmapFiles.Count > 0)
         {
-            _jmapStatusLabel.ForeColor = Color.FromArgb(0, 120, 0);
-            _jmapStatusLabel.Text = $"已自动找到 {_jmapFiles.Count} 份 .jmap 文件（可继续添加或移除）。";
+            if (string.IsNullOrWhiteSpace(jmapResult.ScanError))
+            {
+                _jmapStatusLabel.ForeColor = Color.FromArgb(0, 120, 0);
+                _jmapStatusLabel.Text = $"已自动找到 {_jmapFiles.Count} 份 .jmap 文件（可继续添加或移除）。";
+            }
+            else
+            {
+                _jmapStatusLabel.ForeColor = Color.FromArgb(180, 100, 0);
+                _jmapStatusLabel.Text =
+                    $"已找到 {_jmapFiles.Count} 份 .jmap，但部分目录无法读取（{jmapResult.ScanError}），可点「添加 .jmap…」手动补充。";
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(jmapResult.ScanError))
+        {
+            _jmapStatusLabel.ForeColor = Color.FromArgb(185, 28, 28);
+            _jmapStatusLabel.Text =
+                $"自动查找 .jmap 失败（{jmapResult.ScanError}）；请检查权限，或点「添加 .jmap…」手动选择。";
         }
         else
         {
@@ -1041,6 +1207,8 @@ internal sealed class MainForm : Form
         }
 
         SetOutputDirectoryText(dialog.SelectedPath, userCustomized: true);
+        _outputHintLabel.ForeColor = SystemColors.GrayText;
+        _outputHintLabel.Text = DefaultOutputHintText;
         var gameCode = _selectedGame?.GameCode ?? SteamLocator.ResonanceGame.Code;
         var extractedRoot = GuiPaths.ExtractOutputRootDirectory(dialog.SelectedPath, gameCode);
         if (!string.IsNullOrWhiteSpace(extractedRoot))
@@ -1559,8 +1727,26 @@ internal sealed class MainForm : Form
 
     private void UpdateDefaultOutputDirectory(string gameCode, string? steamBuildId)
     {
-        var defaultPath = GuiPaths.BuildDefaultOutputDirectory(_outputRootDirectory, gameCode, steamBuildId);
-        SetOutputDirectoryText(defaultPath, userCustomized: false);
+        try
+        {
+            var result = GuiPaths.BuildDefaultOutputDirectorySafe(_outputRootDirectory, gameCode, steamBuildId);
+            SetOutputDirectoryText(result.Path, userCustomized: false);
+            if (!string.IsNullOrWhiteSpace(result.WarningMessage))
+            {
+                _outputHintLabel.ForeColor = Color.FromArgb(180, 100, 0);
+                _outputHintLabel.Text = result.WarningMessage;
+                _startupLog?.WriteWarning(result.WarningMessage);
+                AppendLogLine($"[提示] {result.WarningMessage}");
+            }
+        }
+        catch (Exception exception)
+        {
+            var errorMessage = $"计算默认输出目录失败：{exception.Message}；请点击「浏览…」手动选择输出目录。";
+            _outputHintLabel.ForeColor = Color.FromArgb(185, 28, 28);
+            _outputHintLabel.Text = errorMessage;
+            _startupLog?.WriteWarning(errorMessage);
+            AppendLogLine($"[提示] {errorMessage}");
+        }
     }
 
     private void SetOutputDirectoryText(string value, bool userCustomized)
@@ -1622,28 +1808,94 @@ internal sealed class MainForm : Form
         };
     }
 
-    private static Font CreateUiFont(float size, FontStyle style)
+    private Font CreateUiFont(float size, FontStyle style, List<string> startupWarnings)
     {
-        try
+        var result = GuiFontFallback.ResolveUiFont(
+            preferredFamily: "Microsoft YaHei UI",
+            size: size,
+            isBold: style.HasFlag(FontStyle.Bold),
+            tryCreatePreferred: (family, pt, bold) =>
+                TryCreateInstalledFont(family, pt, bold ? FontStyle.Bold : FontStyle.Regular),
+            tryCreateMessageBoxFont: TryCreateMessageBoxFont,
+            getFallbackDefaultFont: () => DefaultFont);
+
+        if (result.IsOwned)
         {
-            return new Font("Microsoft YaHei UI", size, style, GraphicsUnit.Point);
+            _ownedFonts.Add(result.Font);
         }
-        catch
+
+        if (!string.IsNullOrWhiteSpace(result.WarningMessage)
+            && _recordedFontWarnings.Add(result.WarningMessage))
         {
-            return new Font(SystemFonts.MessageBoxFont?.FontFamily ?? FontFamily.GenericSansSerif, size, style);
+            startupWarnings.Add(result.WarningMessage);
+            _startupLog?.WriteWarning(result.WarningMessage);
         }
+
+        return result.Font;
     }
 
-    private static Font CreateMonoFont(float size)
+    private Font CreateMonoFont(float size, List<string> startupWarnings)
     {
-        try
+        var result = GuiFontFallback.ResolveMonoFont(
+            preferredFamily: "Consolas",
+            size: size,
+            tryCreatePreferred: (family, pt) => TryCreateInstalledFont(family, pt, FontStyle.Regular),
+            tryCreateGenericMonospace: TryCreateGenericMonospaceFont,
+            tryCreateMessageBoxFont: TryCreateMessageBoxFont,
+            getFallbackDefaultFont: () => DefaultFont);
+
+        if (result.IsOwned)
         {
-            return new Font("Consolas", size, FontStyle.Regular, GraphicsUnit.Point);
+            _ownedFonts.Add(result.Font);
         }
-        catch
+
+        if (!string.IsNullOrWhiteSpace(result.WarningMessage)
+            && _recordedFontWarnings.Add(result.WarningMessage))
         {
-            return new Font(FontFamily.GenericMonospace, size, FontStyle.Regular, GraphicsUnit.Point);
+            startupWarnings.Add(result.WarningMessage);
+            _startupLog?.WriteWarning(result.WarningMessage);
         }
+
+        return result.Font;
+    }
+
+    private static Font? TryCreateInstalledFont(string familyName, float size, FontStyle style)
+    {
+        // Construct FontFamily explicitly so a missing font throws instead of silently falling back to Microsoft Sans Serif.
+        using var family = new FontFamily(familyName);
+        if (!family.IsStyleAvailable(style))
+        {
+            return null;
+        }
+
+        return new Font(family, size, style, GraphicsUnit.Point);
+    }
+
+    private static Font? TryCreateMessageBoxFont(float size, bool isBold)
+    {
+        var baseFont = SystemFonts.MessageBoxFont;
+        if (baseFont is null)
+        {
+            return null;
+        }
+
+        var style = isBold ? FontStyle.Bold : FontStyle.Regular;
+        if (baseFont.FontFamily.IsStyleAvailable(style))
+        {
+            return new Font(baseFont.FontFamily, size, style, GraphicsUnit.Point);
+        }
+
+        return !isBold ? (Font)baseFont.Clone() : null;
+    }
+
+    private static Font? TryCreateGenericMonospaceFont(float size)
+    {
+        if (!FontFamily.GenericMonospace.IsStyleAvailable(FontStyle.Regular))
+        {
+            return null;
+        }
+
+        return new Font(FontFamily.GenericMonospace, size, FontStyle.Regular, GraphicsUnit.Point);
     }
 
     private static string QuoteForLog(string arg)

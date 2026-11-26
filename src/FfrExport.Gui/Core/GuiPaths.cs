@@ -27,6 +27,16 @@ internal sealed record OutputDirectoryInspection(
     bool IsProtectedDirectory,
     string? ErrorMessage);
 
+internal sealed record OutputRootResolution(
+    string Path,
+    bool UsedFallback,
+    string? WarningMessage);
+
+internal sealed record OutputDirectoryBuildResult(
+    string Path,
+    bool UsedFallback,
+    string? WarningMessage);
+
 /// <summary>
 /// Pure path calculations, CLI executable lookup, and output directory safety checks for the GUI.
 /// </summary>
@@ -49,30 +59,171 @@ internal static class GuiPaths
         var documentsDir = documentsDirectoryOverride;
         if (string.IsNullOrWhiteSpace(documentsDir))
         {
-            documentsDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            documentsDir = SafeGetFolderPath(Environment.SpecialFolder.MyDocuments);
         }
 
+        if (!string.IsNullOrWhiteSpace(documentsDir)
+            && TryNormalizeDirectoryPath(Path.Combine(documentsDir, DefaultExportFolderName), out var normalizedDocs, out _))
+        {
+            return normalizedDocs;
+        }
+
+        var profile = userProfileOverride;
+        if (string.IsNullOrWhiteSpace(profile))
+        {
+            profile = SafeGetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
+
+        if (!string.IsNullOrWhiteSpace(profile)
+            && TryNormalizeDirectoryPath(Path.Combine(profile, "Documents", DefaultExportFolderName), out var normalizedProfileDocs, out _))
+        {
+            return normalizedProfileDocs;
+        }
+
+        return ResolveDefaultOutputRootSafe(
+            documentsDirectoryOverride: documentsDirectoryOverride,
+            userProfileOverride: userProfileOverride).Path;
+    }
+
+    /// <summary>
+    /// Resolves the default export root directory safely, detecting redirected, missing, or inaccessible
+    /// Documents folders and falling back cleanly while reporting a Chinese warning for the UI.
+    /// </summary>
+    internal static OutputRootResolution ResolveDefaultOutputRootSafe(
+        string? documentsDirectoryOverride = null,
+        string? userProfileOverride = null,
+        string? localAppDataOverride = null,
+        string? tempDirectoryOverride = null,
+        Func<string, bool>? directoryExistsCheck = null)
+    {
+        var exists = directoryExistsCheck ?? SafeDirectoryExists;
+
+        var documentsDir = documentsDirectoryOverride is not null
+            ? documentsDirectoryOverride
+            : SafeGetFolderPath(Environment.SpecialFolder.MyDocuments);
+
+        string? primaryReason = null;
         if (string.IsNullOrWhiteSpace(documentsDir))
         {
-            var profile = userProfileOverride;
-            if (string.IsNullOrWhiteSpace(profile))
-            {
-                profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            }
-
-            if (!string.IsNullOrWhiteSpace(profile))
-            {
-                documentsDir = Path.Combine(profile, "Documents");
-            }
+            primaryReason = "系统「文档」目录未配置";
         }
-
-        if (string.IsNullOrWhiteSpace(documentsDir))
+        else if (!TryNormalizeDirectoryPath(documentsDir, out var fullDocs, out var docsPathError))
         {
-            documentsDir = Directory.GetCurrentDirectory();
+            primaryReason = $"系统「文档」目录路径无效（{documentsDir}：{docsPathError}）";
+        }
+        else if (!exists(fullDocs))
+        {
+            primaryReason = $"系统「文档」目录不存在或不可访问（{fullDocs}）";
+        }
+        else if (TryNormalizeDirectoryPath(Path.Combine(fullDocs, DefaultExportFolderName), out var docsExportRoot, out _))
+        {
+            return new OutputRootResolution(docsExportRoot, UsedFallback: false, WarningMessage: null);
+        }
+        else
+        {
+            primaryReason = $"无法拼接默认「文档」输出目录（{fullDocs}）";
         }
 
-        return PathSupport.TrimTrailingSeparators(
-            Path.GetFullPath(Path.Combine(documentsDir, DefaultExportFolderName)));
+        var fallbackBases = new (string? BasePath, string[] SubSegments, bool RequireExists)[]
+        {
+            (
+                userProfileOverride is not null ? userProfileOverride : SafeGetFolderPath(Environment.SpecialFolder.UserProfile),
+                [DefaultExportFolderName],
+                true),
+            (
+                localAppDataOverride is not null ? localAppDataOverride : SafeGetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                [GuiSettingsStore.AppFolderName, DefaultExportFolderName],
+                true),
+            (
+                tempDirectoryOverride is not null ? tempDirectoryOverride : SafeGetTempPath(),
+                [DefaultExportFolderName],
+                false),
+            (
+                AppContext.BaseDirectory,
+                [DefaultExportFolderName],
+                false),
+            (
+                SafeGetCurrentDirectory(),
+                [DefaultExportFolderName],
+                false),
+        };
+
+        foreach (var (basePath, subSegments, requireExists) in fallbackBases)
+        {
+            if (string.IsNullOrWhiteSpace(basePath))
+            {
+                continue;
+            }
+
+            if (!TryNormalizeDirectoryPath(basePath, out var normalizedBase, out _))
+            {
+                continue;
+            }
+
+            if (requireExists && !exists(normalizedBase))
+            {
+                continue;
+            }
+
+            var combined = normalizedBase;
+            foreach (var segment in subSegments)
+            {
+                combined = Path.Combine(combined, segment);
+            }
+
+            if (TryNormalizeDirectoryPath(combined, out var normalizedExportRoot, out _))
+            {
+                return new OutputRootResolution(
+                    normalizedExportRoot,
+                    UsedFallback: true,
+                    WarningMessage: $"{primaryReason}，默认输出位置已改用：{normalizedExportRoot}（可随时点击「浏览…」手动修改）。");
+            }
+        }
+
+        return new OutputRootResolution(
+            DefaultExportFolderName,
+            UsedFallback: true,
+            WarningMessage: $"{primaryReason}，且备选系统目录均不可用，请点击「浏览…」手动选择输出目录。");
+    }
+
+    internal static bool TryNormalizeDirectoryPath(
+        string? rawPath,
+        out string normalizedPath,
+        out string? errorMessage)
+    {
+        normalizedPath = string.Empty;
+        errorMessage = null;
+
+        var cleaned = CleanPathInput(rawPath);
+        if (string.IsNullOrWhiteSpace(cleaned))
+        {
+            errorMessage = "路径为空";
+            return false;
+        }
+
+        if (cleaned.IndexOf('\0') >= 0)
+        {
+            errorMessage = "路径包含非法空字符";
+            return false;
+        }
+
+        try
+        {
+            var full = PathSupport.TrimTrailingSeparators(Path.GetFullPath(cleaned));
+            if (string.IsNullOrWhiteSpace(full))
+            {
+                errorMessage = "路径无效";
+                return false;
+            }
+
+            normalizedPath = full;
+            return true;
+        }
+        catch (Exception exception)
+        {
+            errorMessage = exception.Message;
+            return false;
+        }
     }
 
     /// <summary>
@@ -85,13 +236,83 @@ internal static class GuiPaths
         string? documentsDirectoryOverride = null,
         string? userProfileOverride = null)
     {
-        var baseRoot = string.IsNullOrWhiteSpace(outputRootOverride)
-            ? ResolveDefaultOutputRoot(documentsDirectoryOverride, userProfileOverride)
-            : PathSupport.TrimTrailingSeparators(Path.GetFullPath(outputRootOverride.Trim()));
+        string baseRoot;
+        if (string.IsNullOrWhiteSpace(outputRootOverride))
+        {
+            baseRoot = ResolveDefaultOutputRoot(documentsDirectoryOverride, userProfileOverride);
+        }
+        else if (!TryNormalizeDirectoryPath(outputRootOverride, out baseRoot, out _))
+        {
+            baseRoot = ResolveDefaultOutputRoot(documentsDirectoryOverride, userProfileOverride);
+        }
+
         var normalizedCode = SanitizePathSegment(gameCode) ?? "ffr";
         var buildSegment = SanitizePathSegment(steamBuildId) ?? "unknown";
-        return PathSupport.TrimTrailingSeparators(
-            Path.GetFullPath(Path.Combine(baseRoot, $"{normalizedCode}-{buildSegment}")));
+        var combined = Path.Combine(baseRoot, $"{normalizedCode}-{buildSegment}");
+        return TryNormalizeDirectoryPath(combined, out var fullOutput, out _)
+            ? fullOutput
+            : combined;
+    }
+
+    /// <summary>
+    /// Computes the default output directory safely and returns any fallback warning caused by a
+    /// malformed saved root or missing/redirected Documents folder.
+    /// </summary>
+    internal static OutputDirectoryBuildResult BuildDefaultOutputDirectorySafe(
+        string? outputRootOverride,
+        string gameCode,
+        string? steamBuildId,
+        string? documentsDirectoryOverride = null,
+        string? userProfileOverride = null,
+        string? localAppDataOverride = null,
+        string? tempDirectoryOverride = null,
+        Func<string, bool>? directoryExistsCheck = null)
+    {
+        string baseRoot;
+        var usedFallback = false;
+        string? warning = null;
+
+        if (!string.IsNullOrWhiteSpace(outputRootOverride))
+        {
+            if (TryNormalizeDirectoryPath(outputRootOverride, out var normalizedOverride, out var overrideError))
+            {
+                baseRoot = normalizedOverride;
+            }
+            else
+            {
+                var fallback = ResolveDefaultOutputRootSafe(
+                    documentsDirectoryOverride,
+                    userProfileOverride,
+                    localAppDataOverride,
+                    tempDirectoryOverride,
+                    directoryExistsCheck);
+                baseRoot = fallback.Path;
+                usedFallback = true;
+                warning = $"上次保存的输出目录无效（{outputRootOverride}：{overrideError}），已改用默认目录：{baseRoot}。";
+            }
+        }
+        else
+        {
+            var resolved = ResolveDefaultOutputRootSafe(
+                documentsDirectoryOverride,
+                userProfileOverride,
+                localAppDataOverride,
+                tempDirectoryOverride,
+                directoryExistsCheck);
+            baseRoot = resolved.Path;
+            usedFallback = resolved.UsedFallback;
+            warning = resolved.WarningMessage;
+        }
+
+        var normalizedCode = SanitizePathSegment(gameCode) ?? "ffr";
+        var buildSegment = SanitizePathSegment(steamBuildId) ?? "unknown";
+        var combined = Path.Combine(baseRoot, $"{normalizedCode}-{buildSegment}");
+        if (TryNormalizeDirectoryPath(combined, out var fullOutput, out _))
+        {
+            return new OutputDirectoryBuildResult(fullOutput, usedFallback, warning);
+        }
+
+        return new OutputDirectoryBuildResult(combined, usedFallback, warning);
     }
 
     /// <summary>
@@ -143,12 +364,37 @@ internal static class GuiPaths
         var baseDir = string.IsNullOrWhiteSpace(executableDirectoryOverride)
             ? AppContext.BaseDirectory
             : executableDirectoryOverride.Trim();
-        var normalizedBaseDir = PathSupport.TrimTrailingSeparators(Path.GetFullPath(baseDir));
+
+        string normalizedBaseDir;
+        try
+        {
+            normalizedBaseDir = PathSupport.TrimTrailingSeparators(Path.GetFullPath(baseDir));
+        }
+        catch (Exception exception)
+        {
+            return new CliExecutableLookup(
+                false,
+                baseDir,
+                fileName,
+                $"定位命令行程序 {fileName} 失败（程序目录路径无效：{baseDir}）：{exception.Message}");
+        }
+
         var expectedPath = Path.Combine(normalizedBaseDir, fileName);
 
-        if (File.Exists(PathSupport.ToIoPath(expectedPath)))
+        try
         {
-            return new CliExecutableLookup(true, expectedPath, fileName, null);
+            if (File.Exists(PathSupport.ToIoPath(expectedPath)))
+            {
+                return new CliExecutableLookup(true, expectedPath, fileName, null);
+            }
+        }
+        catch (Exception exception)
+        {
+            return new CliExecutableLookup(
+                false,
+                expectedPath,
+                fileName,
+                $"检查命令行程序 {fileName} 失败（{expectedPath}）：{exception.Message}");
         }
 
         var dbFileName = isWindows ? "ffr-db.exe" : "ffr-db";
@@ -442,5 +688,53 @@ internal static class GuiPaths
             ? StringComparison.OrdinalIgnoreCase
             : StringComparison.Ordinal;
         return string.Equals(a, b, comparison);
+    }
+
+    private static string? SafeGetFolderPath(Environment.SpecialFolder folder)
+    {
+        try
+        {
+            return Environment.GetFolderPath(folder);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? SafeGetTempPath()
+    {
+        try
+        {
+            return Path.GetTempPath();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? SafeGetCurrentDirectory()
+    {
+        try
+        {
+            return Directory.GetCurrentDirectory();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static bool SafeDirectoryExists(string fullPath)
+    {
+        try
+        {
+            return Directory.Exists(PathSupport.ToIoPath(fullPath));
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

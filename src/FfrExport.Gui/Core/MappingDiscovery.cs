@@ -11,7 +11,12 @@ internal sealed record DiscoveredMappingFile(
 internal sealed record UsmapDiscoveryResult(
     DiscoveredMappingFile? Selected,
     IReadOnlyList<DiscoveredMappingFile> Candidates,
-    string? NotFoundGuidance);
+    string? NotFoundGuidance,
+    string? ScanError = null);
+
+internal sealed record JmapDiscoveryResult(
+    IReadOnlyList<DiscoveredMappingFile> Files,
+    string? ScanError);
 
 /// <summary>
 /// Auto-discovers UE4SS .usmap and optional .jmap files inside a FINAL FANTASY RESONANCE game directory.
@@ -28,27 +33,51 @@ internal static class MappingDiscovery
     /// Searches FFRS\Binaries\Win64\ue4ss\*.usmap first, then FFRS\Binaries\Win64\*.usmap.
     /// When multiple files exist in the matched location, selects the one with the latest modification time.
     /// </summary>
-    internal static UsmapDiscoveryResult DiscoverUsmap(string? gameDirectory)
+    internal static UsmapDiscoveryResult DiscoverUsmap(
+        string? gameDirectory,
+        Func<string, IEnumerable<string>>? fileEnumeratorOverride = null)
     {
         if (string.IsNullOrWhiteSpace(gameDirectory))
         {
             return new UsmapDiscoveryResult(null, [], UsmapNotFoundGuidance);
         }
 
+        var errors = new List<string>();
+
         var ue4ssDir = SteamLocator.CombineRelativeSubpath(gameDirectory, RelativeUe4ssSubpath);
-        var ue4ssFiles = ScanDirectory(ue4ssDir, ".usmap", "ue4ss");
-        if (ue4ssFiles.Count > 0)
+        var ue4ssScan = ScanDirectory(ue4ssDir, ".usmap", "ue4ss", fileEnumeratorOverride);
+        if (!string.IsNullOrWhiteSpace(ue4ssScan.ErrorMessage))
         {
-            var ordered = OrderNewestFirst(ue4ssFiles);
-            return new UsmapDiscoveryResult(ordered[0], ordered, null);
+            errors.Add(ue4ssScan.ErrorMessage);
+        }
+
+        if (ue4ssScan.Files.Count > 0)
+        {
+            var ordered = OrderNewestFirst(ue4ssScan.Files);
+            var partialError = errors.Count > 0 ? string.Join("；", errors) : null;
+            return new UsmapDiscoveryResult(ordered[0], ordered, null, partialError);
         }
 
         var win64Dir = SteamLocator.CombineRelativeSubpath(gameDirectory, RelativeWin64Subpath);
-        var win64Files = ScanDirectory(win64Dir, ".usmap", "Win64");
-        if (win64Files.Count > 0)
+        var win64Scan = ScanDirectory(win64Dir, ".usmap", "Win64", fileEnumeratorOverride);
+        if (!string.IsNullOrWhiteSpace(win64Scan.ErrorMessage))
         {
-            var ordered = OrderNewestFirst(win64Files);
-            return new UsmapDiscoveryResult(ordered[0], ordered, null);
+            errors.Add(win64Scan.ErrorMessage);
+        }
+
+        if (win64Scan.Files.Count > 0)
+        {
+            var ordered = OrderNewestFirst(win64Scan.Files);
+            var partialError = errors.Count > 0 ? string.Join("；", errors) : null;
+            return new UsmapDiscoveryResult(ordered[0], ordered, null, partialError);
+        }
+
+        if (errors.Count > 0)
+        {
+            var combinedError = string.Join("；", errors);
+            var errorGuidance =
+                $"自动查找 .usmap 失败（{combinedError}）。请检查游戏目录权限，或点击「选择 .usmap…」手动指定。";
+            return new UsmapDiscoveryResult(null, [], errorGuidance, combinedError);
         }
 
         return new UsmapDiscoveryResult(null, [], UsmapNotFoundGuidance);
@@ -59,19 +88,37 @@ internal static class MappingDiscovery
     /// </summary>
     internal static IReadOnlyList<DiscoveredMappingFile> DiscoverJmaps(string? gameDirectory)
     {
+        return DiscoverJmapsWithDiagnostics(gameDirectory).Files;
+    }
+
+    /// <summary>
+    /// Searches FFRS\Binaries\Win64\ue4ss\*.jmap and FFRS\Binaries\Win64\*.jmap while preserving any
+    /// directory permission or I/O errors for UI reporting.
+    /// </summary>
+    internal static JmapDiscoveryResult DiscoverJmapsWithDiagnostics(
+        string? gameDirectory,
+        Func<string, IEnumerable<string>>? fileEnumeratorOverride = null)
+    {
         if (string.IsNullOrWhiteSpace(gameDirectory))
         {
-            return [];
+            return new JmapDiscoveryResult([], null);
         }
 
         var ue4ssDir = SteamLocator.CombineRelativeSubpath(gameDirectory, RelativeUe4ssSubpath);
         var win64Dir = SteamLocator.CombineRelativeSubpath(gameDirectory, RelativeWin64Subpath);
 
         var results = new List<DiscoveredMappingFile>();
+        var errors = new List<string>();
         var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         var seen = new HashSet<string>(comparer);
 
-        foreach (var item in OrderOldestFirst(ScanDirectory(ue4ssDir, ".jmap", "ue4ss")))
+        var ue4ssScan = ScanDirectory(ue4ssDir, ".jmap", "ue4ss", fileEnumeratorOverride);
+        if (!string.IsNullOrWhiteSpace(ue4ssScan.ErrorMessage))
+        {
+            errors.Add(ue4ssScan.ErrorMessage);
+        }
+
+        foreach (var item in OrderOldestFirst(ue4ssScan.Files))
         {
             if (seen.Add(item.FullPath))
             {
@@ -79,7 +126,13 @@ internal static class MappingDiscovery
             }
         }
 
-        foreach (var item in OrderOldestFirst(ScanDirectory(win64Dir, ".jmap", "Win64")))
+        var win64Scan = ScanDirectory(win64Dir, ".jmap", "Win64", fileEnumeratorOverride);
+        if (!string.IsNullOrWhiteSpace(win64Scan.ErrorMessage))
+        {
+            errors.Add(win64Scan.ErrorMessage);
+        }
+
+        foreach (var item in OrderOldestFirst(win64Scan.Files))
         {
             if (seen.Add(item.FullPath))
             {
@@ -87,16 +140,14 @@ internal static class MappingDiscovery
             }
         }
 
-        return results;
+        var combinedError = errors.Count > 0 ? string.Join("；", errors) : null;
+        return new JmapDiscoveryResult(results, combinedError);
     }
 
     internal static DiscoveredMappingFile CreateFromExistingFile(string filePath, string sourceLabel = "手动选择")
     {
         var fullPath = Path.GetFullPath(filePath);
-        var info = new FileInfo(PathSupport.ToIoPath(fullPath));
-        var modifiedUtc = info.Exists
-            ? new DateTimeOffset(DateTime.SpecifyKind(info.LastWriteTimeUtc, DateTimeKind.Utc))
-            : DateTimeOffset.MinValue;
+        var modifiedUtc = TryReadLastWriteTimeUtc(fullPath);
         return new DiscoveredMappingFile(fullPath, Path.GetFileName(fullPath), modifiedUtc, sourceLabel);
     }
 
@@ -131,44 +182,98 @@ internal static class MappingDiscovery
             return "未知";
         }
 
-        var targetZone = displayTimeZone ?? TimeZoneInfo.Local;
-        var converted = TimeZoneInfo.ConvertTime(lastWriteTimeUtc, targetZone);
-        return converted.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
-    }
-
-    private static List<DiscoveredMappingFile> ScanDirectory(
-        string directoryPath,
-        string extension,
-        string sourceLabel)
-    {
-        var results = new List<DiscoveredMappingFile>();
-        var ioDir = PathSupport.ToIoPath(directoryPath);
-        if (!Directory.Exists(ioDir))
+        TimeZoneInfo targetZone;
+        try
         {
-            return results;
+            targetZone = displayTimeZone ?? TimeZoneInfo.Local;
+        }
+        catch
+        {
+            targetZone = TimeZoneInfo.Utc;
         }
 
         try
         {
-            foreach (var rawPath in Directory.EnumerateFiles(ioDir, "*", SearchOption.TopDirectoryOnly))
-            {
-                if (!string.Equals(Path.GetExtension(rawPath), extension, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
+            var converted = TimeZoneInfo.ConvertTime(lastWriteTimeUtc, targetZone);
+            return converted.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return lastWriteTimeUtc.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) + " UTC";
+        }
+    }
 
-                var fullPath = Path.GetFullPath(rawPath);
-                var info = new FileInfo(PathSupport.ToIoPath(fullPath));
-                var modifiedUtc = new DateTimeOffset(DateTime.SpecifyKind(info.LastWriteTimeUtc, DateTimeKind.Utc));
-                results.Add(new DiscoveredMappingFile(fullPath, Path.GetFileName(fullPath), modifiedUtc, sourceLabel));
+    private static (List<DiscoveredMappingFile> Files, string? ErrorMessage) ScanDirectory(
+        string directoryPath,
+        string extension,
+        string sourceLabel,
+        Func<string, IEnumerable<string>>? fileEnumeratorOverride)
+    {
+        var results = new List<DiscoveredMappingFile>();
+        string ioDir;
+        try
+        {
+            ioDir = PathSupport.ToIoPath(directoryPath);
+            if (fileEnumeratorOverride is null && !Directory.Exists(ioDir))
+            {
+                return (results, null);
             }
+        }
+        catch (Exception exception)
+        {
+            return (results, $"无法访问目录 {directoryPath}：{exception.Message}");
+        }
+
+        try
+        {
+            var files = fileEnumeratorOverride is not null
+                ? fileEnumeratorOverride(directoryPath)
+                : Directory.EnumerateFiles(ioDir, "*", SearchOption.TopDirectoryOnly);
+
+            foreach (var rawPath in files)
+            {
+                try
+                {
+                    if (!string.Equals(Path.GetExtension(rawPath), extension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var fullPath = Path.GetFullPath(rawPath);
+                    var modifiedUtc = TryReadLastWriteTimeUtc(fullPath);
+                    results.Add(new DiscoveredMappingFile(fullPath, Path.GetFileName(fullPath), modifiedUtc, sourceLabel));
+                }
+                catch
+                {
+                    // Skip malformed or unreadable single file entries while preserving other valid files.
+                }
+            }
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return (results, $"无权读取目录 {directoryPath}：{exception.Message}");
+        }
+        catch (Exception exception)
+        {
+            return (results, $"扫描目录 {directoryPath} 失败：{exception.Message}");
+        }
+
+        return (results, null);
+    }
+
+    private static DateTimeOffset TryReadLastWriteTimeUtc(string fullPath)
+    {
+        try
+        {
+            var info = new FileInfo(PathSupport.ToIoPath(fullPath));
+            return info.Exists
+                ? new DateTimeOffset(DateTime.SpecifyKind(info.LastWriteTimeUtc, DateTimeKind.Utc))
+                : DateTimeOffset.MinValue;
         }
         catch
         {
-            // Ignore unreadable directories and treat as no files found.
+            return DateTimeOffset.MinValue;
         }
-
-        return results;
     }
 
     private static List<DiscoveredMappingFile> OrderNewestFirst(List<DiscoveredMappingFile> items)

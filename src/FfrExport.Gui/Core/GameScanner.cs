@@ -14,6 +14,10 @@ internal sealed record ManualGameValidationResult(
     GameEntry? Entry,
     string? ErrorMessage);
 
+internal sealed record GameScanResult(
+    IReadOnlyList<GameEntry> Games,
+    string? ErrorMessage);
+
 /// <summary>
 /// Scans Steam libraries via the shared SteamLocator and validates manually chosen game directories.
 /// </summary>
@@ -33,6 +37,80 @@ internal static class GameScanner
             defaultWindowsCandidatesOverride: defaultWindowsCandidatesOverride);
 
         return MapDiscoveredGames(discovered);
+    }
+
+    /// <summary>
+    /// Fault-tolerant Steam scan for GUI startup and rescan actions.
+    /// Captures registry and filesystem permission failures without throwing, so the main window always opens
+    /// and displays actionable Chinese diagnostics.
+    /// </summary>
+    internal static GameScanResult ScanSteamGamesSafe(
+        bool? isWindowsOverride = null,
+        Func<string?>? windowsRegistryReader = null,
+        Func<string?>? homeDirectoryProvider = null,
+        IEnumerable<string>? defaultWindowsCandidatesOverride = null,
+        Action<string>? steamDirectoryAccessProbe = null)
+    {
+        string? registryError = null;
+        Func<string?>? safeRegistryReader = null;
+        if (windowsRegistryReader is not null)
+        {
+            safeRegistryReader = () =>
+            {
+                try
+                {
+                    return windowsRegistryReader();
+                }
+                catch (Exception exception)
+                {
+                    registryError = $"{exception.GetType().Name}: {exception.Message}";
+                    return null;
+                }
+            };
+        }
+
+        IReadOnlyList<GameEntry> games;
+        try
+        {
+            games = ScanSteamGames(
+                isWindowsOverride,
+                safeRegistryReader,
+                homeDirectoryProvider,
+                defaultWindowsCandidatesOverride);
+        }
+        catch (Exception exception)
+        {
+            return new GameScanResult(
+                [],
+                $"自动扫描 Steam 失败：{exception.Message}；请点击右侧「手动选择游戏目录…」。");
+        }
+
+        if (games.Count > 0)
+        {
+            return new GameScanResult(games, null);
+        }
+
+        var accessError = ProbeSteamRootsAccessError(
+            isWindowsOverride,
+            safeRegistryReader,
+            homeDirectoryProvider,
+            defaultWindowsCandidatesOverride,
+            steamDirectoryAccessProbe);
+        if (!string.IsNullOrWhiteSpace(accessError))
+        {
+            return new GameScanResult(
+                [],
+                $"无法读取 Steam 游戏库（{accessError}）；请检查目录权限，或点击右侧「手动选择游戏目录…」。");
+        }
+
+        if (!string.IsNullOrWhiteSpace(registryError))
+        {
+            return new GameScanResult(
+                [],
+                $"读取 Steam 注册表失败（{registryError}），且未在默认 Steam 目录找到游戏；请点击右侧「手动选择游戏目录…」。");
+        }
+
+        return new GameScanResult([], null);
     }
 
     internal static IReadOnlyList<GameEntry> ScanSteamGamesInRoots(
@@ -149,5 +227,69 @@ internal static class GameScanner
         {
             return (null, null);
         }
+    }
+
+    private static string? ProbeSteamRootsAccessError(
+        bool? isWindowsOverride,
+        Func<string?>? windowsRegistryReader,
+        Func<string?>? homeDirectoryProvider,
+        IEnumerable<string>? defaultWindowsCandidatesOverride,
+        Action<string>? steamDirectoryAccessProbe)
+    {
+        IReadOnlyList<string> roots;
+        try
+        {
+            roots = SteamLocator.FindSteamRoots(
+                isWindowsOverride,
+                windowsRegistryReader,
+                homeDirectoryProvider,
+                defaultWindowsCandidatesOverride);
+        }
+        catch (Exception exception)
+        {
+            return exception.Message;
+        }
+
+        foreach (var root in roots)
+        {
+            foreach (var dirName in new[] { "steamapps", "SteamApps" })
+            {
+                var steamappsDir = Path.Combine(root, dirName);
+                try
+                {
+                    if (steamDirectoryAccessProbe is not null)
+                    {
+                        steamDirectoryAccessProbe(steamappsDir);
+                        continue;
+                    }
+
+                    var ioDir = PathSupport.ToIoPath(steamappsDir);
+                    if (!Directory.Exists(ioDir))
+                    {
+                        continue;
+                    }
+
+                    using var enumerator = Directory.EnumerateFileSystemEntries(ioDir).GetEnumerator();
+                    _ = enumerator.MoveNext();
+
+                    var vdfPath = Path.Combine(steamappsDir, "libraryfolders.vdf");
+                    var ioVdfPath = PathSupport.ToIoPath(vdfPath);
+                    if (File.Exists(ioVdfPath))
+                    {
+                        using var stream = new FileStream(ioVdfPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    }
+                }
+                catch (UnauthorizedAccessException exception)
+                {
+                    return $"无权访问 {steamappsDir}：{exception.Message}";
+                }
+                catch (Exception exception)
+                {
+                    return $"访问 {steamappsDir} 失败：{exception.Message}";
+                }
+            }
+        }
+
+        return null;
     }
 }
