@@ -41,20 +41,57 @@ internal static class InteractiveWizard
     }
 
     /// <summary>
-    /// Computes the default output directory placed next to the executable:
-    /// &lt;exeDir&gt;/output/&lt;gameCode&gt;-&lt;steamBuildId&gt;.
+    /// Computes the default output directory under the unified agp layout:
+    /// %LOCALAPPDATA%\agp\ffr-export\output\&lt;gameCode&gt;-&lt;steamBuildId&gt;.
     /// </summary>
     internal static string BuildDefaultOutputDirectory(
-        string executableDirectory,
         string gameCode,
-        string? steamBuildId)
+        string? steamBuildId,
+        string? agpHomeOverride = null)
     {
-        var baseDir = string.IsNullOrWhiteSpace(executableDirectory)
-            ? Directory.GetCurrentDirectory()
-            : PathSupport.TrimTrailingSeparators(Path.GetFullPath(executableDirectory));
-        var buildSegment = SanitizePathSegment(steamBuildId) ?? "unknown";
-        return PathSupport.TrimTrailingSeparators(
-            Path.GetFullPath(Path.Combine(baseDir, "output", $"{gameCode}-{buildSegment}")));
+        return AgpPaths.GetDefaultOutputDirectory(
+            gameCode,
+            steamBuildId,
+            agpHomeEnvOverride: agpHomeOverride);
+    }
+
+    /// <summary>
+    /// Auto-discovers the newest .usmap file across %LOCALAPPDATA%\agp\ffr-export\usmap\,
+    /// FFRS\Binaries\Win64\ue4ss\, and FFRS\Binaries\Win64\.
+    /// </summary>
+    internal static (string FullPath, string SourceLabel)? TryDiscoverLatestUsmap(
+        string gameDirectory,
+        string? agpHomeOverride = null)
+    {
+        var agpUsmapDir = AgpPaths.GetUsmapDirectory(agpHomeEnvOverride: agpHomeOverride);
+        var ue4ssDir = Ue4ssRuntimeSupport.GetUe4ssDirectory(gameDirectory);
+        var win64Dir = Ue4ssRuntimeSupport.GetWin64Directory(gameDirectory);
+
+        var primaryCandidates = new List<(string FullPath, DateTime LastWriteUtc, int Priority, string SourceLabel)>();
+        CollectUsmapCandidates(agpUsmapDir, priority: 0, "agp/usmap", primaryCandidates);
+        CollectUsmapCandidates(ue4ssDir, priority: 1, "ue4ss", primaryCandidates);
+        if (primaryCandidates.Count > 0)
+        {
+            var chosen = primaryCandidates
+                .OrderByDescending(item => item.LastWriteUtc)
+                .ThenBy(item => item.Priority)
+                .ThenByDescending(item => Path.GetFileName(item.FullPath), StringComparer.OrdinalIgnoreCase)
+                .First();
+            return (chosen.FullPath, chosen.SourceLabel);
+        }
+
+        var fallbackCandidates = new List<(string FullPath, DateTime LastWriteUtc, int Priority, string SourceLabel)>();
+        CollectUsmapCandidates(win64Dir, priority: 2, "Win64", fallbackCandidates);
+        if (fallbackCandidates.Count > 0)
+        {
+            var chosen = fallbackCandidates
+                .OrderByDescending(item => item.LastWriteUtc)
+                .ThenByDescending(item => Path.GetFileName(item.FullPath), StringComparer.OrdinalIgnoreCase)
+                .First();
+            return (chosen.FullPath, chosen.SourceLabel);
+        }
+
+        return null;
     }
 
     internal static async Task<int> RunAsync(
@@ -65,7 +102,8 @@ internal static class InteractiveWizard
         Func<IReadOnlyList<DiscoveredSteamGame>> discoverGames,
         Func<string> resolveFfrDb,
         string executableDirectory,
-        bool? isWindowsOverride = null)
+        bool? isWindowsOverride = null,
+        string? agpHomeOverride = null)
     {
         var isWindows = isWindowsOverride ?? OperatingSystem.IsWindows();
         var exeDir = string.IsNullOrWhiteSpace(executableDirectory)
@@ -102,11 +140,12 @@ internal static class InteractiveWizard
             return 2;
         }
 
-        // Step 2: Prompt for .usmap (required) and .jmap (optional, multiple).
+        // Step 2: Auto-discover or prompt for .usmap (required) and .jmap (optional, multiple).
         output.WriteLine();
         output.WriteLine("【步骤 2/4】指定映射文件（.usmap / .jmap）");
-        output.WriteLine("说明：.usmap 为必填项；工具无法自带该文件，需要从运行中的游戏里用 UE4SS 转储得到。");
-        var usmapPath = PromptRequiredFile(input, output, ".usmap 文件路径", ".usmap");
+        output.WriteLine("说明：.usmap 为必填项；可用「ffr-export fetch-usmap --game <目录>」一键获取，或用 UE4SS 在游戏运行时转储。");
+        var discoveredUsmap = TryDiscoverLatestUsmap(gameSelection.GameDirectory, agpHomeOverride);
+        var usmapPath = PromptUsmapFile(input, output, discoveredUsmap);
         if (usmapPath is null)
         {
             output.WriteLine("输入流已结束，向导已取消。");
@@ -122,10 +161,13 @@ internal static class InteractiveWizard
             return 2;
         }
 
-        // Step 3: Output directory (defaults to <exeDir>/output/<gameCode>-<buildId>).
+        // Step 3: Output directory (defaults to <agp>/ffr-export/output/<gameCode>-<buildId>).
         output.WriteLine();
         output.WriteLine("【步骤 3/4】选择输出目录");
-        var defaultOutputDir = BuildDefaultOutputDirectory(exeDir, gameSelection.GameCode, gameSelection.SteamBuildId);
+        var defaultOutputDir = BuildDefaultOutputDirectory(
+            gameSelection.GameCode,
+            gameSelection.SteamBuildId,
+            agpHomeOverride);
         var outputSelection = PromptOutputDirectory(input, output, gameSelection.GameDirectory, defaultOutputDir);
         if (outputSelection is null)
         {
@@ -388,6 +430,97 @@ internal static class InteractiveWizard
                 displayName,
                 fullDir,
                 steamInfo.BuildId);
+        }
+    }
+
+    private static void CollectUsmapCandidates(
+        string directoryPath,
+        int priority,
+        string sourceLabel,
+        List<(string FullPath, DateTime LastWriteUtc, int Priority, string SourceLabel)> target)
+    {
+        try
+        {
+            var ioDir = PathSupport.ToIoPath(directoryPath);
+            if (!Directory.Exists(ioDir))
+            {
+                return;
+            }
+
+            foreach (var rawFile in Directory.EnumerateFiles(ioDir, "*", SearchOption.TopDirectoryOnly))
+            {
+                if (!string.Equals(Path.GetExtension(rawFile), ".usmap", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var fullPath = Path.GetFullPath(rawFile);
+                var writeUtc = DateTime.MinValue;
+                try
+                {
+                    writeUtc = File.GetLastWriteTimeUtc(PathSupport.ToIoPath(fullPath));
+                }
+                catch
+                {
+                    // Treat unreadable mtime as oldest.
+                }
+
+                target.Add((fullPath, writeUtc, priority, sourceLabel));
+            }
+        }
+        catch
+        {
+            // Ignore unreadable directories during best-effort wizard auto-discovery.
+        }
+    }
+
+    private static string? PromptUsmapFile(
+        TextReader input,
+        TextWriter output,
+        (string FullPath, string SourceLabel)? discoveredUsmap)
+    {
+        if (discoveredUsmap is null)
+        {
+            return PromptRequiredFile(input, output, ".usmap 文件路径", ".usmap");
+        }
+
+        output.WriteLine($"已自动找到 .usmap（{discoveredUsmap.Value.SourceLabel}）：{discoveredUsmap.Value.FullPath}");
+        while (true)
+        {
+            output.Write(".usmap 文件路径（直接回车使用自动找到的文件，或粘贴其他 .usmap 路径）：");
+            output.Flush();
+            var raw = input.ReadLine();
+            if (raw is null)
+            {
+                return null;
+            }
+
+            var cleaned = CleanUserPathInput(raw);
+            if (string.IsNullOrEmpty(cleaned))
+            {
+                return discoveredUsmap.Value.FullPath;
+            }
+
+            if (!TryNormalizeFullPath(cleaned, out var fullPath, out var pathError))
+            {
+                output.WriteLine($"路径格式无效：{pathError}，请重新输入。");
+                continue;
+            }
+
+            var ioPath = PathSupport.ToIoPath(fullPath);
+            if (Directory.Exists(ioPath))
+            {
+                output.WriteLine($"输入的是目录而不是文件：{cleaned}，请粘贴具体的 .usmap 文件路径。");
+                continue;
+            }
+
+            if (!File.Exists(ioPath))
+            {
+                output.WriteLine($"找不到文件：{cleaned}，请检查路径后重新输入。");
+                continue;
+            }
+
+            return fullPath;
         }
     }
 
@@ -804,25 +937,6 @@ internal static class InteractiveWizard
         {
             return false;
         }
-    }
-
-    private static string? SanitizePathSegment(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        var sb = new StringBuilder(value.Length);
-        foreach (var ch in value.Trim())
-        {
-            if (char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.')
-            {
-                sb.Append(ch);
-            }
-        }
-
-        return sb.Length > 0 ? sb.ToString() : null;
     }
 
     private static bool IsYes(string value)

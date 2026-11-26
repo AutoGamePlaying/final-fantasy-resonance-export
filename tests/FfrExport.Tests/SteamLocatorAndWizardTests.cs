@@ -323,14 +323,15 @@ public sealed class SteamLocatorAndWizardTests
             () => SteamLocator.DiscoverGamesInRoots([steamRoot]),
             () => fakeFfrDbPath,
             exeDir,
-            isWindowsOverride: false);
+            isWindowsOverride: false,
+            agpHomeOverride: workspace.AgpHomeDir);
 
         Assert.Equal(0, exitCode);
         Assert.Empty(stderr.ToString());
         Assert.NotNull(capturedBuildDbArgs);
 
         var options = Program.ParseBuildDbArgs(capturedBuildDbArgs);
-        var expectedDefaultOut = Path.Combine(exeDir, "output", "ffr-24250053");
+        var expectedDefaultOut = Path.Combine(workspace.AgpHomeDir, "ffr-export", "output", "ffr-24250053");
         Assert.Equal(PathSupport.TrimTrailingSeparators(Path.GetFullPath(gameDir)), options.GameDirectory);
         Assert.Equal(Path.GetFullPath(usmapPath), options.UsmapPath);
         Assert.Equal([Path.GetFullPath(jmap1Path), Path.GetFullPath(jmap2Path)], options.JmapPaths);
@@ -450,7 +451,8 @@ public sealed class SteamLocatorAndWizardTests
             () => [],
             () => fakeDbExe,
             workspace.Root,
-            isWindowsOverride: false);
+            isWindowsOverride: false,
+            agpHomeOverride: workspace.AgpHomeDir);
 
         Assert.Equal(0, realExit);
         Assert.True(File.Exists(Path.Combine(customOutDir, "ffr.sqlite")));

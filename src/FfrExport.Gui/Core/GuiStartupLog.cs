@@ -119,13 +119,13 @@ internal sealed class GuiStartupLogSession
 }
 
 /// <summary>
-/// Manages GUI startup log files under %LOCALAPPDATA%\ffr-export\logs\gui-&lt;yyyyMMdd-HHmmss&gt;.log
+/// Manages GUI startup log files under %LOCALAPPDATA%\agp\ffr-export\logs\gui-&lt;yyyyMMdd-HHmmss&gt;.log
 /// (falling back to %TEMP%), retains only the latest 10 log files, and formats fatal crash diagnostics.
 /// </summary>
 internal static class GuiStartupLog
 {
-    internal const string AppFolderName = "ffr-export";
-    internal const string LogsSubfolderName = "logs";
+    internal const string AppFolderName = AgpPaths.ToolFolderName;
+    internal const string LogsSubfolderName = AgpPaths.LogsSubfolderName;
     internal const string LogFilePrefix = "gui-";
     internal const string LogFileExtension = ".log";
     internal const int DefaultMaxRetainedLogs = 10;
@@ -134,10 +134,10 @@ internal static class GuiStartupLog
 
     private static readonly UTF8Encoding Utf8WithoutBom = new(false);
 
-    // Restrict pruning strictly to files matching our timestamped gui-*.log naming scheme so fallback to %TEMP%
+    // Restrict pruning strictly to files matching our timestamped gui-*.log / cli-*.log naming scheme so fallback to %TEMP%
     // never touches unrelated files.
     private static readonly Regex ManagedLogFileRegex = new(
-        @"^gui-\d{8}-\d{6}(?:-[0-9A-Za-z-]+)?\.log$",
+        @"^(?:gui|cli)-\d{8}-\d{6}(?:-[0-9A-Za-z-]+)?\.log$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     internal static GuiStartupInfo CollectStartupInfo(
@@ -204,31 +204,37 @@ internal static class GuiStartupLog
             normalizedMode);
     }
 
-    internal static string GetPrimaryLogDirectory(string? localAppDataOverride = null)
+    internal static string GetPrimaryLogDirectory(
+        string? localAppDataOverride = null,
+        string? agpHomeOverride = null,
+        bool? isWindowsOverride = null)
     {
-        string? localAppData;
-        if (localAppDataOverride is not null)
-        {
-            localAppData = localAppDataOverride;
-        }
-        else
-        {
-            localAppData = SafeGetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            if (string.IsNullOrWhiteSpace(localAppData))
-            {
-                localAppData = SafeGetEnvironmentVariable("LOCALAPPDATA");
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(localAppData))
-        {
-            return string.Empty;
-        }
-
         try
         {
-            return PathSupport.TrimTrailingSeparators(
-                Path.GetFullPath(Path.Combine(localAppData.Trim(), AppFolderName, LogsSubfolderName)));
+            if (agpHomeOverride is not null)
+            {
+                if (string.IsNullOrWhiteSpace(agpHomeOverride))
+                {
+                    return string.Empty;
+                }
+
+                return AgpPaths.GetLogsDirectory(agpHomeEnvOverride: agpHomeOverride);
+            }
+
+            if (localAppDataOverride is not null)
+            {
+                if (string.IsNullOrWhiteSpace(localAppDataOverride))
+                {
+                    return string.Empty;
+                }
+
+                return AgpPaths.GetLogsDirectory(
+                    agpHomeEnvOverride: string.Empty,
+                    isWindowsOverride: true,
+                    localAppDataOverride: localAppDataOverride);
+            }
+
+            return AgpPaths.GetLogsDirectory(isWindowsOverride: isWindowsOverride);
         }
         catch
         {
@@ -402,7 +408,7 @@ internal static class GuiStartupLog
                 return 0;
             }
 
-            foreach (var rawPath in Directory.EnumerateFiles(ioDir, $"{LogFilePrefix}*{LogFileExtension}", SearchOption.TopDirectoryOnly))
+            foreach (var rawPath in Directory.EnumerateFiles(ioDir, $"*{LogFileExtension}", SearchOption.TopDirectoryOnly))
             {
                 var fileName = Path.GetFileName(rawPath);
                 if (!ManagedLogFileRegex.IsMatch(fileName))
@@ -721,18 +727,6 @@ internal static class GuiStartupLog
         return string.IsNullOrWhiteSpace(AppContext.BaseDirectory)
             ? "<unknown>"
             : AppContext.BaseDirectory;
-    }
-
-    private static string? SafeGetFolderPath(Environment.SpecialFolder folder)
-    {
-        try
-        {
-            return Environment.GetFolderPath(folder);
-        }
-        catch
-        {
-            return null;
-        }
     }
 
     private static string? SafeGetEnvironmentVariable(string name)

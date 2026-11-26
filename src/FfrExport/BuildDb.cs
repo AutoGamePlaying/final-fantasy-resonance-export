@@ -14,7 +14,8 @@ internal sealed record BuildDbOptions(
     string? SteamBuildId,
     bool KeepJson,
     int? Jobs,
-    bool Force);
+    bool Force,
+    bool HasExplicitOutput = true);
 
 internal sealed record ProcessExecutionResult(
     int ExitCode,
@@ -92,7 +93,6 @@ internal static class FfrDbLocator
 
 internal static partial class Program
 {
-    private const string DefaultBuildDbOutputDirectory = "ffr-build";
     private const string BuildMetadataFileName = "ffr.sqlite.build.json";
     private static readonly string[] BuildDbDatatablePrefixes = ["FFRS/Content/Datatable/"];
 
@@ -124,9 +124,21 @@ internal static partial class Program
 
         var ffrDbExecutable = FfrDbLocator.Resolve(options.ExplicitFfrDbPath);
 
-        var outputPath = PathSupport.TrimTrailingSeparators(Path.GetFullPath(options.OutputArgument));
-        ValidateBuildDbOutputNotOverlappingGame(gamePaths.GameRoot, outputPath, options.OutputArgument);
-        PrepareBuildDbOutputDirectory(outputPath, options.OutputArgument, options.Force);
+        var effectiveOutputArgument = options.OutputArgument;
+        if (!options.HasExplicitOutput)
+        {
+            var detectedSteam = GameVersionDetector.ReadSteamBuildInfo(
+                gamePaths.GameRoot,
+                options.SteamBuildId,
+                TextWriter.Null);
+            effectiveOutputArgument = AgpPaths.GetDefaultOutputDirectory(
+                SteamLocator.ResonanceGame.Code,
+                detectedSteam.BuildId);
+        }
+
+        var outputPath = PathSupport.TrimTrailingSeparators(Path.GetFullPath(effectiveOutputArgument));
+        ValidateBuildDbOutputNotOverlappingGame(gamePaths.GameRoot, outputPath, effectiveOutputArgument);
+        PrepareBuildDbOutputDirectory(outputPath, effectiveOutputArgument, options.Force);
 
         var startedAt = DateTimeOffset.UtcNow;
         var metadataPath = Path.Combine(outputPath, BuildMetadataFileName);
@@ -377,7 +389,7 @@ internal static partial class Program
         string? gameDirectory = null;
         string? usmapPath = null;
         var jmaps = new List<string>();
-        var outputArgument = DefaultBuildDbOutputDirectory;
+        string? explicitOutputArgument = null;
         string? explicitFfrDb = null;
         string? steamBuildId = null;
         var keepJson = false;
@@ -398,7 +410,7 @@ internal static partial class Program
                     jmaps.Add(RequireValue(args, ref index, "--jmap"));
                     break;
                 case "--out":
-                    outputArgument = RequireValue(args, ref index, "--out");
+                    explicitOutputArgument = RequireValue(args, ref index, "--out");
                     break;
                 case "--ffr-db":
                     explicitFfrDb = RequireValue(args, ref index, "--ffr-db");
@@ -437,16 +449,22 @@ internal static partial class Program
             throw new ArgumentException("build-db 需要 --usmap <文件>");
         }
 
+        var hasExplicitOutput = !string.IsNullOrWhiteSpace(explicitOutputArgument);
+        var resolvedOutputArgument = hasExplicitOutput
+            ? explicitOutputArgument!
+            : AgpPaths.GetDefaultOutputDirectory(SteamLocator.ResonanceGame.Code, steamBuildId);
+
         return new BuildDbOptions(
             gameDirectory,
             usmapPath,
             jmaps,
-            outputArgument,
+            resolvedOutputArgument,
             explicitFfrDb,
             steamBuildId,
             keepJson,
             jobs,
-            force);
+            force,
+            hasExplicitOutput);
     }
 
     private static void ValidateBuildDbOutputNotOverlappingGame(

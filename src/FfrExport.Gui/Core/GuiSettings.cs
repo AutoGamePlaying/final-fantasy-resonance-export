@@ -13,16 +13,18 @@ internal sealed record GuiSettings(
 
 internal sealed record GuiSettingsLoadResult(
     GuiSettings Settings,
-    string? WarningMessage);
+    string? WarningMessage,
+    string? MigratedFromPath = null);
 
 /// <summary>
-/// Persists GUI user preferences (last output root and .jmap checkbox state) in
-/// %APPDATA%\ffr-export\settings.json without touching the Windows Registry.
+/// Persists GUI user preferences in %LOCALAPPDATA%\agp\ffr-export\settings.json
+/// and migrates legacy %APPDATA%\ffr-export\settings.json on first startup by renaming it to .migrated.
 /// </summary>
 internal static class GuiSettingsStore
 {
-    internal const string AppFolderName = "ffr-export";
-    internal const string SettingsFileName = "settings.json";
+    internal const string AppFolderName = AgpPaths.ToolFolderName;
+    internal const string SettingsFileName = AgpPaths.SettingsFileName;
+    internal const string MigratedSuffix = ".migrated";
 
     private static readonly UTF8Encoding Utf8WithoutBom = new(false);
 
@@ -33,51 +35,52 @@ internal static class GuiSettingsStore
     };
 
     internal static string GetDefaultSettingsPath(
-        string? appDataDirectoryOverride = null,
-        string? localAppDataDirectoryOverride = null,
-        string? tempDirectoryOverride = null)
+        string? agpHomeOverride = null,
+        bool? isWindowsOverride = null,
+        string? localAppDataOverride = null,
+        string? xdgDataHomeOverride = null,
+        string? userProfileOverride = null)
     {
-        var candidates = new[]
-        {
-            appDataDirectoryOverride,
-            SafeGetFolderPath(Environment.SpecialFolder.ApplicationData),
-            localAppDataDirectoryOverride,
-            SafeGetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            tempDirectoryOverride,
-            SafeGetTempPath(),
-            AppContext.BaseDirectory,
-        };
-
-        foreach (var candidate in candidates)
-        {
-            if (string.IsNullOrWhiteSpace(candidate))
-            {
-                continue;
-            }
-
-            try
-            {
-                var combined = Path.Combine(candidate.Trim(), AppFolderName, SettingsFileName);
-                _ = Path.GetFullPath(combined);
-                return combined;
-            }
-            catch
-            {
-                // Skip invalid environment directories and try the next fallback.
-            }
-        }
-
-        return Path.Combine(AppFolderName, SettingsFileName);
+        return AgpPaths.GetSettingsFilePath(
+            agpHomeEnvOverride: agpHomeOverride,
+            isWindowsOverride: isWindowsOverride,
+            localAppDataOverride: localAppDataOverride,
+            xdgDataHomeOverride: xdgDataHomeOverride,
+            userProfileOverride: userProfileOverride);
     }
 
-    internal static GuiSettings Load(string? settingsPath = null)
+    internal static string? GetLegacySettingsPath(string? appDataDirectoryOverride = null)
     {
-        return LoadWithDiagnostics(settingsPath).Settings;
+        var appData = appDataDirectoryOverride is not null
+            ? appDataDirectoryOverride
+            : SafeGetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (string.IsNullOrWhiteSpace(appData))
+        {
+            return null;
+        }
+
+        try
+        {
+            return Path.GetFullPath(Path.Combine(appData.Trim(), AppFolderName, SettingsFileName));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    internal static GuiSettings Load(string? settingsPath = null, string? legacySettingsPathOverride = null)
+    {
+        return LoadWithDiagnostics(
+            settingsPath,
+            legacySettingsPathOverride: legacySettingsPathOverride).Settings;
     }
 
     internal static GuiSettingsLoadResult LoadWithDiagnostics(
         string? settingsPath = null,
-        Func<string, string>? fileReaderOverride = null)
+        Func<string, string>? fileReaderOverride = null,
+        string? legacySettingsPathOverride = null,
+        bool allowLegacyMigration = true)
     {
         string path;
         try
@@ -91,6 +94,24 @@ internal static class GuiSettingsStore
             return new GuiSettingsLoadResult(
                 GuiSettings.Default,
                 $"解析配置文件路径失败：{exception.Message}；已改用默认设置。");
+        }
+
+        string? migratedFrom = null;
+        string? migrationWarning = null;
+        if (allowLegacyMigration && fileReaderOverride is null)
+        {
+            var effectiveLegacy = legacySettingsPathOverride;
+            if (effectiveLegacy is null
+                && string.IsNullOrWhiteSpace(settingsPath)
+                && !AgpPaths.IsAgpHomeEnvironmentOverrideActive())
+            {
+                effectiveLegacy = GetLegacySettingsPath();
+            }
+
+            if (!string.IsNullOrWhiteSpace(effectiveLegacy))
+            {
+                (migratedFrom, migrationWarning) = TryMigrateLegacySettings(path, effectiveLegacy);
+            }
         }
 
         try
@@ -111,7 +132,7 @@ internal static class GuiSettingsStore
                 var ioPath = PathSupport.ToIoPath(fullPath);
                 if (!File.Exists(ioPath))
                 {
-                    return new GuiSettingsLoadResult(GuiSettings.Default, null);
+                    return new GuiSettingsLoadResult(GuiSettings.Default, migrationWarning, migratedFrom);
                 }
 
                 json = File.ReadAllText(ioPath, Utf8WithoutBom);
@@ -122,31 +143,38 @@ internal static class GuiSettingsStore
             {
                 return new GuiSettingsLoadResult(
                     GuiSettings.Default,
-                    $"配置文件内容为空或格式无效（{path}），已改用默认设置。");
+                    $"配置文件内容为空或格式无效（{path}），已改用默认设置。",
+                    migratedFrom);
             }
 
             var outputRoot = string.IsNullOrWhiteSpace(parsed.OutputRootDirectory)
                 ? null
                 : parsed.OutputRootDirectory.Trim();
-            return new GuiSettingsLoadResult(new GuiSettings(outputRoot, parsed.IncludeJmap), null);
+            return new GuiSettingsLoadResult(
+                new GuiSettings(outputRoot, parsed.IncludeJmap),
+                migrationWarning,
+                migratedFrom);
         }
         catch (JsonException exception)
         {
             return new GuiSettingsLoadResult(
                 GuiSettings.Default,
-                $"配置文件已损坏（{path}）：{exception.Message}；已改用默认设置。");
+                $"配置文件已损坏（{path}）：{exception.Message}；已改用默认设置。",
+                migratedFrom);
         }
         catch (UnauthorizedAccessException exception)
         {
             return new GuiSettingsLoadResult(
                 GuiSettings.Default,
-                $"无权读取配置文件（{path}）：{exception.Message}；已改用默认设置。");
+                $"无权读取配置文件（{path}）：{exception.Message}；已改用默认设置。",
+                migratedFrom);
         }
         catch (Exception exception)
         {
             return new GuiSettingsLoadResult(
                 GuiSettings.Default,
-                $"读取配置文件失败（{path}）：{exception.Message}；已改用默认设置。");
+                $"读取配置文件失败（{path}）：{exception.Message}；已改用默认设置。",
+                migratedFrom);
         }
     }
 
@@ -190,23 +218,61 @@ internal static class GuiSettingsStore
         }
     }
 
+    internal static (string? MigratedFromPath, string? WarningMessage) TryMigrateLegacySettings(
+        string targetSettingsPath,
+        string legacySettingsPath)
+    {
+        try
+        {
+            if (targetSettingsPath.IndexOf('\0') >= 0 || legacySettingsPath.IndexOf('\0') >= 0)
+            {
+                return (null, null);
+            }
+
+            var fullTarget = Path.GetFullPath(targetSettingsPath);
+            var fullLegacy = Path.GetFullPath(legacySettingsPath);
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            if (string.Equals(fullTarget, fullLegacy, comparison))
+            {
+                return (null, null);
+            }
+
+            var ioTarget = PathSupport.ToIoPath(fullTarget);
+            var ioLegacy = PathSupport.ToIoPath(fullLegacy);
+            if (File.Exists(ioTarget) || !File.Exists(ioLegacy))
+            {
+                return (null, null);
+            }
+
+            var legacyJson = File.ReadAllText(ioLegacy, Utf8WithoutBom);
+            var parsed = JsonSerializer.Deserialize<GuiSettings>(legacyJson, JsonOptions);
+            if (parsed is null)
+            {
+                return (null, $"旧版配置文件内容无效（{fullLegacy}），跳过自动迁移。");
+            }
+
+            var normalized = new GuiSettings(
+                string.IsNullOrWhiteSpace(parsed.OutputRootDirectory) ? null : parsed.OutputRootDirectory.Trim(),
+                parsed.IncludeJmap);
+            Save(normalized, fullTarget);
+
+            var migratedPath = fullLegacy + MigratedSuffix;
+            File.Move(ioLegacy, PathSupport.ToIoPath(migratedPath), overwrite: true);
+            return (fullLegacy, null);
+        }
+        catch (Exception exception)
+        {
+            return (null, $"迁移旧版配置文件失败（{legacySettingsPath} -> {targetSettingsPath}）：{exception.Message}；已保留旧文件并继续使用默认设置。");
+        }
+    }
+
     private static string? SafeGetFolderPath(Environment.SpecialFolder folder)
     {
         try
         {
             return Environment.GetFolderPath(folder);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static string? SafeGetTempPath()
-    {
-        try
-        {
-            return Path.GetTempPath();
         }
         catch
         {

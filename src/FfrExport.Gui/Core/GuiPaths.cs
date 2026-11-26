@@ -39,10 +39,10 @@ internal sealed record OutputDirectoryBuildResult(
 
 /// <summary>
 /// Pure path calculations, CLI executable lookup, and output directory safety checks for the GUI.
+/// Uses the unified AgpPaths layout (%LOCALAPPDATA%\agp\ffr-export\output\).
 /// </summary>
 internal static class GuiPaths
 {
-    internal const string DefaultExportFolderName = "FF-Export";
     internal const string BuildMetadataFileName = "ffr.sqlite.build.json";
     internal const string CliExecutableWindows = "ffr-export.exe";
     internal const string CliExecutableUnix = "ffr-export";
@@ -50,117 +50,76 @@ internal static class GuiPaths
     private static readonly UTF8Encoding Utf8WithoutBom = new(false);
 
     /// <summary>
-    /// Resolves the default export root directory (%USERPROFILE%\Documents\FF-Export).
+    /// Resolves the default export root directory (%LOCALAPPDATA%\agp\ffr-export\output).
     /// </summary>
     internal static string ResolveDefaultOutputRoot(
-        string? documentsDirectoryOverride = null,
+        string? agpHomeOverride = null,
+        bool? isWindowsOverride = null,
+        string? localAppDataOverride = null,
+        string? xdgDataHomeOverride = null,
         string? userProfileOverride = null)
     {
-        var documentsDir = documentsDirectoryOverride;
-        if (string.IsNullOrWhiteSpace(documentsDir))
-        {
-            documentsDir = SafeGetFolderPath(Environment.SpecialFolder.MyDocuments);
-        }
-
-        if (!string.IsNullOrWhiteSpace(documentsDir)
-            && TryNormalizeDirectoryPath(Path.Combine(documentsDir, DefaultExportFolderName), out var normalizedDocs, out _))
-        {
-            return normalizedDocs;
-        }
-
-        var profile = userProfileOverride;
-        if (string.IsNullOrWhiteSpace(profile))
-        {
-            profile = SafeGetFolderPath(Environment.SpecialFolder.UserProfile);
-        }
-
-        if (!string.IsNullOrWhiteSpace(profile)
-            && TryNormalizeDirectoryPath(Path.Combine(profile, "Documents", DefaultExportFolderName), out var normalizedProfileDocs, out _))
-        {
-            return normalizedProfileDocs;
-        }
-
-        return ResolveDefaultOutputRootSafe(
-            documentsDirectoryOverride: documentsDirectoryOverride,
-            userProfileOverride: userProfileOverride).Path;
+        return AgpPaths.GetDefaultOutputRoot(
+            agpHomeEnvOverride: agpHomeOverride,
+            isWindowsOverride: isWindowsOverride,
+            localAppDataOverride: localAppDataOverride,
+            xdgDataHomeOverride: xdgDataHomeOverride,
+            userProfileOverride: userProfileOverride);
     }
 
     /// <summary>
-    /// Resolves the default export root directory safely, detecting redirected, missing, or inaccessible
-    /// Documents folders and falling back cleanly while reporting a Chinese warning for the UI.
+    /// Resolves the default export root directory safely, detecting blocked or inaccessible
+    /// primary roots and falling back cleanly while reporting a Chinese warning for the UI.
     /// </summary>
     internal static OutputRootResolution ResolveDefaultOutputRootSafe(
-        string? documentsDirectoryOverride = null,
-        string? userProfileOverride = null,
+        string? agpHomeOverride = null,
+        bool? isWindowsOverride = null,
         string? localAppDataOverride = null,
+        string? xdgDataHomeOverride = null,
+        string? userProfileOverride = null,
         string? tempDirectoryOverride = null,
-        Func<string, bool>? directoryExistsCheck = null)
+        Func<string, bool>? directoryUsableCheck = null)
     {
-        var exists = directoryExistsCheck ?? SafeDirectoryExists;
-
-        var documentsDir = documentsDirectoryOverride is not null
-            ? documentsDirectoryOverride
-            : SafeGetFolderPath(Environment.SpecialFolder.MyDocuments);
+        var isUsable = directoryUsableCheck ?? IsTargetDirectoryPathUsable;
+        var primaryRoot = ResolveDefaultOutputRoot(
+            agpHomeOverride,
+            isWindowsOverride,
+            localAppDataOverride,
+            xdgDataHomeOverride,
+            userProfileOverride);
 
         string? primaryReason = null;
-        if (string.IsNullOrWhiteSpace(documentsDir))
+        if (TryNormalizeDirectoryPath(primaryRoot, out var normalizedPrimary, out var primaryPathError))
         {
-            primaryReason = "系统「文档」目录未配置";
-        }
-        else if (!TryNormalizeDirectoryPath(documentsDir, out var fullDocs, out var docsPathError))
-        {
-            primaryReason = $"系统「文档」目录路径无效（{documentsDir}：{docsPathError}）";
-        }
-        else if (!exists(fullDocs))
-        {
-            primaryReason = $"系统「文档」目录不存在或不可访问（{fullDocs}）";
-        }
-        else if (TryNormalizeDirectoryPath(Path.Combine(fullDocs, DefaultExportFolderName), out var docsExportRoot, out _))
-        {
-            return new OutputRootResolution(docsExportRoot, UsedFallback: false, WarningMessage: null);
+            if (isUsable(normalizedPrimary))
+            {
+                return new OutputRootResolution(normalizedPrimary, UsedFallback: false, WarningMessage: null);
+            }
+
+            primaryReason = $"默认数据目录不可用（{normalizedPrimary}）";
         }
         else
         {
-            primaryReason = $"无法拼接默认「文档」输出目录（{fullDocs}）";
+            primaryReason = $"默认数据目录路径无效（{primaryRoot}：{primaryPathError}）";
         }
 
-        var fallbackBases = new (string? BasePath, string[] SubSegments, bool RequireExists)[]
+        var fallbackBases = new (string? BasePath, string[] SubSegments)[]
         {
-            (
-                userProfileOverride is not null ? userProfileOverride : SafeGetFolderPath(Environment.SpecialFolder.UserProfile),
-                [DefaultExportFolderName],
-                true),
-            (
-                localAppDataOverride is not null ? localAppDataOverride : SafeGetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                [GuiSettingsStore.AppFolderName, DefaultExportFolderName],
-                true),
             (
                 tempDirectoryOverride is not null ? tempDirectoryOverride : SafeGetTempPath(),
-                [DefaultExportFolderName],
-                false),
+                [AgpPaths.AgpFolderName, AgpPaths.ToolFolderName, AgpPaths.OutputSubfolderName]),
             (
                 AppContext.BaseDirectory,
-                [DefaultExportFolderName],
-                false),
+                [AgpPaths.OutputSubfolderName]),
             (
                 SafeGetCurrentDirectory(),
-                [DefaultExportFolderName],
-                false),
+                [AgpPaths.OutputSubfolderName]),
         };
 
-        foreach (var (basePath, subSegments, requireExists) in fallbackBases)
+        foreach (var (basePath, subSegments) in fallbackBases)
         {
-            if (string.IsNullOrWhiteSpace(basePath))
-            {
-                continue;
-            }
-
-            if (!TryNormalizeDirectoryPath(basePath, out var normalizedBase, out _))
-            {
-                continue;
-            }
-
-            if (requireExists && !exists(normalizedBase))
+            if (string.IsNullOrWhiteSpace(basePath)
+                || !TryNormalizeDirectoryPath(basePath, out var normalizedBase, out _))
             {
                 continue;
             }
@@ -171,19 +130,20 @@ internal static class GuiPaths
                 combined = Path.Combine(combined, segment);
             }
 
-            if (TryNormalizeDirectoryPath(combined, out var normalizedExportRoot, out _))
+            if (TryNormalizeDirectoryPath(combined, out var normalizedFallback, out _)
+                && isUsable(normalizedFallback))
             {
                 return new OutputRootResolution(
-                    normalizedExportRoot,
+                    normalizedFallback,
                     UsedFallback: true,
-                    WarningMessage: $"{primaryReason}，默认输出位置已改用：{normalizedExportRoot}（可随时点击「浏览…」手动修改）。");
+                    WarningMessage: $"{primaryReason}，默认输出位置已改用：{normalizedFallback}（可随时点击「浏览…」手动修改）。");
             }
         }
 
         return new OutputRootResolution(
-            DefaultExportFolderName,
+            AgpPaths.OutputSubfolderName,
             UsedFallback: true,
-            WarningMessage: $"{primaryReason}，且备选系统目录均不可用，请点击「浏览…」手动选择输出目录。");
+            WarningMessage: $"{primaryReason}，且备选目录均不可用，请点击「浏览…」手动选择输出目录。");
     }
 
     internal static bool TryNormalizeDirectoryPath(
@@ -233,17 +193,13 @@ internal static class GuiPaths
         string? outputRootOverride,
         string gameCode,
         string? steamBuildId,
-        string? documentsDirectoryOverride = null,
-        string? userProfileOverride = null)
+        string? agpHomeOverride = null)
     {
         string baseRoot;
-        if (string.IsNullOrWhiteSpace(outputRootOverride))
+        if (string.IsNullOrWhiteSpace(outputRootOverride)
+            || !TryNormalizeDirectoryPath(outputRootOverride, out baseRoot, out _))
         {
-            baseRoot = ResolveDefaultOutputRoot(documentsDirectoryOverride, userProfileOverride);
-        }
-        else if (!TryNormalizeDirectoryPath(outputRootOverride, out baseRoot, out _))
-        {
-            baseRoot = ResolveDefaultOutputRoot(documentsDirectoryOverride, userProfileOverride);
+            baseRoot = ResolveDefaultOutputRoot(agpHomeOverride: agpHomeOverride);
         }
 
         var normalizedCode = SanitizePathSegment(gameCode) ?? "ffr";
@@ -256,17 +212,15 @@ internal static class GuiPaths
 
     /// <summary>
     /// Computes the default output directory safely and returns any fallback warning caused by a
-    /// malformed saved root or missing/redirected Documents folder.
+    /// malformed saved root or inaccessible primary data root.
     /// </summary>
     internal static OutputDirectoryBuildResult BuildDefaultOutputDirectorySafe(
         string? outputRootOverride,
         string gameCode,
         string? steamBuildId,
-        string? documentsDirectoryOverride = null,
-        string? userProfileOverride = null,
-        string? localAppDataOverride = null,
+        string? agpHomeOverride = null,
         string? tempDirectoryOverride = null,
-        Func<string, bool>? directoryExistsCheck = null)
+        Func<string, bool>? directoryUsableCheck = null)
     {
         string baseRoot;
         var usedFallback = false;
@@ -281,11 +235,9 @@ internal static class GuiPaths
             else
             {
                 var fallback = ResolveDefaultOutputRootSafe(
-                    documentsDirectoryOverride,
-                    userProfileOverride,
-                    localAppDataOverride,
-                    tempDirectoryOverride,
-                    directoryExistsCheck);
+                    agpHomeOverride: agpHomeOverride,
+                    tempDirectoryOverride: tempDirectoryOverride,
+                    directoryUsableCheck: directoryUsableCheck);
                 baseRoot = fallback.Path;
                 usedFallback = true;
                 warning = $"上次保存的输出目录无效（{outputRootOverride}：{overrideError}），已改用默认目录：{baseRoot}。";
@@ -294,11 +246,9 @@ internal static class GuiPaths
         else
         {
             var resolved = ResolveDefaultOutputRootSafe(
-                documentsDirectoryOverride,
-                userProfileOverride,
-                localAppDataOverride,
-                tempDirectoryOverride,
-                directoryExistsCheck);
+                agpHomeOverride: agpHomeOverride,
+                tempDirectoryOverride: tempDirectoryOverride,
+                directoryUsableCheck: directoryUsableCheck);
             baseRoot = resolved.Path;
             usedFallback = resolved.UsedFallback;
             warning = resolved.WarningMessage;
@@ -663,21 +613,42 @@ internal static class GuiPaths
 
     internal static string? SanitizePathSegment(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
+        return AgpPaths.SanitizePathSegment(value);
+    }
 
-        var sb = new StringBuilder(value.Length);
-        foreach (var ch in value.Trim())
+    private static bool IsTargetDirectoryPathUsable(string fullPath)
+    {
+        try
         {
-            if (char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.')
+            var current = fullPath;
+            while (!string.IsNullOrEmpty(current))
             {
-                sb.Append(ch);
-            }
-        }
+                var ioCurrent = PathSupport.ToIoPath(current);
+                if (File.Exists(ioCurrent))
+                {
+                    return false;
+                }
 
-        return sb.Length > 0 ? sb.ToString() : null;
+                if (Directory.Exists(ioCurrent))
+                {
+                    return true;
+                }
+
+                var parent = Path.GetDirectoryName(current);
+                if (string.IsNullOrEmpty(parent) || string.Equals(parent, current, StringComparison.Ordinal))
+                {
+                    break;
+                }
+
+                current = parent;
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static bool PathsEqual(string left, string right)
@@ -688,18 +659,6 @@ internal static class GuiPaths
             ? StringComparison.OrdinalIgnoreCase
             : StringComparison.Ordinal;
         return string.Equals(a, b, comparison);
-    }
-
-    private static string? SafeGetFolderPath(Environment.SpecialFolder folder)
-    {
-        try
-        {
-            return Environment.GetFolderPath(folder);
-        }
-        catch
-        {
-            return null;
-        }
     }
 
     private static string? SafeGetTempPath()
@@ -723,18 +682,6 @@ internal static class GuiPaths
         catch
         {
             return null;
-        }
-    }
-
-    private static bool SafeDirectoryExists(string fullPath)
-    {
-        try
-        {
-            return Directory.Exists(PathSupport.ToIoPath(fullPath));
-        }
-        catch
-        {
-            return false;
         }
     }
 }
