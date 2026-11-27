@@ -105,6 +105,8 @@ ffr-export.exe uninstall-ue4ss --game "<Steam Game Directory>"
 
 Or click **Clean up UE4SS…** in the GUI (only removes files recorded in our install marker unless you explicitly opt to back up and remove a user-installed UE4SS).
 
+- **Access denied during cleanup**: the app itself never requires administrator privileges, so if UE4SS files were previously created by an elevated process (for example under `Program Files`), cleanup may hit access denied. In the GUI, a dialog shows the denied path and offers a one-click **Clean up as Administrator** button that elevates only the cleanup CLI (`ffr-export.exe uninstall-ue4ss --yes --agp-home ... --result-file ...`) and displays the result in the log; cancelling UAC makes no changes. On the CLI, `uninstall-ue4ss` strips read-only attributes on targeted files before deleting, returns exit code `5` with an `@@ue4ss-cleanup` line on access denied (or exit code `6` when a file is locked by the running game—exit the game completely and retry), and safely resumes partial cleanups without duplicating foreign UE4SS backups.
+
 #### Option 2: Manual dump
 
 Download [RE-UE4SS v4.0.0](https://github.com/UE4SS-RE/RE-UE4SS/releases/tag/v4.0.0), extract it to `<GameDir>\FFRS\Binaries\Win64\`, run the game to dump `.usmap`, and leave it in `FFRS\Binaries\Win64\ue4ss\` or copy it into `%LOCALAPPDATA%\agp\ffr-export\usmap\`.

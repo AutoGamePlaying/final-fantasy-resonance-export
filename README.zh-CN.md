@@ -105,6 +105,8 @@ ffr-export.exe uninstall-ue4ss --game "<Steam 游戏目录>"
 
 或在窗口程序点击 **清理 UE4SS…**（默认只卸载本工具安装的 UE4SS，不碰用户自行安装的 UE4SS）。
 
+- **清理遇到“拒绝访问”或文件被占用**：程序本身始终以普通权限运行，如果之前曾用管理员身份安装过 UE4SS（例如游戏位于 `Program Files` 下），普通权限可能无法直接删除旧文件。窗口程序遇到拒绝访问时会弹窗显示被拒绝的路径，并提供 **以管理员身份清理** 按钮，仅对清理这一步请求 UAC 提权执行（传入 `--agp-home` 与 `--result-file` 并将结果显示在日志区）；在 UAC 中点“否”不会做任何更改。命令行 `uninstall-ue4ss` 会在删文件前清除目标文件的只读属性，遇到拒绝访问返回退出码 `5` 并输出 `@@ue4ss-cleanup` 协议行（若文件正被游戏占用则返回退出码 `6` 并提示完全退出游戏后重试，不弹提权），且半途失败后重试不会重复复制第二份备份。
+
 #### 方式二：手动获取
 
 自行从 [RE-UE4SS v4.0.0](https://github.com/UE4SS-RE/RE-UE4SS/releases/tag/v4.0.0) 下载解压到 `<游戏目录>\FFRS\Binaries\Win64\`，运行游戏通过 UE4SS 转储 `.usmap` 后，留在 `FFRS\Binaries\Win64\ue4ss\` 或复制到 `%LOCALAPPDATA%\agp\ffr-export\usmap\` 即可被工具自动发现。
