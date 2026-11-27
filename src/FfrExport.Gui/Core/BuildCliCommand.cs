@@ -110,7 +110,9 @@ internal static class BuildCliCommand
         string gameDirectory,
         bool includeForeign = false,
         bool yes = false,
-        string? language = null)
+        string? language = null,
+        string? agpHome = null,
+        string? resultFile = null)
     {
         var args = new List<string>
         {
@@ -119,14 +121,14 @@ internal static class BuildCliCommand
             gameDirectory,
         };
 
-        if (includeForeign)
-        {
-            args.Add("--include-foreign");
-        }
-
         if (yes)
         {
             args.Add("--yes");
+        }
+
+        if (includeForeign)
+        {
+            args.Add("--include-foreign");
         }
 
         if (!string.IsNullOrWhiteSpace(language))
@@ -135,7 +137,24 @@ internal static class BuildCliCommand
             args.Add(language.Trim());
         }
 
+        if (!string.IsNullOrWhiteSpace(agpHome))
+        {
+            args.Add("--agp-home");
+            args.Add(agpHome.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(resultFile))
+        {
+            args.Add("--result-file");
+            args.Add(resultFile.Trim());
+        }
+
         return args;
+    }
+
+    internal static bool TryParseUe4ssCleanupEvent(string? line, out Ue4ssCleanupProtocolMessage message)
+    {
+        return ProgressProtocol.TryParseUe4ssCleanupLine(line, out message);
     }
 
     internal static bool TryParseFetchedUsmapPath(string? line, out string usmapPath)

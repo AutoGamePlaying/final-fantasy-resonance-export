@@ -1606,6 +1606,7 @@ internal sealed class MainForm : Form
 
         var stdoutLines = new List<string>();
         var stderrLines = new List<string>();
+        Ue4ssCleanupProtocolMessage? cleanupEvent = null;
 
         _exportCts?.Dispose();
         _exportCts = new CancellationTokenSource();
@@ -1619,9 +1620,17 @@ internal sealed class MainForm : Form
                 cliArgs,
                 line =>
                 {
-                    lock (stdoutLines)
+                    if (BuildCliCommand.TryParseUe4ssCleanupEvent(line, out var parsedEvent))
                     {
-                        stdoutLines.Add(line);
+                        cleanupEvent = parsedEvent;
+                    }
+
+                    if (!ProgressProtocol.IsMachineProtocolLine(line))
+                    {
+                        lock (stdoutLines)
+                        {
+                            stdoutLines.Add(line);
+                        }
                     }
 
                     OnChildStdoutLine(line);
@@ -1654,6 +1663,44 @@ internal sealed class MainForm : Form
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
+            else if (exitCode == ProgressProtocol.ExitCodeFileInUse
+                || string.Equals(cleanupEvent?.Status, ProgressProtocol.CleanupStatusInUse, StringComparison.Ordinal)
+                || string.Equals(cleanupEvent?.Reason, ProgressProtocol.CleanupReasonInUse, StringComparison.Ordinal))
+            {
+                var lockedPath = cleanupEvent?.Path ?? gameDir;
+                _progressBar.Value = 0;
+                _progressDisplayKind = ProgressDisplayKind.CleanupFailedExit;
+                _lastProgressExitCode = exitCode;
+                _progressLabel.Text = L.Format("Gui_StatusCleanupFailedExit", exitCode);
+                var inUseMessage = L.Format("Gui_CleanupInUseBody", lockedPath);
+                _startupLog?.WriteWarning(L.Format("Gui_LogCleanupFailedExit", exitCode, GuiStartupLog.SanitizeSingleLine(inUseMessage)));
+                MessageBox.Show(
+                    this,
+                    inUseMessage,
+                    L.Get("Gui_CleanupInUseTitle"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+            else if (exitCode == ProgressProtocol.ExitCodeNeedsElevation
+                || string.Equals(cleanupEvent?.Status, ProgressProtocol.CleanupStatusNeedsElevation, StringComparison.Ordinal))
+            {
+                var deniedPath = cleanupEvent?.Path ?? gameDir;
+                using var elevationDialog = new Ue4ssElevationDialog(deniedPath, _uiFont, _boldUiFont);
+                if (elevationDialog.ShowDialog(this) != DialogResult.OK || !elevationDialog.RetryElevated)
+                {
+                    _progressBar.Value = 0;
+                    _progressDisplayKind = ProgressDisplayKind.CleanupCancelled;
+                    _progressLabel.Text = L.Get("Gui_StatusCleanupCancelled");
+                    AppendLogLine(L.Format("Gui_LogPrefixCancelled", L.Get("Gui_CleanupCancelledLog")));
+                    return;
+                }
+
+                await RunElevatedCleanupRetryAsync(
+                    cliLookup.ExpectedPath,
+                    cliLookup.FileName,
+                    gameDir,
+                    cleanupDialog.IncludeForeign);
+            }
             else
             {
                 _progressBar.Value = 0;
@@ -1662,7 +1709,9 @@ internal sealed class MainForm : Form
                 _progressLabel.Text = L.Format("Gui_StatusCleanupFailedExit", exitCode);
                 var errDetail = stderrLines.Count > 0
                     ? string.Join(Environment.NewLine, stderrLines)
-                    : L.Format("Gui_CleanupFailedExitBody", exitCode);
+                    : (stdoutLines.Count > 0
+                        ? string.Join(Environment.NewLine, stdoutLines)
+                        : L.Format("Gui_CleanupFailedExitBody", exitCode));
                 _startupLog?.WriteWarning(L.Format("Gui_LogCleanupFailedExit", exitCode, errDetail));
                 MessageBox.Show(
                     this,
@@ -1686,6 +1735,125 @@ internal sealed class MainForm : Form
                 || !File.Exists(PathSupport.ToIoPath(_selectedUsmap.FullPath));
             RefreshMappingsForSelectedGame(resetManualUsmap: selectedUsmapMissing);
         }
+    }
+
+    private async Task RunElevatedCleanupRetryAsync(
+        string cliExecutablePath,
+        string cliFileName,
+        string gameDir,
+        bool includeForeign)
+    {
+        var resultFilePath = Ue4ssCleanupElevation.BuildElevatedResultFilePath(_activeAgpRoot);
+        var request = new ElevatedCleanupRequest(
+            GameDirectory: gameDir,
+            IncludeForeign: includeForeign,
+            ActiveAgpRoot: _activeAgpRoot,
+            ResultFilePath: resultFilePath,
+            Language: Localization.CurrentLanguage);
+        var elevatedArgs = Ue4ssCleanupElevation.BuildElevatedUninstallArguments(request);
+        var launchLog = L.Format("Gui_LogStartElevatedCleanup", cliFileName, string.Join(" ", elevatedArgs.Select(QuoteForLog)));
+
+        AppendLogLine(launchLog);
+        _startupLog?.WriteInfo(launchLog);
+        _cancelButton.Enabled = false;
+        _progressBar.Value = 50;
+        _progressDisplayKind = ProgressDisplayKind.Raw;
+        _progressLabel.Text = L.Get("Gui_StatusCleaningUe4ssElevated");
+
+        var runResult = await Ue4ssCleanupElevation.RunElevatedAsync(cliExecutablePath, request);
+
+        if (runResult.UacCancelled)
+        {
+            _progressBar.Value = 0;
+            _progressDisplayKind = ProgressDisplayKind.CleanupCancelled;
+            _progressLabel.Text = L.Get("Gui_StatusCleanupCancelled");
+            var cancelMessage = L.Get("Gui_CleanupUacCancelledBody");
+            AppendLogLine(L.Format("Gui_LogPrefixCancelled", cancelMessage));
+            _startupLog?.WriteInfo(L.Get("Gui_CleanupUacCancelledLog"));
+            MessageBox.Show(
+                this,
+                cancelMessage,
+                L.Get("Gui_CleanupUacCancelledTitle"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+            return;
+        }
+
+        foreach (var logLine in Ue4ssCleanupElevation.FormatResultForLog(runResult))
+        {
+            AppendLogLine(logLine);
+            _startupLog?.WriteInfo(GuiStartupLog.SanitizeSingleLine(logLine));
+        }
+
+        if (!string.IsNullOrWhiteSpace(runResult.LaunchError))
+        {
+            _progressBar.Value = 0;
+            _progressDisplayKind = ProgressDisplayKind.CleanupFailedExit;
+            _lastProgressExitCode = 2;
+            _progressLabel.Text = L.Format("Gui_StatusCleanupFailedExit", 2);
+            MessageBox.Show(
+                this,
+                L.Format("Gui_CleanupElevatedLaunchFailed", runResult.LaunchError),
+                L.Get("Gui_CleanupFailedTitle"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            return;
+        }
+
+        var exitCode = runResult.ExitCode ?? 2;
+        if (exitCode == 0)
+        {
+            _progressBar.Value = 100;
+            _progressDisplayKind = ProgressDisplayKind.CleanupComplete;
+            _progressLabel.Text = L.Get("Gui_StatusCleanupComplete");
+            var summary = Ue4ssCleanupElevation.FormatResultSummaryForDialog(runResult);
+            MessageBox.Show(
+                this,
+                summary,
+                L.Get("Gui_CleanupCompleteTitle"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+            return;
+        }
+
+        _progressBar.Value = 0;
+        _progressDisplayKind = ProgressDisplayKind.CleanupFailedExit;
+        _lastProgressExitCode = exitCode;
+        _progressLabel.Text = L.Format("Gui_StatusCleanupFailedExit", exitCode);
+
+        if (exitCode == ProgressProtocol.ExitCodeFileInUse
+            || string.Equals(runResult.Result?.Status, ProgressProtocol.CleanupStatusInUse, StringComparison.Ordinal))
+        {
+            var lockedPath = runResult.Result?.BlockedPath ?? gameDir;
+            MessageBox.Show(
+                this,
+                L.Format("Gui_CleanupInUseBody", lockedPath),
+                L.Get("Gui_CleanupInUseTitle"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (exitCode == ProgressProtocol.ExitCodeNeedsElevation
+            || string.Equals(runResult.Result?.Status, ProgressProtocol.CleanupStatusNeedsElevation, StringComparison.Ordinal))
+        {
+            var blockedPath = runResult.Result?.BlockedPath ?? gameDir;
+            MessageBox.Show(
+                this,
+                L.Format("Gui_CleanupElevatedStillDeniedBody", blockedPath),
+                L.Get("Gui_CleanupFailedTitle"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            return;
+        }
+
+        var dialogSummary = Ue4ssCleanupElevation.FormatResultSummaryForDialog(runResult);
+        MessageBox.Show(
+            this,
+            dialogSummary,
+            L.Get("Gui_CleanupFailedTitle"),
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Error);
     }
 
     private async void OnFetchUsmapClick(object? sender, EventArgs e)

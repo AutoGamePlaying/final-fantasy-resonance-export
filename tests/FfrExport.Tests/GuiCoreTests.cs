@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -1454,6 +1455,139 @@ public sealed class GuiCoreTests
             Environment.SetEnvironmentVariable("TEMP", previousTemp);
             Environment.SetEnvironmentVariable("TMP", previousTmp);
         }
+    }
+
+    [Fact]
+    public async Task Ue4ssCleanupElevation_BuildsRequiredArgsParsesResultFilesAndHandlesUacCancellation()
+    {
+        using var workspace = new TempWorkspace("ffr-gui-elevation");
+        var fixedTime = new DateTimeOffset(2026, 11, 27, 15, 20, 30, TimeSpan.FromHours(9));
+
+        // 1. Result file path format and same-second collision handling.
+        var resultPath1 = Ue4ssCleanupElevation.BuildElevatedResultFilePath(workspace.AgpHomeDir, fixedTime);
+        var expectedLogsDir = AgpPaths.GetLogsDirectoryForAgpRoot(workspace.AgpHomeDir);
+        Assert.Equal(Path.Combine(expectedLogsDir, "uninstall-elevated-20261127-152030.json"), resultPath1);
+
+        Directory.CreateDirectory(expectedLogsDir);
+        await File.WriteAllTextAsync(resultPath1, "{}");
+        var resultPath2 = Ue4ssCleanupElevation.BuildElevatedResultFilePath(workspace.AgpHomeDir, fixedTime);
+        Assert.Equal(Path.Combine(expectedLogsDir, "uninstall-elevated-20261127-152030-2.json"), resultPath2);
+
+        // 2. Elevated arguments always contain --agp-home, --result-file, --yes (and optional --include-foreign / --lang)
+        //    and round-trip cleanly through FfrExport's real CLI parser.
+        var reqOwn = new ElevatedCleanupRequest(
+            GameDirectory: "/games/FINAL FANTASY RESONANCE",
+            IncludeForeign: false,
+            ActiveAgpRoot: workspace.AgpHomeDir,
+            ResultFilePath: resultPath2,
+            Language: "zh-Hans");
+        var argsOwn = Ue4ssCleanupElevation.BuildElevatedUninstallArguments(reqOwn);
+        Assert.Equal("uninstall-ue4ss", argsOwn[0]);
+        Assert.Contains("--yes", argsOwn);
+        Assert.Contains("--agp-home", argsOwn);
+        Assert.Contains(workspace.AgpHomeDir, argsOwn);
+        Assert.Contains("--result-file", argsOwn);
+        Assert.Contains(resultPath2, argsOwn);
+        Assert.Contains("--lang", argsOwn);
+        Assert.Contains("zh-Hans", argsOwn);
+        Assert.DoesNotContain("--include-foreign", argsOwn);
+
+        var parsedOwn = UsmapFetcher.ParseUninstallUe4ssArgs(argsOwn.Skip(1).ToArray());
+        Assert.Equal("/games/FINAL FANTASY RESONANCE", parsedOwn.GameDirectory);
+        Assert.True(parsedOwn.Yes);
+        Assert.False(parsedOwn.IncludeForeign);
+        Assert.Equal(workspace.AgpHomeDir, parsedOwn.AgpHome);
+        Assert.Equal(resultPath2, parsedOwn.ResultFile);
+
+        var reqForeign = reqOwn with { IncludeForeign = true, Language = "ja" };
+        var argsForeign = Ue4ssCleanupElevation.BuildElevatedUninstallArguments(reqForeign);
+        Assert.Contains("--include-foreign", argsForeign);
+        var parsedForeign = UsmapFetcher.ParseUninstallUe4ssArgs(argsForeign.Skip(1).ToArray());
+        Assert.True(parsedForeign.IncludeForeign);
+        Assert.True(parsedForeign.Yes);
+        Assert.Equal(workspace.AgpHomeDir, parsedForeign.AgpHome);
+        Assert.Equal(resultPath2, parsedForeign.ResultFile);
+
+        // 3. ProcessStartInfo uses ShellExecute + runas without redirected stdio.
+        var startInfo = Ue4ssCleanupElevation.CreateElevatedStartInfo("/app/ffr-export.exe", argsForeign);
+        Assert.True(startInfo.UseShellExecute);
+        Assert.Equal("runas", startInfo.Verb);
+        Assert.False(startInfo.RedirectStandardOutput);
+        Assert.False(startInfo.RedirectStandardError);
+        Assert.Contains("--agp-home", startInfo.ArgumentList);
+        Assert.Contains("--result-file", startInfo.ArgumentList);
+        Assert.Contains("--yes", startInfo.ArgumentList);
+
+        // 4. UAC "No" (Win32Exception NativeErrorCode = 1223) returns UacCancelled without throwing.
+        using (Localization.UseLanguageScope("zh-Hans"))
+        {
+            var uacCancelRun = await Ue4ssCleanupElevation.RunElevatedAsync(
+                "/app/ffr-export.exe",
+                reqOwn,
+                processRunnerOverride: _ => throw new Win32Exception(Ue4ssCleanupElevation.ErrorCancelled, "Operation canceled by user"));
+            Assert.True(uacCancelRun.UacCancelled);
+            Assert.Null(uacCancelRun.ExitCode);
+            Assert.Null(uacCancelRun.LaunchError);
+            var cancelLog = Ue4ssCleanupElevation.FormatResultForLog(uacCancelRun);
+            Assert.Contains(cancelLog, line => line.Contains("已取消，没有做任何更改", StringComparison.Ordinal));
+            Assert.Contains("已取消，没有做任何更改", Ue4ssCleanupElevation.FormatResultSummaryForDialog(uacCancelRun), StringComparison.Ordinal);
+        }
+
+        // 5. Simulated elevated run writing a valid result JSON file is parsed and formatted cleanly.
+        var successResultFile = Path.Combine(expectedLogsDir, "uninstall-elevated-success.json");
+        var reqSuccess = reqForeign with { ResultFilePath = successResultFile };
+        var syntheticDoc = new Ue4ssCleanupResultDocument(
+            Format: 1,
+            Status: ProgressProtocol.CleanupStatusCompleted,
+            Outcome: "backed_up_foreign_install",
+            ExitCode: 0,
+            RemovedFiles: 6,
+            RemovedDirs: 2,
+            RemainingFilesInUe4ss: 0,
+            BackupDirectory: Path.Combine(workspace.AgpHomeDir, "ffr-export", "ue4ss-backup", "20261127-152030"),
+            BlockedPath: null,
+            Reason: null,
+            Message: "Moved non-managed UE4SS to backup.",
+            Messages: ["Moved non-managed UE4SS to backup.", "Archived .usmap files are unaffected."]);
+
+        using (Localization.UseLanguageScope("en"))
+        {
+            var elevatedSuccess = await Ue4ssCleanupElevation.RunElevatedAsync(
+                "/app/ffr-export.exe",
+                reqSuccess,
+                processRunnerOverride: si =>
+                {
+                    Assert.True(si.UseShellExecute);
+                    Assert.Equal("runas", si.Verb);
+                    TextOutput.WriteTextAtomic(successResultFile, ProgressProtocol.SerializeUe4ssCleanupResult(syntheticDoc));
+                    return Task.FromResult(0);
+                });
+
+            Assert.False(elevatedSuccess.UacCancelled);
+            Assert.Equal(0, elevatedSuccess.ExitCode);
+            Assert.Null(elevatedSuccess.ReadError);
+            Assert.NotNull(elevatedSuccess.Result);
+            Assert.Equal(ProgressProtocol.CleanupStatusCompleted, elevatedSuccess.Result.Status);
+            Assert.Equal(6, elevatedSuccess.Result.RemovedFiles);
+            Assert.Equal(syntheticDoc.BackupDirectory, elevatedSuccess.Result.BackupDirectory);
+
+            var formattedLog = string.Join("\n", Ue4ssCleanupElevation.FormatResultForLog(elevatedSuccess));
+            Assert.Contains("exit code: 0", formattedLog, StringComparison.Ordinal);
+            Assert.Contains("removed 6 file(s) and 2 director(ies)", formattedLog, StringComparison.Ordinal);
+            Assert.Contains(syntheticDoc.BackupDirectory!, formattedLog, StringComparison.Ordinal);
+            Assert.Contains("Moved non-managed UE4SS to backup.", formattedLog, StringComparison.Ordinal);
+        }
+
+        // 6. Missing or corrupt result files degrade safely with a clear error message.
+        Assert.False(Ue4ssCleanupElevation.TryReadResultFile(Path.Combine(workspace.Root, "missing.json"), out var missingDoc, out var missingErr));
+        Assert.Null(missingDoc);
+        Assert.False(string.IsNullOrWhiteSpace(missingErr));
+
+        var corruptFile = Path.Combine(workspace.Root, "corrupt-result.json");
+        await File.WriteAllTextAsync(corruptFile, "{ not valid json");
+        Assert.False(Ue4ssCleanupElevation.TryReadResultFile(corruptFile, out var corruptDoc, out var corruptErr));
+        Assert.Null(corruptDoc);
+        Assert.False(string.IsNullOrWhiteSpace(corruptErr));
     }
 
     private static (string ExecutablePath, string[] PrefixArgs) ResolveDirectFfrExportInvocation()

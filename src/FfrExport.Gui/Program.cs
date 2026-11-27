@@ -499,6 +499,19 @@ internal static class Program
 
                 EnsureChildControlHandlesCreated(settingsDialog);
                 settingsDialog.PerformLayout();
+
+                using var elevationDialog = new Ue4ssElevationDialog(
+                    Path.Combine(activeAgpRoot, "sample-denied.dll"),
+                    form.Font,
+                    form.Font);
+                elevationDialog.CreateControl();
+                if (elevationDialog.Handle == IntPtr.Zero || !elevationDialog.IsHandleCreated)
+                {
+                    throw new InvalidOperationException(L.Format("Gui_SelfTestChildHandleFailed", nameof(Ue4ssElevationDialog)));
+                }
+
+                EnsureChildControlHandlesCreated(elevationDialog);
+                elevationDialog.PerformLayout();
             }
 
             startupLog.WriteInfo(L.Format(
