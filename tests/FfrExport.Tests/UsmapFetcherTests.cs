@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using FfrExport.Gui.Core;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -892,6 +894,544 @@ public sealed class UsmapFetcherTests
             "ffr-24250053",
             "ffr.sqlite");
         Assert.True(File.Exists(expectedDefaultSqlite));
+    }
+
+    [Fact]
+    public async Task UninstallUe4ss_StripsReadOnlyOnlyOnTargetFilesAndRespectsAgpHomeAndResultFile()
+    {
+        using var workspace = new TempWorkspace("ffr-ue4ss-readonly");
+        var gameDir = CreateSyntheticGameDirectory(workspace.Root, "24250053", "GameReadOnly");
+        var win64Dir = Ue4ssRuntimeSupport.GetWin64Directory(gameDir);
+        var ue4ssDir = Ue4ssRuntimeSupport.GetUe4ssDirectory(gameDir);
+        var zipPath = CreateSyntheticUe4ssZip(Path.Combine(workspace.Root, "UE4SS_v4.0.0.zip"));
+
+        Ue4ssArchiveInstaller.InstallFromVerifiedZip(
+            zipPath,
+            gameDir,
+            GameVersionDetector.ComputeFileSha256Lower(zipPath));
+
+        var dumpModScript = Path.Combine(ue4ssDir, "Mods", "FfrUsmapDump", "Scripts", "main.lua");
+        var doneFile = Ue4ssRuntimeSupport.GetDoneMarkerPath(gameDir);
+        var untouchedUserLog = Path.Combine(ue4ssDir, "UE4SS.log");
+        Directory.CreateDirectory(Path.GetDirectoryName(dumpModScript)!);
+        await File.WriteAllTextAsync(dumpModScript, "-- dump\n");
+        await File.WriteAllTextAsync(doneFile, "{}");
+        await File.WriteAllTextAsync(untouchedUserLog, "keep me read-only");
+
+        var dwmapiPath = Path.Combine(win64Dir, "dwmapi.dll");
+        var ue4ssDllPath = Path.Combine(ue4ssDir, "UE4SS.dll");
+        var markerPath = Ue4ssRuntimeSupport.GetInstallMarkerPath(gameDir);
+
+        string[] readOnlyPaths = [dwmapiPath, ue4ssDllPath, markerPath, dumpModScript, doneFile, untouchedUserLog];
+        try
+        {
+            foreach (var path in readOnlyPaths)
+            {
+                File.SetAttributes(path, File.GetAttributes(path) | FileAttributes.ReadOnly);
+            }
+
+            var explicitAgpHome = Path.Combine(workspace.Root, "explicit-agp");
+            var resultFile = Path.Combine(workspace.Root, "results", "readonly-result.json");
+            var cliResult = await TestHarness.RunCliAsync(
+                [
+                    "--lang", "en",
+                    "uninstall-ue4ss",
+                    "--game", gameDir,
+                    "--yes",
+                    "--agp-home", explicitAgpHome,
+                    "--result-file", resultFile,
+                ],
+                agpHome: workspace.AgpHomeDir);
+
+            Assert.True(cliResult.ExitCode == 0, $"stdout:\n{cliResult.Stdout}\nstderr:\n{cliResult.Stderr}");
+            Assert.False(File.Exists(dwmapiPath));
+            Assert.False(File.Exists(ue4ssDllPath));
+            Assert.False(File.Exists(markerPath));
+            Assert.False(File.Exists(dumpModScript));
+            Assert.False(File.Exists(doneFile));
+
+            // Untouched non-manifest user file must still exist AND retain its ReadOnly attribute.
+            Assert.True(File.Exists(untouchedUserLog));
+            Assert.True((File.GetAttributes(untouchedUserLog) & FileAttributes.ReadOnly) != 0);
+
+            Assert.True(File.Exists(resultFile));
+            Assert.True(Ue4ssCleanupElevation.TryReadResultFile(resultFile, out var doc, out var err), err);
+            Assert.NotNull(doc);
+            Assert.Equal(ProgressProtocol.CleanupStatusCompleted, doc.Status);
+            Assert.Equal("removed_own_install", doc.Outcome);
+            Assert.Equal(0, doc.ExitCode);
+            Assert.True(doc.RemovedFiles >= 7);
+            Assert.Null(doc.BlockedPath);
+
+            // --agp-home must override AGP_HOME env var for foreign backup storage.
+            Directory.CreateDirectory(ue4ssDir);
+            await File.WriteAllTextAsync(dwmapiPath, "foreign-dwmapi");
+            await File.WriteAllTextAsync(ue4ssDllPath, "foreign-ue4ss");
+            var foreignResultFile = Path.Combine(workspace.Root, "results", "foreign-result.json");
+            var foreignRes = await TestHarness.RunCliAsync(
+                [
+                    "--lang", "en",
+                    "uninstall-ue4ss",
+                    "--game", gameDir,
+                    "--include-foreign",
+                    "--yes",
+                    "--agp-home", explicitAgpHome,
+                    "--result-file", foreignResultFile,
+                ],
+                agpHome: workspace.AgpHomeDir);
+
+            Assert.True(foreignRes.ExitCode == 0, $"stdout:\n{foreignRes.Stdout}\nstderr:\n{foreignRes.Stderr}");
+            var explicitBackupRoot = AgpPaths.GetUe4ssBackupDirectoryForAgpRoot(explicitAgpHome);
+            var envBackupRoot = AgpPaths.GetUe4ssBackupDirectoryForAgpRoot(workspace.AgpHomeDir);
+            Assert.True(Directory.Exists(explicitBackupRoot));
+            var backupDir = Assert.Single(Directory.EnumerateDirectories(explicitBackupRoot));
+            Assert.False(Directory.Exists(envBackupRoot));
+
+            Assert.True(Ue4ssCleanupElevation.TryReadResultFile(foreignResultFile, out var foreignDoc, out var foreignErr), foreignErr);
+            Assert.NotNull(foreignDoc);
+            Assert.Equal(ProgressProtocol.CleanupStatusCompleted, foreignDoc.Status);
+            Assert.Equal("backed_up_foreign_install", foreignDoc.Outcome);
+            Assert.Equal(backupDir, foreignDoc.BackupDirectory);
+        }
+        finally
+        {
+            foreach (var path in readOnlyPaths)
+            {
+                if (File.Exists(path))
+                {
+                    try
+                    {
+                        File.SetAttributes(path, File.GetAttributes(path) & ~FileAttributes.ReadOnly);
+                    }
+                    catch
+                    {
+                        // Best-effort cleanup.
+                    }
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task UninstallUe4ss_AccessDeniedInUseMarkerLastSafeRetryAndFetchClearError()
+    {
+        using var workspace = new TempWorkspace("ffr-ue4ss-elev");
+        var zipPath = CreateSyntheticUe4ssZip(Path.Combine(workspace.Root, "UE4SS_v4.0.0.zip"));
+        var zipSha = GameVersionDetector.ComputeFileSha256Lower(zipPath);
+        var stoppedLauncher = new FakeGameLauncher { Running = false };
+
+        // 1. Own install: marker (.installed-by-ffr-export.json) sorts before UE4SS.dll, yet must be deleted LAST.
+        //    When deleting UE4SS.dll fails with UnauthorizedAccessException:
+        //    - exit code is ExitCodeNeedsElevation (5)
+        //    - stdout emits @@ue4ss-cleanup with status=needs_elevation, reason=access_denied, path=...UE4SS.dll
+        //    - result-file JSON contains matching status, exit_code, blocked_path, reason
+        //    - marker file STILL exists so retry works safely.
+        var gameOwn = CreateSyntheticGameDirectory(workspace.Root, "24250053", "GameOwnDeny");
+        Ue4ssArchiveInstaller.InstallFromVerifiedZip(zipPath, gameOwn, zipSha);
+        var ownUe4ssDll = Path.Combine(Ue4ssRuntimeSupport.GetUe4ssDirectory(gameOwn), "UE4SS.dll");
+        var ownMarker = Ue4ssRuntimeSupport.GetInstallMarkerPath(gameOwn);
+
+        using (Localization.UseLanguageScope("zh-Hans"))
+        {
+            var denyResultFile = Path.Combine(workspace.Root, "own-deny.json");
+            var denyOut = new StringWriter();
+            var denyErr = new StringWriter();
+            var denyExit = UsmapFetcher.RunUninstall(
+                new UninstallUe4ssOptions(gameOwn, IncludeForeign: false, Yes: true, AgpHome: workspace.AgpHomeDir, ResultFile: denyResultFile),
+                stoppedLauncher,
+                new StringReader(string.Empty),
+                denyOut,
+                denyErr,
+                beforeDeleteHook: path =>
+                {
+                    if (string.Equals(Path.GetFileName(path), "UE4SS.dll", StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new UnauthorizedAccessException("Access to the path is denied.");
+                    }
+                });
+
+            Assert.Equal(ProgressProtocol.ExitCodeNeedsElevation, denyExit);
+            Assert.True(File.Exists(ownMarker), "Install marker must remain intact when deleting another file fails.");
+            Assert.True(Ue4ssRuntimeSupport.HasOwnInstallMarker(gameOwn));
+
+            var protocolLine = denyOut.ToString()
+                .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+                .Single(line => line.StartsWith(ProgressProtocol.Ue4ssCleanupPrefix, StringComparison.Ordinal));
+            Assert.True(ProgressProtocol.TryParseUe4ssCleanupLine(protocolLine, out var msg));
+            Assert.Equal(ProgressProtocol.CleanupStatusNeedsElevation, msg.Status);
+            Assert.Equal(ProgressProtocol.CleanupReasonAccessDenied, msg.Reason);
+            Assert.Equal(ownUe4ssDll, msg.Path);
+
+            Assert.True(Ue4ssCleanupElevation.TryReadResultFile(denyResultFile, out var doc, out var err), err);
+            Assert.NotNull(doc);
+            Assert.Equal(ProgressProtocol.CleanupStatusNeedsElevation, doc.Status);
+            Assert.Equal(ProgressProtocol.ExitCodeNeedsElevation, doc.ExitCode);
+            Assert.Equal(ProgressProtocol.CleanupReasonAccessDenied, doc.Reason);
+            Assert.Equal(ownUe4ssDll, doc.BlockedPath);
+
+            // Retry after permissions are granted completes cleanly and deletes UE4SS.dll and marker.
+            var retryResultFile = Path.Combine(workspace.Root, "own-retry.json");
+            var retryOut = new StringWriter();
+            var retryExit = UsmapFetcher.RunUninstall(
+                new UninstallUe4ssOptions(gameOwn, IncludeForeign: false, Yes: true, AgpHome: workspace.AgpHomeDir, ResultFile: retryResultFile),
+                stoppedLauncher,
+                new StringReader(string.Empty),
+                retryOut,
+                new StringWriter());
+            Assert.Equal(0, retryExit);
+            Assert.False(File.Exists(ownUe4ssDll));
+            Assert.False(File.Exists(ownMarker));
+            Assert.True(Ue4ssCleanupElevation.TryReadResultFile(retryResultFile, out var retryDoc, out var retryErr), retryErr);
+            Assert.NotNull(retryDoc);
+            Assert.Equal(ProgressProtocol.CleanupStatusCompleted, retryDoc.Status);
+            Assert.Equal("removed_own_install", retryDoc.Outcome);
+        }
+
+        // 2. Sharing violation IOException (file in use) -> ExitCodeFileInUse (6), reason=in_use, prompts user to exit game, no elevation.
+        var gameInUse = CreateSyntheticGameDirectory(workspace.Root, "24250053", "GameInUse");
+        Ue4ssArchiveInstaller.InstallFromVerifiedZip(zipPath, gameInUse, zipSha);
+        var inUseDwmapi = Path.Combine(Ue4ssRuntimeSupport.GetWin64Directory(gameInUse), "dwmapi.dll");
+        var inUseMarker = Ue4ssRuntimeSupport.GetInstallMarkerPath(gameInUse);
+
+        using (Localization.UseLanguageScope("zh-Hans"))
+        {
+            var inUseResultFile = Path.Combine(workspace.Root, "in-use.json");
+            var inUseOut = new StringWriter();
+            var inUseExit = UsmapFetcher.RunUninstall(
+                new UninstallUe4ssOptions(gameInUse, IncludeForeign: false, Yes: true, AgpHome: workspace.AgpHomeDir, ResultFile: inUseResultFile),
+                stoppedLauncher,
+                new StringReader(string.Empty),
+                inUseOut,
+                new StringWriter(),
+                beforeDeleteHook: path =>
+                {
+                    if (string.Equals(Path.GetFileName(path), "dwmapi.dll", StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new IOException("The process cannot access the file because it is being used by another process.", unchecked((int)0x80070020));
+                    }
+                });
+
+            Assert.Equal(ProgressProtocol.ExitCodeFileInUse, inUseExit);
+            Assert.True(File.Exists(inUseMarker));
+            Assert.Contains("请确认游戏已完全退出后重试", inUseOut.ToString(), StringComparison.Ordinal);
+
+            var protocolLine = inUseOut.ToString()
+                .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+                .Single(line => line.StartsWith(ProgressProtocol.Ue4ssCleanupPrefix, StringComparison.Ordinal));
+            Assert.True(ProgressProtocol.TryParseUe4ssCleanupLine(protocolLine, out var inUseMsg));
+            Assert.Equal(ProgressProtocol.CleanupStatusInUse, inUseMsg.Status);
+            Assert.Equal(ProgressProtocol.CleanupReasonInUse, inUseMsg.Reason);
+            Assert.Equal(inUseDwmapi, inUseMsg.Path);
+
+            Assert.True(Ue4ssCleanupElevation.TryReadResultFile(inUseResultFile, out var inUseDoc, out var inUseErr), inUseErr);
+            Assert.NotNull(inUseDoc);
+            Assert.Equal(ProgressProtocol.CleanupStatusInUse, inUseDoc.Status);
+            Assert.Equal(ProgressProtocol.CleanupReasonInUse, inUseDoc.Reason);
+            Assert.Equal(ProgressProtocol.ExitCodeFileInUse, inUseDoc.ExitCode);
+            Assert.Equal(inUseDwmapi, inUseDoc.BlockedPath);
+        }
+
+        // Verify HResult classification for ERROR_LOCK_VIOLATION (33) and ERROR_USER_MAPPED_FILE (1224).
+        Assert.True(Ue4ssRuntimeSupport.TryClassifyAccessFailure(
+            new IOException("lock violation", unchecked((int)0x80070021)),
+            out var lockReason));
+        Assert.Equal(ProgressProtocol.CleanupReasonInUse, lockReason);
+        Assert.True(Ue4ssRuntimeSupport.TryClassifyAccessFailure(
+            new IOException("user mapped file", unchecked((int)0x800704C8)),
+            out var mappedReason));
+        Assert.Equal(ProgressProtocol.CleanupReasonInUse, mappedReason);
+        Assert.False(Ue4ssRuntimeSupport.TryClassifyAccessFailure(
+            new IOException("generic disk error"),
+            out _));
+
+        // 3. Foreign UE4SS partial delete failure -> retry verifies content matches and reuses the SAME backup (no second backup created!).
+        var gameForeign = CreateSyntheticGameDirectory(workspace.Root, "24250053", "GameForeignRetry");
+        var foreignWin64 = Ue4ssRuntimeSupport.GetWin64Directory(gameForeign);
+        var foreignUe4ss = Ue4ssRuntimeSupport.GetUe4ssDirectory(gameForeign);
+        var customModFile = Path.Combine(foreignUe4ss, "Mods", "CustomMod", "main.lua");
+        Directory.CreateDirectory(Path.GetDirectoryName(customModFile)!);
+        await File.WriteAllTextAsync(Path.Combine(foreignWin64, "dwmapi.dll"), "foreign-dwmapi-v1");
+        await File.WriteAllTextAsync(Path.Combine(foreignUe4ss, "UE4SS.dll"), "foreign-ue4ss-v1");
+        await File.WriteAllTextAsync(Path.Combine(foreignUe4ss, "UE4SS-settings.ini"), "[Debug]\nConsoleEnabled = 1\n");
+        await File.WriteAllTextAsync(customModFile, "-- user custom mod\n");
+
+        var foreignAgp = Path.Combine(workspace.Root, "foreign-retry-agp");
+        var firstTime = new DateTimeOffset(2026, 11, 27, 14, 0, 0, TimeSpan.FromHours(9));
+        var secondTime = firstTime.AddMinutes(5);
+
+        using (Localization.UseLanguageScope("zh-Hans"))
+        {
+            var attempt1ResultFile = Path.Combine(workspace.Root, "foreign-attempt1.json");
+            var attempt1Exit = UsmapFetcher.RunUninstall(
+                new UninstallUe4ssOptions(gameForeign, IncludeForeign: true, Yes: true, AgpHome: foreignAgp, ResultFile: attempt1ResultFile),
+                stoppedLauncher,
+                new StringReader(string.Empty),
+                new StringWriter(),
+                new StringWriter(),
+                nowOverride: () => firstTime,
+                beforeDeleteHook: path =>
+                {
+                    // Allow CustomMod/main.lua to be deleted first (partial failure), then fail on UE4SS.dll.
+                    if (string.Equals(Path.GetFileName(path), "UE4SS.dll", StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new UnauthorizedAccessException("Access denied on UE4SS.dll");
+                    }
+                });
+
+            Assert.Equal(ProgressProtocol.ExitCodeNeedsElevation, attempt1Exit);
+            Assert.False(File.Exists(customModFile), "Non-sentinel file was partially deleted on attempt 1.");
+            Assert.True(File.Exists(Path.Combine(foreignUe4ss, "UE4SS.dll")), "Sentinel UE4SS.dll remains for retry detection.");
+            Assert.True(File.Exists(Path.Combine(foreignWin64, "dwmapi.dll")), "Sentinel dwmapi.dll remains for retry detection.");
+
+            var backupRoot = AgpPaths.GetUe4ssBackupDirectoryForAgpRoot(foreignAgp);
+            var firstBackupDir = Assert.Single(Directory.EnumerateDirectories(backupRoot));
+            Assert.True(Ue4ssCleanupElevation.TryReadResultFile(attempt1ResultFile, out var doc1, out var err1), err1);
+            Assert.NotNull(doc1);
+            Assert.Equal(firstBackupDir, doc1.BackupDirectory);
+
+            // Attempt 2 at a later timestamp reuses the exact same backup folder without creating a second one.
+            var attempt2ResultFile = Path.Combine(workspace.Root, "foreign-attempt2.json");
+            var attempt2Out = new StringWriter();
+            var attempt2Exit = UsmapFetcher.RunUninstall(
+                new UninstallUe4ssOptions(gameForeign, IncludeForeign: true, Yes: true, AgpHome: foreignAgp, ResultFile: attempt2ResultFile),
+                stoppedLauncher,
+                new StringReader(string.Empty),
+                attempt2Out,
+                new StringWriter(),
+                nowOverride: () => secondTime);
+
+            Assert.Equal(0, attempt2Exit);
+            var onlyBackupDir = Assert.Single(Directory.EnumerateDirectories(backupRoot));
+            Assert.Equal(firstBackupDir, onlyBackupDir);
+            Assert.Contains("跳过重复复制", attempt2Out.ToString(), StringComparison.Ordinal);
+            Assert.False(File.Exists(Path.Combine(foreignWin64, "dwmapi.dll")));
+            Assert.False(Directory.Exists(foreignUe4ss));
+
+            // Full backup integrity verified (including CustomMod/main.lua that had been deleted in attempt 1).
+            Assert.Equal("foreign-dwmapi-v1", await File.ReadAllTextAsync(Path.Combine(onlyBackupDir, "dwmapi.dll")));
+            Assert.Equal("foreign-ue4ss-v1", await File.ReadAllTextAsync(Path.Combine(onlyBackupDir, "ue4ss", "UE4SS.dll")));
+            Assert.Equal("-- user custom mod\n", await File.ReadAllTextAsync(Path.Combine(onlyBackupDir, "ue4ss", "Mods", "CustomMod", "main.lua")));
+
+            Assert.True(Ue4ssCleanupElevation.TryReadResultFile(attempt2ResultFile, out var doc2, out var err2), err2);
+            Assert.NotNull(doc2);
+            Assert.Equal(ProgressProtocol.CleanupStatusCompleted, doc2.Status);
+            Assert.Equal(onlyBackupDir, doc2.BackupDirectory);
+
+            // If new modified foreign files appear later, content hash differs so a new backup IS created.
+            Directory.CreateDirectory(foreignUe4ss);
+            await File.WriteAllTextAsync(Path.Combine(foreignWin64, "dwmapi.dll"), "foreign-dwmapi-v2-changed");
+            await File.WriteAllTextAsync(Path.Combine(foreignUe4ss, "UE4SS.dll"), "foreign-ue4ss-v2-changed");
+            var attempt3Exit = UsmapFetcher.RunUninstall(
+                new UninstallUe4ssOptions(gameForeign, IncludeForeign: true, Yes: true, AgpHome: foreignAgp),
+                stoppedLauncher,
+                new StringReader(string.Empty),
+                new StringWriter(),
+                new StringWriter(),
+                nowOverride: () => secondTime.AddMinutes(5));
+            Assert.Equal(0, attempt3Exit);
+            Assert.Equal(2, Directory.EnumerateDirectories(backupRoot).Count());
+        }
+
+        // 4. Real OS-level delete denial via CLI subprocess (chmod 0555 on non-root Linux, icacls DE/DC on Windows).
+        await VerifyOsLevelDeleteDeniedViaCliAsync(workspace.Root, zipPath, zipSha);
+
+        // 5. fetch-usmap install & temporary mod deployment report clear actionable error on UnauthorizedAccessException.
+        var gameFetchDeny = CreateSyntheticGameDirectory(workspace.Root, "24250053", "GameFetchDeny");
+        using (Localization.UseLanguageScope("zh-Hans"))
+        {
+            var installEx = Assert.Throws<UnauthorizedAccessException>(() =>
+                Ue4ssArchiveInstaller.InstallFromVerifiedZip(
+                    zipPath,
+                    gameFetchDeny,
+                    zipSha,
+                    beforeFileWriteHook: _ => throw new UnauthorizedAccessException("Access denied.")));
+            Assert.Contains("对当前用户不可写", installEx.Message, StringComparison.Ordinal);
+            Assert.Contains("清理 UE4SS", installEx.Message, StringComparison.Ordinal);
+            Assert.Contains("管理员身份", installEx.Message, StringComparison.Ordinal);
+        }
+
+        using (Localization.UseLanguageScope("en"))
+        {
+            var installExEn = Assert.Throws<UnauthorizedAccessException>(() =>
+                Ue4ssArchiveInstaller.InstallFromVerifiedZip(
+                    zipPath,
+                    gameFetchDeny,
+                    zipSha,
+                    beforeFileWriteHook: _ => throw new UnauthorizedAccessException("Access denied.")));
+            Assert.Contains("not writable by the current user", installExEn.Message, StringComparison.Ordinal);
+            Assert.Contains("Clean up UE4SS", installExEn.Message, StringComparison.Ordinal);
+            Assert.Contains("Administrator", installExEn.Message, StringComparison.Ordinal);
+        }
+    }
+
+    private static async Task VerifyOsLevelDeleteDeniedViaCliAsync(string root, string zipPath, string zipSha)
+    {
+        var gameDir = CreateSyntheticGameDirectory(root, "24250053", "GameOsDeny");
+        Ue4ssArchiveInstaller.InstallFromVerifiedZip(zipPath, gameDir, zipSha);
+        var ue4ssDir = Ue4ssRuntimeSupport.GetUe4ssDirectory(gameDir);
+        var markerPath = Ue4ssRuntimeSupport.GetInstallMarkerPath(gameDir);
+        var probeDir = Path.Combine(root, "os-acl-probe");
+        var probeFile = Path.Combine(probeDir, "probe.txt");
+        Directory.CreateDirectory(probeDir);
+        await File.WriteAllTextAsync(probeFile, "probe");
+
+        var denyAppliedToProbe = false;
+        var denyAppliedToUe4ss = false;
+        try
+        {
+            denyAppliedToProbe = TryApplyDeleteDeny(probeDir);
+            var osEnforcesDeleteDeny = false;
+            if (denyAppliedToProbe)
+            {
+                try
+                {
+                    File.Delete(probeFile);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    osEnforcesDeleteDeny = true;
+                }
+            }
+
+            if (!osEnforcesDeleteDeny)
+            {
+                // Root on Linux (uid 0) bypasses chmod 0555; on Windows and non-root Linux this must always take effect.
+                Assert.False(OperatingSystem.IsWindows(), "icacls deny DE/DC must take effect on Windows.");
+                return;
+            }
+
+            Assert.True(TryApplyDeleteDeny(ue4ssDir));
+            denyAppliedToUe4ss = true;
+
+            var agpHome = Path.Combine(root, "os-deny-agp");
+            var resultFile = Path.Combine(root, "os-deny-result.json");
+            var cliDeny = await TestHarness.RunCliAsync(
+                [
+                    "--lang", "en",
+                    "uninstall-ue4ss",
+                    "--game", gameDir,
+                    "--yes",
+                    "--agp-home", agpHome,
+                    "--result-file", resultFile,
+                ],
+                agpHome: agpHome);
+
+            Assert.Equal(ProgressProtocol.ExitCodeNeedsElevation, cliDeny.ExitCode);
+            var protocolLine = cliDeny.Stdout
+                .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+                .Single(line => line.StartsWith(ProgressProtocol.Ue4ssCleanupPrefix, StringComparison.Ordinal));
+            Assert.True(ProgressProtocol.TryParseUe4ssCleanupLine(protocolLine, out var msg));
+            Assert.Equal(ProgressProtocol.CleanupStatusNeedsElevation, msg.Status);
+            Assert.Equal(ProgressProtocol.CleanupReasonAccessDenied, msg.Reason);
+            Assert.False(string.IsNullOrWhiteSpace(msg.Path));
+
+            Assert.True(Ue4ssCleanupElevation.TryReadResultFile(resultFile, out var denyDoc, out var denyErr), denyErr);
+            Assert.NotNull(denyDoc);
+            Assert.Equal(ProgressProtocol.CleanupStatusNeedsElevation, denyDoc.Status);
+            Assert.Equal(ProgressProtocol.ExitCodeNeedsElevation, denyDoc.ExitCode);
+            Assert.Equal(ProgressProtocol.CleanupReasonAccessDenied, denyDoc.Reason);
+            Assert.Equal(msg.Path, denyDoc.BlockedPath);
+
+            // Lift deny and verify marker was preserved and retry removes everything cleanly.
+            RemoveDeleteDeny(ue4ssDir);
+            denyAppliedToUe4ss = false;
+            Assert.True(File.Exists(markerPath));
+
+            var retryResultFile = Path.Combine(root, "os-retry-result.json");
+            var cliRetry = await TestHarness.RunCliAsync(
+                [
+                    "--lang", "en",
+                    "uninstall-ue4ss",
+                    "--game", gameDir,
+                    "--yes",
+                    "--agp-home", agpHome,
+                    "--result-file", retryResultFile,
+                ],
+                agpHome: agpHome);
+
+            Assert.True(cliRetry.ExitCode == 0, $"stdout:\n{cliRetry.Stdout}\nstderr:\n{cliRetry.Stderr}");
+            Assert.False(File.Exists(markerPath));
+            Assert.False(Directory.Exists(ue4ssDir));
+        }
+        finally
+        {
+            if (denyAppliedToUe4ss)
+            {
+                RemoveDeleteDeny(ue4ssDir);
+            }
+
+            if (denyAppliedToProbe)
+            {
+                RemoveDeleteDeny(probeDir);
+            }
+        }
+    }
+
+    private static bool TryApplyDeleteDeny(string directory)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            using var proc = Process.Start(new ProcessStartInfo
+            {
+                FileName = "icacls",
+                Arguments = $"\"{directory}\" /deny *S-1-1-0:(OI)(CI)(DE,DC)",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            });
+            if (proc is null)
+            {
+                return false;
+            }
+
+            proc.WaitForExit(10_000);
+            return proc.ExitCode == 0;
+        }
+
+        File.SetUnixFileMode(
+            directory,
+            UnixFileMode.UserRead | UnixFileMode.UserExecute
+            | UnixFileMode.GroupRead | UnixFileMode.GroupExecute
+            | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+        return true;
+    }
+
+    private static void RemoveDeleteDeny(string directory)
+    {
+        try
+        {
+            if (!Directory.Exists(directory))
+            {
+                return;
+            }
+
+            if (OperatingSystem.IsWindows())
+            {
+                using var proc = Process.Start(new ProcessStartInfo
+                {
+                    FileName = "icacls",
+                    Arguments = $"\"{directory}\" /remove:d *S-1-1-0",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                });
+                proc?.WaitForExit(10_000);
+            }
+            else
+            {
+                File.SetUnixFileMode(
+                    directory,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+                    | UnixFileMode.GroupRead | UnixFileMode.GroupExecute
+                    | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+            }
+        }
+        catch
+        {
+            // Best-effort ACL restoration during test cleanup.
+        }
     }
 
     private sealed class FakeUe4ssDownloader : IUe4ssPackageDownloader

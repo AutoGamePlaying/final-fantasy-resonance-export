@@ -216,6 +216,18 @@ public sealed class LocalizationTests
         Assert.True(ProgressProtocol.TryParseUsmapLine(usmapLine, out var parsedUsmap));
         Assert.Equal(@"D:\Games\My Folder\FFRS.usmap", parsedUsmap);
 
+        var cleanupDenyLine = ProgressProtocol.FormatUe4ssCleanupLine(
+            ProgressProtocol.CleanupStatusNeedsElevation,
+            @"C:\Program Files (x86)\Steam\steamapps\common\Game\dwmapi.dll",
+            ProgressProtocol.CleanupReasonAccessDenied);
+        Assert.True(ProgressProtocol.IsMachineProtocolLine(cleanupDenyLine));
+        Assert.True(ProgressProtocol.TryParseUe4ssCleanupLine(cleanupDenyLine, out var parsedDeny));
+        Assert.Equal(ProgressProtocol.CleanupStatusNeedsElevation, parsedDeny.Status);
+        Assert.Equal(@"C:\Program Files (x86)\Steam\steamapps\common\Game\dwmapi.dll", parsedDeny.Path);
+        Assert.Equal(ProgressProtocol.CleanupReasonAccessDenied, parsedDeny.Reason);
+        Assert.False(ProgressProtocol.TryParseUe4ssCleanupLine("@@ue4ss-cleanup {bad}", out _));
+        Assert.False(ProgressProtocol.TryParseUe4ssCleanupLine("@@ue4ss-cleanup {\"status\":\"\"}", out _));
+
         Assert.False(ProgressProtocol.IsMachineProtocolLine("==> Step 1/5: Detect game version"));
         Assert.False(ProgressProtocol.IsMachineProtocolLine("==> 步骤 1/5：识别游戏版本与输入哈希"));
         Assert.False(ProgressProtocol.IsMachineProtocolLine("==> ステップ 1/5：ゲームバージョンと入力ハッシュを検出"));

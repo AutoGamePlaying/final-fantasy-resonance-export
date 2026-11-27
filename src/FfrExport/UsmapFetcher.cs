@@ -17,7 +17,9 @@ internal sealed record FetchUsmapOptions(
 internal sealed record UninstallUe4ssOptions(
     string GameDirectory,
     bool IncludeForeign = false,
-    bool Yes = false);
+    bool Yes = false,
+    string? AgpHome = null,
+    string? ResultFile = null);
 
 internal enum Ue4ssUninstallOutcome
 {
@@ -26,6 +28,8 @@ internal enum Ue4ssUninstallOutcome
     RemovedRemnantsOnly,
     BackedUpForeignInstall,
     Cancelled,
+    NeedsElevation,
+    FileInUse,
 }
 
 internal sealed record Ue4ssUninstallResult(
@@ -33,7 +37,10 @@ internal sealed record Ue4ssUninstallResult(
     int RemovedFiles,
     int RemovedDirs,
     int RemainingFilesInUe4ss,
-    string? BackupDirectory);
+    string? BackupDirectory,
+    string? BlockedPath = null,
+    string? Reason = null,
+    string? ErrorDetail = null);
 
 internal sealed record Ue4ssInstallMarker(
     [property: JsonProperty("format")] int Format,
@@ -345,6 +352,7 @@ internal static class Ue4ssModManager
     /// </summary>
     internal static string DeployTemporaryDumpMod(string gameDirectory)
     {
+        var win64Dir = Ue4ssRuntimeSupport.GetWin64Directory(gameDirectory);
         var modDir = Ue4ssRuntimeSupport.GetDumpModDirectory(gameDirectory);
         var scriptsDir = Path.Combine(modDir, "Scripts");
         var mainLuaPath = Path.Combine(scriptsDir, "main.lua");
@@ -353,17 +361,14 @@ internal static class Ue4ssModManager
 
         try
         {
-            var ioDone = PathSupport.ToIoPath(donePath);
-            if (File.Exists(ioDone))
-            {
-                File.Delete(ioDone);
-            }
-
-            var ioDoneTmp = PathSupport.ToIoPath(donePath + ".tmp");
-            if (File.Exists(ioDoneTmp))
-            {
-                File.Delete(ioDoneTmp);
-            }
+            Ue4ssRuntimeSupport.DeleteFileClearingReadOnly(donePath);
+            Ue4ssRuntimeSupport.DeleteFileClearingReadOnly(donePath + ".tmp");
+        }
+        catch (Exception exception) when (Ue4ssRuntimeSupport.IsAccessDeniedFailure(exception))
+        {
+            throw new UnauthorizedAccessException(
+                L.Format("FetchUsmap_GameDirAccessDenied", win64Dir, exception.Message),
+                exception);
         }
         catch (Exception exception)
         {
@@ -371,9 +376,19 @@ internal static class Ue4ssModManager
         }
 
         var luaContent = LoadEmbeddedMainLua();
-        Directory.CreateDirectory(PathSupport.ToIoPath(scriptsDir));
-        TextOutput.WriteText(mainLuaPath, luaContent);
-        TextOutput.WriteText(enabledTxtPath, string.Empty);
+        try
+        {
+            Directory.CreateDirectory(PathSupport.ToIoPath(scriptsDir));
+            TextOutput.WriteText(mainLuaPath, luaContent);
+            TextOutput.WriteText(enabledTxtPath, string.Empty);
+        }
+        catch (Exception exception) when (Ue4ssRuntimeSupport.IsAccessDeniedFailure(exception))
+        {
+            throw new UnauthorizedAccessException(
+                L.Format("FetchUsmap_GameDirAccessDenied", win64Dir, exception.Message),
+                exception);
+        }
+
         return modDir;
     }
 
@@ -536,9 +551,16 @@ internal static class Ue4ssArchiveInstaller
 
             return marker;
         }
-        catch
+        catch (Exception exception)
         {
             RollbackWrittenFiles(writtenFiles, createdDirs);
+            if (Ue4ssRuntimeSupport.IsAccessDeniedFailure(exception))
+            {
+                throw new UnauthorizedAccessException(
+                    L.Format("FetchUsmap_GameDirAccessDenied", win64Dir, exception.Message),
+                    exception);
+            }
+
             throw;
         }
     }
@@ -608,7 +630,8 @@ internal static class Ue4ssArchiveInstaller
         bool yes = false,
         TextReader? input = null,
         string? agpHomeOverride = null,
-        Func<DateTimeOffset>? nowOverride = null)
+        Func<DateTimeOffset>? nowOverride = null,
+        Action<string>? beforeDeleteHook = null)
     {
         var gamePaths = GameVersionDetector.ValidateGameDirectory(gameDirectory);
         if (launcher.IsGameRunning())
@@ -619,185 +642,271 @@ internal static class Ue4ssArchiveInstaller
 
         var inspection = Ue4ssRuntimeSupport.InspectUe4ssState(gamePaths.GameRoot);
         var markerExists = File.Exists(PathSupport.ToIoPath(inspection.MarkerPath));
+        var removedFiles = 0;
+        var removedDirs = 0;
+        string? activeBackupDir = null;
 
-        // Case 1: Installed by ffr-export (marker file exists — validate strictly against path traversal).
-        if (markerExists)
+        try
         {
-            var marker = ReadAndValidateMarker(inspection.MarkerPath, inspection.Win64Directory);
-
-            var (remnantFiles, remnantDirs) = Ue4ssRuntimeSupport.CleanOurRemnants(
-                gamePaths.GameRoot,
-                removeEmptyParentDirs: false,
-                log: message => output.WriteLine(message));
-
-            var removedFiles = remnantFiles;
-            foreach (var relativeFile in marker.Files)
+            // Case 1: Installed by ffr-export (marker file exists — validate strictly against path traversal).
+            if (markerExists)
             {
-                var fullPath = CombineUnderWin64(inspection.Win64Directory, relativeFile);
-                var ioPath = PathSupport.ToIoPath(fullPath);
-                if (File.Exists(ioPath))
-                {
-                    File.Delete(ioPath);
-                    removedFiles++;
-                }
-            }
+                var marker = ReadAndValidateMarker(inspection.MarkerPath, inspection.Win64Directory);
 
-            // Ensure the marker file itself is removed even if an older marker omitted its own path.
-            var ioMarker = PathSupport.ToIoPath(inspection.MarkerPath);
-            if (File.Exists(ioMarker))
-            {
-                File.Delete(ioMarker);
-                removedFiles++;
-            }
-
-            var removedDirs = remnantDirs;
-            var dirsDeepestFirst = marker.Directories
-                .Concat(["ue4ss/Mods", "ue4ss"])
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderByDescending(dir => dir.Length)
-                .ThenByDescending(dir => dir, StringComparer.Ordinal)
-                .ToArray();
-            foreach (var relativeDir in dirsDeepestFirst)
-            {
-                var fullDir = CombineUnderWin64(inspection.Win64Directory, relativeDir);
-                var ioDir = PathSupport.ToIoPath(fullDir);
-                if (Directory.Exists(ioDir) && !Directory.EnumerateFileSystemEntries(ioDir).Any())
-                {
-                    Directory.Delete(ioDir, recursive: false);
-                    removedDirs++;
-                }
-            }
-
-            var remaining = CountFilesInDirectory(inspection.Ue4ssDirectory);
-            output.WriteLine(L.Format("Ue4ss_UninstallOwnDone", removedFiles, removedDirs));
-            if (remaining > 0)
-            {
-                output.WriteLine(L.Format("Ue4ss_UninstallOwnRemaining", remaining, inspection.Ue4ssDirectory));
-            }
-
-            output.WriteLine(L.Get("Ue4ss_UninstallUsmapSafeNote"));
-            return new Ue4ssUninstallResult(
-                Ue4ssUninstallOutcome.RemovedOwnInstall,
-                removedFiles,
-                removedDirs,
-                remaining,
-                BackupDirectory: null);
-        }
-
-        // Case 2: Foreign UE4SS installation (dwmapi.dll and/or ue4ss/UE4SS.dll present without our marker).
-        if (inspection.HasDwmapiDll || inspection.HasUe4ssDll)
-        {
-            if (!includeForeign)
-            {
                 var (remnantFiles, remnantDirs) = Ue4ssRuntimeSupport.CleanOurRemnants(
                     gamePaths.GameRoot,
                     removeEmptyParentDirs: false,
-                    log: message => output.WriteLine(message));
-                var remaining = CountFilesInDirectory(inspection.Ue4ssDirectory);
+                    log: message => output.WriteLine(message),
+                    throwOnAccessError: true,
+                    beforeDeleteHook: beforeDeleteHook);
 
-                if (remnantFiles > 0 || remnantDirs > 0)
+                removedFiles += remnantFiles;
+                removedDirs += remnantDirs;
+
+                // Always delete the install marker LAST so partial failures remain recognizable as our own install on retry.
+                var normalizedMarkerPath = PathSupport.TrimTrailingSeparators(Path.GetFullPath(inspection.MarkerPath));
+                var pathComparison = OperatingSystem.IsWindows()
+                    ? StringComparison.OrdinalIgnoreCase
+                    : StringComparison.Ordinal;
+
+                foreach (var relativeFile in marker.Files)
                 {
-                    output.WriteLine(L.Format(
-                        "Ue4ss_UninstallForeignCleanedRemnants",
-                        Ue4ssRuntimeSupport.MarkerFileName,
-                        remnantFiles,
-                        remnantDirs));
-                }
-                else
-                {
-                    output.WriteLine(L.Format(
-                        "Ue4ss_UninstallForeignNoRemnants",
-                        Ue4ssRuntimeSupport.MarkerFileName));
+                    var fullPath = CombineUnderWin64(inspection.Win64Directory, relativeFile);
+                    if (string.Equals(
+                        PathSupport.TrimTrailingSeparators(Path.GetFullPath(fullPath)),
+                        normalizedMarkerPath,
+                        pathComparison))
+                    {
+                        continue;
+                    }
+
+                    if (Ue4ssRuntimeSupport.DeleteFileClearingReadOnly(fullPath, beforeDeleteHook))
+                    {
+                        removedFiles++;
+                    }
                 }
 
-                output.WriteLine(L.Get("Ue4ss_UninstallForeignHint"));
+                // Delete the marker file only after every other managed file has been removed.
+                if (Ue4ssRuntimeSupport.DeleteFileClearingReadOnly(inspection.MarkerPath, beforeDeleteHook))
+                {
+                    removedFiles++;
+                }
+
+                var dirsDeepestFirst = marker.Directories
+                    .Concat(["ue4ss/Mods", "ue4ss"])
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderByDescending(dir => dir.Length)
+                    .ThenByDescending(dir => dir, StringComparer.Ordinal)
+                    .ToArray();
+                foreach (var relativeDir in dirsDeepestFirst)
+                {
+                    var fullDir = CombineUnderWin64(inspection.Win64Directory, relativeDir);
+                    if (Ue4ssRuntimeSupport.DeleteEmptyDirectory(fullDir, throwOnAccessError: true, beforeDeleteHook))
+                    {
+                        removedDirs++;
+                    }
+                }
+
+                var remaining = CountFilesInDirectorySafe(inspection.Ue4ssDirectory);
+                output.WriteLine(L.Format("Ue4ss_UninstallOwnDone", removedFiles, removedDirs));
+                if (remaining > 0)
+                {
+                    output.WriteLine(L.Format("Ue4ss_UninstallOwnRemaining", remaining, inspection.Ue4ssDirectory));
+                }
+
+                output.WriteLine(L.Get("Ue4ss_UninstallUsmapSafeNote"));
                 return new Ue4ssUninstallResult(
-                    Ue4ssUninstallOutcome.RemovedRemnantsOnly,
-                    remnantFiles,
-                    remnantDirs,
+                    Ue4ssUninstallOutcome.RemovedOwnInstall,
+                    removedFiles,
+                    removedDirs,
                     remaining,
                     BackupDirectory: null);
             }
 
-            var backupRoot = AgpPaths.GetUe4ssBackupDirectory(agpHomeEnvOverride: agpHomeOverride);
-            var now = nowOverride?.Invoke() ?? DateTimeOffset.Now;
-            var backupDir = AllocateUniqueBackupDirectoryPath(backupRoot, now);
-
-            if (!yes)
+            // Case 2: Foreign UE4SS installation (dwmapi.dll and/or ue4ss/UE4SS.dll present without our marker).
+            if (inspection.HasDwmapiDll || inspection.HasUe4ssDll)
             {
-                var plan = Ue4ssRuntimeSupport.InspectCleanupPlan(gamePaths.GameRoot);
-                output.WriteLine(L.Get("Ue4ss_UninstallForeignWarning"));
-                output.WriteLine(Ue4ssRuntimeSupport.FormatCleanupPreviewText(plan, includeForeign: true, backupDir));
-                output.WriteLine();
-
-                var confirmed = PromptYesNoForCleanup(input ?? TextReader.Null, output);
-                if (confirmed is not true)
+                if (!includeForeign)
                 {
-                    output.WriteLine(L.Get("Ue4ss_UninstallCancelled"));
+                    var (remnantFiles, remnantDirs) = Ue4ssRuntimeSupport.CleanOurRemnants(
+                        gamePaths.GameRoot,
+                        removeEmptyParentDirs: false,
+                        log: message => output.WriteLine(message),
+                        throwOnAccessError: true,
+                        beforeDeleteHook: beforeDeleteHook);
+                    removedFiles += remnantFiles;
+                    removedDirs += remnantDirs;
+                    var remaining = CountFilesInDirectorySafe(inspection.Ue4ssDirectory);
+
+                    if (remnantFiles > 0 || remnantDirs > 0)
+                    {
+                        output.WriteLine(L.Format(
+                            "Ue4ss_UninstallForeignCleanedRemnants",
+                            Ue4ssRuntimeSupport.MarkerFileName,
+                            remnantFiles,
+                            remnantDirs));
+                    }
+                    else
+                    {
+                        output.WriteLine(L.Format(
+                            "Ue4ss_UninstallForeignNoRemnants",
+                            Ue4ssRuntimeSupport.MarkerFileName));
+                    }
+
+                    output.WriteLine(L.Get("Ue4ss_UninstallForeignHint"));
                     return new Ue4ssUninstallResult(
-                        Ue4ssUninstallOutcome.Cancelled,
-                        0,
-                        0,
-                        CountFilesInDirectory(inspection.Ue4ssDirectory),
+                        Ue4ssUninstallOutcome.RemovedRemnantsOnly,
+                        remnantFiles,
+                        remnantDirs,
+                        remaining,
                         BackupDirectory: null);
                 }
+
+                var backupRoot = AgpPaths.GetUe4ssBackupDirectory(agpHomeEnvOverride: agpHomeOverride);
+                var now = nowOverride?.Invoke() ?? DateTimeOffset.Now;
+                var previewBackupDir = AllocateUniqueBackupDirectoryPath(backupRoot, now);
+
+                if (!yes)
+                {
+                    var plan = Ue4ssRuntimeSupport.InspectCleanupPlan(gamePaths.GameRoot);
+                    output.WriteLine(L.Get("Ue4ss_UninstallForeignWarning"));
+                    output.WriteLine(Ue4ssRuntimeSupport.FormatCleanupPreviewText(plan, includeForeign: true, previewBackupDir));
+                    output.WriteLine();
+
+                    var confirmed = PromptYesNoForCleanup(input ?? TextReader.Null, output);
+                    if (confirmed is not true)
+                    {
+                        output.WriteLine(L.Get("Ue4ss_UninstallCancelled"));
+                        return new Ue4ssUninstallResult(
+                            Ue4ssUninstallOutcome.Cancelled,
+                            0,
+                            0,
+                            CountFilesInDirectorySafe(inspection.Ue4ssDirectory),
+                            BackupDirectory: null);
+                    }
+                }
+
+                var (cleanedFiles, cleanedDirs) = Ue4ssRuntimeSupport.CleanOurRemnants(
+                    gamePaths.GameRoot,
+                    removeEmptyParentDirs: false,
+                    log: message => output.WriteLine(message),
+                    throwOnAccessError: true,
+                    beforeDeleteHook: beforeDeleteHook);
+                removedFiles += cleanedFiles;
+                removedDirs += cleanedDirs;
+
+                MoveForeignUe4ssToBackup(
+                    inspection,
+                    backupRoot,
+                    now,
+                    output,
+                    ref removedFiles,
+                    ref removedDirs,
+                    out activeBackupDir,
+                    beforeDeleteHook);
+
+                output.WriteLine(L.Format("Ue4ss_UninstallForeignBackedUp", activeBackupDir));
+                if (cleanedFiles > 0 || cleanedDirs > 0)
+                {
+                    output.WriteLine(L.Format("Ue4ss_UninstallForeignAlsoCleaned", cleanedFiles, cleanedDirs));
+                }
+
+                output.WriteLine(L.Format("Ue4ss_UninstallForeignRestoreNote", activeBackupDir, inspection.Win64Directory));
+                output.WriteLine(L.Get("Ue4ss_UninstallUsmapSafeNote"));
+
+                return new Ue4ssUninstallResult(
+                    Ue4ssUninstallOutcome.BackedUpForeignInstall,
+                    removedFiles,
+                    removedDirs,
+                    RemainingFilesInUe4ss: 0,
+                    BackupDirectory: activeBackupDir);
             }
 
-            var (cleanedFiles, cleanedDirs) = Ue4ssRuntimeSupport.CleanOurRemnants(
+            // Case 3: No UE4SS installed; clean any stray remnants of ours if present, otherwise report not found.
+            var (strayFiles, strayDirs) = Ue4ssRuntimeSupport.CleanOurRemnants(
                 gamePaths.GameRoot,
-                removeEmptyParentDirs: false,
-                log: message => output.WriteLine(message));
-
-            MoveForeignUe4ssToBackup(inspection, backupDir);
-
-            output.WriteLine(L.Format("Ue4ss_UninstallForeignBackedUp", backupDir));
-            if (cleanedFiles > 0 || cleanedDirs > 0)
+                removeEmptyParentDirs: true,
+                log: message => output.WriteLine(message),
+                throwOnAccessError: true,
+                beforeDeleteHook: beforeDeleteHook);
+            removedFiles += strayFiles;
+            removedDirs += strayDirs;
+            if (strayFiles > 0 || strayDirs > 0)
             {
-                output.WriteLine(L.Format("Ue4ss_UninstallForeignAlsoCleaned", cleanedFiles, cleanedDirs));
+                output.WriteLine(L.Format("Ue4ss_UninstallRemnantsOnly", strayFiles, strayDirs));
+                return new Ue4ssUninstallResult(
+                    Ue4ssUninstallOutcome.RemovedRemnantsOnly,
+                    strayFiles,
+                    strayDirs,
+                    CountFilesInDirectorySafe(inspection.Ue4ssDirectory),
+                    BackupDirectory: null);
             }
 
-            output.WriteLine(L.Format("Ue4ss_UninstallForeignRestoreNote", backupDir, inspection.Win64Directory));
-            output.WriteLine(L.Get("Ue4ss_UninstallUsmapSafeNote"));
-
+            output.WriteLine(L.Get("Ue4ss_UninstallNotFound"));
             return new Ue4ssUninstallResult(
-                Ue4ssUninstallOutcome.BackedUpForeignInstall,
-                cleanedFiles,
-                cleanedDirs,
-                RemainingFilesInUe4ss: 0,
-                BackupDirectory: backupDir);
-        }
-
-        // Case 3: No UE4SS installed; clean any stray remnants of ours if present, otherwise report not found.
-        var (strayFiles, strayDirs) = Ue4ssRuntimeSupport.CleanOurRemnants(
-            gamePaths.GameRoot,
-            removeEmptyParentDirs: true,
-            log: message => output.WriteLine(message));
-        if (strayFiles > 0 || strayDirs > 0)
-        {
-            output.WriteLine(L.Format("Ue4ss_UninstallRemnantsOnly", strayFiles, strayDirs));
-            return new Ue4ssUninstallResult(
-                Ue4ssUninstallOutcome.RemovedRemnantsOnly,
-                strayFiles,
-                strayDirs,
-                CountFilesInDirectory(inspection.Ue4ssDirectory),
+                Ue4ssUninstallOutcome.NotFound,
+                0,
+                0,
+                0,
                 BackupDirectory: null);
         }
+        catch (Ue4ssCleanupAccessException accessException)
+        {
+            var remaining = CountFilesInDirectorySafe(inspection.Ue4ssDirectory);
+            var detail = accessException.InnerException?.Message ?? accessException.Message;
 
-        output.WriteLine(L.Get("Ue4ss_UninstallNotFound"));
-        return new Ue4ssUninstallResult(
-            Ue4ssUninstallOutcome.NotFound,
-            0,
-            0,
-            0,
-            BackupDirectory: null);
+            if (accessException.IsFileInUse)
+            {
+                output.WriteLine(activeBackupDir is not null
+                    ? L.Format("Ue4ss_UninstallFileInUseWithBackup", activeBackupDir, accessException.TargetPath)
+                    : L.Format("Ue4ss_UninstallFileInUse", accessException.TargetPath));
+                output.WriteLine(ProgressProtocol.FormatUe4ssCleanupLine(
+                    ProgressProtocol.CleanupStatusInUse,
+                    accessException.TargetPath,
+                    ProgressProtocol.CleanupReasonInUse));
+                return new Ue4ssUninstallResult(
+                    Ue4ssUninstallOutcome.FileInUse,
+                    removedFiles,
+                    removedDirs,
+                    remaining,
+                    activeBackupDir,
+                    BlockedPath: accessException.TargetPath,
+                    Reason: ProgressProtocol.CleanupReasonInUse,
+                    ErrorDetail: detail);
+            }
+
+            output.WriteLine(activeBackupDir is not null
+                ? L.Format("Ue4ss_UninstallAccessDeniedWithBackup", activeBackupDir, accessException.TargetPath, detail)
+                : L.Format("Ue4ss_UninstallAccessDenied", accessException.TargetPath, detail));
+            output.WriteLine(ProgressProtocol.FormatUe4ssCleanupLine(
+                ProgressProtocol.CleanupStatusNeedsElevation,
+                accessException.TargetPath,
+                ProgressProtocol.CleanupReasonAccessDenied));
+            return new Ue4ssUninstallResult(
+                Ue4ssUninstallOutcome.NeedsElevation,
+                removedFiles,
+                removedDirs,
+                remaining,
+                activeBackupDir,
+                BlockedPath: accessException.TargetPath,
+                Reason: ProgressProtocol.CleanupReasonAccessDenied,
+                ErrorDetail: detail);
+        }
     }
 
-    private static int CountFilesInDirectory(string directoryPath)
+    private static int CountFilesInDirectorySafe(string directoryPath)
     {
-        var ioDir = PathSupport.ToIoPath(directoryPath);
-        return Directory.Exists(ioDir)
-            ? Directory.EnumerateFiles(ioDir, "*", SearchOption.AllDirectories).Count()
-            : 0;
+        try
+        {
+            var ioDir = PathSupport.ToIoPath(directoryPath);
+            return Directory.Exists(ioDir)
+                ? Directory.EnumerateFiles(ioDir, "*", SearchOption.AllDirectories).Count()
+                : 0;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     private static string AllocateUniqueBackupDirectoryPath(string backupRoot, DateTimeOffset now)
@@ -819,12 +928,23 @@ internal static class Ue4ssArchiveInstaller
     }
 
     /// <summary>
-    /// Moves dwmapi.dll and the entire ue4ss/ folder out of the game directory into backupDir.
-    /// Uses copy-verify-then-delete so cross-volume moves always succeed and any failure
-    /// leaves the original game directory intact.
+    /// Moves dwmapi.dll and the entire ue4ss/ folder out of the game directory into a backup folder.
+    /// Before creating a new backup folder, checks whether an existing backup under backupRoot already
+    /// contains byte-identical copies (size + SHA-256) of every remaining source file so retrying after
+    /// a partial delete failure never creates a duplicate backup.
+    /// Original sentinel files (ue4ss/UE4SS.dll and dwmapi.dll) are removed last so retries remain safe.
     /// </summary>
-    private static void MoveForeignUe4ssToBackup(Ue4ssInspection inspection, string backupDir)
+    private static void MoveForeignUe4ssToBackup(
+        Ue4ssInspection inspection,
+        string backupRoot,
+        DateTimeOffset now,
+        TextWriter output,
+        ref int removedFiles,
+        ref int removedDirs,
+        out string? backupDir,
+        Action<string>? beforeDeleteHook)
     {
+        backupDir = null;
         var dwmapiSrc = Path.Combine(inspection.Win64Directory, Ue4ssRuntimeSupport.DwmapiFileName);
         var hasDwmapi = File.Exists(PathSupport.ToIoPath(dwmapiSrc));
         var hasUe4ssDir = Directory.Exists(PathSupport.ToIoPath(inspection.Ue4ssDirectory));
@@ -834,57 +954,67 @@ internal static class Ue4ssArchiveInstaller
             return;
         }
 
-        Directory.CreateDirectory(PathSupport.ToIoPath(backupDir));
-        var copyCompleted = false;
-        try
+        if (TryFindMatchingExistingBackup(backupRoot, dwmapiSrc, hasDwmapi, inspection.Ue4ssDirectory, hasUe4ssDir, out var existingBackup))
         {
-            if (hasDwmapi)
-            {
-                var dwmapiDst = Path.Combine(backupDir, Ue4ssRuntimeSupport.DwmapiFileName);
-                File.Copy(PathSupport.ToIoPath(dwmapiSrc), PathSupport.ToIoPath(dwmapiDst), overwrite: false);
-            }
-
-            if (hasUe4ssDir)
-            {
-                var ue4ssDst = Path.Combine(backupDir, "ue4ss");
-                CopyDirectoryRecursive(inspection.Ue4ssDirectory, ue4ssDst);
-            }
-
-            copyCompleted = true;
+            backupDir = existingBackup;
+            output.WriteLine(L.Format("Ue4ss_UninstallReusedExistingBackup", existingBackup));
         }
-        catch (Exception exception)
+        else
         {
+            var targetBackupDir = AllocateUniqueBackupDirectoryPath(backupRoot, now);
+            Directory.CreateDirectory(PathSupport.ToIoPath(targetBackupDir));
             try
             {
-                if (Directory.Exists(PathSupport.ToIoPath(backupDir)))
+                if (hasDwmapi)
                 {
-                    Directory.Delete(PathSupport.ToIoPath(backupDir), recursive: true);
+                    var dwmapiDst = Path.Combine(targetBackupDir, Ue4ssRuntimeSupport.DwmapiFileName);
+                    CopySourceFileToBackup(dwmapiSrc, dwmapiDst);
                 }
+
+                if (hasUe4ssDir)
+                {
+                    var ue4ssDst = Path.Combine(targetBackupDir, "ue4ss");
+                    CopyDirectoryRecursiveToBackup(inspection.Ue4ssDirectory, ue4ssDst);
+                }
+
+                backupDir = targetBackupDir;
             }
-            catch
+            catch (Ue4ssCleanupAccessException)
             {
-                // Ignore cleanup failures of incomplete backup directory.
+                TryDeleteIncompleteBackupDirectory(targetBackupDir);
+                throw;
             }
-
-            throw new IOException(L.Format("Ue4ss_BackupCopyFailed", backupDir, exception.Message), exception);
-        }
-
-        if (!copyCompleted)
-        {
-            return;
+            catch (Exception exception)
+            {
+                TryDeleteIncompleteBackupDirectory(targetBackupDir);
+                throw new IOException(L.Format("Ue4ss_BackupCopyFailed", targetBackupDir, exception.Message), exception);
+            }
         }
 
         try
         {
-            if (hasDwmapi && File.Exists(PathSupport.ToIoPath(dwmapiSrc)))
-            {
-                File.Delete(PathSupport.ToIoPath(dwmapiSrc));
-            }
-
+            // Delete non-sentinel files inside ue4ss/ first, then ue4ss/UE4SS.dll and ue4ss/,
+            // and delete dwmapi.dll last so any partial failure still registers as a foreign install on retry.
             if (hasUe4ssDir && Directory.Exists(PathSupport.ToIoPath(inspection.Ue4ssDirectory)))
             {
-                Directory.Delete(PathSupport.ToIoPath(inspection.Ue4ssDirectory), recursive: true);
+                var ue4ssDllPath = Path.Combine(inspection.Ue4ssDirectory, Ue4ssRuntimeSupport.Ue4ssDllFileName);
+                Ue4ssRuntimeSupport.DeleteDirectoryTreeClearingReadOnly(
+                    inspection.Ue4ssDirectory,
+                    ref removedFiles,
+                    ref removedDirs,
+                    deleteRootItself: true,
+                    deferredFileFullPath: ue4ssDllPath,
+                    beforeDeleteHook: beforeDeleteHook);
             }
+
+            if (hasDwmapi && Ue4ssRuntimeSupport.DeleteFileClearingReadOnly(dwmapiSrc, beforeDeleteHook))
+            {
+                removedFiles++;
+            }
+        }
+        catch (Ue4ssCleanupAccessException)
+        {
+            throw;
         }
         catch (Exception exception)
         {
@@ -892,28 +1022,272 @@ internal static class Ue4ssArchiveInstaller
         }
     }
 
-    private static void CopyDirectoryRecursive(string sourceDir, string destinationDir)
+    private static bool TryFindMatchingExistingBackup(
+        string backupRoot,
+        string dwmapiSrc,
+        bool hasDwmapi,
+        string ue4ssSrcDir,
+        bool hasUe4ssDir,
+        out string matchedBackupDir)
+    {
+        matchedBackupDir = string.Empty;
+        var ioBackupRoot = PathSupport.ToIoPath(backupRoot);
+        if (!Directory.Exists(ioBackupRoot))
+        {
+            return false;
+        }
+
+        var candidates = Directory.EnumerateDirectories(ioBackupRoot, "*", SearchOption.TopDirectoryOnly)
+            .Select(path => PathSupport.TrimTrailingSeparators(Path.GetFullPath(path)))
+            .OrderByDescending(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (candidates.Length == 0)
+        {
+            return false;
+        }
+
+        // Collect all remaining source files and subdirectories to verify against existing backups.
+        var sourceFiles = new List<(string RelativePath, string SourceFullPath, long Length, string? Sha256Lower)>();
+        var sourceSubdirs = new List<string>();
+
+        if (hasDwmapi)
+        {
+            try
+            {
+                var info = new FileInfo(PathSupport.ToIoPath(dwmapiSrc));
+                sourceFiles.Add((Ue4ssRuntimeSupport.DwmapiFileName, dwmapiSrc, info.Length, null));
+            }
+            catch (Exception exception) when (Ue4ssRuntimeSupport.TryClassifyAccessFailure(exception, out var reason))
+            {
+                throw new Ue4ssCleanupAccessException(dwmapiSrc, reason, exception);
+            }
+        }
+
+        if (hasUe4ssDir)
+        {
+            sourceSubdirs.Add("ue4ss");
+            CollectSourceTreeForBackupCheck(ue4ssSrcDir, "ue4ss", sourceSubdirs, sourceFiles);
+        }
+
+        if (sourceFiles.Count == 0 && sourceSubdirs.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var candidate in candidates)
+        {
+            var allDirsPresent = true;
+            foreach (var relDir in sourceSubdirs)
+            {
+                var candidateDir = SteamLocator.CombineRelativeSubpath(candidate, relDir);
+                if (!Directory.Exists(PathSupport.ToIoPath(candidateDir)))
+                {
+                    allDirsPresent = false;
+                    break;
+                }
+            }
+
+            if (!allDirsPresent)
+            {
+                continue;
+            }
+
+            var allFilesMatch = true;
+            for (var i = 0; i < sourceFiles.Count; i++)
+            {
+                var entry = sourceFiles[i];
+                var candidateFile = SteamLocator.CombineRelativeSubpath(candidate, entry.RelativePath);
+                var ioCandidateFile = PathSupport.ToIoPath(candidateFile);
+                if (!File.Exists(ioCandidateFile))
+                {
+                    allFilesMatch = false;
+                    break;
+                }
+
+                long candidateLength;
+                try
+                {
+                    candidateLength = new FileInfo(ioCandidateFile).Length;
+                }
+                catch
+                {
+                    allFilesMatch = false;
+                    break;
+                }
+
+                if (candidateLength != entry.Length)
+                {
+                    allFilesMatch = false;
+                    break;
+                }
+
+                var sourceHash = entry.Sha256Lower;
+                if (sourceHash is null)
+                {
+                    try
+                    {
+                        sourceHash = GameVersionDetector.ComputeFileSha256Lower(entry.SourceFullPath);
+                    }
+                    catch (Exception exception) when (Ue4ssRuntimeSupport.TryClassifyAccessFailure(exception, out var reason))
+                    {
+                        throw new Ue4ssCleanupAccessException(entry.SourceFullPath, reason, exception);
+                    }
+
+                    sourceFiles[i] = entry with { Sha256Lower = sourceHash };
+                }
+
+                string candidateHash;
+                try
+                {
+                    candidateHash = GameVersionDetector.ComputeFileSha256Lower(candidateFile);
+                }
+                catch
+                {
+                    allFilesMatch = false;
+                    break;
+                }
+
+                if (!string.Equals(sourceHash, candidateHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    allFilesMatch = false;
+                    break;
+                }
+            }
+
+            if (allFilesMatch)
+            {
+                matchedBackupDir = candidate;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void CollectSourceTreeForBackupCheck(
+        string currentDir,
+        string currentRelativePrefix,
+        List<string> sourceSubdirs,
+        List<(string RelativePath, string SourceFullPath, long Length, string? Sha256Lower)> sourceFiles)
+    {
+        var ioDir = PathSupport.ToIoPath(currentDir);
+        string[] subdirs;
+        string[] files;
+        try
+        {
+            subdirs = Directory.EnumerateDirectories(ioDir, "*", SearchOption.TopDirectoryOnly)
+                .Select(path => PathSupport.TrimTrailingSeparators(Path.GetFullPath(path)))
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToArray();
+            files = Directory.EnumerateFiles(ioDir, "*", SearchOption.TopDirectoryOnly)
+                .Select(path => PathSupport.TrimTrailingSeparators(Path.GetFullPath(path)))
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToArray();
+        }
+        catch (Exception exception) when (Ue4ssRuntimeSupport.TryClassifyAccessFailure(exception, out var reason))
+        {
+            throw new Ue4ssCleanupAccessException(currentDir, reason, exception);
+        }
+
+        foreach (var file in files)
+        {
+            var name = Path.GetFileName(file);
+            var rel = $"{currentRelativePrefix}/{name}";
+            try
+            {
+                var length = new FileInfo(PathSupport.ToIoPath(file)).Length;
+                sourceFiles.Add((rel, file, length, null));
+            }
+            catch (Exception exception) when (Ue4ssRuntimeSupport.TryClassifyAccessFailure(exception, out var reason))
+            {
+                throw new Ue4ssCleanupAccessException(file, reason, exception);
+            }
+        }
+
+        foreach (var subdir in subdirs)
+        {
+            var name = Path.GetFileName(subdir);
+            var rel = $"{currentRelativePrefix}/{name}";
+            sourceSubdirs.Add(rel);
+            CollectSourceTreeForBackupCheck(subdir, rel, sourceSubdirs, sourceFiles);
+        }
+    }
+
+    private static void CopySourceFileToBackup(string sourcePath, string destinationPath)
+    {
+        var ioSrc = PathSupport.ToIoPath(sourcePath);
+        var ioDst = PathSupport.ToIoPath(destinationPath);
+        FileStream sourceStream;
+        try
+        {
+            sourceStream = new FileStream(ioSrc, FileMode.Open, FileAccess.Read, FileShare.Read);
+        }
+        catch (Exception exception) when (Ue4ssRuntimeSupport.TryClassifyAccessFailure(exception, out var reason))
+        {
+            throw new Ue4ssCleanupAccessException(sourcePath, reason, exception);
+        }
+
+        using (sourceStream)
+        using (var targetStream = new FileStream(ioDst, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        {
+            sourceStream.CopyTo(targetStream);
+        }
+    }
+
+    private static void CopyDirectoryRecursiveToBackup(string sourceDir, string destinationDir)
     {
         Directory.CreateDirectory(PathSupport.ToIoPath(destinationDir));
 
-        foreach (var rawSubdir in Directory.EnumerateDirectories(PathSupport.ToIoPath(sourceDir), "*", SearchOption.AllDirectories))
+        string[] subdirs;
+        string[] files;
+        try
         {
-            var rel = Path.GetRelativePath(sourceDir, Path.GetFullPath(rawSubdir));
-            Directory.CreateDirectory(PathSupport.ToIoPath(Path.Combine(destinationDir, rel)));
+            var ioSrcDir = PathSupport.ToIoPath(sourceDir);
+            subdirs = Directory.EnumerateDirectories(ioSrcDir, "*", SearchOption.TopDirectoryOnly)
+                .Select(path => PathSupport.TrimTrailingSeparators(Path.GetFullPath(path)))
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToArray();
+            files = Directory.EnumerateFiles(ioSrcDir, "*", SearchOption.TopDirectoryOnly)
+                .Select(path => PathSupport.TrimTrailingSeparators(Path.GetFullPath(path)))
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToArray();
+        }
+        catch (Exception exception) when (Ue4ssRuntimeSupport.TryClassifyAccessFailure(exception, out var reason))
+        {
+            throw new Ue4ssCleanupAccessException(sourceDir, reason, exception);
         }
 
-        foreach (var rawFile in Directory.EnumerateFiles(PathSupport.ToIoPath(sourceDir), "*", SearchOption.AllDirectories))
+        foreach (var srcFile in files)
         {
-            var fullSrc = Path.GetFullPath(rawFile);
-            var rel = Path.GetRelativePath(sourceDir, fullSrc);
-            var dstFile = Path.Combine(destinationDir, rel);
-            var dstParent = Path.GetDirectoryName(dstFile);
-            if (!string.IsNullOrEmpty(dstParent))
-            {
-                Directory.CreateDirectory(PathSupport.ToIoPath(dstParent));
-            }
+            var dstFile = Path.Combine(destinationDir, Path.GetFileName(srcFile));
+            CopySourceFileToBackup(srcFile, dstFile);
+        }
 
-            File.Copy(PathSupport.ToIoPath(fullSrc), PathSupport.ToIoPath(dstFile), overwrite: false);
+        foreach (var srcSubdir in subdirs)
+        {
+            var dstSubdir = Path.Combine(destinationDir, Path.GetFileName(srcSubdir));
+            CopyDirectoryRecursiveToBackup(srcSubdir, dstSubdir);
+        }
+    }
+
+    private static void TryDeleteIncompleteBackupDirectory(string backupDir)
+    {
+        try
+        {
+            if (Directory.Exists(PathSupport.ToIoPath(backupDir)))
+            {
+                var ignoredFiles = 0;
+                var ignoredDirs = 0;
+                Ue4ssRuntimeSupport.DeleteDirectoryTreeClearingReadOnly(
+                    backupDir,
+                    ref ignoredFiles,
+                    ref ignoredDirs,
+                    deleteRootItself: true);
+            }
+        }
+        catch
+        {
+            // Ignore cleanup failures of incomplete backup directory.
         }
     }
 
@@ -957,6 +1331,10 @@ internal static class Ue4ssArchiveInstaller
         try
         {
             rawJson = File.ReadAllText(PathSupport.ToIoPath(markerPath), Utf8WithoutBom);
+        }
+        catch (Exception exception) when (Ue4ssRuntimeSupport.TryClassifyAccessFailure(exception, out var reason))
+        {
+            throw new Ue4ssCleanupAccessException(markerPath, reason, exception);
         }
         catch (Exception exception)
         {
@@ -1371,6 +1749,8 @@ internal static class UsmapFetcher
         string? gameDirectory = null;
         var includeForeign = false;
         var yes = false;
+        string? agpHome = null;
+        string? resultFile = null;
         for (var index = 0; index < args.Length; index++)
         {
             var token = args[index];
@@ -1380,6 +1760,28 @@ internal static class UsmapFetcher
                 if (!Localization.TryNormalizeLanguageCode(langValue, out _))
                 {
                     throw new ArgumentException(L.Format("Common_UnsupportedLanguage", langValue));
+                }
+
+                continue;
+            }
+
+            if (token.StartsWith("--agp-home=", StringComparison.Ordinal))
+            {
+                agpHome = token["--agp-home=".Length..];
+                if (string.IsNullOrWhiteSpace(agpHome))
+                {
+                    throw new ArgumentException(L.Format("UninstallUe4ss_EmptyOptionValue", "--agp-home"));
+                }
+
+                continue;
+            }
+
+            if (token.StartsWith("--result-file=", StringComparison.Ordinal))
+            {
+                resultFile = token["--result-file=".Length..];
+                if (string.IsNullOrWhiteSpace(resultFile))
+                {
+                    throw new ArgumentException(L.Format("UninstallUe4ss_EmptyOptionValue", "--result-file"));
                 }
 
                 continue;
@@ -1395,6 +1797,22 @@ internal static class UsmapFetcher
                     break;
                 case "--yes":
                     yes = true;
+                    break;
+                case "--agp-home":
+                    agpHome = RequireValue(args, ref index, "--agp-home");
+                    if (string.IsNullOrWhiteSpace(agpHome))
+                    {
+                        throw new ArgumentException(L.Format("UninstallUe4ss_EmptyOptionValue", "--agp-home"));
+                    }
+
+                    break;
+                case "--result-file":
+                    resultFile = RequireValue(args, ref index, "--result-file");
+                    if (string.IsNullOrWhiteSpace(resultFile))
+                    {
+                        throw new ArgumentException(L.Format("UninstallUe4ss_EmptyOptionValue", "--result-file"));
+                    }
+
                     break;
                 case "--lang":
                     var rawLang = RequireValue(args, ref index, "--lang");
@@ -1414,7 +1832,228 @@ internal static class UsmapFetcher
             throw new ArgumentException(L.Get("UninstallUe4ss_RequiresGame"));
         }
 
-        return new UninstallUe4ssOptions(gameDirectory, includeForeign, yes);
+        return new UninstallUe4ssOptions(gameDirectory, includeForeign, yes, agpHome, resultFile);
+    }
+
+    internal static int RunUninstall(
+        UninstallUe4ssOptions options,
+        IGameLauncher launcher,
+        TextReader input,
+        TextWriter output,
+        TextWriter error,
+        Func<DateTimeOffset>? nowOverride = null,
+        Action<string>? beforeDeleteHook = null)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(launcher);
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(error);
+
+        var capturedLines = new List<string>();
+        using var capturingOut = new LineCapturingTextWriter(output, capturedLines);
+
+        try
+        {
+            var explicitAgpHome = string.IsNullOrWhiteSpace(options.AgpHome) ? null : options.AgpHome;
+            var agpResolution = AgpPaths.ResolveWritableAgpRootOrThrow(
+                capturingOut,
+                agpHomeEnvOverride: explicitAgpHome);
+            using var logOut = CliLogWriter.Create(
+                capturingOut,
+                AgpPaths.GetLogsDirectoryForAgpRoot(agpResolution.AgpRoot!));
+
+            var uninstallResult = Ue4ssArchiveInstaller.Uninstall(
+                options.GameDirectory,
+                launcher,
+                logOut,
+                includeForeign: options.IncludeForeign,
+                yes: options.Yes,
+                input: input,
+                agpHomeOverride: agpResolution.AgpRoot,
+                nowOverride: nowOverride,
+                beforeDeleteHook: beforeDeleteHook);
+
+            var exitCode = MapUninstallExitCode(uninstallResult.Outcome);
+            if (!string.IsNullOrWhiteSpace(options.ResultFile))
+            {
+                var doc = BuildCleanupResultDocument(uninstallResult, exitCode, capturedLines);
+                TryWriteCleanupResultFile(options.ResultFile, doc, error);
+            }
+
+            return exitCode;
+        }
+        catch (Exception exception)
+        {
+            if (!string.IsNullOrWhiteSpace(options.ResultFile))
+            {
+                var failMessages = capturedLines.Count > 0
+                    ? [.. capturedLines, exception.Message]
+                    : new[] { exception.Message };
+                var failedDoc = new Ue4ssCleanupResultDocument(
+                    Format: 1,
+                    Status: ProgressProtocol.CleanupStatusFailed,
+                    Outcome: "failed",
+                    ExitCode: 2,
+                    RemovedFiles: 0,
+                    RemovedDirs: 0,
+                    RemainingFilesInUe4ss: 0,
+                    BackupDirectory: null,
+                    BlockedPath: null,
+                    Reason: null,
+                    Message: exception.Message,
+                    Messages: failMessages);
+                TryWriteCleanupResultFile(options.ResultFile, failedDoc, error);
+            }
+
+            error.WriteLine(L.Format("Common_ErrorPrefix", exception.Message));
+            return 2;
+        }
+    }
+
+    internal static int MapUninstallExitCode(Ue4ssUninstallOutcome outcome)
+    {
+        return outcome switch
+        {
+            Ue4ssUninstallOutcome.NeedsElevation => ProgressProtocol.ExitCodeNeedsElevation,
+            Ue4ssUninstallOutcome.FileInUse => ProgressProtocol.ExitCodeFileInUse,
+            _ => 0,
+        };
+    }
+
+    private static Ue4ssCleanupResultDocument BuildCleanupResultDocument(
+        Ue4ssUninstallResult result,
+        int exitCode,
+        List<string> capturedLines)
+    {
+        var (status, outcomeName) = result.Outcome switch
+        {
+            Ue4ssUninstallOutcome.RemovedOwnInstall => (ProgressProtocol.CleanupStatusCompleted, "removed_own_install"),
+            Ue4ssUninstallOutcome.RemovedRemnantsOnly => (ProgressProtocol.CleanupStatusCompleted, "removed_remnants_only"),
+            Ue4ssUninstallOutcome.BackedUpForeignInstall => (ProgressProtocol.CleanupStatusCompleted, "backed_up_foreign_install"),
+            Ue4ssUninstallOutcome.NotFound => (ProgressProtocol.CleanupStatusNotFound, "not_found"),
+            Ue4ssUninstallOutcome.Cancelled => (ProgressProtocol.CleanupStatusCancelled, "cancelled"),
+            Ue4ssUninstallOutcome.NeedsElevation => (ProgressProtocol.CleanupStatusNeedsElevation, "needs_elevation"),
+            Ue4ssUninstallOutcome.FileInUse => (ProgressProtocol.CleanupStatusInUse, "in_use"),
+            _ => (ProgressProtocol.CleanupStatusFailed, "failed"),
+        };
+
+        var messages = capturedLines
+            .Where(line => !ProgressProtocol.IsMachineProtocolLine(line))
+            .ToArray();
+        var primaryMessage = messages.Length > 0
+            ? messages[0]
+            : result.ErrorDetail;
+
+        return new Ue4ssCleanupResultDocument(
+            Format: 1,
+            Status: status,
+            Outcome: outcomeName,
+            ExitCode: exitCode,
+            RemovedFiles: result.RemovedFiles,
+            RemovedDirs: result.RemovedDirs,
+            RemainingFilesInUe4ss: result.RemainingFilesInUe4ss,
+            BackupDirectory: result.BackupDirectory,
+            BlockedPath: result.BlockedPath,
+            Reason: result.Reason,
+            Message: primaryMessage,
+            Messages: messages.Length > 0 ? messages : null);
+    }
+
+    private static void TryWriteCleanupResultFile(
+        string resultFilePath,
+        Ue4ssCleanupResultDocument document,
+        TextWriter error)
+    {
+        try
+        {
+            var json = ProgressProtocol.SerializeUe4ssCleanupResult(document);
+            TextOutput.WriteTextAtomic(resultFilePath, json);
+        }
+        catch (Exception exception)
+        {
+            error.WriteLine(L.Format("Ue4ss_UninstallResultFileWriteFailed", resultFilePath, exception.Message));
+        }
+    }
+
+    private sealed class LineCapturingTextWriter : TextWriter
+    {
+        private readonly TextWriter _inner;
+        private readonly List<string> _lines;
+        private readonly StringBuilder _buffer = new();
+
+        internal LineCapturingTextWriter(TextWriter inner, List<string> lines)
+        {
+            _inner = inner;
+            _lines = lines;
+        }
+
+        public override Encoding Encoding => _inner.Encoding;
+
+        public override void Write(char value)
+        {
+            _inner.Write(value);
+            AppendChar(value);
+        }
+
+        public override void Write(string? value)
+        {
+            _inner.Write(value);
+            if (!string.IsNullOrEmpty(value))
+            {
+                foreach (var ch in value)
+                {
+                    AppendChar(ch);
+                }
+            }
+        }
+
+        public override void WriteLine(string? value)
+        {
+            _inner.WriteLine(value);
+            if (_buffer.Length > 0)
+            {
+                _buffer.Append(value);
+                FlushLine();
+            }
+            else if (value is not null)
+            {
+                foreach (var part in value.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
+                {
+                    if (!ProgressProtocol.IsMachineProtocolLine(part))
+                    {
+                        _lines.Add(part);
+                    }
+                }
+            }
+        }
+
+        private void AppendChar(char ch)
+        {
+            if (ch == '\r')
+            {
+                return;
+            }
+
+            if (ch == '\n')
+            {
+                FlushLine();
+            }
+            else
+            {
+                _buffer.Append(ch);
+            }
+        }
+
+        private void FlushLine()
+        {
+            var line = _buffer.ToString();
+            _buffer.Clear();
+            if (!ProgressProtocol.IsMachineProtocolLine(line))
+            {
+                _lines.Add(line);
+            }
+        }
     }
 
     internal static async Task<int> RunFetchAsync(
@@ -2038,19 +2677,13 @@ internal static partial class Program
     private static Task<int> RunUninstallUe4ssAsync(string[] args)
     {
         var options = UsmapFetcher.ParseUninstallUe4ssArgs(args);
-        var agpResolution = AgpPaths.ResolveWritableAgpRootOrThrow(Console.Out);
-        using var logOut = CliLogWriter.Create(
-            Console.Out,
-            AgpPaths.GetLogsDirectoryForAgpRoot(agpResolution.AgpRoot!));
         var launcher = new WindowsSteamGameLauncher();
-        _ = Ue4ssArchiveInstaller.Uninstall(
-            options.GameDirectory,
+        var exitCode = UsmapFetcher.RunUninstall(
+            options,
             launcher,
-            logOut,
-            includeForeign: options.IncludeForeign,
-            yes: options.Yes,
-            input: Console.In,
-            agpHomeOverride: agpResolution.AgpRoot);
-        return Task.FromResult(0);
+            Console.In,
+            Console.Out,
+            Console.Error);
+        return Task.FromResult(exitCode);
     }
 }

@@ -37,7 +37,8 @@ internal static partial class Program
 
         try
         {
-            args = Localization.InitializeFromCli(args);
+            var peekAgpHome = PeekAgpHomeOption(args);
+            args = Localization.InitializeFromCli(args, agpHomeOverride: peekAgpHome);
             return await RunAsync(args);
         }
         catch (Exception exception)
@@ -45,6 +46,31 @@ internal static partial class Program
             Console.Error.WriteLine(L.Format("Common_ErrorPrefix", exception.Message));
             return 2;
         }
+    }
+
+    private static string? PeekAgpHomeOption(string[] args)
+    {
+        for (var i = 0; i < args.Length; i++)
+        {
+            var token = args[i];
+            if (string.Equals(token, "--agp-home", StringComparison.Ordinal))
+            {
+                if (i + 1 < args.Length && !string.IsNullOrWhiteSpace(args[i + 1]))
+                {
+                    return args[i + 1];
+                }
+
+                return null;
+            }
+
+            if (token.StartsWith("--agp-home=", StringComparison.Ordinal))
+            {
+                var value = token["--agp-home=".Length..];
+                return string.IsNullOrWhiteSpace(value) ? null : value;
+            }
+        }
+
+        return null;
     }
 
     private static void ConfigureRedirectedUtf8Output()

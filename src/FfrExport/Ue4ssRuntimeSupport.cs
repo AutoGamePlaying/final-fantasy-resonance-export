@@ -4,6 +4,26 @@ using System.Text.Json;
 
 namespace FfrExport;
 
+internal sealed class Ue4ssCleanupAccessException : IOException
+{
+    internal Ue4ssCleanupAccessException(string targetPath, string reason, Exception innerException)
+        : base(innerException.Message, innerException)
+    {
+        TargetPath = targetPath;
+        Reason = reason;
+    }
+
+    internal string TargetPath { get; }
+
+    internal string Reason { get; }
+
+    internal bool IsAccessDenied =>
+        string.Equals(Reason, ProgressProtocol.CleanupReasonAccessDenied, StringComparison.Ordinal);
+
+    internal bool IsFileInUse =>
+        string.Equals(Reason, ProgressProtocol.CleanupReasonInUse, StringComparison.Ordinal);
+}
+
 internal enum Ue4ssInstallState
 {
     NotInstalled,
@@ -382,11 +402,16 @@ internal static class Ue4ssRuntimeSupport
     /// <summary>
     /// Cleans all remnants created by ffr-export inside the game directory:
     /// ue4ss/Mods/FfrUsmapDump/, ue4ss/ffr-export-usmap.done, and *.tmp files directly inside ue4ss/.
+    /// Strips the ReadOnly attribute only on files being deleted.
+    /// When throwOnAccessError is true, UnauthorizedAccessException and sharing-violation IOException
+    /// are surfaced as Ue4ssCleanupAccessException with the exact failing path.
     /// </summary>
     internal static (int RemovedFiles, int RemovedDirs) CleanOurRemnants(
         string gameDirectory,
         bool removeEmptyParentDirs = false,
-        Action<string>? log = null)
+        Action<string>? log = null,
+        bool throwOnAccessError = false,
+        Action<string>? beforeDeleteHook = null)
     {
         if (string.IsNullOrWhiteSpace(gameDirectory))
         {
@@ -404,9 +429,17 @@ internal static class Ue4ssRuntimeSupport
         {
             try
             {
-                removedFiles += Directory.EnumerateFiles(ioDumpModDir, "*", SearchOption.AllDirectories).Count();
-                removedDirs += 1 + Directory.EnumerateDirectories(ioDumpModDir, "*", SearchOption.AllDirectories).Count();
-                Directory.Delete(ioDumpModDir, recursive: true);
+                DeleteDirectoryTreeClearingReadOnly(
+                    dumpModDir,
+                    ref removedFiles,
+                    ref removedDirs,
+                    deleteRootItself: true,
+                    deferredFileFullPath: null,
+                    beforeDeleteHook: beforeDeleteHook);
+            }
+            catch (Ue4ssCleanupAccessException) when (throwOnAccessError)
+            {
+                throw;
             }
             catch (Exception exception)
             {
@@ -415,7 +448,7 @@ internal static class Ue4ssRuntimeSupport
         }
 
         var donePath = Path.Combine(ue4ssDir, DoneMarkerFileName);
-        if (TryDeleteExistingFile(donePath, log))
+        if (TryDeleteExistingFile(donePath, log, throwOnAccessError, beforeDeleteHook))
         {
             removedFiles++;
         }
@@ -423,36 +456,283 @@ internal static class Ue4ssRuntimeSupport
         var ioUe4ssDir = PathSupport.ToIoPath(ue4ssDir);
         if (Directory.Exists(ioUe4ssDir))
         {
+            string[] tmpFiles = [];
             try
             {
-                foreach (var tmpFile in Directory.EnumerateFiles(ioUe4ssDir, "*.tmp", SearchOption.TopDirectoryOnly).ToArray())
-                {
-                    if (TryDeleteExistingFile(tmpFile, log))
-                    {
-                        removedFiles++;
-                    }
-                }
+                tmpFiles = Directory.EnumerateFiles(ioUe4ssDir, "*.tmp", SearchOption.TopDirectoryOnly)
+                    .Select(Path.GetFullPath)
+                    .OrderBy(path => path, StringComparer.Ordinal)
+                    .ToArray();
+            }
+            catch (Exception exception) when (throwOnAccessError && TryClassifyAccessFailure(exception, out var reason))
+            {
+                throw new Ue4ssCleanupAccessException(ue4ssDir, reason, exception);
             }
             catch (Exception exception)
             {
                 log?.Invoke(L.Format("Ue4ss_WarnScanTmpFiles", ue4ssDir, exception.Message));
             }
+
+            foreach (var tmpFile in tmpFiles)
+            {
+                if (TryDeleteExistingFile(tmpFile, log, throwOnAccessError, beforeDeleteHook))
+                {
+                    removedFiles++;
+                }
+            }
         }
 
         if (removeEmptyParentDirs)
         {
-            if (TryDeleteEmptyDirectory(modsDir))
+            if (DeleteEmptyDirectory(modsDir, throwOnAccessError, beforeDeleteHook))
             {
                 removedDirs++;
             }
 
-            if (TryDeleteEmptyDirectory(ue4ssDir))
+            if (DeleteEmptyDirectory(ue4ssDir, throwOnAccessError, beforeDeleteHook))
             {
                 removedDirs++;
             }
         }
 
         return (removedFiles, removedDirs);
+    }
+
+    internal static bool TryClassifyAccessFailure(Exception exception, out string reason)
+    {
+        const int Win32FacilityMask = unchecked((int)0xFFFF0000);
+        const int Win32FacilityCode = unchecked((int)0x80070000);
+        const int Win32ErrorAccessDenied = 5;
+        const int Win32ErrorWriteProtect = 19;
+        const int Win32ErrorSharingViolation = 32;
+        const int Win32ErrorLockViolation = 33;
+        const int Win32ErrorUserMappedFile = 1224;
+        const int UnixErrnoTxtBsy = 26;
+
+        Exception? current = exception;
+        for (var depth = 0; depth < 8 && current is not null; depth++)
+        {
+            if (current is Ue4ssCleanupAccessException cleanupEx)
+            {
+                reason = cleanupEx.Reason;
+                return true;
+            }
+
+            if (current is UnauthorizedAccessException)
+            {
+                reason = ProgressProtocol.CleanupReasonAccessDenied;
+                return true;
+            }
+
+            if (current is IOException ioEx)
+            {
+                var hr = ioEx.HResult;
+                if ((hr & Win32FacilityMask) == Win32FacilityCode)
+                {
+                    var win32Code = hr & 0xFFFF;
+                    if (win32Code is Win32ErrorSharingViolation or Win32ErrorLockViolation or Win32ErrorUserMappedFile)
+                    {
+                        reason = ProgressProtocol.CleanupReasonInUse;
+                        return true;
+                    }
+
+                    if (win32Code is Win32ErrorAccessDenied or Win32ErrorWriteProtect)
+                    {
+                        reason = ProgressProtocol.CleanupReasonAccessDenied;
+                        return true;
+                    }
+                }
+                else if (!OperatingSystem.IsWindows() && hr == UnixErrnoTxtBsy)
+                {
+                    reason = ProgressProtocol.CleanupReasonInUse;
+                    return true;
+                }
+            }
+
+            current = current.InnerException;
+        }
+
+        reason = string.Empty;
+        return false;
+    }
+
+    internal static bool IsAccessDeniedFailure(Exception exception)
+    {
+        return TryClassifyAccessFailure(exception, out var reason)
+            && string.Equals(reason, ProgressProtocol.CleanupReasonAccessDenied, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Deletes a single existing file after clearing its ReadOnly attribute if set.
+    /// Classifies permission and sharing/lock failures into Ue4ssCleanupAccessException with the exact path.
+    /// </summary>
+    internal static bool DeleteFileClearingReadOnly(
+        string fullPath,
+        Action<string>? beforeDeleteHook = null)
+    {
+        var ioPath = PathSupport.ToIoPath(fullPath);
+        if (!File.Exists(ioPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            beforeDeleteHook?.Invoke(fullPath);
+            var attrs = File.GetAttributes(ioPath);
+            if ((attrs & FileAttributes.ReadOnly) != 0)
+            {
+                File.SetAttributes(ioPath, attrs & ~FileAttributes.ReadOnly);
+            }
+
+            File.Delete(ioPath);
+            return true;
+        }
+        catch (Exception exception) when (TryClassifyAccessFailure(exception, out var reason))
+        {
+            throw new Ue4ssCleanupAccessException(fullPath, reason, exception);
+        }
+    }
+
+    internal static bool DeleteEmptyDirectory(
+        string dirPath,
+        bool throwOnAccessError = false,
+        Action<string>? beforeDeleteHook = null)
+    {
+        var ioDir = PathSupport.ToIoPath(dirPath);
+        if (!Directory.Exists(ioDir))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (Directory.EnumerateFileSystemEntries(ioDir).Any())
+            {
+                return false;
+            }
+
+            beforeDeleteHook?.Invoke(dirPath);
+            Directory.Delete(ioDir, recursive: false);
+            return true;
+        }
+        catch (Exception exception) when (TryClassifyAccessFailure(exception, out var reason))
+        {
+            if (throwOnAccessError)
+            {
+                throw new Ue4ssCleanupAccessException(dirPath, reason, exception);
+            }
+
+            return false;
+        }
+        catch when (!throwOnAccessError)
+        {
+            // Ignore locked or non-empty directory cleanup failures when running best-effort.
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Recursively deletes a directory tree one file and subdirectory at a time, stripping the
+    /// ReadOnly attribute only on files being deleted and optionally deferring one sentinel file
+    /// (such as ue4ss/UE4SS.dll) until all sibling files and subdirectories are removed.
+    /// </summary>
+    internal static void DeleteDirectoryTreeClearingReadOnly(
+        string rootDir,
+        ref int removedFiles,
+        ref int removedDirs,
+        bool deleteRootItself = true,
+        string? deferredFileFullPath = null,
+        Action<string>? beforeDeleteHook = null)
+    {
+        var fullRoot = PathSupport.TrimTrailingSeparators(Path.GetFullPath(rootDir));
+        var normalizedDeferred = string.IsNullOrWhiteSpace(deferredFileFullPath)
+            ? null
+            : PathSupport.TrimTrailingSeparators(Path.GetFullPath(deferredFileFullPath));
+        var pathComparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        DeleteDirectoryTreeRecursive(
+            fullRoot,
+            deleteThisDirectory: deleteRootItself,
+            normalizedDeferred,
+            pathComparison,
+            ref removedFiles,
+            ref removedDirs,
+            beforeDeleteHook);
+    }
+
+    private static void DeleteDirectoryTreeRecursive(
+        string currentDir,
+        bool deleteThisDirectory,
+        string? normalizedDeferredFile,
+        StringComparison pathComparison,
+        ref int removedFiles,
+        ref int removedDirs,
+        Action<string>? beforeDeleteHook)
+    {
+        var ioDir = PathSupport.ToIoPath(currentDir);
+        if (!Directory.Exists(ioDir))
+        {
+            return;
+        }
+
+        string[] subdirs;
+        string[] files;
+        try
+        {
+            subdirs = Directory.EnumerateDirectories(ioDir, "*", SearchOption.TopDirectoryOnly)
+                .Select(path => PathSupport.TrimTrailingSeparators(Path.GetFullPath(path)))
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToArray();
+            files = Directory.EnumerateFiles(ioDir, "*", SearchOption.TopDirectoryOnly)
+                .Select(path => PathSupport.TrimTrailingSeparators(Path.GetFullPath(path)))
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToArray();
+        }
+        catch (Exception exception) when (TryClassifyAccessFailure(exception, out var reason))
+        {
+            throw new Ue4ssCleanupAccessException(currentDir, reason, exception);
+        }
+
+        foreach (var subdir in subdirs)
+        {
+            DeleteDirectoryTreeRecursive(
+                subdir,
+                deleteThisDirectory: true,
+                normalizedDeferredFile,
+                pathComparison,
+                ref removedFiles,
+                ref removedDirs,
+                beforeDeleteHook);
+        }
+
+        string? deferredMatch = null;
+        foreach (var file in files)
+        {
+            if (normalizedDeferredFile is not null
+                && string.Equals(file, normalizedDeferredFile, pathComparison))
+            {
+                deferredMatch = file;
+                continue;
+            }
+
+            if (DeleteFileClearingReadOnly(file, beforeDeleteHook))
+            {
+                removedFiles++;
+            }
+        }
+
+        if (deferredMatch is not null && DeleteFileClearingReadOnly(deferredMatch, beforeDeleteHook))
+        {
+            removedFiles++;
+        }
+
+        if (deleteThisDirectory && DeleteEmptyDirectory(currentDir, throwOnAccessError: true, beforeDeleteHook))
+        {
+            removedDirs++;
+        }
     }
 
     internal static bool TryReadMarkerHeader(string markerPath, out string? version)
@@ -520,7 +800,7 @@ internal static class Ue4ssRuntimeSupport
             {
                 try
                 {
-                    File.Delete(ioEnabled);
+                    DeleteFileClearingReadOnly(enabledTxt);
                 }
                 catch (Exception exception)
                 {
@@ -533,7 +813,9 @@ internal static class Ue4ssRuntimeSupport
             {
                 try
                 {
-                    Directory.Delete(ioModDir, recursive: true);
+                    var tmpFiles = 0;
+                    var tmpDirs = 0;
+                    DeleteDirectoryTreeClearingReadOnly(modDir, ref tmpFiles, ref tmpDirs, deleteRootItself: true);
                 }
                 catch (Exception exception)
                 {
@@ -741,43 +1023,25 @@ internal static class Ue4ssRuntimeSupport
         }
     }
 
-    private static bool TryDeleteExistingFile(string path, Action<string>? log)
+    private static bool TryDeleteExistingFile(
+        string path,
+        Action<string>? log,
+        bool throwOnAccessError = false,
+        Action<string>? beforeDeleteHook = null)
     {
         try
         {
-            var ioPath = PathSupport.ToIoPath(path);
-            if (!File.Exists(ioPath))
-            {
-                return false;
-            }
-
-            File.Delete(ioPath);
-            return true;
+            return DeleteFileClearingReadOnly(path, beforeDeleteHook);
+        }
+        catch (Ue4ssCleanupAccessException) when (throwOnAccessError)
+        {
+            throw;
         }
         catch (Exception exception)
         {
             log?.Invoke(L.Format("Ue4ss_WarnDeleteRemnantFile", path, exception.Message));
             return false;
         }
-    }
-
-    private static bool TryDeleteEmptyDirectory(string dirPath)
-    {
-        try
-        {
-            var ioDir = PathSupport.ToIoPath(dirPath);
-            if (Directory.Exists(ioDir) && !Directory.EnumerateFileSystemEntries(ioDir).Any())
-            {
-                Directory.Delete(ioDir, recursive: false);
-                return true;
-            }
-        }
-        catch
-        {
-            // Ignore locked or non-empty directory cleanup failures.
-        }
-
-        return false;
     }
 
     private static bool AllExited(Process[] processes)
@@ -804,11 +1068,7 @@ internal static class Ue4ssRuntimeSupport
     {
         try
         {
-            var ioPath = PathSupport.ToIoPath(path);
-            if (File.Exists(ioPath))
-            {
-                File.Delete(ioPath);
-            }
+            DeleteFileClearingReadOnly(path);
         }
         catch
         {
