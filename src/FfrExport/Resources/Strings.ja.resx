@@ -115,7 +115,7 @@
                                                           ゲームデータをエクスポートし ffr-db で ffr.sqlite を構築
   ffr-export fetch-usmap --game &lt;dir&gt; [--timeout &lt;sec&gt;] [--yes]
                                                           現在のゲームバージョン用の .usmap を自動取得
-  ffr-export uninstall-ue4ss --game &lt;dir&gt; [--include-foreign] [--yes]
+  ffr-export uninstall-ue4ss --game &lt;dir&gt; [--include-foreign] [--yes] [--agp-home &lt;dir&gt;] [--result-file &lt;file&gt;]
                                                           本ツールが導入した UE4SS と一時ファイルをクリーンアップ
   ffr-export list | raw | export | locres | inventory | export-assets | export-maps
                                                           段階別エクスポートおよび診断用サブコマンド
@@ -2179,5 +2179,95 @@
   </data>
   <data name="Cleanup_SecondConfirmTitle" xml:space="preserve">
     <value>再確認: 管理外 UE4SS の移動</value>
+  </data>
+  <data name="UninstallUe4ss_EmptyOptionValue" xml:space="preserve">
+    <value>オプション {0} は空にできません。</value>
+  </data>
+  <data name="Ue4ss_UninstallAccessDenied" xml:space="preserve">
+    <value>UE4SS のクリーンアップ中にアクセスが拒否されました: {0}（{1}）。以前の管理者実行で作成されたファイルの可能性があります。管理者としてクリーンアップを再試行してください。</value>
+  </data>
+  <data name="Ue4ss_UninstallAccessDeniedWithBackup" xml:space="preserve">
+    <value>バックアップは完了しました（{0}）が、元ファイルの削除時にアクセスが拒否されました: {1}（{2}）。バックアップはそのまま保持されています。管理者として再試行してください（既存バックアップを再利用し重複作成しません）。</value>
+  </data>
+  <data name="Ue4ss_UninstallFileInUse" xml:space="preserve">
+    <value>{0} は使用中のため削除できません。ゲームが完全に終了していることを確認してから再試行してください。</value>
+  </data>
+  <data name="Ue4ss_UninstallFileInUseWithBackup" xml:space="preserve">
+    <value>バックアップは完了しました（{0}）が、{1} が使用中のため削除できませんでした。ゲームが完全に終了していることを確認してから再試行してください（バックアップは保持されています）。</value>
+  </data>
+  <data name="Ue4ss_UninstallReusedExistingBackup" xml:space="preserve">
+    <value>内容が完全一致する既存バックアップ（{0}）を確認しました。重複コピーを省略し、元ファイルの削除を続行します。</value>
+  </data>
+  <data name="Ue4ss_UninstallResultFileWriteFailed" xml:space="preserve">
+    <value>警告: クリーンアップ結果ファイルの書き込みに失敗しました（{0}）: {1}</value>
+  </data>
+  <data name="FetchUsmap_GameDirAccessDenied" xml:space="preserve">
+    <value>アクセスが拒否されました: ゲームディレクトリ（{0}）は現在のユーザーから書き込めません（{1}）。先に「UE4SS をクリーンアップ…」を実行する（管理者権限での再試行に対応）か、一度だけ管理者として .usmap 取得を実行してください。</value>
+  </data>
+  <data name="Cleanup_ElevationTitle" xml:space="preserve">
+    <value>管理者権限が必要です</value>
+  </data>
+  <data name="Cleanup_ElevationHeadline" xml:space="preserve">
+    <value>UE4SS のクリーンアップ中にアクセスが拒否されました。</value>
+  </data>
+  <data name="Cleanup_ElevationPathLabel" xml:space="preserve">
+    <value>拒否されたファイルまたはフォルダ:</value>
+  </data>
+  <data name="Cleanup_ElevationExplanation" xml:space="preserve">
+    <value>以前に管理者権限で UE4SS を導入したか、ゲームフォルダの変更に管理者権限が必要な可能性が高いです。下の「管理者としてクリーンアップ」をクリックすると、このクリーンアップ手順のみ管理者権限で再試行します。</value>
+  </data>
+  <data name="Cleanup_BtnElevateRetry" xml:space="preserve">
+    <value>管理者としてクリーンアップ</value>
+  </data>
+  <data name="Gui_CleanupInUseTitle" xml:space="preserve">
+    <value>ファイルが使用中です</value>
+  </data>
+  <data name="Gui_CleanupInUseBody" xml:space="preserve">
+    <value>次のファイルが使用中のため削除できません:
+{0}
+
+ゲームが完全に終了していることを確認してから再試行してください。</value>
+  </data>
+  <data name="Gui_StatusCleaningUe4ssElevated" xml:space="preserve">
+    <value>状態: 管理者として UE4SS をクリーンアップ中...</value>
+  </data>
+  <data name="Gui_LogStartElevatedCleanup" xml:space="preserve">
+    <value>管理者として UE4SS クリーンアップを再試行します: {0} {1}</value>
+  </data>
+  <data name="Gui_CleanupUacCancelledBody" xml:space="preserve">
+    <value>キャンセルされました。変更は行われていません。</value>
+  </data>
+  <data name="Gui_CleanupUacCancelledTitle" xml:space="preserve">
+    <value>クリーンアップをキャンセルしました</value>
+  </data>
+  <data name="Gui_CleanupUacCancelledLog" xml:space="preserve">
+    <value>UAC プロンプトがキャンセルされました。変更は行われていません。</value>
+  </data>
+  <data name="Gui_CleanupElevatedResultHeader" xml:space="preserve">
+    <value>管理者クリーンアップ結果（終了コード: {0}）:</value>
+  </data>
+  <data name="Gui_CleanupElevatedSummaryCounts" xml:space="preserve">
+    <value>状態: {0} / 削除ファイル数: {1} / 削除ディレクトリ数: {2}</value>
+  </data>
+  <data name="Gui_CleanupElevatedSummaryBackup" xml:space="preserve">
+    <value>バックアップ先: {0}</value>
+  </data>
+  <data name="Gui_CleanupElevatedSummaryBlocked" xml:space="preserve">
+    <value>ブロックされたパス: {0}（理由: {1}）</value>
+  </data>
+  <data name="Gui_CleanupElevatedResultReadFailed" xml:space="preserve">
+    <value>管理者クリーンアップ結果ファイルの読み込みに失敗しました（{0}）: {1}</value>
+  </data>
+  <data name="Gui_CleanupElevatedResultMissing" xml:space="preserve">
+    <value>管理者クリーンアップは終了コード {0} で終了しましたが、結果ファイルが作成されませんでした（{1}）。</value>
+  </data>
+  <data name="Gui_CleanupElevatedStillDeniedBody" xml:space="preserve">
+    <value>管理者権限でもアクセスが拒否されました:
+{0}
+
+セキュリティソフトや他のプロセスがこのファイルを使用していないか確認してから再試行してください。</value>
+  </data>
+  <data name="Gui_CleanupElevatedLaunchFailed" xml:space="preserve">
+    <value>管理者クリーンアッププロセスの起動に失敗しました: {0}</value>
   </data>
 </root>

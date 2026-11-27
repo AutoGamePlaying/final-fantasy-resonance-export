@@ -114,7 +114,7 @@
   ffr-export build-db --game &lt;目录&gt; --usmap &lt;文件&gt; [选项]  一键导出并调用 ffr-db 建库
   ffr-export fetch-usmap --game &lt;目录&gt; [--timeout &lt;秒&gt;] [--yes]
                                                           自动获取当前游戏版本的 .usmap
-  ffr-export uninstall-ue4ss --game &lt;目录&gt; [--include-foreign] [--yes]
+  ffr-export uninstall-ue4ss --game &lt;目录&gt; [--include-foreign] [--yes] [--agp-home &lt;目录&gt;] [--result-file &lt;文件&gt;]
                                                           清理本工具安装的 UE4SS 与临时残留
   ffr-export list | raw | export | locres | inventory | export-assets | export-maps
                                                           分阶段导出与诊断子命令
@@ -2178,5 +2178,95 @@
   </data>
   <data name="Cleanup_SecondConfirmTitle" xml:space="preserve">
     <value>二次确认：移除非本工具安装的 UE4SS</value>
+  </data>
+  <data name="UninstallUe4ss_EmptyOptionValue" xml:space="preserve">
+    <value>参数 {0} 不能为空。</value>
+  </data>
+  <data name="Ue4ss_UninstallAccessDenied" xml:space="preserve">
+    <value>清理 UE4SS 时被拒绝访问：{0}（{1}）。这些文件很可能是之前以管理员身份安装的，请以管理员身份重试清理。</value>
+  </data>
+  <data name="Ue4ss_UninstallAccessDeniedWithBackup" xml:space="preserve">
+    <value>备份已成功（{0}），但删除游戏目录原文件时被拒绝访问：{1}（{2}）。备份已保留，请以管理员身份重试清理（重试会复用已有备份，不会重复复制）。</value>
+  </data>
+  <data name="Ue4ss_UninstallFileInUse" xml:space="preserve">
+    <value>无法删除 {0}，文件正被占用。请确认游戏已完全退出后重试。</value>
+  </data>
+  <data name="Ue4ss_UninstallFileInUseWithBackup" xml:space="preserve">
+    <value>备份已成功（{0}），但 {1} 正被占用导致无法删除。请确认游戏已完全退出后重试，备份已保留。</value>
+  </data>
+  <data name="Ue4ss_UninstallReusedExistingBackup" xml:space="preserve">
+    <value>核对发现已有内容完全一致的备份（{0}），跳过重复复制，继续移除原文件。</value>
+  </data>
+  <data name="Ue4ss_UninstallResultFileWriteFailed" xml:space="preserve">
+    <value>警告：写入清理结果文件失败（{0}）：{1}</value>
+  </data>
+  <data name="FetchUsmap_GameDirAccessDenied" xml:space="preserve">
+    <value>拒绝访问：游戏目录（{0}）对当前用户不可写（{1}）。建议先点击“清理 UE4SS…”（支持以管理员身份重试清理），或者以管理员身份运行一次获取。</value>
+  </data>
+  <data name="Cleanup_ElevationTitle" xml:space="preserve">
+    <value>需要管理员权限</value>
+  </data>
+  <data name="Cleanup_ElevationHeadline" xml:space="preserve">
+    <value>清理 UE4SS 时被拒绝访问。</value>
+  </data>
+  <data name="Cleanup_ElevationPathLabel" xml:space="preserve">
+    <value>被拒绝访问的文件或目录：</value>
+  </data>
+  <data name="Cleanup_ElevationExplanation" xml:space="preserve">
+    <value>原因多半是之前以管理员身份运行工具安装了 UE4SS（或游戏安装目录需要管理员权限才能修改）。点击下方“以管理员身份清理”仅对清理这一步提权重试（主程序保持普通权限运行）。</value>
+  </data>
+  <data name="Cleanup_BtnElevateRetry" xml:space="preserve">
+    <value>以管理员身份清理</value>
+  </data>
+  <data name="Gui_CleanupInUseTitle" xml:space="preserve">
+    <value>文件正被占用</value>
+  </data>
+  <data name="Gui_CleanupInUseBody" xml:space="preserve">
+    <value>以下文件正被占用，无法删除：
+{0}
+
+请确认游戏已完全退出后重试。</value>
+  </data>
+  <data name="Gui_StatusCleaningUe4ssElevated" xml:space="preserve">
+    <value>状态：正在以管理员身份清理 UE4SS…</value>
+  </data>
+  <data name="Gui_LogStartElevatedCleanup" xml:space="preserve">
+    <value>正在以管理员身份重试清理 UE4SS：{0} {1}</value>
+  </data>
+  <data name="Gui_CleanupUacCancelledBody" xml:space="preserve">
+    <value>已取消，没有做任何更改。</value>
+  </data>
+  <data name="Gui_CleanupUacCancelledTitle" xml:space="preserve">
+    <value>已取消清理</value>
+  </data>
+  <data name="Gui_CleanupUacCancelledLog" xml:space="preserve">
+    <value>用户在 UAC 提示中取消了授权；已取消，没有做任何更改。</value>
+  </data>
+  <data name="Gui_CleanupElevatedResultHeader" xml:space="preserve">
+    <value>管理员清理结果（退出码：{0}）：</value>
+  </data>
+  <data name="Gui_CleanupElevatedSummaryCounts" xml:space="preserve">
+    <value>状态：{0}；已删除 {1} 个文件、{2} 个目录。</value>
+  </data>
+  <data name="Gui_CleanupElevatedSummaryBackup" xml:space="preserve">
+    <value>备份目录：{0}</value>
+  </data>
+  <data name="Gui_CleanupElevatedSummaryBlocked" xml:space="preserve">
+    <value>被阻止的路径：{0}（原因：{1}）</value>
+  </data>
+  <data name="Gui_CleanupElevatedResultReadFailed" xml:space="preserve">
+    <value>读取管理员清理结果文件失败（{0}）：{1}</value>
+  </data>
+  <data name="Gui_CleanupElevatedResultMissing" xml:space="preserve">
+    <value>管理员清理进程已退出（退出码：{0}），但未生成结果文件（{1}）。</value>
+  </data>
+  <data name="Gui_CleanupElevatedStillDeniedBody" xml:space="preserve">
+    <value>即使以管理员身份运行仍被拒绝访问：
+{0}
+
+请检查安全软件拦截或占用该文件的进程后重试。</value>
+  </data>
+  <data name="Gui_CleanupElevatedLaunchFailed" xml:space="preserve">
+    <value>启动管理员清理进程失败：{0}</value>
   </data>
 </root>
