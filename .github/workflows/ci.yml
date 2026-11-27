@@ -144,6 +144,97 @@ jobs:
           }
           Write-Host "GUI self-test passed (icacls deny-write TEMP simulation): $guiExe --self-test"
 
+      - name: Simulate UE4SS cleanup access denied (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $cliExe = "src/FfrExport/bin/Release/net10.0/FfrExport.exe"
+          if (-not (Test-Path -LiteralPath $cliExe -PathType Leaf)) {
+            throw "Error: built CLI executable not found: $cliExe"
+          }
+          $workDir = Join-Path ([System.IO.Path]::GetTempPath()) ("ffr-ue4ss-deny-" + [System.Guid]::NewGuid().ToString("N"))
+          $gameDir = Join-Path $workDir "Game"
+          $paksDir = Join-Path $gameDir "FFRS\Content\Paks"
+          $win64Dir = Join-Path $gameDir "FFRS\Binaries\Win64"
+          $ue4ssDir = Join-Path $win64Dir "ue4ss"
+          $agpHome = Join-Path $workDir "agp-home"
+          $denyResultFile = Join-Path $workDir "deny-result.json"
+          $retryResultFile = Join-Path $workDir "retry-result.json"
+          $stdoutFile = Join-Path $workDir "stdout.log"
+          $stderrFile = Join-Path $workDir "stderr.log"
+          $aclApplied = $false
+          try {
+            New-Item -ItemType Directory -Path $paksDir, $ue4ssDir, $agpHome -Force | Out-Null
+            [System.IO.File]::WriteAllBytes((Join-Path $win64Dir "FFRS-Win64-Shipping.exe"), [byte[]](0x4D, 0x5A))
+            [System.IO.File]::WriteAllText((Join-Path $win64Dir "dwmapi.dll"), "synthetic-dwmapi")
+            [System.IO.File]::WriteAllText((Join-Path $ue4ssDir "UE4SS.dll"), "synthetic-ue4ss")
+            $markerPath = Join-Path $ue4ssDir ".installed-by-ffr-export.json"
+            $markerJson = '{"format":1,"installed_by":"ffr-export","ue4ss_version":"v4.0.0","source_url":"https://example.invalid","archive_sha256":"0000","installed_at":"2026-11-27T00:00:00Z","files":["dwmapi.dll","ue4ss/.installed-by-ffr-export.json","ue4ss/UE4SS.dll"],"directories":["ue4ss"]}'
+            [System.IO.File]::WriteAllText($markerPath, $markerJson, [System.Text.UTF8Encoding]::new($false))
+
+            & icacls $ue4ssDir /deny '*S-1-1-0:(OI)(CI)(DE,DC)' | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              throw "Error: icacls failed to apply deny-delete ACL on $ue4ssDir (exit code $LASTEXITCODE)"
+            }
+            $aclApplied = $true
+
+            $denyProc = Start-Process -FilePath $cliExe -ArgumentList @(
+              '--lang', 'en',
+              'uninstall-ue4ss',
+              '--game', $gameDir,
+              '--yes',
+              '--agp-home', $agpHome,
+              '--result-file', $denyResultFile
+            ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
+            if ($denyProc.ExitCode -ne 5) {
+              throw "Error: expected exit code 5 (needs_elevation), got $($denyProc.ExitCode)"
+            }
+            $stdoutText = Get-Content -LiteralPath $stdoutFile -Raw -Encoding UTF8
+            if (-not $stdoutText.Contains('@@ue4ss-cleanup ') -or -not $stdoutText.Contains('"status":"needs_elevation"') -or -not $stdoutText.Contains('"reason":"access_denied"')) {
+              throw "Error: stdout missing expected @@ue4ss-cleanup needs_elevation line: $stdoutText"
+            }
+            if (-not (Test-Path -LiteralPath $denyResultFile -PathType Leaf)) {
+              throw "Error: result file was not written: $denyResultFile"
+            }
+            $denyResult = Get-Content -LiteralPath $denyResultFile -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($denyResult.status -ne 'needs_elevation' -or $denyResult.exit_code -ne 5 -or $denyResult.reason -ne 'access_denied' -or [string]::IsNullOrWhiteSpace($denyResult.blocked_path)) {
+              throw "Error: unexpected deny result JSON: $(Get-Content -LiteralPath $denyResultFile -Raw -Encoding UTF8)"
+            }
+            if (-not (Test-Path -LiteralPath $markerPath -PathType Leaf)) {
+              throw "Error: install marker should remain intact after access-denied failure"
+            }
+
+            & icacls $ue4ssDir /remove:d '*S-1-1-0' | Out-Null
+            $aclApplied = $false
+
+            $retryProc = Start-Process -FilePath $cliExe -ArgumentList @(
+              '--lang', 'en',
+              'uninstall-ue4ss',
+              '--game', $gameDir,
+              '--yes',
+              '--agp-home', $agpHome,
+              '--result-file', $retryResultFile
+            ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
+            if ($retryProc.ExitCode -ne 0) {
+              throw "Error: retry uninstall-ue4ss failed with exit code $($retryProc.ExitCode)"
+            }
+            $retryResult = Get-Content -LiteralPath $retryResultFile -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($retryResult.status -ne 'completed' -or $retryResult.exit_code -ne 0) {
+              throw "Error: unexpected retry result JSON: $(Get-Content -LiteralPath $retryResultFile -Raw -Encoding UTF8)"
+            }
+            if ((Test-Path -LiteralPath $markerPath) -or (Test-Path -LiteralPath $ue4ssDir)) {
+              throw "Error: UE4SS files or directory still exist after retry cleanup"
+            }
+            Write-Host "UE4SS cleanup access-denied simulation passed (icacls deny DE/DC -> exit 5 -> retry -> exit 0)"
+          } finally {
+            if ($aclApplied -and (Test-Path -LiteralPath $ue4ssDir)) {
+              & icacls $ue4ssDir /remove:d '*S-1-1-0' 2>$null | Out-Null
+            }
+            if (Test-Path -LiteralPath $workDir) {
+              Remove-Item -LiteralPath $workDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
+
   fixture-hash:
     name: Fixture Hash (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
